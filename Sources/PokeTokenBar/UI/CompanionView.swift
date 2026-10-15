@@ -957,6 +957,7 @@ struct CollectionView: View {
     @State private var selectedRarity: Rarity?
     @State private var searchText = ""
     @State private var shinyOnly = false
+    @State private var evolutionFamily = false
     @State private var dexSort: CompanionStore.DexSortOption = .numberAsc
     @State private var logSort: CompanionStore.CatchLogSortOption = .recentFirst
 
@@ -969,6 +970,7 @@ struct CollectionView: View {
             query: searchText,
             rarity: selectedRarity,
             shinyOnly: shinyOnly,
+            evolutionFamily: evolutionFamily,
             sort: logSort
         )
     }
@@ -980,6 +982,7 @@ struct CollectionView: View {
     private func resetFilters() {
         searchText = ""
         shinyOnly = false
+        evolutionFamily = false
         selectedRarity = nil
         dexSort = .numberAsc
         logSort = .recentFirst
@@ -1012,6 +1015,7 @@ struct CollectionView: View {
                         store: store,
                         searchText: searchText,
                         shinyOnly: shinyOnly,
+                        evolutionFamily: evolutionFamily,
                         sortOption: dexSort,
                         selectedRarity: $selectedRarity,
                         onSelectSpecies: { sp in nav.dexDetailCollectionID = sp.collectionID },
@@ -1075,6 +1079,28 @@ struct CollectionView: View {
             .buttonStyle(.plain)
             .help(store.l.filterShinyOnly)
             .accessibilityLabel(store.l.filterShinyOnly)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    evolutionFamily.toggle()
+                }
+            } label: {
+                Image(systemName: "arrow.triangle.branch")
+                    .font(.system(size: 13, weight: evolutionFamily ? .bold : .regular))
+                    .foregroundStyle(evolutionFamily ? Color.teal : Color.secondary)
+                    .frame(width: 16, height: 16)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(evolutionFamily ? Color.teal.opacity(0.18) : Color(nsColor: .controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(evolutionFamily ? Color.teal.opacity(0.6) : Color.secondary.opacity(0.2), lineWidth: 0.5)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help(store.l.filterEvolutionFamily)
+            .accessibilityLabel(store.l.filterEvolutionFamily)
 
             Menu {
                 if navigation.showingCollectionLog {
@@ -1158,6 +1184,9 @@ struct CollectionView: View {
                         withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo("dexTop", anchor: .top) }
                     }
                     .onChange(of: shinyOnly) {
+                        withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo("dexTop", anchor: .top) }
+                    }
+                    .onChange(of: evolutionFamily) {
                         withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo("dexTop", anchor: .top) }
                     }
                     .onChange(of: logSort) {
@@ -1334,6 +1363,7 @@ private struct DexGridView: View {
     let store: CompanionStore
     let searchText: String
     let shinyOnly: Bool
+    let evolutionFamily: Bool
     let sortOption: CompanionStore.DexSortOption
     @Binding var selectedRarity: Rarity?
     let onSelectSpecies: (CompanionStore.DexSpecies) -> Void
@@ -1354,6 +1384,7 @@ private struct DexGridView: View {
             query: searchText,
             rarity: selectedRarity,
             shinyOnly: shinyOnly,
+            evolutionFamily: evolutionFamily,
             sort: sortOption
         )
         let pageCount = max(1, (visible.count + Self.pageSize - 1) / Self.pageSize)
@@ -1375,6 +1406,7 @@ private struct DexGridView: View {
         }
         .onChange(of: searchText) { page = 0; selectedID = nil }
         .onChange(of: shinyOnly) { page = 0; selectedID = nil }
+        .onChange(of: evolutionFamily) { page = 0; selectedID = nil }
         .onChange(of: sortOption) { page = 0; selectedID = nil }
         .onChange(of: selectedRarity) { page = 0; selectedID = nil }
         .task { await store.backfillMissingDexNames() }

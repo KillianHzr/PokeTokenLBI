@@ -468,6 +468,7 @@ final class CompanionStore {
         var form: PokemonForm? = nil
         var names: [String: String]? = nil
         var hasNormal = false
+        var baseID: Int = 0
 
         /// Species IDs remain Pokédex numbers; selection also includes the form.
         var collectionID: String {
@@ -557,6 +558,7 @@ final class CompanionStore {
     private struct DexAccumulator {
         /// 첫 발견 때 확정 — 같은 종은 항상 같은 base 라인에서 오므로 갱신할 값이 없다.
         let rarity: Rarity
+        let baseID: Int
         var names: [String: String]?
         var isShiny = false
         var hasNormal = false
@@ -591,7 +593,7 @@ final class CompanionStore {
         for entry in state.dex {
             for id in entry.chainOrder {
                 let key = DexKey(id, form: entry.form, groupForms: groupForms)
-                var a = acc[key] ?? DexAccumulator(rarity: entry.rarity)
+                var a = acc[key] ?? DexAccumulator(rarity: entry.rarity, baseID: entry.baseID)
                 if let n = entry.names?[id] { a.names = n }   // 이름 없는 구버전 항목이 덮어쓰지 않게
                 if entry.isShiny { a.isShiny = true } else { a.hasNormal = true }
                 acc[key] = a
@@ -602,7 +604,7 @@ final class CompanionStore {
             // MonState.init(from:) 의 clamp, 그리고 SaveTransfer 의 가져오기 정규화.
             for id in active.pathIDs.prefix(active.stageIndex + 1) {
                 let key = DexKey(id, form: active.form, groupForms: groupForms)
-                var a = acc[key] ?? DexAccumulator(rarity: active.rarity)
+                var a = acc[key] ?? DexAccumulator(rarity: active.rarity, baseID: active.baseID)
                 if let n = currentLine?.names[id] { a.names = n }
                 if currentIsShiny { a.isShiny = true } else { a.hasNormal = true }   // 위장 중 숨김 규칙 재사용
                 acc[key] = a
@@ -621,7 +623,8 @@ final class CompanionStore {
                 isRaising: key.speciesID == state.active?.currentID && (!groupForms || key.form == currentForm),
                 form: key.form,
                 names: a.names,
-                hasNormal: a.hasNormal)
+                hasNormal: a.hasNormal,
+                baseID: a.baseID)
         }
     }
 
@@ -643,8 +646,8 @@ final class CompanionStore {
     /// drift apart. A query matches a Pokédex number (`25` or `#25`) or part of any stored name
     /// in any language, ignoring case and diacritics ("flabebe" finds Flabébé).
     struct DexSearchMatcher: Sendable {
-        private let query: String
-        private let number: Int?
+        let query: String
+        let number: Int?
 
         /// `nil` for a blank query, which filters nothing out.
         init?(_ rawQuery: String) {
@@ -656,6 +659,10 @@ final class CompanionStore {
 
         func matches(_ species: DexSpecies) -> Bool {
             matches(ids: [species.id], names: [species.name] + (species.names.map { Array($0.values) } ?? []))
+        }
+
+        func matches(speciesID: Int, names: [String: String]? = nil) -> Bool {
+            matches(ids: [speciesID], names: names.map { Array($0.values) } ?? [])
         }
 
         /// An individual matches through any species of its chain, like its evolution line in the log row.
@@ -672,11 +679,95 @@ final class CompanionStore {
         }
     }
 
+    /// Groups related species IDs into evolution families based on entries' chainOrder,
+    /// baseIDs, active companion, and branching finals.
+    func evolutionFamilySpeciesIDs(for matcher: DexSearchMatcher) -> Set<Int> {
+        var directSpeciesIDs = Set<Int>()
+        for species in dexSpecies {
+            if matcher.matches(species) {
+                directSpeciesIDs.insert(species.id)
+            }
+        }
+        for entry in dexEntries {
+            if matcher.matches(entry) {
+                directSpeciesIDs.insert(entry.baseID)
+                directSpeciesIDs.insert(entry.finalID)
+                directSpeciesIDs.formUnion(entry.chainOrder)
+                if let names = entry.names {
+                    for (speciesID, langMap) in names {
+                        if matcher.matches(speciesID: speciesID, names: langMap) {
+                            directSpeciesIDs.insert(speciesID)
+                        }
+                    }
+                }
+            }
+        }
+        if directSpeciesIDs.isEmpty {
+            return []
+        }
+
+        var adj: [Int: Set<Int>] = [:]
+        func connect(_ a: Int, _ b: Int) {
+            adj[a, default: []].insert(b)
+            adj[b, default: []].insert(a)
+        }
+
+        for entry in dexEntries {
+            connect(entry.baseID, entry.finalID)
+            for id in entry.chainOrder {
+                connect(entry.baseID, id)
+            }
+            if let names = entry.names {
+                for id in names.keys {
+                    connect(entry.baseID, id)
+                }
+            }
+        }
+        for species in dexSpecies where species.baseID > 0 {
+            connect(species.baseID, species.id)
+        }
+        if let active = state.active {
+            for id in active.pathIDs {
+                connect(active.baseID, id)
+            }
+            if let line = currentLine {
+                for id in line.names.keys {
+                    connect(active.baseID, id)
+                }
+            }
+        }
+        for (speciesID, _) in adj {
+            if let finals = Self.branchingFinals(for: speciesID) {
+                for finalID in finals {
+                    connect(speciesID, finalID)
+                }
+            }
+        }
+
+        var familyIDs = Set<Int>()
+        var queue = Array(directSpeciesIDs)
+        var visited = directSpeciesIDs
+
+        while !queue.isEmpty {
+            let current = queue.removeFirst()
+            familyIDs.insert(current)
+            if let neighbors = adj[current] {
+                for next in neighbors where !visited.contains(next) {
+                    visited.insert(next)
+                    queue.append(next)
+                }
+            }
+        }
+
+        return familyIDs
+    }
+
     /// Filters and sorts DexSpecies for the Pokédex grid.
     func filteredDexSpecies(
         query: String = "",
         rarity: Rarity? = nil,
         shinyOnly: Bool = false,
+        evolutionFamily: Bool = false,
         sort: DexSortOption = .numberAsc
     ) -> [DexSpecies] {
         var result = dexSpecies
@@ -687,7 +778,12 @@ final class CompanionStore {
             result = result.filter { $0.isShiny }
         }
         if let matcher = DexSearchMatcher(query) {
-            result = result.filter { matcher.matches($0) }
+            if evolutionFamily {
+                let matchingFamilySpeciesIDs = evolutionFamilySpeciesIDs(for: matcher)
+                result = result.filter { matchingFamilySpeciesIDs.contains($0.id) }
+            } else {
+                result = result.filter { matcher.matches($0) }
+            }
         }
         return sortDexSpecies(result, by: sort)
     }
@@ -724,6 +820,7 @@ final class CompanionStore {
         query: String = "",
         rarity: Rarity? = nil,
         shinyOnly: Bool = false,
+        evolutionFamily: Bool = false,
         sort: CatchLogSortOption = .recentFirst
     ) -> [DexEntry] {
         var result = dexEntries
@@ -734,7 +831,16 @@ final class CompanionStore {
             result = result.filter { $0.isShiny }
         }
         if let matcher = DexSearchMatcher(query) {
-            result = result.filter { matcher.matches($0) }
+            if evolutionFamily {
+                let matchingFamilySpeciesIDs = evolutionFamilySpeciesIDs(for: matcher)
+                result = result.filter { entry in
+                    matchingFamilySpeciesIDs.contains(entry.baseID)
+                        || matchingFamilySpeciesIDs.contains(entry.finalID)
+                        || entry.chainOrder.contains(where: { matchingFamilySpeciesIDs.contains($0) })
+                }
+            } else {
+                result = result.filter { matcher.matches($0) }
+            }
         }
         return sortDexEntries(result, by: sort)
     }

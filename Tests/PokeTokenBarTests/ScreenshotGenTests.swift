@@ -306,4 +306,143 @@ final class ScreenshotGenTests: XCTestCase {
         let afterData = try captureView(makeCard(isBefore: false))
         try afterData.write(to: outDir.appendingPathComponent("after.png"))
     }
+
+    @MainActor
+    func testGenerateEvolutionFamilyScreenshots() throws {
+        guard let directory = ProcessInfo.processInfo.environment["PTB_SCREENSHOT_DIR"] else {
+            throw XCTSkip("PTB_SCREENSHOT_DIR not set")
+        }
+        let outDir = URL(fileURLWithPath: directory)
+        try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+
+        func makeCard(isBefore: Bool) -> some View {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(isBefore ? "Collection — Avant (recherche stricte)" : "Collection — Après (filtre famille d'évolution actif)")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.primary)
+
+                // Toolbar
+                HStack(spacing: 6) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13))
+                        Text("charmander")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.secondary.opacity(0.2), lineWidth: 0.5)
+                    )
+
+                    // Shiny button
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(Color.secondary)
+                        .frame(width: 16, height: 16)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(Color.secondary.opacity(0.2), lineWidth: 0.5)
+                        )
+
+                    if !isBefore {
+                        // Evolution family button (active)
+                        Image(systemName: "arrow.triangle.branch")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color.teal)
+                            .frame(width: 16, height: 16)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
+                            .background(Color.teal.opacity(0.18))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(Color.teal.opacity(0.6), lineWidth: 0.5)
+                            )
+                    }
+
+                    // Sort button
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(Color.secondary.opacity(0.2), lineWidth: 0.5)
+                        )
+                }
+
+                // Grid results
+                Text(isBefore ? "Résultats (1 Pokémon) :" : "Résultats famille d'évolution (3 Pokémon) :")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    let items: [(Int, String)] = isBefore
+                        ? [(4, "Salamèche")]
+                        : [(4, "Salamèche"), (5, "Reptincel"), (6, "Dracaufeu")]
+
+                    ForEach(items, id: \.0) { id, name in
+                        VStack(spacing: 4) {
+                            Text("#\(id)")
+                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            Text(name)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.primary)
+                        }
+                        .frame(width: 90, height: 60)
+                        .background(Color.secondary.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    Spacer()
+                }
+            }
+            .padding(14)
+            .frame(width: 360)
+            .background(Color(red: 41 / 255, green: 41 / 255, blue: 42 / 255))
+            .environment(\.colorScheme, .dark)
+        }
+
+        func captureView<V: View>(_ view: V) throws -> Data {
+            let host = NSHostingController(rootView: view)
+            host.view.setFrameSize(NSSize(width: 360, height: host.view.fittingSize.height))
+            let window = NSWindow(contentRect: host.view.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.contentView = host.view
+            host.view.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
+            let bounds = host.view.bounds
+            let rep = try XCTUnwrap(NSBitmapImageRep(
+                bitmapDataPlanes: nil,
+                pixelsWide: Int(bounds.width) * 2, pixelsHigh: Int(bounds.height) * 2,
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            rep.size = bounds.size
+            host.view.cacheDisplay(in: bounds, to: rep)
+            return try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+        }
+
+        let beforeData = try captureView(makeCard(isBefore: true))
+        try beforeData.write(to: outDir.appendingPathComponent("before.png"))
+
+        let afterData = try captureView(makeCard(isBefore: false))
+        try afterData.write(to: outDir.appendingPathComponent("after.png"))
+    }
 }
