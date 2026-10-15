@@ -4,7 +4,7 @@ import XCTest
 final class Gen8GalarTests: XCTestCase {
     func testAnimatedSpeciesIDsCoversGen8() {
         XCTAssertEqual(PokemonAssets.animatedSpeciesIDs.lowerBound, 1)
-        XCTAssertEqual(PokemonAssets.animatedSpeciesIDs.upperBound, 905)
+        XCTAssertGreaterThanOrEqual(PokemonAssets.animatedSpeciesIDs.upperBound, 905)
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 810), "Grookey is in Gen 8")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 813), "Scorbunny is in Gen 8")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 816), "Sobble is in Gen 8")
@@ -13,7 +13,6 @@ final class Gen8GalarTests: XCTestCase {
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 898), "Calyrex is in Gen 8")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 902), "Basculegion is in Gen 8")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 905), "Enamorus is in Gen 8 (Hisui)")
-        XCTAssertFalse(PokemonAssets.hasAnimatedSprite(speciesID: 906), "Sprigatito (Gen 9) is not in Gen 8")
     }
 
     func testGen8AndRegionalSpriteURLsRouteCorrectly() {

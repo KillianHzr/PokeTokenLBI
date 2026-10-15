@@ -316,6 +316,59 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
                 .init("incarnate", formID: 905),
                 .init("therian", formID: 10418, pokemonID: 10249),
             ],
+            // MARK: Gen 9 (Paldea & DLC) & Paldean Regional Forms
+            128: [
+                .init("normal", formID: 128),
+                .init("paldea-combat", formID: 10419, pokemonID: 10250),
+                .init("paldea-blaze", formID: 10420, pokemonID: 10251),
+                .init("paldea-aqua", formID: 10421, pokemonID: 10252),
+            ],
+            194: [
+                .init("normal", formID: 194),
+                .init("paldea", formID: 10422, pokemonID: 10253),
+            ],
+            931: [
+                .init("green", formID: 931),
+                .init("blue", formID: 10429, pokemonID: 10260),
+                .init("yellow", formID: 10430, pokemonID: 10261),
+                .init("white", formID: 10431, pokemonID: 10262),
+            ],
+            964: [
+                .init("zero", formID: 964),
+                .init("hero", formID: 10425, pokemonID: 10256),
+            ],
+            978: [
+                .init("curly", formID: 978),
+                .init("droopy", formID: 10427, pokemonID: 10258),
+                .init("stretchy", formID: 10428, pokemonID: 10259),
+            ],
+            982: [
+                .init("two-segment", formID: 982),
+                .init("three-segment", formID: 10424, pokemonID: 10255),
+            ],
+            999: [
+                .init("chest", formID: 999),
+                .init("roaming", formID: 10432, pokemonID: 10263),
+            ],
+            1012: [
+                .init("counterfeit", formID: 1012),
+                .init("artisan", formID: 10447),
+            ],
+            1013: [
+                .init("unremarkable", formID: 1013),
+                .init("masterpiece", formID: 10448),
+            ],
+            1017: [
+                .init("teal", formID: 1017),
+                .init("wellspring", formID: 10442, pokemonID: 10273),
+                .init("hearthflame", formID: 10443, pokemonID: 10274),
+                .init("cornerstone", formID: 10444, pokemonID: 10275),
+            ],
+            1024: [
+                .init("normal", formID: 1024),
+                .init("terastal", formID: 10445, pokemonID: 10276),
+                .init("stellar", formID: 10446, pokemonID: 10277),
+            ],
         ]
     }()
 
