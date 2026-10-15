@@ -349,9 +349,21 @@ struct EvoNode: Codable, Sendable {
     }
 }
 
+struct BranchEvolutionItem: Equatable, Sendable, Identifiable {
+    var id: Int { speciesID }
+    let speciesID: Int
+    let isCollected: Bool
+
+    init(speciesID: Int, isCollected: Bool) {
+        self.speciesID = speciesID
+        self.isCollected = isCollected
+    }
+}
+
 enum EvoLineItemContent: Equatable, Sendable {
     case species(Int)
     case mystery
+    case branch([BranchEvolutionItem])
 }
 
 enum EvoLineItemState: Equatable, Sendable {

@@ -275,8 +275,7 @@ final class CompanionStore {
     var tokensToNext: Int { guard let a = state.active else { return 0 }; return max(0, threshold - a.usedAtStage) }
 
     /// 진화 라인 표시용: 실현된 경로 + 다음 단계 미리보기.
-    /// 유일하게 이어지는 단계 뒤에 분기가 있으면, 그 확정 접두어와 하나의 미지 항목을 함께 보여 준다.
-    /// 분기 후보는 부화 시 계획됐더라도 실제 진화 전까지 하나의 미지 항목으로 숨긴다.
+    /// 분기 후보가 있는 경우 각 후보(이미 수집된 것은 스프라이트, 미수집은 실루엣/음영)를 모두 표시한다.
     var lineNodes: [EvoLineItem] {
         guard let a = state.active, let line = currentLine else { return [] }
         var out = Self.realizedLineItems(pathIDs: a.pathIDs, stageIndex: a.stageIndex)
@@ -290,7 +289,13 @@ final class CompanionStore {
 
             if node.children.count > 1 {
                 out += guaranteedPrefix.map { EvoLineItem(.species($0.speciesID), .future) }
-                out.append(EvoLineItem(.mystery, .future))
+                let branchItems = node.children.map { ch in
+                    BranchEvolutionItem(
+                        speciesID: ch.speciesID,
+                        isCollected: isEvolutionCollected(speciesID: ch.speciesID, baseID: a.baseID)
+                    )
+                }
+                out.append(EvoLineItem(.branch(branchItems), .future))
             } else {
                 out += guaranteedPrefix.map { EvoLineItem(.species($0.speciesID), .future) }
             }
@@ -1005,11 +1010,27 @@ final class CompanionStore {
         save()
     }
 
-    private func pickPlannedChild(_ node: EvoNode, baseID: Int) -> EvoNode {
-        let fresh = node.children.filter { ch in
-            ch.finalIDs.contains { !state.collectedFinals.contains("\(baseID):\($0)") }
+    /// 특정 진화 종이 이미 도감(dex), 졸업(collectedFinals), 또는 활성 개체에 등록되어 있는지 여부.
+    func isEvolutionCollected(speciesID: Int, baseID: Int) -> Bool {
+        if state.collectedFinals.contains("\(baseID):\(speciesID)") { return true }
+        if state.dex.contains(where: { $0.finalID == speciesID || $0.chainOrder.contains(speciesID) }) { return true }
+        if state.active?.pathIDs.contains(speciesID) == true { return true }
+        return false
+    }
+
+    /// 분기 노드의 모든 최종체가 이미 수집되었는지 여부. (단일 진화 종인 경우 해당 종 자체의 수집 여부)
+    func isBranchNodeCollected(_ node: EvoNode, baseID: Int) -> Bool {
+        if node.children.isEmpty {
+            return isEvolutionCollected(speciesID: node.speciesID, baseID: baseID)
         }
-        let pool = fresh.isEmpty ? node.children : fresh
+        return node.finalIDs.allSatisfy { isEvolutionCollected(speciesID: $0, baseID: baseID) }
+    }
+
+    /// 분기 진화 anti-duplicate: 미수집 분기가 있으면 이미 획득한 진화는 배제하고 미수집 분기 중에서만 추첨.
+    /// 모든 분기를 전부 획득한 경우에만 전체 풀에서 무작위 선택.
+    private func pickPlannedChild(_ node: EvoNode, baseID: Int) -> EvoNode {
+        let uncollected = node.children.filter { !isBranchNodeCollected($0, baseID: baseID) }
+        let pool = uncollected.isEmpty ? node.children : uncollected
         return pool[Int(rng.next() % UInt64(pool.count))]
     }
 

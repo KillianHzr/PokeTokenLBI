@@ -204,4 +204,82 @@ final class ScreenshotGenTests: XCTestCase {
             Text(TokenFormatter.cost(cost)).font(.caption).foregroundStyle(.secondary)
         }
     }
+
+    @MainActor
+    func testGenerateBranchingEvolutionScreenshots() throws {
+        guard let directory = ProcessInfo.processInfo.environment["PTB_BRANCHING_SCREENSHOT_DIR"] else {
+            return
+        }
+        let dirURL = URL(fileURLWithPath: directory)
+        try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
+
+        let beforeNodes: [EvoLineItem] = [
+            EvoLineItem(.species(265), .current),
+            EvoLineItem(.mystery, .future),
+        ]
+        let beforeContent = VStack(alignment: .leading, spacing: 10) {
+            Text("Wurmple (Before)").font(.headline).foregroundStyle(.primary)
+            EvoLineView(
+                nodes: beforeNodes,
+                mysteryLabel: "Unknown evolution",
+                thumb: 48,
+                names: [265: "Wurmple"],
+                maxWidth: PopoverMetrics.contentWidth
+            )
+        }
+        .padding(16)
+        .frame(width: PopoverMetrics.width, alignment: .leading)
+        .background(Color(red: 41 / 255, green: 41 / 255, blue: 42 / 255))
+        .environment(\.colorScheme, .dark)
+
+        let beforeData = try renderView(beforeContent)
+        try beforeData.write(to: dirURL.appendingPathComponent("before.png"))
+
+        let afterNodes: [EvoLineItem] = [
+            EvoLineItem(.species(265), .current),
+            EvoLineItem(.branch([
+                BranchEvolutionItem(speciesID: 266, isCollected: true),
+                BranchEvolutionItem(speciesID: 268, isCollected: false),
+            ]), .future),
+        ]
+        let afterContent = VStack(alignment: .leading, spacing: 10) {
+            Text("Wurmple (After)").font(.headline).foregroundStyle(.primary)
+            EvoLineView(
+                nodes: afterNodes,
+                mysteryLabel: "Unknown evolution",
+                thumb: 48,
+                names: [265: "Wurmple", 266: "Silcoon", 268: "Cascoon"],
+                maxWidth: PopoverMetrics.contentWidth
+            )
+        }
+        .padding(16)
+        .frame(width: PopoverMetrics.width, alignment: .leading)
+        .background(Color(red: 41 / 255, green: 41 / 255, blue: 42 / 255))
+        .environment(\.colorScheme, .dark)
+
+        let afterData = try renderView(afterContent)
+        try afterData.write(to: dirURL.appendingPathComponent("after.png"))
+    }
+
+    @MainActor
+    private func renderView(_ content: some View) throws -> Data {
+        let host = NSHostingController(rootView: content)
+        host.view.setFrameSize(NSSize(width: PopoverMetrics.width, height: host.view.fittingSize.height))
+        let window = NSWindow(contentRect: host.view.frame, styleMask: [.borderless],
+                              backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = host.view
+        host.view.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+
+        let bounds = host.view.bounds
+        let rep = try XCTUnwrap(NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(bounds.width) * 2, pixelsHigh: Int(bounds.height) * 2,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        rep.size = bounds.size
+        host.view.cacheDisplay(in: bounds, to: rep)
+        return try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+    }
 }
