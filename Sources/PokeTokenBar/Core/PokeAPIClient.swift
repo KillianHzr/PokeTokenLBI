@@ -66,7 +66,7 @@ actor PokeAPIClient: PokeProviding, PokemonDetailProviding {
                 abilities: dto.abilities.map {
                     PokemonAbilityOption(name: $0.ability.name, slot: $0.slot, isHidden: $0.is_hidden)
                 }.sorted { $0.slot < $1.slot },
-                moves: Self.normalizedMoves(dto.moves))
+                moves: Self.normalizedMoves(dto.moves, for: speciesID))
             detailsCache[speciesID] = details
             if let data = try? JSONEncoder().encode(DetailSnapshot(fetchedAt: Date(), details: details)) {
                 try? data.write(to: file, options: .atomic)
@@ -83,10 +83,14 @@ actor PokeAPIClient: PokeProviding, PokemonDetailProviding {
 
     /// Reduce PokéAPI's cross-generation move history at the trust boundary, before it reaches
     /// either memory or disk. Moves absent from the supported version group are omitted entirely.
-    static func normalizedMoves(_ moves: [PokemonMoveDTO]) -> [PokemonMoveOption] {
-        moves.compactMap { move in
+    static func normalizedMoves(_ moves: [PokemonMoveDTO], for speciesID: Int? = nil) -> [PokemonMoveOption] {
+        let targets = speciesID.map(PokemonDetails.preferredVersionGroups(for:)) ?? [PokemonDetails.preferredVersionGroup]
+        let chosenGroup = targets.first { target in
+            moves.contains { move in move.version_group_details.contains { $0.version_group.name == target } }
+        } ?? targets[0]
+        return moves.compactMap { move in
             let methods = move.version_group_details.compactMap { row -> PokemonMoveLearnMethod? in
-                guard row.version_group.name == PokemonDetails.preferredVersionGroup else { return nil }
+                guard row.version_group.name == chosenGroup else { return nil }
                 return PokemonMoveLearnMethod(method: row.move_learn_method.name,
                                               level: row.level_learned_at)
             }

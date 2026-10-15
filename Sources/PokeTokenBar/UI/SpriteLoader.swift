@@ -24,15 +24,22 @@ actor SpriteStore {
         "\(PokemonForm.assetName(speciesID: speciesID, form: form))-\(shiny ? "sh" : "")\(animated ? "a" : "s")"
     }
 
-    /// PokeAPI names form GIFs `201-b`/`492-sky`; static PNGs of separate varieties use the variety
-    /// id (`10006.png`). Cache files keep the `<id>-<form>` name either way.
+    /// PokeAPI names Gen 1-5 form GIFs `201-b`/`492-sky`; Gen 6+ animated GIFs live in `other/showdown/`.
+    /// Static PNGs of separate varieties use the variety id (`10006.png`). Cache files keep the `<id>-<form>` name either way.
     static func spriteURL(speciesID: Int, animated: Bool, shiny: Bool, form: PokemonForm? = nil) -> URL {
-        let name = animated ? PokemonForm.assetName(speciesID: speciesID, form: form)
-                            : PokemonForm.staticAssetName(speciesID: speciesID, form: form)
-        let path = animated ? "versions/generation-v/black-white/animated/" : ""
         let color = shiny ? "shiny/" : ""
-        let ext = animated ? "gif" : "png"
-        return URL(string: "\(base)/\(path)\(color)\(name).\(ext)")!
+        if animated {
+            if speciesID <= 649 {
+                let name = PokemonForm.assetName(speciesID: speciesID, form: form)
+                return URL(string: "\(base)/versions/generation-v/black-white/animated/\(color)\(name).gif")!
+            } else {
+                let name = PokemonForm.staticAssetName(speciesID: speciesID, form: form)
+                return URL(string: "\(base)/other/showdown/\(color)\(name).gif")!
+            }
+        } else {
+            let name = PokemonForm.staticAssetName(speciesID: speciesID, form: form)
+            return URL(string: "\(base)/\(color)\(name).png")!
+        }
     }
 
     func data(speciesID: Int, animated: Bool, shiny: Bool = false, form: PokemonForm? = nil) async -> Data? {

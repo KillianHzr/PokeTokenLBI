@@ -9,9 +9,10 @@ build/
 # OMC / agent local state
 .omc/
 
-# macOS
+# macOS & IDEs
 .DS_Store
 *.xcuserstate
+.idea/
 
 # Signing material — never commit private keys / certs
 *.p12

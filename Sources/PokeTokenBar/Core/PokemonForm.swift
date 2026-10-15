@@ -85,12 +85,96 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
             648: [.init("aria", formID: 648), .init("pirouette", formID: 10074, pokemonID: 10018)],
             649: [.init("normal", formID: 649), .init("douse", formID: 10075), .init("shock", formID: 10076),
                   .init("burn", formID: 10077), .init("chill", formID: 10078)],
+            // MARK: Gen 6 (Kalos)
+            666: [
+                .init("meadow", formID: 666),
+                .init("icy-snow", formID: 10086, pokemonID: 10086),
+                .init("polar", formID: 10087, pokemonID: 10087),
+                .init("tundra", formID: 10088, pokemonID: 10088),
+                .init("continental", formID: 10089, pokemonID: 10089),
+                .init("garden", formID: 10090, pokemonID: 10090),
+                .init("elegant", formID: 10091, pokemonID: 10091),
+                .init("modern", formID: 10092, pokemonID: 10092),
+                .init("marine", formID: 10093, pokemonID: 10093),
+                .init("archipelago", formID: 10094, pokemonID: 10094),
+                .init("high-plains", formID: 10095, pokemonID: 10095),
+                .init("sandstorm", formID: 10096, pokemonID: 10096),
+                .init("river", formID: 10097, pokemonID: 10097),
+                .init("monsoon", formID: 10098, pokemonID: 10098),
+                .init("savanna", formID: 10099, pokemonID: 10099),
+                .init("sun", formID: 10100, pokemonID: 10100),
+                .init("ocean", formID: 10101, pokemonID: 10101),
+                .init("jungle", formID: 10102, pokemonID: 10102),
+                .init("fancy", formID: 10161, pokemonID: 10161),
+                .init("poke-ball", formID: 10162, pokemonID: 10162),
+            ],
+            669: [
+                .init("red", formID: 669),
+                .init("yellow", formID: 10103, pokemonID: 10103),
+                .init("orange", formID: 10104, pokemonID: 10104),
+                .init("blue", formID: 10105, pokemonID: 10105),
+                .init("white", formID: 10106, pokemonID: 10106),
+            ],
+            670: [
+                .init("red", formID: 670),
+                .init("yellow", formID: 10107, pokemonID: 10107),
+                .init("orange", formID: 10108, pokemonID: 10108),
+                .init("blue", formID: 10109, pokemonID: 10109),
+                .init("white", formID: 10110, pokemonID: 10110),
+            ],
+            671: [
+                .init("red", formID: 671),
+                .init("yellow", formID: 10111, pokemonID: 10111),
+                .init("orange", formID: 10112, pokemonID: 10112),
+                .init("blue", formID: 10113, pokemonID: 10113),
+                .init("white", formID: 10114, pokemonID: 10114),
+            ],
+            676: [
+                .init("natural", formID: 676),
+                .init("heart", formID: 10115, pokemonID: 10115),
+                .init("star", formID: 10116, pokemonID: 10116),
+                .init("diamond", formID: 10117, pokemonID: 10117),
+                .init("debutante", formID: 10118, pokemonID: 10118),
+                .init("matron", formID: 10119, pokemonID: 10119),
+                .init("dandy", formID: 10120, pokemonID: 10120),
+                .init("la-reine", formID: 10121, pokemonID: 10121),
+                .init("kabuki", formID: 10122, pokemonID: 10122),
+                .init("pharaoh", formID: 10123, pokemonID: 10123),
+            ],
+            678: [
+                .init("male", formID: 678),
+                .init("female", formID: 10124, pokemonID: 10025),
+            ],
+            681: [
+                .init("shield", formID: 681),
+                .init("blade", formID: 10125, pokemonID: 10026),
+            ],
+            710: [
+                .init("average", formID: 710),
+                .init("small", formID: 10126, pokemonID: 10027),
+                .init("large", formID: 10127, pokemonID: 10028),
+                .init("super", formID: 10128, pokemonID: 10029),
+            ],
+            711: [
+                .init("average", formID: 711),
+                .init("small", formID: 10129, pokemonID: 10030),
+                .init("large", formID: 10130, pokemonID: 10031),
+                .init("super", formID: 10131, pokemonID: 10032),
+            ],
+            718: [
+                .init("50", formID: 718),
+                .init("10", formID: 10340, pokemonID: 10181),
+                .init("complete", formID: 10222, pokemonID: 10120),
+            ],
         ]
     }()
 
     /// Catalogued species whose line starts elsewhere. The individual's form is chosen at hatch,
     /// so Cherubi and Darumaka eggs already know which Cherrim or Darmanitan they will become.
-    private static let lineBaseIDs: [Int: Int] = [413: 412, 421: 420, 423: 422, 555: 554, 586: 585]
+    private static let lineBaseIDs: [Int: Int] = [
+        413: 412, 421: 420, 423: 422, 555: 554, 586: 585,
+        670: 669, 671: 669, 711: 710,
+    ]
 
     static func entries(speciesID: Int) -> [Entry] { catalog[speciesID] ?? [] }
 
