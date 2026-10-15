@@ -316,9 +316,9 @@ struct CandyGrant: Equatable, Sendable {
 }
 
 /// 현재 서비스가 제공하는 움직이는 포켓몬 스프라이트 범위.
-/// 1~5세대는 Gen-V animated 에셋(#1...649), 6세대(Kalos)는 Showdown animated 에셋(#650...721)을 사용한다.
+/// 1~5세대는 Gen-V animated 에셋(#1...649), 6~7세대는 Showdown animated 에셋(#650...809)을 사용한다.
 enum PokemonAssets {
-    static let animatedSpeciesIDs = 1...721
+    static let animatedSpeciesIDs = 1...809
 
     static func hasAnimatedSprite(speciesID: Int) -> Bool {
         animatedSpeciesIDs.contains(speciesID)

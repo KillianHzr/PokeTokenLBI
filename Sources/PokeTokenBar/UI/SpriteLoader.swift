@@ -28,8 +28,12 @@ actor SpriteStore {
     /// Static PNGs of separate varieties use the variety id (`10006.png`). Cache files keep the `<id>-<form>` name either way.
     static func spriteURL(speciesID: Int, animated: Bool, shiny: Bool, form: PokemonForm? = nil) -> URL {
         let color = shiny ? "shiny/" : ""
+        let isRegional = form?.rawValue.contains("alola") == true
+                      || form?.rawValue.contains("galar") == true
+                      || form?.rawValue.contains("hisui") == true
+                      || form?.rawValue.contains("paldea") == true
         if animated {
-            if speciesID <= 649 {
+            if speciesID <= 649, !isRegional {
                 let name = PokemonForm.assetName(speciesID: speciesID, form: form)
                 return URL(string: "\(base)/versions/generation-v/black-white/animated/\(color)\(name).gif")!
             } else {

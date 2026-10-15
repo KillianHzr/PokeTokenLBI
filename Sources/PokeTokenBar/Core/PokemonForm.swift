@@ -166,6 +166,72 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
                 .init("10", formID: 10340, pokemonID: 10181),
                 .init("complete", formID: 10222, pokemonID: 10120),
             ],
+            // MARK: Gen 7 (Alola) & Alolan Regional Forms
+            19: [.init("normal", formID: 19), .init("alola", formID: 10193, pokemonID: 10091)],
+            20: [.init("normal", formID: 20), .init("alola", formID: 10194, pokemonID: 10092)],
+            26: [.init("normal", formID: 26), .init("alola", formID: 10202, pokemonID: 10100)],
+            27: [.init("normal", formID: 27), .init("alola", formID: 10203, pokemonID: 10101)],
+            28: [.init("normal", formID: 28), .init("alola", formID: 10204, pokemonID: 10102)],
+            37: [.init("normal", formID: 37), .init("alola", formID: 10205, pokemonID: 10103)],
+            38: [.init("normal", formID: 38), .init("alola", formID: 10206, pokemonID: 10104)],
+            50: [.init("normal", formID: 50), .init("alola", formID: 10207, pokemonID: 10105)],
+            51: [.init("normal", formID: 51), .init("alola", formID: 10208, pokemonID: 10106)],
+            52: [.init("normal", formID: 52), .init("alola", formID: 10209, pokemonID: 10107)],
+            53: [.init("normal", formID: 53), .init("alola", formID: 10210, pokemonID: 10108)],
+            74: [.init("normal", formID: 74), .init("alola", formID: 10211, pokemonID: 10109)],
+            75: [.init("normal", formID: 75), .init("alola", formID: 10212, pokemonID: 10110)],
+            76: [.init("normal", formID: 76), .init("alola", formID: 10213, pokemonID: 10111)],
+            88: [.init("normal", formID: 88), .init("alola", formID: 10214, pokemonID: 10112)],
+            89: [.init("normal", formID: 89), .init("alola", formID: 10215, pokemonID: 10113)],
+            103: [.init("normal", formID: 103), .init("alola", formID: 10216, pokemonID: 10114)],
+            105: [.init("normal", formID: 105), .init("alola", formID: 10217, pokemonID: 10115)],
+            741: [
+                .init("baile", formID: 741),
+                .init("pom-pom", formID: 10225, pokemonID: 10123),
+                .init("pau", formID: 10226, pokemonID: 10124),
+                .init("sensu", formID: 10227, pokemonID: 10125),
+            ],
+            745: [
+                .init("midday", formID: 745),
+                .init("midnight", formID: 10228, pokemonID: 10126),
+                .init("dusk", formID: 10311, pokemonID: 10152),
+            ],
+            746: [
+                .init("solo", formID: 746),
+                .init("school", formID: 10229, pokemonID: 10127),
+            ],
+            773: [
+                .init("normal", formID: 773), .init("fighting", formID: 10232), .init("flying", formID: 10233),
+                .init("poison", formID: 10234), .init("ground", formID: 10235), .init("rock", formID: 10236),
+                .init("bug", formID: 10237), .init("ghost", formID: 10238), .init("steel", formID: 10239),
+                .init("fire", formID: 10240), .init("water", formID: 10241), .init("grass", formID: 10242),
+                .init("electric", formID: 10243), .init("psychic", formID: 10244), .init("ice", formID: 10245),
+                .init("dragon", formID: 10246), .init("dark", formID: 10247), .init("fairy", formID: 10248),
+            ],
+            774: [
+                .init("meteor", formID: 774),
+                .init("red", formID: 10255, pokemonID: 10136),
+                .init("orange", formID: 10256, pokemonID: 10137),
+                .init("yellow", formID: 10257, pokemonID: 10138),
+                .init("green", formID: 10258, pokemonID: 10139),
+                .init("blue", formID: 10259, pokemonID: 10140),
+                .init("indigo", formID: 10260, pokemonID: 10141),
+                .init("violet", formID: 10261, pokemonID: 10142),
+            ],
+            778: [
+                .init("disguised", formID: 778),
+                .init("busted", formID: 10262, pokemonID: 10143),
+            ],
+            800: [
+                .init("normal", formID: 800),
+                .init("dusk", formID: 10314, pokemonID: 10155),
+                .init("dawn", formID: 10315, pokemonID: 10156),
+                .init("ultra", formID: 10316, pokemonID: 10157),
+            ],
+            801: [
+                .init("normal", formID: 801),
+                .init("original", formID: 10266, pokemonID: 10147),
+            ],
         ]
     }()
 
@@ -174,6 +240,7 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
     private static let lineBaseIDs: [Int: Int] = [
         413: 412, 421: 420, 423: 422, 555: 554, 586: 585,
         670: 669, 671: 669, 711: 710,
+        20: 19, 26: 25, 28: 27, 38: 37, 51: 50, 53: 52, 75: 74, 76: 74, 89: 88, 103: 102, 105: 104,
     ]
 
     static func entries(speciesID: Int) -> [Entry] { catalog[speciesID] ?? [] }
