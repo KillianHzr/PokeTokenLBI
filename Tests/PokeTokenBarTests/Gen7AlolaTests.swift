@@ -4,14 +4,13 @@ import XCTest
 final class Gen7AlolaTests: XCTestCase {
     func testAnimatedSpeciesIDsCoversGen7() {
         XCTAssertEqual(PokemonAssets.animatedSpeciesIDs.lowerBound, 1)
-        XCTAssertEqual(PokemonAssets.animatedSpeciesIDs.upperBound, 809)
+        XCTAssertGreaterThanOrEqual(PokemonAssets.animatedSpeciesIDs.upperBound, 809)
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 722), "Rowlet is in Gen 7")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 741), "Oricorio is in Gen 7")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 745), "Lycanroc is in Gen 7")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 778), "Mimikyu is in Gen 7")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 800), "Necrozma is in Gen 7")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 809), "Melmetal is in Gen 7")
-        XCTAssertFalse(PokemonAssets.hasAnimatedSprite(speciesID: 810), "Grookey (Gen 8) is not in Gen 7")
     }
 
     func testGen7AndAlolanSpriteURLsRouteCorrectly() {

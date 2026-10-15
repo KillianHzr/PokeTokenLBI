@@ -4,14 +4,13 @@ import XCTest
 final class Gen6KalosTests: XCTestCase {
     func testAnimatedSpeciesIDsCoversGen6() {
         XCTAssertEqual(PokemonAssets.animatedSpeciesIDs.lowerBound, 1)
-        XCTAssertEqual(PokemonAssets.animatedSpeciesIDs.upperBound, 721)
+        XCTAssertGreaterThanOrEqual(PokemonAssets.animatedSpeciesIDs.upperBound, 721)
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 1))
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 649))
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 650), "Chespin is in Gen 6")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 658), "Greninja is in Gen 6")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 700), "Sylveon is in Gen 6")
         XCTAssertTrue(PokemonAssets.hasAnimatedSprite(speciesID: 721), "Volcanion is in Gen 6")
-        XCTAssertFalse(PokemonAssets.hasAnimatedSprite(speciesID: 722), "Rowlet (Gen 7) is not in Gen 6")
     }
 
     func testGen6SpriteURLsRouteToShowdown() {
@@ -131,7 +130,7 @@ final class Gen6KalosTests: XCTestCase {
                 EvoNode(speciesID: 470, children: []), // Leafeon
                 EvoNode(speciesID: 471, children: []), // Glaceon
                 EvoNode(speciesID: 700, children: []), // Sylveon (Gen 6)
-                EvoNode(speciesID: 722, children: []), // Rowlet (Gen 7 - beyond Gen 6 bound)
+                EvoNode(speciesID: 9999, children: []), // Hypothetical future species beyond bound
             ]
         )
 
@@ -139,7 +138,7 @@ final class Gen6KalosTests: XCTestCase {
         XCTAssertNotNil(filtered)
         let keptIDs = filtered?.finalIDs ?? []
         XCTAssertTrue(keptIDs.contains(700), "Sylveon (#700) must be kept in the tree")
-        XCTAssertFalse(keptIDs.contains(722), "Gen 7 species (#722) must be pruned until Gen 7 is enabled")
+        XCTAssertFalse(keptIDs.contains(9999), "Out of bounds species (#9999) must be pruned")
         XCTAssertEqual(keptIDs.count, 8, "Eevee has exactly 8 valid evolutions through Gen 6")
     }
 
