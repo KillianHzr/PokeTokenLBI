@@ -142,6 +142,45 @@ final class EvolutionTrackTests: XCTestCase {
         XCTAssertLessThan(measured.size.height, EvolutionTrackView.stopSize + 30, "one line for Eevee's eight")
     }
 
+    /// A branch of two ways (Raichu, Alolan Raichu) took the eight ways' width and left it empty: the track stopped
+    /// short of the card's edge. It reaches it, the stretches taking the rest.
+    func testANarrowBranchLetsTheTrackReachItsEdge() async throws {
+        let width: CGFloat = 300
+        let stops: [CompanionStore.EvolutionTrackStop] = [
+            .reached(172, isCurrent: false), .reached(25, isCurrent: true),
+            .branch([[item(26, false)], [BranchEvolutionItem(speciesID: 26, isCollected: false, form: PokemonForm("alola"))]]),
+        ]
+        let view = EvolutionTrackView(stops: stops, progress: 0.5, tint: .gray, remaining: "1M", amount: "1M", detail: "",
+                                      l: L(.en))
+            .frame(width: width, alignment: .leading).background(Color.white)
+        let host = NSHostingView(rootView: view)
+        host.frame = NSRect(x: 0, y: 0, width: width, height: 80)
+        let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: width, height: 80),
+                              styleMask: .borderless, backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.close() }
+        try await Task.sleep(for: .milliseconds(300))
+        host.layoutSubtreeIfNeeded()
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(width * 2), pixelsHigh: 160,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0))
+        bitmap.size = host.bounds.size
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        // The rightmost drawn pixel of the stops' row (the last way's sprite, or its 🥚 while it loads).
+        var rightmost = 0
+        for y in 0..<Int(EvolutionTrackView.stopSize * 2) {
+            for x in 0..<bitmap.pixelsWide {
+                guard let c = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
+                      min(c.redComponent, c.greenComponent, c.blueComponent) < 0.8 else { continue }
+                rightmost = max(rightmost, x)
+            }
+        }
+        XCTAssertGreaterThan(CGFloat(rightmost) / 2, width - 24, "the track reaches the edge (it ended at \(rightmost / 2))")
+    }
+
     func testNoTrackForTheEgg() throws {
         let suite = "TrackEgg-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

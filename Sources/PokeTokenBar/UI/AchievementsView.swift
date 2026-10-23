@@ -80,10 +80,11 @@ struct AchievementsView: View {
         .frame(height: 520)
     }
 
-    /// Progress of the section on screen ("1 of 10 completed").
+    /// Progress of the section on screen ("1 of 10 completed"), and what counts: graduated Pokémon, not the one
+    /// being raised nor those sent off, which stay in the Pokédex.
     private func categoryProgress(_ l: L) -> some View {
         let tally = store.achievementTally(in: selectedCategory.collectorGroup)
-        return Text(l.achievementsProgress(tally.claimed, tally.total))
+        return Text("\(l.achievementsProgress(tally.claimed, tally.total)) · \(l.achievementsGraduatedOnly)")
             .font(.caption2)
             .foregroundStyle(.secondary)
             .monospacedDigit()
@@ -169,11 +170,11 @@ private struct AchievementCard: View {
     }
 
     private var canClaim: Bool {
-        if kind.badgeType != nil { return readyTiers > 0 }
+        if kind.isRegional { return readyTiers > 0 }
         return !isClaimed && store.isUnlocked(kind)
     }
 
-    private var readyTiers: Int { store.badgeTiers(kind).filter(\.isReady).count }
+    private var readyTiers: Int { store.regionTiers(kind).filter(\.isReady).count }
 
     var body: some View {
         let l = store.l
@@ -216,8 +217,8 @@ private struct AchievementCard: View {
                 }
             }
 
-            if kind.badgeType != nil {
-                BadgeRegionGrid(store: store, kind: kind)
+            if kind.isRegional {
+                RegionGrid(store: store, kind: kind)
             } else {
                 UnlockRequirementView(store: store, kind: kind, compact: isClaimed)
             }
@@ -242,10 +243,10 @@ private struct AchievementCard: View {
                 store.claimAchievement(kind)
             }
             .buttonStyle(.pill(prominent: true))
-        } else if let type = kind.badgeType {
-            // A badge is never locked as a whole: show how many of its regions are claimed.
-            Label("\(store.claimedBadgeTierCount(type))/\(PokemonTypeData.badgeGenerations(for: type).count)",
-                  systemImage: "map")
+        } else if kind.isRegional {
+            // A regional achievement is never locked as a whole: show how many of its regions are claimed.
+            let tiers = store.regionTiers(kind)
+            Label("\(tiers.filter(\.isClaimed).count)/\(tiers.count)", systemImage: "map")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -257,17 +258,17 @@ private struct AchievementCard: View {
     }
 }
 
-/// The regions of a gym badge: claimed ones checked, complete ones ready to claim, the others with their
-/// progress. Each region is the badge type's Pokémon from one generation.
+/// The regions of a regional achievement: claimed ones checked, complete ones ready to claim, the others with their
+/// progress. Each region is one generation: a badge type's Pokémon from it, or all of its species.
 @MainActor
-private struct BadgeRegionGrid: View {
+private struct RegionGrid: View {
     let store: CompanionStore
     let kind: ItemKind
 
     var body: some View {
         let l = store.l
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3), alignment: .leading, spacing: 4) {
-            ForEach(store.badgeTiers(kind), id: \.generation) { tier in
+            ForEach(store.regionTiers(kind), id: \.generation) { tier in
                 HStack(spacing: 3) {
                     Text(l.regionName(generation: tier.generation))
                         .font(.caption2.weight(.semibold))
@@ -285,7 +286,7 @@ private struct BadgeRegionGrid: View {
     }
 
     @ViewBuilder
-    private func status(_ tier: CompanionStore.BadgeTier) -> some View {
+    private func status(_ tier: CompanionStore.RegionTier) -> some View {
         if tier.isClaimed {
             Image(systemName: "checkmark").font(.caption2.weight(.bold)).foregroundStyle(.green)
         } else if tier.isReady {
@@ -296,7 +297,7 @@ private struct BadgeRegionGrid: View {
         }
     }
 
-    private func background(_ tier: CompanionStore.BadgeTier) -> Color {
+    private func background(_ tier: CompanionStore.RegionTier) -> Color {
         if tier.isClaimed { return .green.opacity(0.14) }
         if tier.isReady { return Color.accentColor.opacity(0.22) }
         return .secondary.opacity(0.08)

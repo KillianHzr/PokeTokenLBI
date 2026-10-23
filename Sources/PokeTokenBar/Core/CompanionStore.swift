@@ -1631,7 +1631,7 @@ final class CompanionStore {
 
     /// Regional tiers of this type's badge already claimed.
     func claimedBadgeTierCount(_ type: PokemonType) -> Int {
-        PokemonTypeData.badgeGenerations(for: type).filter { isBadgeTierClaimed(type.badgeItem, generation: $0) }.count
+        PokemonTypeData.badgeGenerations(for: type).filter { isRegionTierClaimed(type.badgeItem, generation: $0) }.count
     }
 
     /// 소유 아이템(개수>0): 가방 목록.
@@ -1849,6 +1849,12 @@ final class CompanionStore {
         return ids
     }
 
+    /// Species of the Pokémon raised to the end: graduated entries, never released ones nor the Pokémon being raised.
+    /// What achievements count, so that a Pokémon cannot earn one while raised and then be sent off.
+    var graduatedSpeciesIDs: Set<Int> {
+        Set(state.dex.filter { !$0.isReleased }.flatMap(\.chainOrder))
+    }
+
     /// How much of the Pokédex is collected: species, and appearances (every form of every species, one for a
     /// species without forms), out of everything that can hatch.
     struct CollectionProgress: Equatable, Sendable {
@@ -1863,10 +1869,17 @@ final class CompanionStore {
         $0 + max(1, PokemonForm.forms(speciesID: $1).count)
     }
 
-    var collectionProgress: CollectionProgress {
-        let species = registeredSpeciesIDs.filter(PokemonAssets.animatedSpeciesIDs.contains)
+    var collectionProgress: CollectionProgress { collectionProgress(graduatedOnly: false) }
+
+    /// The collection the Oval and Glimmering Charms' achievements count: graduated Pokémon only.
+    var graduatedCollectionProgress: CollectionProgress { collectionProgress(graduatedOnly: true) }
+
+    private func collectionProgress(graduatedOnly: Bool) -> CollectionProgress {
+        let ids = graduatedOnly ? graduatedSpeciesIDs : registeredSpeciesIDs
+        let species = ids.filter(PokemonAssets.animatedSpeciesIDs.contains)
         let forms = species.reduce(0) {
-            $0 + (PokemonForm.hasForms(speciesID: $1) ? max(1, state.collectedForms(speciesID: $1).count) : 1)
+            let collected = state.collectedForms(speciesID: $1, graduatedOnly: graduatedOnly)
+            return $0 + (PokemonForm.hasForms(speciesID: $1) ? max(1, collected.count) : 1)
         }
         return CollectionProgress(species: species.count, speciesTotal: PokemonAssets.animatedSpeciesIDs.count,
                                   forms: forms, formsTotal: Self.collectableFormCount)
@@ -1875,24 +1888,24 @@ final class CompanionStore {
     /// How far one species goal is from unlocking its item.
     struct GoalProgress: Equatable, Sendable {
         let goal: SpeciesGoal
-        /// Goal species already registered, in the goal's order.
+        /// Goal species already counted (graduated), in the goal's order.
         let registered: [Int]
         var count: Int { min(registered.count, goal.needed) }
         var isMet: Bool { registered.count >= goal.needed }
     }
 
-    /// Species goals of a collector item with what is already registered. Empty for items without
+    /// Species goals of a collector item with what is already graduated. Empty for items without
     /// species goals (always on sale, or the Azure Flute's duplicate legendary).
     func unlockProgress(of kind: ItemKind, registered: Set<Int>? = nil) -> [GoalProgress] {
         guard case .species(let goals) = kind.unlock else { return [] }
-        let registered = registered ?? registeredSpeciesIDs
+        let registered = registered ?? graduatedSpeciesIDs
         return goals.map { goal in
             GoalProgress(goal: goal, registered: goal.species.filter(registered.contains))
         }
     }
 
-    /// Silvally's Memories won so far, out of `PokemonForm.memoryTypes`.
-    var silvallyMemoryCount: Int { state.silvallyMemoryTypes.count }
+    /// Silvally's Memories won so far by graduated Pokémon, out of `PokemonForm.memoryTypes`.
+    var silvallyMemoryCount: Int { state.graduatedSilvallyMemoryTypes.count }
 
     /// Most graduated copies of a single legendary species (released copies excluded).
     var graduatedLegendaryCopies: Int {
@@ -1900,42 +1913,42 @@ final class CompanionStore {
         return Dictionary(grouping: graduated, by: \.finalID).values.map(\.count).max() ?? 0
     }
 
-    /// One regional tier of a gym badge: the type's Pokémon from one generation.
-    struct BadgeTier: Equatable, Sendable {
+    /// One regional tier of an achievement: a gym badge's type from one generation, or every species of a
+    /// generation for the Legendary Egg.
+    struct RegionTier: Equatable, Sendable {
         let generation: Int
         let progress: GoalProgress
         let isClaimed: Bool
         var isReady: Bool { progress.isMet && !isClaimed }
     }
 
-    /// The regional tiers of a gym badge, in generation order. Empty for other items.
-    func badgeTiers(_ kind: ItemKind, registered: Set<Int>? = nil) -> [BadgeTier] {
-        guard let type = kind.badgeType else { return [] }
-        let registered = registered ?? registeredSpeciesIDs
-        return PokemonTypeData.badgeGenerations(for: type).map { generation in
-            let goal = SpeciesGoal(PokemonTypeData.badgeSpecies(for: type, generation: generation))
-            return BadgeTier(generation: generation,
+    /// The regional tiers of an achievement, in generation order. Empty for an item claimed once.
+    func regionTiers(_ kind: ItemKind, registered: Set<Int>? = nil) -> [RegionTier] {
+        guard let goals = kind.regionGoals else { return [] }
+        let registered = registered ?? graduatedSpeciesIDs
+        return goals.map { generation, goal in
+            RegionTier(generation: generation,
                              progress: GoalProgress(goal: goal, registered: goal.species.filter(registered.contains)),
-                             isClaimed: isBadgeTierClaimed(kind, generation: generation))
+                       isClaimed: isRegionTierClaimed(kind, generation: generation))
         }
     }
 
-    func isBadgeTierClaimed(_ kind: ItemKind, generation: Int) -> Bool {
-        state.claimedAchievements.contains(CompanionState.badgeTierKey(kind, generation: generation))
+    func isRegionTierClaimed(_ kind: ItemKind, generation: Int) -> Bool {
+        state.claimedAchievements.contains(CompanionState.regionTierKey(kind, generation: generation))
     }
 
-    /// Whether this item's achievement goal is met. Items without a Pokédex condition are always unlocked.
-    /// For a gym badge: one of its regional tiers is complete.
+    /// Whether this item's achievement goal is met, counting graduated Pokémon only. Items without a Pokédex
+    /// condition are always unlocked. For a regional achievement: one of its regional tiers is complete.
     func isUnlocked(_ kind: ItemKind, registered: Set<Int>? = nil) -> Bool {
         switch kind.unlock {
         case nil: return true
         case .duplicateLegendary: return graduatedLegendaryCopies >= 2
         case .silvallyMemories: return silvallyMemoryCount >= PokemonForm.memoryTypes.count
         case .allSpecies:
-            let progress = collectionProgress
+            let progress = graduatedCollectionProgress
             return progress.species >= progress.speciesTotal
         case .allForms:
-            let progress = collectionProgress
+            let progress = graduatedCollectionProgress
             return progress.forms >= progress.formsTotal
         case .species: return unlockProgress(of: kind, registered: registered).contains(where: \.isMet)
         }
@@ -1947,14 +1960,14 @@ final class CompanionStore {
     static let achievementItems: [ItemKind] = ItemKind.allCases.filter(\.isAchievement)
 
     /// Whether this achievement was already claimed. Stones are used up, so the Bag cannot tell: the
-    /// ledger can. A passive item owned before the ledger existed counts as claimed. A gym badge is claimed
-    /// once every regional tier is.
+    /// ledger can. A passive item owned before the ledger existed counts as claimed. A regional achievement is
+    /// claimed once every regional tier is.
     func isClaimed(_ kind: ItemKind) -> Bool {
-        if kind.badgeType != nil { return badgeTiers(kind).allSatisfy(\.isClaimed) }
+        if kind.isRegional { return regionTiers(kind).allSatisfy(\.isClaimed) }
         return state.claimedAchievements.contains(kind.rawValue) || (kind.isPassive && itemCount(kind) > 0)
     }
 
-    /// Achievements counted one per stone or artifact, and one per regional tier of each gym badge.
+    /// Achievements counted one per stone or artifact, and one per regional tier of each regional achievement.
     struct AchievementTally: Equatable, Sendable {
         var ready = 0
         var claimed = 0
@@ -1962,11 +1975,11 @@ final class CompanionStore {
     }
 
     func achievementTally(in group: CollectorGroup? = nil) -> AchievementTally {
-        let registered = registeredSpeciesIDs
+        let registered = graduatedSpeciesIDs
         var tally = AchievementTally()
         for kind in Self.achievementItems where group == nil || kind.collectorGroup == group {
-            if kind.badgeType != nil {
-                let tiers = badgeTiers(kind, registered: registered)
+            if kind.isRegional {
+                let tiers = regionTiers(kind, registered: registered)
                 tally.ready += tiers.filter(\.isReady).count
                 tally.claimed += tiers.filter(\.isClaimed).count
                 tally.total += tiers.count
@@ -1980,7 +1993,7 @@ final class CompanionStore {
         return tally
     }
 
-    /// Number of achievements ready to be claimed (each badge tier counts).
+    /// Number of achievements ready to be claimed (each regional tier counts).
     var unclaimedAchievementsCount: Int { achievementTally().ready }
 
     /// Number of claimed achievements.
@@ -1993,7 +2006,7 @@ final class CompanionStore {
     /// `EvolutionStone.achievementReward` stones.
     @discardableResult
     func claimAchievement(_ kind: ItemKind) -> Bool {
-        if kind.badgeType != nil { return claimBadgeTiers(kind) > 0 }
+        if kind.isRegional { return claimRegionTiers(kind) > 0 }
         guard kind.isAchievement, isUnlocked(kind), !isClaimed(kind) else { return false }
         let count = grantAchievement(kind)
         save()
@@ -2005,28 +2018,28 @@ final class CompanionStore {
     /// notification for the lot. Returns how many achievements were claimed.
     @discardableResult
     func claimAllAchievements() -> Int {
-        let registered = registeredSpeciesIDs
-        let items = Self.achievementItems.filter { $0.badgeType == nil && isUnlocked($0, registered: registered) && !isClaimed($0) }
+        let registered = graduatedSpeciesIDs
+        let items = Self.achievementItems.filter { !$0.isRegional && isUnlocked($0, registered: registered) && !isClaimed($0) }
         let tiers = Self.achievementItems.flatMap { kind in
-            badgeTiers(kind, registered: registered).filter(\.isReady).map { (kind, $0.generation) }
+            regionTiers(kind, registered: registered).filter(\.isReady).map { (kind, $0.generation) }
         }
         guard !items.isEmpty || !tiers.isEmpty else { return 0 }
         let forms = itemFormSnapshot()
         items.forEach { _ = grantAchievement($0) }
-        tiers.forEach { grantBadgeTier($0.0, generation: $0.1) }
+        tiers.forEach { grantRegionTier($0.0, generation: $0.1) }
         announceFormUnlocks(since: forms)
         save()
         notifyCompanionEvent(l.notifAchievementClaimedTitle, l.notifAchievementsClaimedBody(items.count + tiers.count))
         return items.count + tiers.count
     }
 
-    /// Claims every ready regional tier of one gym badge. Returns how many tiers were claimed.
+    /// Claims every ready regional tier of one achievement. Returns how many tiers were claimed.
     @discardableResult
-    func claimBadgeTiers(_ kind: ItemKind) -> Int {
-        let ready = badgeTiers(kind).filter(\.isReady)
+    func claimRegionTiers(_ kind: ItemKind) -> Int {
+        let ready = regionTiers(kind).filter(\.isReady)
         guard !ready.isEmpty else { return 0 }
         let forms = itemFormSnapshot()
-        ready.forEach { grantBadgeTier(kind, generation: $0.generation) }
+        ready.forEach { grantRegionTier(kind, generation: $0.generation) }
         announceFormUnlocks(since: forms)
         save()
         let regions = ready.map { l.regionName(generation: $0.generation) }.joined(separator: ", ")
@@ -2072,11 +2085,16 @@ final class CompanionStore {
         }
     }
 
-    /// Records one regional tier and keeps the badge in the Bag, where its effect line lives.
-    private func grantBadgeTier(_ kind: ItemKind, generation: Int) {
-        let key = CompanionState.badgeTierKey(kind, generation: generation)
+    /// Records one regional tier: a badge stays one in the Bag, where its effect line lives; each tier of the
+    /// Legendary Egg adds an egg.
+    private func grantRegionTier(_ kind: ItemKind, generation: Int) {
+        let key = CompanionState.regionTierKey(kind, generation: generation)
         state.claimedAchievements.insert(key)
-        state.inventory[kind.rawValue] = 1
+        if kind.isPassive {
+            state.inventory[kind.rawValue] = 1
+        } else {
+            state.inventory[kind.rawValue, default: 0] += 1
+        }
         AppLog.write("achievement claimed: \(key)")
     }
 
@@ -2091,10 +2109,10 @@ final class CompanionStore {
 
     /// Items for a specific achievement section, sorted: claimable first, then in-progress, then claimed.
     func achievementItems(in group: CollectorGroup) -> [ItemKind] {
-        let registered = registeredSpeciesIDs
+        let registered = graduatedSpeciesIDs
         func rank(_ kind: ItemKind) -> Int {
-            if kind.badgeType != nil {
-                let tiers = badgeTiers(kind, registered: registered)
+            if kind.isRegional {
+                let tiers = regionTiers(kind, registered: registered)
                 if tiers.contains(where: \.isReady) { return 0 }
                 return tiers.allSatisfy(\.isClaimed) ? 2 : 1
             }
@@ -2120,8 +2138,11 @@ final class CompanionStore {
 
     // MARK: 알 (리롤 — 현재 포켓몬 폐기, 도감·확률 무영향)
 
-    /// 현재 알이 보증하는 등급 하한(UI 표시용). 활성 포켓몬이 있으면 알이 없으므로 nil.
-    var eggGuarantee: Rarity? { state.active == nil ? state.eggTier : nil }
+    /// 현재 알이 보증하는 등급 하한(UI 표시용). 활성 포켓몬이 있으면 알이 없으므로 nil. A Legendary Egg's is legendary.
+    var eggGuarantee: Rarity? {
+        guard state.active == nil else { return nil }
+        return state.eggFromLegendaryEgg ? .legendary : state.eggTier
+    }
     /// 현재 알이 보증하는 타입(진화의 돌 사용 UI 표시용). 활성 포켓몬이 있으면 알이 없으므로 nil.
     var eggTypeGuarantee: PokemonType? { state.active == nil ? state.eggTypeGuarantee : nil }
 
@@ -2187,6 +2208,21 @@ final class CompanionStore {
         return true
     }
 
+    func canUseLegendaryEgg() -> Bool { hasActive && itemCount(.legendaryEgg) > 0 }
+
+    /// Uses a Legendary Egg, the reward for a region whose every species is in the Pokédex: like a stone, the
+    /// current Pokémon is sent off for an egg, which hatches a legendary or mythical Pokémon (`chooseBase`).
+    @discardableResult
+    func useLegendaryEgg() -> Bool {
+        guard canUseLegendaryEgg() else { return false }
+        state.inventory[ItemKind.legendaryEgg.rawValue] = itemCount(.legendaryEgg) - 1
+        replaceActiveWithEgg(price: 0, tier: nil, type: nil)
+        state.eggFromLegendaryEgg = true
+        save()
+        AppLog.write("legendary egg used, discarded active")
+        return true
+    }
+
     /// Shared reset of `buyEgg` and `useStone`: pays (nothing for a stone), sends the current Pokémon off
     /// (kept in the Pokédex) and starts a new egg carrying the guarantee.
     private func replaceActiveWithEgg(price: Int, tier: Rarity?, type: PokemonType?) {
@@ -2205,6 +2241,7 @@ final class CompanionStore {
         state.eggTier = tier          // 등급 보증(nil = 보증 없음)
         state.eggTypeGuarantee = type // 진화의 돌의 타입 보증(nil = 보증 없음)
         state.eggFromTypeNullEgg = false
+        state.eggFromLegendaryEgg = false
         state.pendingHatchID = nil    // 새 보증으로 처음부터 롤(활성 포켓몬이 있는 동안엔 원래 비어 있다)
         state.pendingForm = nil
         prefetchedLineID = nil
@@ -2591,6 +2628,7 @@ final class CompanionStore {
         let typeGuarantee = state.eggTypeGuarantee   // still restricts the form rolled below
         state.eggTypeGuarantee = nil
         state.eggFromTypeNullEgg = false
+        state.eggFromLegendaryEgg = false
         // 개체 롤: shiny(1/64, 부적 1/48, Reveal Glass halves it)·성격(25종)은 부화 순간 확정, 진화해도 유지.
         // 알림 문구는 이 판정과 같은 분모를 보여준다.
         let shinyOdds = shinyDenominator
@@ -2735,17 +2773,17 @@ final class CompanionStore {
     /// a form missing (`chooseBase`), and the others only add growth bonuses.
     func hatchWeight(for e: BaseSpecies) -> Int {
         var w = CollectionWeight.adjusted(e.hatchWeight, isCollected: state.isLineComplete(baseID: e.id))
-        // Legendaries and mythicals of the lowest weight only: Beldum (capture rate 3) is not one.
-        if ownsLegendCharm && e.isLegendary && e.hatchWeight <= PokemonOdds.legendaryHatchWeight {
+        // The legendary rarity: every legendary and mythical, never Beldum (capture rate 3).
+        if ownsLegendCharm && e.rarity == .legendary {
             w *= LegendCharm.weightMultiplier
         }
         return w
     }
 
-    /// 부화 종 선정 — 하드코딩 풀 없이 PokéAPI 1~5세대 base 전체(329종)에서 가중 선택.
+    /// 부화 종 선정 — 하드코딩 풀 없이 PokéAPI 의 base 전체(1~9세대)에서 가중 선택.
     ///   ① base 인덱스(id + capture_rate)를 GraphQL 1쿼리로 취득(30일 디스크 캐시 → 보통 0콜)
-    ///   ② 가중치 = 공식 capture_rate(캐터피 255 vs 뮤츠 3 = 85:1). 단 알로 얻을 수 없는 전설·환상은
-    ///      capture_rate 와 무관하게 뮤츠급 3(`BaseSpecies.hatchWeight`) → 전설군 ≈ 0.39%
+    ///   ② 가중치 = 등급별 한 값(`PokemonOdds.hatchWeight`: 일반 212 · 고급 90 · 희귀 40 · 전설 3). capture_rate 는
+    ///      등급만 정한다(`BaseSpecies.rarity`) — 같은 등급의 라인은 모두 같은 확률.
     ///      단, 이미 수집한 base 는 가중치 ½(미수집 부스트 — 재부화/shiny 사냥은 열어둠)
     ///   ③ 누적 가중치에서 정확히 1롤 — 루프/재롤 없음, 시간 상한 확정적
     /// 인덱스 취득 실패(오프라인 + 캐시 없음) 시 nil → 알 유지, 다음 갱신 틱 재시도.
@@ -2753,15 +2791,17 @@ final class CompanionStore {
         let tier = state.eggTier
         let typeGuarantee = state.eggTypeGuarantee
         if let full = try? await provider.baseSpeciesIndex(), !full.isEmpty {
-            // 등급 보증 알은 후보를 먼저 좁힌다 — capture_rate 상한이 곧 등급 하한이므로
-            // (Rarity.captureRateCeiling) 전설도 자연히 포함된다("희귀 이상"에 전설이 들어가는 게 정상).
+            // 등급 보증 알은 후보를 먼저 좁힌다 — capture_rate 상한이 곧 등급 하한이고, 전설은 플래그로
+            // 늘 들어간다(`Rarity.admits`: capture_rate 255 인 Necrozma·Eternatus·Terapagos 도 "희귀 이상").
             // 좁힌 결과가 비면 보증을 못 지키므로 전체 풀로 폴백하지 말고 알을 유지한다(다음 틱 재시도).
-            var index = tier.map { t in full.filter { t.includes(captureRate: $0.captureRate) } } ?? full
+            var index = tier.map { t in full.filter(t.admits) } ?? full
+            // A Legendary Egg hatches a legendary or mythical Pokémon, any of them.
+            if state.eggFromLegendaryEgg { index = index.filter(\.isLegendary) }
             if let targetType = typeGuarantee {
                 index = index.filter { PokemonTypeData.canHatch(baseID: $0.id, as: targetType) }
             }
             guard !index.isEmpty else {
-                AppLog.write("hatch: no candidate for guaranteed tier=\(tier?.rawValue ?? "none") type=\(typeGuarantee?.rawValue ?? "none"), egg kept; retry next tick")
+                AppLog.write("hatch: no candidate for guaranteed tier=\(tier?.rawValue ?? "none") type=\(typeGuarantee?.rawValue ?? "none") legendary=\(state.eggFromLegendaryEgg), egg kept; retry next tick")
                 return nil
             }
             // The Oval Charm, reward for every species: eggs only bring lines with a form still missing, while
@@ -2775,7 +2815,11 @@ final class CompanionStore {
             var r = Int(rng.next() % UInt64(total))
             for (i, w) in weights.enumerated() {
                 r -= w
-                if r < 0 { return index[i].id }
+                if r < 0 {
+                    // Enough to check a streak later: the species' weight against the egg's whole pool.
+                    AppLog.write("hatch roll: base=\(index[i].id) weight=\(w) of \(total) candidates=\(index.count) tier=\(tier?.rawValue ?? "none") type=\(typeGuarantee?.rawValue ?? "none") legendaryEgg=\(state.eggFromLegendaryEgg)")
+                    return index[i].id
+                }
             }
             return index.last?.id   // 도달 불가(방어)
         }
@@ -2797,7 +2841,8 @@ final class CompanionStore {
                 if let bs = try await provider.baseSpecies(id: id) {
                     // 등급 보증은 가중 경로와 **같은 기준**으로 여기서도 걸러야 한다 — 이 폴백만 빠지면
                     // GraphQL 인덱스 장애 때 보증이 조용히 깨진다. 못 찾으면 알 유지(구매 소멸 금지).
-                    if let tier, !tier.includes(captureRate: bs.captureRate) { continue }
+                    if let tier, !tier.admits(bs) { continue }
+                    if state.eggFromLegendaryEgg, !bs.isLegendary { continue }
                     if let typeGuarantee, !PokemonTypeData.canHatch(baseID: bs.id, as: typeGuarantee) { continue }
                     AppLog.write("hatch: REST fallback picked base \(id) (cap \(bs.captureRate), \(attempt) tries)")
                     return id

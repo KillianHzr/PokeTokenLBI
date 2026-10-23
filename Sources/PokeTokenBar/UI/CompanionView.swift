@@ -23,9 +23,11 @@ struct ItemIconView: View {
     init(kind: ItemKind, size: CGFloat = 30) {
         self.kind = kind
         self.size = size
-        // 캐시에 있으면 즉시(동기) 표시 — 재렌더 플래시 방지. The Type: Null Egg is the egg the app draws for it.
-        _img = State(initialValue: kind == .typeNullEgg ? EggRenderer.still(.typeNull)
-                     : kind.spriteName.flatMap { SpriteLoader.cachedItemImage(name: $0) })
+        // 캐시에 있으면 즉시(동기) 표시 — 재렌더 플래시 방지. The Type: Null and Legendary Eggs are the eggs the app draws
+        // for them.
+        let drawnEgg: EggKind? = kind == .typeNullEgg ? .typeNull : kind == .legendaryEgg ? .tier(.legendary) : nil
+        _img = State(initialValue: drawnEgg.map(EggRenderer.still)
+                     ?? kind.spriteName.flatMap { SpriteLoader.cachedItemImage(name: $0) })
     }
 
     var body: some View {
@@ -601,6 +603,22 @@ struct EvoLineView: View {
     }
 }
 
+/// Lays its content out at the width it needs, but no wider than `maxWidth`, where it wraps. A `.frame(maxWidth:)`
+/// takes the whole `maxWidth` in an HStack, even around two sprites, and leaves the rest of it empty.
+struct UpToWidth: Layout {
+    let maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let content = subviews.first else { return .zero }
+        let width = min(content.sizeThatFits(.unspecified).width, maxWidth, proposal.width ?? .infinity)
+        return CGSize(width: width, height: content.sizeThatFits(ProposedViewSize(width: width, height: nil)).height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
+    }
+}
+
 /// Home's evolution track: the line's stages as stops along a bar. The stretch from the current stage to the next stop
 /// fills with the growth; earlier stretches are full. Coming stages show as silhouettes until caught; where the line
 /// goes several ways, every way to its end stands at the end of the track behind a bracket; a final stage heads for
@@ -718,14 +736,15 @@ struct EvolutionTrackView: View {
             }
             .accessibilityHidden(true)
         case .branch(let paths):
-            HStack(spacing: 3) {
-                TrackBracket().stroke(Color.primary.opacity(0.35), lineWidth: 1).frame(width: 5)
-                branchRows(paths)
-            }
             // Eight ways a line at most (Eevee's), so the stretches keep room to show the growth; more wrap. Vivillon's
-            // twenty patterns on one line pushed the popover off its edges.
-            .frame(maxWidth: Self.branchMaxWidth, alignment: .leading)
-            .fixedSize(horizontal: false, vertical: true)
+            // twenty patterns on one line pushed the popover off its edges. Fewer ways take only their own width, so
+            // the stretches reach the edge.
+            UpToWidth(maxWidth: Self.branchMaxWidth) {
+                HStack(spacing: 3) {
+                    TrackBracket().stroke(Color.primary.opacity(0.35), lineWidth: 1).frame(width: 5)
+                    branchRows(paths)
+                }
+            }
             .layoutPriority(1)
         }
     }

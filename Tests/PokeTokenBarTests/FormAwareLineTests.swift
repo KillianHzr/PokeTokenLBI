@@ -303,9 +303,9 @@ final class FormAwareLineTests: XCTestCase {
         let eevee = BaseSpecies(id: 133, captureRate: 45)
         var oneFinal = readyState()
         oneFinal.collectedFinals = ["133:134"]
-        XCTAssertEqual(try store(oneFinal).hatchWeight(for: eevee), 45)
+        XCTAssertEqual(try store(oneFinal).hatchWeight(for: eevee), PokemonOdds.hatchWeight(.rare))
         var allFinals = readyState()
         allFinals.collectedFinals = Set([134, 135, 136, 196, 197, 470, 471, 700].map { "133:\($0)" })
-        XCTAssertEqual(try store(allFinals).hatchWeight(for: eevee), 22)
+        XCTAssertEqual(try store(allFinals).hatchWeight(for: eevee), PokemonOdds.hatchWeight(.rare) / 2)
     }
 }

@@ -309,7 +309,8 @@ struct CircleIconButton: View {
 extension CompanionStore {
     /// The colors of the Pokémon being raised, two for a dual type: what the hero card blends. Gold for the egg.
     var themeColors: [Color] {
-        guard hasActive, let id = currentSpeciesID else { return [Design.eggColor] }
+        // An egg: the type it guarantees, like a Pokémon's card; otherwise the egg's own color.
+        guard hasActive, let id = currentSpeciesID else { return [eggTypeGuarantee?.color ?? Design.eggColor] }
         let colors = PokemonTypeData.types(forSpeciesID: id, form: currentForm).prefix(2).map(\.color)
         return colors.isEmpty ? [Design.eggColor] : Array(colors)
     }

@@ -211,9 +211,10 @@ final class UnownTests: XCTestCase {
                 original.dex = forms.map { entry($0) }
                 let s = try store(original, seed: seed, provider: UnownSelectionProvider())
                 var rng = SeededRNG(seed: seed)
-                // Pikachu 255; Unown 225, halved to 112 only once every letter is collected.
-                let unownWeight: UInt64 = forms.count == PokemonForm.unownLetters.count ? 112 : 225
-                let expectedSpecies = rng.next() % (255 + unownWeight) < 255 ? 25 : 201
+                // Both common: Pikachu 212; Unown 212, halved to 106 only once every letter is collected.
+                let common = UInt64(PokemonOdds.hatchWeight(.common))
+                let unownWeight: UInt64 = forms.count == PokemonForm.unownLetters.count ? common / 2 : common
+                let expectedSpecies = rng.next() % (common + unownWeight) < common ? 25 : 201
                 let expectedShiny = rng.next() % PokemonOdds.shinyDenominator == 0
                 let expectedNature = PokemonNature.allCases[Int(rng.next() % UInt64(PokemonNature.allCases.count))]
                 let expectedProfileSeed = rng.next()

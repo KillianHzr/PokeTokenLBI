@@ -224,6 +224,7 @@ enum EggDesigns {
         case .typeNull: return typeNull
         case .tier(.uncommon): return emerald
         case .tier(.rare): return sapphire
+        case .tier(.legendary): return legendary
         case .plain, .tier: return nil
         }
     }
@@ -973,6 +974,47 @@ enum EggDesigns {
             sparkles(&canvas, f, [(-0.6, 0.6), (0.62, 0.1), (0.1, 0.95), (-0.75, -0.25), (0.5, -0.55)],
                      EggColor(0.9, 0.95, 1))
         }, outline: sapphire.mixed(with: .black, 0.7))
+    }
+
+    // MARK: Legendary egg
+
+    /// A saturated color around the hue circle (0..<1).
+    static func hue(_ h: Double) -> EggColor {
+        let h6: Double = (h - h.rounded(.down)) * 6
+        let x: Double = 1 - abs(h6.truncatingRemainder(dividingBy: 2) - 1)
+        switch Int(h6) {
+        case 0: return EggColor(1, x, 0)
+        case 1: return EggColor(x, 1, 0)
+        case 2: return EggColor(0, 1, x)
+        case 3: return EggColor(0, x, 1)
+        case 4: return EggColor(x, 0, 1)
+        default: return EggColor(1, 0, x)
+        }
+    }
+
+    private static let gold = EggColor(0.98, 0.78, 0.3)
+
+    /// The Legendary Egg: a brilliant-cut diamond, clear faces, some flashing the rainbow as it turns, set in gold,
+    /// crowned.
+    static var legendary: EggDesign {
+        let ice = EggColor(0.86, 0.92, 0.98)
+        var surface = EggSurface(albedo: { (p: EggSurfacePoint) -> EggColor in
+            let k = face(gemPlanes, p)
+            let tone: Double = hash(k, 0, 0, seed: 21)
+            if p.y < -0.74 + 0.04 * abs(sin(p.angle * 4)) { return gold }
+            if tone > 0.88 { return hue(tone * 5 + p.yaw * 0.6).mixed(with: .white, 0.62) }
+            return tone < 0.35 ? ice.mixed(with: EggColor(0.6, 0.68, 0.8), (0.35 - tone) * 1.6) : ice.mixed(with: .white, (tone - 0.35) * 1.4)
+        }, gloss: 0.95, shininess: 80)
+        surface.solid = { o, dir in enter(gemPlanes, o, dir) }
+        return EggDesign(surface: surface, front: { canvas, f in
+            let (cx, top) = f.pixel(0, 0.98)
+            let crown: [(Double, Double)] = [(cx - 8, top + 2), (cx - 8, top - 5), (cx - 4.5, top - 1.5), (cx, top - 7),
+                                             (cx + 4.5, top - 1.5), (cx + 8, top - 5), (cx + 8, top + 2)]
+            canvas.polygon(crown, gold)
+            canvas.ball(cx, top - 7, 1.4, EggColor(0.9, 0.15, 0.25), gloss: 0.6)
+            sparkles(&canvas, f, [(-0.62, 0.5), (0.65, 0.15), (-0.2, -0.6), (0.4, 0.75), (-0.8, -0.2), (0.75, -0.55)],
+                     .white)
+        }, outline: EggColor(0.3, 0.32, 0.4))
     }
 
     // MARK: Frames

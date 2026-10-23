@@ -75,10 +75,9 @@ enum Rarity: String, Codable, Sendable {
     /// `from(captureRate:…)` 의 분류 임계이자, 프리미엄 알이 부화 후보를 미리 거르는 기준이다.
     /// 두 곳에 임계를 따로 적으면 한쪽만 바뀌었을 때 등급 보증이 조용히 깨지므로 **여기가 단일 소스**다.
     ///
-    /// nil = capture_rate 로 표현할 수 없는 등급. 전설은 `is_legendary`/`is_mythical` 로만 판정되는데
-    /// 부화 후보 인덱스(`BaseSpecies`)에는 그 플래그가 없다 → 전설 **전용** 알은 만들 수 없다(팔지도 않는다).
-    /// 반대로 전설은 전원 capture_rate ≤ 45 라 하한을 *위로만* 벗어나므로, 고급/희귀 알의 capture_rate
-    /// 필터에는 자연스럽게 포함된다("고급 이상"·"희귀 이상" 규칙이 그대로 성립).
+    /// nil = a tier capture_rate cannot express: legendaries are told by `is_legendary`/`is_mythical` only. Most have
+    /// a capture_rate of 45 or less, but Necrozma, Eternatus and Terapagos have 255 (scripted catches in the games),
+    /// so a tier egg admits a base by its legendary flag first (`admits`), not by its capture_rate alone.
     var captureRateCeiling: Int? {
         switch self {
         case .rare:      return 45
@@ -91,6 +90,11 @@ enum Rarity: String, Codable, Sendable {
     func includes(captureRate: Int) -> Bool {
         guard let ceiling = captureRateCeiling else { return false }
         return captureRate <= ceiling
+    }
+    /// Whether a tier egg can hatch this base: one of its rarity or better, the rarity the card shows
+    /// (`BaseSpecies.rarity`: legendaries by their flag, the others by capture rate).
+    func admits(_ species: BaseSpecies) -> Bool {
+        species.rarity.sortRank >= sortRank
     }
     static func from(captureRate: Int, isLegendary: Bool, isMythical: Bool) -> Rarity {
         if isLegendary || isMythical { return .legendary }
@@ -215,6 +219,9 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     case teraOrb
     case relicStatue
     case typeNullEgg
+    /// The reward for each region whose every species is in the Pokédex: an egg that hatches a legendary or mythical
+    /// Pokémon.
+    case legendaryEgg
     case ovalCharm
     case glimmeringCharm
     case boulderBadge
@@ -354,7 +361,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .tealMask: return "🎭"
         case .teraOrb: return "💠"
         case .relicStatue: return "🗿"
-        case .typeNullEgg: return "🥚"
+        case .typeNullEgg, .legendaryEgg: return "🥚"
         case .ovalCharm: return "🔶"
         case .glimmeringCharm: return "✨"
         case .boulderBadge, .cascadeBadge, .thunderBadge, .rainbowBadge,
@@ -380,7 +387,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     var isPassive: Bool {
         switch self {
         case .rareCandy, .mint,
-             .typeNullEgg,
+             .typeNullEgg, .legendaryEgg,
              .leafStone, .fireStone, .waterStone, .thunderStone, .sunStone,
              .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone:
             return false
@@ -450,6 +457,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .teraOrb:     return .species([SpeciesGoal([1007, 1008, 1024])])   // Koraidon, Miraidon, Terapagos
         case .relicStatue: return .species([SpeciesGoal([377, 378, 379, 486, 894, 895])]) // All six Regis
         case .typeNullEgg: return .silvallyMemories
+        case .legendaryEgg: return regionGoals.map { .species($0.map(\.goal)) }
         case .ovalCharm: return .allSpecies
         case .glimmeringCharm: return .allForms
         case .boulderBadge, .cascadeBadge, .thunderBadge, .rainbowBadge,
@@ -457,13 +465,25 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .zephyrBadge, .hiveBadge, .plainBadge, .fogBadge,
              .stormBadge, .mineralBadge, .glacierBadge, .risingBadge,
              .darkBadge, .fairyBadge:
-            // One goal per region (generation); each met goal is a tier to claim (`CompanionStore.badgeTiers`).
-            return badgeType.map { type in
-                .species(PokemonTypeData.badgeGenerations(for: type).map {
-                    SpeciesGoal(PokemonTypeData.badgeSpecies(for: type, generation: $0))
-                })
+            // One goal per region (generation); each met goal is a tier to claim (`CompanionStore.regionTiers`).
+            return regionGoals.map { .species($0.map(\.goal)) }
+        }
+    }
+
+    /// Whether this item's achievement is claimed region by region: one tier per region in `regionGoals`.
+    var isRegional: Bool { badgeType != nil || self == .legendaryEgg }
+
+    /// The regions (generations, Kanto first) this item's achievement is claimed in, with the species each asks
+    /// for: a gym badge's type in every region that has it, every species of the region for the Legendary Egg.
+    /// nil for an item claimed once.
+    var regionGoals: [(generation: Int, goal: SpeciesGoal)]? {
+        if let type = badgeType {
+            return PokemonTypeData.badgeGenerations(for: type).map {
+                ($0, SpeciesGoal(PokemonTypeData.badgeSpecies(for: type, generation: $0)))
             }
         }
+        guard self == .legendaryEgg else { return nil }
+        return PokemonTypeData.generations.enumerated().map { ($0.offset + 1, SpeciesGoal(Array($0.element))) }
     }
 }
 
@@ -818,9 +838,18 @@ enum PokemonOdds {
     static let dittoDisguiseDenominator: UInt64 = 128
     /// 메타몽 종 id — 위장 리빌 전용(일반 부화 풀에서 제외).
     static let dittoSpeciesID = 132
-    /// Egg-roll weight of a legendary that cannot hatch from an egg: Mewtwo's capture_rate, the lowest
-    /// in the games, whatever the species' own capture_rate (`BaseSpecies.hatchWeight`).
-    static let legendaryHatchWeight = 3
+    /// Egg-roll weight of every line of a rarity (`BaseSpecies.hatchWeight`). Each rarity keeps the share of eggs
+    /// it had when lines weighed their capture rate (the index of 2026-10-23: 252 common, 65 uncommon, 135 rare and
+    /// 88 legendary lines, 82.3 / 9.0 / 8.3 / 0.4 %), so the economy does not move; within a rarity every line is
+    /// as likely. Whole numbers, so halving a complete line (`CollectionWeight.adjusted`) keeps working.
+    static func hatchWeight(_ rarity: Rarity) -> Int {
+        switch rarity {
+        case .common: return 212
+        case .uncommon: return 90
+        case .rare: return 40
+        case .legendary: return 3
+        }
+    }
 }
 
 /// 현재 키우는 포켓몬.
@@ -1025,6 +1054,9 @@ struct CompanionState: Codable, Sendable {
     /// The egg came from the Type: Null Egg: it is drawn as that egg. A plain egg that pre-rolled Type: Null stays a
     /// plain egg, so the roll is not given away before the hatch. Consumed with the egg's other guarantees.
     var eggFromTypeNullEgg = false
+    /// The egg came from a Legendary Egg: it hatches a legendary or mythical Pokémon, and is drawn as that egg.
+    /// Consumed with the egg's other guarantees.
+    var eggFromLegendaryEgg = false
     // 알 상태에서 미리 롤해둔 부화 종(프리패칭) — 부화 순간 네트워크 딜레이 제거. 재시작에도 유지.
     var pendingHatchID: Int?
     /// The form is chosen with the species so prefetch warms the exact sprite that will hatch.
@@ -1108,6 +1140,7 @@ struct CompanionState: Codable, Sendable {
         candyFeatureSeeded = c.lenient(Bool.self, forKey: .candyFeatureSeeded, default: false)
         additiveGrowthBonuses = c.lenient(Bool.self, forKey: .additiveGrowthBonuses, default: false)
         eggFromTypeNullEgg = c.lenient(Bool.self, forKey: .eggFromTypeNullEgg, default: false)
+        eggFromLegendaryEgg = c.lenient(Bool.self, forKey: .eggFromLegendaryEgg, default: false)
     }
 
     /// 졸업 기록 또는 현재 개체가 실제로 도달한 단계에 이 종이 포함되는가.
@@ -1128,8 +1161,8 @@ struct CompanionState: Codable, Sendable {
             && PokemonForm.resolved(speciesID: speciesID, form: active.form) == form
     }
 
-    /// Ledger key of one regional tier of a gym badge ("volcanoBadge@3" for Hoenn).
-    static func badgeTierKey(_ kind: ItemKind, generation: Int) -> String { "\(kind.rawValue)@\(generation)" }
+    /// Ledger key of one regional tier of an achievement ("volcanoBadge@3" for the Volcano Badge's Hoenn tier).
+    static func regionTierKey(_ kind: ItemKind, generation: Int) -> String { "\(kind.rawValue)@\(generation)" }
 
     /// Gym badges became regional tiers. A badge claimed or owned before that asked for its Kanto Pokémon
     /// (Johto for Dark): it becomes that tier, once. Idempotent; runs wherever a state comes in.
@@ -1140,7 +1173,7 @@ struct CompanionState: Codable, Sendable {
             let hasTiers = claimedAchievements.contains { $0.hasPrefix("\(kind.rawValue)@") }
             claimedAchievements.remove(kind.rawValue)
             if legacy, !hasTiers {
-                claimedAchievements.insert(Self.badgeTierKey(kind, generation: PokemonTypeData.badgeGeneration(for: type)))
+                claimedAchievements.insert(Self.regionTierKey(kind, generation: PokemonTypeData.badgeGeneration(for: type)))
             }
         }
     }
@@ -1164,12 +1197,15 @@ struct CompanionState: Codable, Sendable {
 
     /// Match Pokédex ownership, including the active Pokémon and released catch records.
     /// Normal and shiny individuals of the same form contribute once.
-    func collectedForms(speciesID: Int) -> Set<PokemonForm> {
+    /// `graduatedOnly`: only the Pokémon raised to the end, what achievements count (not the one being raised, nor
+    /// those sent off).
+    func collectedForms(speciesID: Int, graduatedOnly: Bool = false) -> Set<PokemonForm> {
         guard PokemonForm.hasForms(speciesID: speciesID) else { return [] }
-        var forms = Set(dex.filter { $0.chainOrder.contains(speciesID) }.compactMap {
+        let entries = graduatedOnly ? dex.filter { !$0.isReleased } : dex
+        var forms = Set(entries.filter { $0.chainOrder.contains(speciesID) }.compactMap {
             PokemonForm.resolved(speciesID: speciesID, form: $0.form)
         })
-        if let active, active.pathIDs.prefix(active.stageIndex + 1).contains(speciesID),
+        if !graduatedOnly, let active, active.pathIDs.prefix(active.stageIndex + 1).contains(speciesID),
            let form = PokemonForm.resolved(speciesID: speciesID, form: active.form) {
             forms.insert(form)
         }
@@ -1199,11 +1235,17 @@ struct CompanionState: Codable, Sendable {
     /// Memories each. Each gives the types of its own form, like everywhere else: a Galarian Moltres gives Dark and
     /// Flying, not Fire. Arceus's Plates and Silvally's Memories change a look, not the individual: they give their
     /// Normal type, even for one hatched in a type form before Plates and Memories existed.
-    var silvallyMemoryTypes: Set<PokemonType> {
-        var individuals = dex.filter { $0.rarity == .legendary }.flatMap { entry in
+    var silvallyMemoryTypes: Set<PokemonType> { memoryTypes(graduatedOnly: false) }
+
+    /// Silvally's Memories won by graduated Pokémon only: what the Type: Null Egg's achievement counts.
+    var graduatedSilvallyMemoryTypes: Set<PokemonType> { memoryTypes(graduatedOnly: true) }
+
+    private func memoryTypes(graduatedOnly: Bool) -> Set<PokemonType> {
+        let entries = graduatedOnly ? dex.filter { !$0.isReleased } : dex
+        var individuals = entries.filter { $0.rarity == .legendary }.flatMap { entry in
             entry.chainOrder.map { (speciesID: $0, form: entry.form) }
         }
-        if let active, active.rarity == .legendary {
+        if !graduatedOnly, let active, active.rarity == .legendary {
             individuals += active.pathIDs.prefix(active.stageIndex + 1).map { (speciesID: $0, form: active.form) }
         }
         return Set(individuals.flatMap { individual in

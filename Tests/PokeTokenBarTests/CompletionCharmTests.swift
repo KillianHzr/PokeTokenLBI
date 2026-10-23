@@ -51,6 +51,12 @@ final class CompletionCharmTests: XCTestCase {
     func testEverySpeciesUnlocksTheOvalCharm() throws {
         XCTAssertTrue(try store(dex: (1...1025).map { entry($0) }).isUnlocked(.ovalCharm))
         XCTAssertFalse(try store(dex: (1...1024).map { entry($0) }).isUnlocked(.ovalCharm))
+        // The last species released: in the Pokédex, but only graduated Pokémon earn achievements.
+        var released = entry(1025)
+        released.releasedAt = date
+        let withReleased = try store(dex: (1...1024).map { entry($0) } + [released])
+        XCTAssertEqual(withReleased.collectionProgress.species, 1025)
+        XCTAssertFalse(withReleased.isUnlocked(.ovalCharm))
     }
 
     func testEveryFormUnlocksTheGlimmeringCharm() throws {

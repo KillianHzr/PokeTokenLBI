@@ -20,7 +20,7 @@ struct UnlockRequirementView: View {
                 let copies = min(store.graduatedLegendaryCopies, 2)
                 counterRow(l.duplicateLegendaryGoal, count: copies, needed: 2, met: copies >= 2)
             case .allSpecies, .allForms:
-                let progress = store.collectionProgress
+                let progress = store.graduatedCollectionProgress
                 let isSpecies = kind.unlock == .allSpecies
                 let count = isSpecies ? progress.species : progress.forms
                 let needed = isSpecies ? progress.speciesTotal : progress.formsTotal
@@ -29,11 +29,11 @@ struct UnlockRequirementView: View {
                     ProgressView(value: Double(min(count, needed)), total: Double(max(1, needed))).controlSize(.small)
                 }
             case .silvallyMemories:
-                let won = store.state.silvallyMemoryTypes
+                let won = store.state.graduatedSilvallyMemoryTypes
                 let needed = PokemonForm.memoryTypes.count
                 counterRow(l.silvallyMemoriesGoal, count: won.count, needed: needed, met: won.count >= needed)
                 if !compact {
-                    // Which Memories are still missing: each type, faded until a legendary of it is in the Pokédex.
+                    // Which Memories are still missing: each type, faded until a legendary of it has graduated.
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 56), spacing: 3)], alignment: .leading, spacing: 3) {
                         ForEach(PokemonForm.memoryTypes, id: \.self) { type in
                             Badge(l.typeName(type).uppercased(), tint: .type(type))

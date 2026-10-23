@@ -32,7 +32,7 @@ final class PlateFormTests: XCTestCase {
         st.installBaselineSet = true
         st.lastDate = "2026-10-21"
         st.claimedAchievements = Set(plates.map {
-            CompanionState.badgeTierKey($0.badgeItem, generation: PokemonTypeData.badgeGenerations(for: $0)[0])
+            CompanionState.regionTierKey($0.badgeItem, generation: PokemonTypeData.badgeGenerations(for: $0)[0])
         })
         if let arceus { st.dex = [arceusEntry(arceus)] }
         return st
@@ -43,10 +43,10 @@ final class PlateFormTests: XCTestCase {
                  profile: PokemonProfile.generate(seed: 7), form: form)
     }
 
-    /// Every species of one regional tier of a badge, so that tier is ready to claim.
+    /// Every species of one regional tier of a badge, graduated, so that tier is ready to claim.
     private func badgeRegion(_ type: PokemonType) -> [DexEntry] {
         PokemonTypeData.badgeSpecies(for: type, generation: PokemonTypeData.badgeGenerations(for: type)[0]).map {
-            DexEntry(baseID: $0, finalID: $0, chainOrder: [$0], rarity: .common, caughtAt: date, releasedAt: date)
+            DexEntry(baseID: $0, finalID: $0, chainOrder: [$0], rarity: .common, caughtAt: date)
         }
     }
 
@@ -112,7 +112,7 @@ final class PlateFormTests: XCTestCase {
         var st = state(arceus: normal)
         st.dex += badgeRegion(.fire)
         let s = try store(st)
-        XCTAssertEqual(s.claimBadgeTiers(.volcanoBadge), 1)
+        XCTAssertEqual(s.claimRegionTiers(.volcanoBadge), 1)
         XCTAssertEqual(s.formUnlockNews, [.init(speciesID: 493, forms: [fire])])
         s.dismissFormUnlockNews()
         XCTAssertEqual(s.formUnlockNews, [])
@@ -122,8 +122,8 @@ final class PlateFormTests: XCTestCase {
     func testClaimAllAnnouncesEveryNewFormInOneMessage() throws {
         var st = state(plates: [.water], arceus: normal)
         st.dex += badgeRegion(.fire) + badgeRegion(.ice) + badgeRegion(.water)
-        st.claimedAchievements.remove(CompanionState.badgeTierKey(.cascadeBadge, generation: 1))
-        st.claimedAchievements.insert(CompanionState.badgeTierKey(.cascadeBadge, generation: 2))
+        st.claimedAchievements.remove(CompanionState.regionTierKey(.cascadeBadge, generation: 1))
+        st.claimedAchievements.insert(CompanionState.regionTierKey(.cascadeBadge, generation: 2))
         let s = try store(st)
         XCTAssertGreaterThanOrEqual(s.claimAllAchievements(), 3)
         XCTAssertEqual(s.formUnlockNews, [.init(speciesID: 493, forms: [fire, ice])],
@@ -135,7 +135,7 @@ final class PlateFormTests: XCTestCase {
         var st = state()
         st.dex += badgeRegion(.fire)
         let s = try store(st)
-        XCTAssertEqual(s.claimBadgeTiers(.volcanoBadge), 1)
+        XCTAssertEqual(s.claimRegionTiers(.volcanoBadge), 1)
         XCTAssertEqual(s.formUnlockNews, [])
         XCTAssertEqual(s.state.itemUnlockedForms(speciesID: 493), [fire], "the Plate is still won")
     }

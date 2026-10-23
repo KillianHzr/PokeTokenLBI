@@ -11,7 +11,7 @@ final class BagSectionTests: XCTestCase {
         for kind in ItemKind.allCases where kind.badgeType != nil {
             XCTAssertEqual(BagView.Section.of(kind), .badges, "\(kind)")
         }
-        for kind in [ItemKind.soulDew, .relicStatue, .typeNullEgg, .ovalCharm] {
+        for kind in [ItemKind.soulDew, .relicStatue, .typeNullEgg, .legendaryEgg, .ovalCharm] {
             XCTAssertEqual(BagView.Section.of(kind), .artifacts, "\(kind)")
         }
     }

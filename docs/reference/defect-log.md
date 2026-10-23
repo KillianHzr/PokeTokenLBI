@@ -56,6 +56,27 @@ read_when:
 
 ## 판정·데이터
 
+- **Achievements count graduated Pokémon only.** Every achievement goal (species goals, badge and Legendary Egg
+  regions, every species and every form, Silvally's Memories) read `registeredSpeciesIDs`, the Pokédex's set: the
+  Pokémon being raised for the stages it reached, and released entries, which the Pokédex keeps. A Pokémon could be
+  raised, claimed for, then sent off. **Why it was missed:** the set was built for the Pokédex grid and reused for
+  achievements, and two tests pinned the loophole as intended ("a released Pokémon counts", "the current Pokémon
+  counts for the stages it has reached"). Achievements now read `graduatedSpeciesIDs`, `graduatedCollectionProgress`
+  and `graduatedSilvallyMemoryTypes`; the Pokédex keeps its own counts. Guards: `CollectorItemsTests`
+  (`testGraduatedChainsCountButNotReleasedOnes`, `testThePokemonBeingRaisedEarnsNothing`), `LegendaryEggTests`,
+  `CompletionCharmTests.testEverySpeciesUnlocksTheOvalCharm`, `SilvallyMemoryTests.testEveryMemoryEarnsATypeNullEgg`;
+  each fails when its path reads the Pokédex's set again.
+
+- **A rarity is decided by the legendary flag before the capture rate.** Tier eggs filtered bases on capture rate
+  alone, on the comment's assumption that every legendary is at 45 or less. Necrozma, Eternatus and Terapagos are at
+  255 (scripted catches in the games), so "Rare or better" never hatched them while their card said Legendary.
+  **Why it was missed:** the test pool's legendary was at 3. `Rarity.admits` takes the flag first, as `Rarity.from`
+  does, in the index and the REST fallback; `PremiumEggTests.testARareEggHatchesALegendaryWithACommonCaptureRate`
+  rolls a legendary at 255 beside a common at 255 through both paths. Capture rate then left the weights too (#54):
+  it measures how hard a Pokémon is to catch with a ball, not how rare it is in an egg, so Beldum (3) hatched as
+  rarely as Mewtwo. Every line of a rarity now weighs the same (`PokemonOdds.hatchWeight`, 212 / 90 / 40 / 3, each
+  rarity keeping its share); capture rate only decides the rarity.
+
 - **An egg-roll weight must not treat capture_rate as rarity for legendaries.** `chooseBase` weighted
   candidates by PokéAPI `capture_rate`: 3 for most legendaries, but 45 for Mew, Celebi, Rayquaza and
   Shaymin (255 for Necrozma, Eternatus and Terapagos in later generations). Each of those four was as
@@ -1467,6 +1488,14 @@ read_when:
   width). `menuBarLayout` now fits 20pt tall up to `menuBarSpriteMaxWidth` (36pt, 645/649 at full
   height). Measure a new cap against every canvas in the dex, not the cached few; the guard is
   `testWideSpriteFillsMenuBarHeightUntilTheWidthCap` with the real Swanna and Tynamo canvases.
+
+- **A width cap in an HStack is a cap, not a size.** The evolution track's branch got
+  `.frame(maxWidth: branchMaxWidth)` so twenty Vivillon patterns wrap (#51). In an HStack a flexible frame takes
+  its whole maximum: Pikachu's two ways took eight ways' width and left it empty at the card's right edge, the
+  stretches shortened. **Why it was missed:** #51's test measured the wide branch (it wraps) and Eevee's eight (one
+  line), never a narrow branch's width. `UpToWidth` sizes the content to the width it needs, capped;
+  `EvolutionTrackTests.testANarrowBranchLetsTheTrackReachItsEdge` finds the track's rightmost pixel at the edge, and
+  fails with the frame put back.
 
 - **A drawn idle loop moves everything by whole cycles.** The custom eggs (`EggDesigns`) are 24 frames played in a
   loop. The electric egg's sparks turned 0.3 of a turn per loop and the poison egg's bubbles rose 1.5 times, so both

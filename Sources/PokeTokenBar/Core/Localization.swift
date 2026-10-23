@@ -1634,6 +1634,7 @@ struct L {
         case .teraOrb: return t("테라스탈오브", "Tera Orb", "テラスタルオーブ", "Orbe Teracristal", "Orbe Téracristal", "Orbe Terastal", "Terakristall-Orb", "Тера-сфера")
         case .relicStatue: return t("고대의석상", "Relic Statue", "こだいのせきぞう", "Efigie Antigua", "Vieux Santon", "Estátua Antiga", "Alte Statue", "Древняя статуя")
         case .typeNullEgg: return t("타입:널의 알", "Type: Null Egg", "タイプ：ヌルのタマゴ", "Huevo de Código Cero", "Œuf de Type:0", "Ovo de Type: Null", "Typ:Null-Ei", "Яйцо Тип: Ноль")
+        case .legendaryEgg: return t("전설의 알", "Legendary Egg", "伝説のタマゴ", "Huevo Legendario", "Œuf légendaire", "Ovo Lendário", "Legendäres Ei", "Легендарное яйцо")
         case .ovalCharm: return t("둥근부적", "Oval Charm", "まるいおまもり", "Amuleto Oval", "Charme Ovale", "Amuleto Oval", "Ovalpin", "Овальный талисман")
         case .glimmeringCharm: return t("반짝이는부적", "Glimmering Charm", "きらめくおまもり", "Amuleto Cristalino", "Charme Éclatant", "Amuleto Cintilante", "Glitzerpin", "Сверкающий талисман")
         case .boulderBadge: return t("회색배지", "Boulder Badge", "グレーバッジ", "Medalla Roca", "Badge Roche", "Insígnia da Rocha", "Felsorden", "Каменный значок")
@@ -1933,6 +1934,15 @@ struct L {
                      "A recompensa pelas 17 Memórias de Silvally. Solte seu Pokémon atual em troca de um ovo que vai chocar um Type: Null.",
                      "Die Belohnung für alle 17 Disks von Amigento. Gib dein aktuelles Pokémon ab für ein Ei, aus dem ein Typ:Null schlüpft.",
                      "Награда за все 17 дисков Сильвалли. Отпустите текущего покемона ради яйца, из которого вылупится Тип: Ноль.")
+        case .legendaryEgg:
+            return t("한 지방의 포켓몬을 모두 졸업시킬 때마다 받는 보상. 지금 포켓몬을 놓아주고 전설 또는 환상의 포켓몬이 태어나는 알을 받아요.",
+                     "The reward for each region whose every Pokémon has graduated. Send off your current Pokémon for an egg that hatches a legendary or mythical Pokémon.",
+                     "ひとつの地方のポケモンをすべて卒業させるたびにもらえるごほうび。いまのポケモンを手放して、伝説か幻のポケモンが生まれるタマゴを受け取ります。",
+                     "La recompensa por cada región cuyos Pokémon se han graduado todos. Suelta a tu Pokémon actual a cambio de un huevo del que saldrá un Pokémon legendario o singular.",
+                     "La récompense de chaque région dont tous les Pokémon sont diplômés. Laisse partir ton Pokémon actuel contre un œuf qui fera éclore un Pokémon légendaire ou fabuleux.",
+                     "A recompensa por cada região com todos os Pokémon formados. Solte seu Pokémon atual em troca de um ovo que vai chocar um Pokémon lendário ou mítico.",
+                     "Die Belohnung für jede Region, deren Pokémon alle ihren Abschied hatten. Gib dein aktuelles Pokémon ab für ein Ei, aus dem ein legendäres oder mysteriöses Pokémon schlüpft.",
+                     "Награда за каждый регион, все покемоны которого выпущены. Отпустите текущего покемона ради яйца, из которого вылупится легендарный или мифический покемон.")
         case .relicStatue:
             return t("보유하면 진화하지 않는 포켓몬이 25% 더 빨리 성장합니다.",
                      "While owned, a Pokémon that does not evolve grows 25% faster.",
@@ -2046,6 +2056,12 @@ struct L {
           "\(count) zum Einlösen: \(sections)",
           "Можно забрать: \(count) · \(sections)")
     }
+    /// What achievements count, under their progress.
+    var achievementsGraduatedOnly: String {
+        t("졸업한 포켓몬만 집계", "Graduated Pokémon only", "卒業したポケモンのみ", "Solo Pokémon graduados",
+          "Pokémon diplômés seulement", "Só Pokémon formados", "Nur verabschiedete Pokémon", "Только выпущенные покемоны")
+    }
+
     func achievementsProgress(_ count: Int, _ total: Int) -> String {
         t("\(total)개 중 \(count)개 완료",
           "\(count) of \(total) completed",
@@ -2125,6 +2141,10 @@ struct L {
     }
     var allFormsGoal: String {
         t("모든 폼", "Every form", "すべてのフォルム", "Todas las formas", "Toutes les formes", "Todas as formas", "Alle Formen", "Все формы")
+    }
+    var legendaryEggHint: String {
+        t("전설 확정", "Guaranteed legendary", "伝説確定", "Legendario garantizado", "Légendaire garanti",
+          "Lendário garantido", "Garantiert legendär", "Гарантированно легендарный")
     }
     var typeNullEggHint: String {
         t("타입:널 확정", "Guaranteed Type: Null", "タイプ：ヌル確定", "Código Cero garantizado", "Type:0 garanti",
@@ -2257,6 +2277,7 @@ struct L {
     }
     /// 인큐베이션 중 표시하는 보증 배지 — 어떤 알을 품고 있는지 한 줄로.
     func eggGuaranteeHint(_ tier: Rarity) -> String {
+        if tier == .legendary { return legendaryEggHint }   // nothing is better than legendary
         let r = rarityLabel(tier)
         return t("\(r) 이상 확정", "\(r) or better", "\(r) 以上確定", "\(r) o superior garantizado", "\(r) ou mieux garanti", "\(r) ou melhor garantido", "Garantiert \(r) oder besser", "\(r) или выше")
     }

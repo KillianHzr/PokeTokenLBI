@@ -70,10 +70,11 @@ final class CollectorItemsTests: XCTestCase {
     func testCollectorItemsAndAchievements() {
         let s = store()
         XCTAssertEqual(s.collectorItems(in: .evolutionStones).count, 10)
-        XCTAssertEqual(s.collectorItems(in: .legendaryArtifacts).count, 27)
+        XCTAssertEqual(s.collectorItems(in: .legendaryArtifacts).count, 28)
         XCTAssertEqual(s.collectorItems(in: .gymBadges).count, 18)
         XCTAssertEqual(Set(CompanionStore.achievementItems), Set(ItemKind.allCases.filter { $0.collectorGroup != nil }))
-        XCTAssertEqual(s.totalAchievementsCount, 198, "10 stones, 27 artifacts, 161 badge regions")
+        XCTAssertEqual(s.totalAchievementsCount, 207,
+                       "10 stones, 27 artifacts and the Legendary Egg's 9 regions, 161 badge regions")
         XCTAssertEqual(s.purchasableItems, [.mint, .rareCandy, .shinyCharm], "the Shop sells what main sells")
 
         // An unlocked stone is an achievement to claim, never a Shop item.
@@ -94,8 +95,8 @@ final class CollectorItemsTests: XCTestCase {
                 XCTAssertNil(kind.shopPrice, "\(kind) achievement is free to claim, not bought")
                 XCTAssertTrue(kind.isAchievement)
                 XCTAssertEqual(kind.achievementRewardCount, kind.stoneType != nil ? 5 : 1)
-                XCTAssertEqual(kind.isPassive, kind.stoneType == nil && kind != .typeNullEgg,
-                               "stones and the Type: Null Egg are the only consumable rewards")
+                XCTAssertEqual(kind.isPassive, kind.stoneType == nil && kind != .typeNullEgg && kind != .legendaryEgg,
+                               "stones and the Type: Null and Legendary Eggs are the only consumable rewards")
             }
         }
     }
@@ -121,21 +122,27 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(s.unclaimedAchievementsCount, 0)
     }
 
-    /// Every stage of a graduated chain counts, and so does a released Pokémon: the Pokédex keeps both.
-    func testEvolutionChainsAndReleasedEntriesCountAsRegistered() {
-        let s = store(dex: [entry([1, 2, 3]), entry([4, 5, 6], released: true), entry([7, 8, 9])])
-        XCTAssertTrue(s.isUnlocked(.leafStone))
+    /// Every stage of a graduated chain counts. A released Pokémon stays in the Pokédex but earns nothing: it could
+    /// be raised, claimed for, then sent off.
+    func testGraduatedChainsCountButNotReleasedOnes() {
+        let graduated = store(dex: [entry([1, 2, 3]), entry([4, 5, 6]), entry([7, 8, 9])])
+        XCTAssertTrue(graduated.isUnlocked(.leafStone))
+        let released = store(dex: [entry([1, 2, 3]), entry([4, 5, 6], released: true), entry([7, 8, 9])])
+        XCTAssertTrue(released.registeredSpeciesIDs.contains(6), "the Pokédex keeps it")
+        XCTAssertFalse(released.isUnlocked(.leafStone))
+        XCTAssertEqual(released.unclaimedAchievementsCount, 0)
     }
 
-    /// The current Pokémon counts for the stages it has reached, never for its planned evolutions.
-    func testActivePokemonCountsOnlyReachedStages() {
-        func active(stage: Int) -> MonState {
-            MonState(baseID: 1, pathIDs: [1, 2, 3], stageIndex: stage, usedAtStage: 0,
-                     rarity: .common, totalForms: 3)
-        }
-        let others = [entry([4, 5, 6]), entry([7, 8, 9])]
-        XCTAssertFalse(store(dex: others, active: active(stage: 1)).isUnlocked(.leafStone))
-        XCTAssertTrue(store(dex: others, active: active(stage: 2)).isUnlocked(.leafStone))
+    /// The Pokémon being raised is in the Pokédex for the stages it has reached, but earns nothing before it
+    /// graduates, even at its last stage.
+    func testThePokemonBeingRaisedEarnsNothing() {
+        let finalStage = MonState(baseID: 1, pathIDs: [1, 2, 3], stageIndex: 2, usedAtStage: 0, rarity: .common,
+                                  totalForms: 3)
+        let raising = store(dex: [entry([4, 5, 6]), entry([7, 8, 9])], active: finalStage)
+        XCTAssertTrue(raising.registeredSpeciesIDs.isSuperset(of: [1, 2, 3]), "the Pokédex shows it")
+        XCTAssertFalse(raising.isUnlocked(.leafStone))
+        XCTAssertFalse(raising.claimAchievement(.leafStone))
+        XCTAssertTrue(store(dex: [entry([1, 2, 3]), entry([4, 5, 6]), entry([7, 8, 9])]).isUnlocked(.leafStone))
     }
 
     /// Magma Stone has three goals: the Galar Regis alone unlock it, and goals don't mix.
@@ -162,9 +169,9 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(PokemonTypeData.badgeSpecies(for: .fairy, generation: 2), [173, 174, 175, 176, 183, 184, 209, 210])
         XCTAssertEqual(ItemKind.allCases.compactMap(\.badgeType)
             .map { PokemonTypeData.badgeGenerations(for: $0).count }.reduce(0, +), 161)
-        let kanto = store(dex: entries([35, 36, 39, 40, 122])).badgeTiers(.fairyBadge)
+        let kanto = store(dex: entries([35, 36, 39, 40, 122])).regionTiers(.fairyBadge)
         XCTAssertEqual(kanto.filter(\.isReady).map(\.generation), [1])
-        XCTAssertFalse(store(dex: entries([35, 36, 39, 40])).badgeTiers(.fairyBadge).contains(where: \.isReady),
+        XCTAssertFalse(store(dex: entries([35, 36, 39, 40])).regionTiers(.fairyBadge).contains(where: \.isReady),
                        "a region needs every one of its Pokémon")
     }
 
@@ -173,8 +180,8 @@ final class CollectorItemsTests: XCTestCase {
         let s = store(dex: entries([35, 36, 39, 40, 122, 173, 174, 175, 176, 183, 184, 209, 210]))
         XCTAssertEqual(s.achievementTally(in: .gymBadges).ready, 2, "Kanto and Johto Fairy")
         XCTAssertTrue(s.claimAchievement(.fairyBadge))
-        XCTAssertTrue(s.isBadgeTierClaimed(.fairyBadge, generation: 1))
-        XCTAssertTrue(s.isBadgeTierClaimed(.fairyBadge, generation: 2))
+        XCTAssertTrue(s.isRegionTierClaimed(.fairyBadge, generation: 1))
+        XCTAssertTrue(s.isRegionTierClaimed(.fairyBadge, generation: 2))
         XCTAssertEqual(s.claimedBadgeTierCount(.fairy), 2)
         XCTAssertEqual(s.itemCount(.fairyBadge), 1)
         XCTAssertFalse(s.isClaimed(.fairyBadge), "seven regions to go")
@@ -186,13 +193,13 @@ final class CollectorItemsTests: XCTestCase {
     func testLegacyBadgesBecomeTheirFirstRegion() {
         let s = store(inventory: [ItemKind.boulderBadge.rawValue: 1, ItemKind.darkBadge.rawValue: 1],
                       claimed: [ItemKind.boulderBadge.rawValue])
-        XCTAssertTrue(s.isBadgeTierClaimed(.boulderBadge, generation: 1))
-        XCTAssertTrue(s.isBadgeTierClaimed(.darkBadge, generation: 2))
+        XCTAssertTrue(s.isRegionTierClaimed(.boulderBadge, generation: 1))
+        XCTAssertTrue(s.isRegionTierClaimed(.darkBadge, generation: 2))
         XCTAssertFalse(s.state.claimedAchievements.contains(ItemKind.boulderBadge.rawValue))
         XCTAssertEqual(s.claimedBadgeTierCount(.rock), 1)
         // A badge in the Bag through a later region is not mistaken for a Kanto one.
         let later = store(inventory: [ItemKind.volcanoBadge.rawValue: 1], claimed: ["volcanoBadge@9"])
-        XCTAssertFalse(later.isBadgeTierClaimed(.volcanoBadge, generation: 1))
+        XCTAssertFalse(later.isRegionTierClaimed(.volcanoBadge, generation: 1))
         XCTAssertEqual(later.claimedBadgeTierCount(.fire), 1)
     }
 
@@ -323,7 +330,7 @@ final class CollectorItemsTests: XCTestCase {
         let artifacts = s.collectorItems(in: .legendaryArtifacts)
         XCTAssertEqual(artifacts.first, .clearBell, "unlocked and not owned comes first")
         XCTAssertEqual(artifacts.last, .soulDew, "owned passives sink to the bottom")
-        XCTAssertEqual(artifacts.count, 27)
+        XCTAssertEqual(artifacts.count, 28)
     }
 
     // MARK: Effects
@@ -364,7 +371,7 @@ final class CollectorItemsTests: XCTestCase {
         let plain = store()
         let flute = store(inventory: [ItemKind.legendCharm.rawValue: 1])
         XCTAssertEqual(flute.hatchWeight(for: mewtwo), plain.hatchWeight(for: mewtwo) * LegendCharm.weightMultiplier)
-        XCTAssertEqual(plain.hatchWeight(for: mew), PokemonOdds.legendaryHatchWeight)
+        XCTAssertEqual(plain.hatchWeight(for: mew), PokemonOdds.hatchWeight(.legendary))
         XCTAssertEqual(flute.hatchWeight(for: mew), plain.hatchWeight(for: mew) * LegendCharm.weightMultiplier,
                        "Mew rolls like Mewtwo, so the flute boosts it")
         let passives = ItemKind.allCases.filter { $0.isPassive && $0 != .legendCharm }
@@ -545,7 +552,7 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(s.typeBadgeSpeedMultiplier(forSpeciesID: 6, form: nil), 1.0)
         // Every region of every badge Dragonite is weak to: Dragon 9, Fairy 9, Ice 9, Rock 9 regions.
         let all = store(claimed: Set([PokemonType.dragon, .fairy, .ice, .rock].flatMap { type in
-            PokemonTypeData.badgeGenerations(for: type).map { CompanionState.badgeTierKey(type.badgeItem, generation: $0) }
+            PokemonTypeData.badgeGenerations(for: type).map { CompanionState.regionTierKey(type.badgeItem, generation: $0) }
         }))
         XCTAssertEqual(all.typeBadgeSpeedMultiplier(forSpeciesID: 149, form: nil), 1 + 4 * 0.225, accuracy: 0.0001)
     }
@@ -615,7 +622,7 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(s.claimAllAchievements(), 0, "nothing left to claim")
         let withRegion = store(dex: entries([35, 36, 39, 40, 122, 154, 157, 160]))
         XCTAssertEqual(withRegion.claimAllAchievements(), 2, "the Fire Stone and the Kanto Fairy region")
-        XCTAssertTrue(withRegion.isBadgeTierClaimed(.fairyBadge, generation: 1))
+        XCTAssertTrue(withRegion.isRegionTierClaimed(.fairyBadge, generation: 1))
         XCTAssertEqual(s.itemCount(.fireStone), EvolutionStone.achievementReward, "no second batch")
     }
 

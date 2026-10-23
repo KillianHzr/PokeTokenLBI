@@ -2135,10 +2135,11 @@ final class CompanionIdentityTests: XCTestCase {
         let index = [BaseSpecies(id: 10, captureRate: 100),
                      BaseSpecies(id: 20, captureRate: 100),
                      BaseSpecies(id: 30, captureRate: 100)]
+        let w = UInt64(PokemonOdds.hatchWeight(.uncommon))   // capture rate 100: uncommon, all three alike
         for seed: UInt64 in [1, 7, 42, 999] {
             var r = SeededRNG(seed: seed)
-            let roll = Int(r.next() % 300)
-            let expected = index[roll / 100].id      // 구간: [0,100)→10, [100,200)→20, [200,300)→30
+            let roll = r.next() % (3 * w)
+            let expected = index[Int(roll / w)].id      // 구간: [0,w)→10, [w,2w)→20, [2w,3w)→30
             let p = IndexProvider(); p.index = index
             let s = samplerStore(p, seed: seed, preloadState: eggReadyState())
             await s.hatchIfNeeded()
@@ -2146,19 +2147,21 @@ final class CompanionIdentityTests: XCTestCase {
         }
     }
 
-    /// capture_rate 가 곧 가중치 — cr 비율만큼 선택 구간이 좁아진다 (희귀種 낮은 확률).
-    func testSamplerCaptureRateIsWeight() async {
-        // [common 254, legendary 2] → roll 0..253 → common, 254..255 → legendary
+    /// The rarity's weight, not the capture rate, is the line's weight: capture rate 254 is common (212) and 2 is
+    /// rare (40), not 254 and 2.
+    func testSamplerRarityIsWeight() async {
         let index = [BaseSpecies(id: 100, captureRate: 254), BaseSpecies(id: 200, captureRate: 2)]
-        var legendarySeed: UInt64?, commonSeed: UInt64?
+        let common = UInt64(PokemonOdds.hatchWeight(.common)), rare = UInt64(PokemonOdds.hatchWeight(.rare))
+        var rareSeed: UInt64?, commonSeed: UInt64?
         for seed: UInt64 in 0..<3000 {
             var r = SeededRNG(seed: seed)
-            let roll = Int(r.next() % 256)
-            if roll >= 254, legendarySeed == nil { legendarySeed = seed }
-            if roll < 254, commonSeed == nil { commonSeed = seed }
-            if legendarySeed != nil, commonSeed != nil { break }
+            let v = r.next()
+            // Trigger: capture-rate weights would pick 100 (v%256 < 254), rarity weights pick 200.
+            if v % (common + rare) >= common, v % 256 < 254, rareSeed == nil { rareSeed = seed }
+            if v % (common + rare) < common, commonSeed == nil { commonSeed = seed }
+            if rareSeed != nil, commonSeed != nil { break }
         }
-        for (seed, expected) in [(commonSeed!, 100), (legendarySeed!, 200)] {
+        for (seed, expected) in [(commonSeed!, 100), (rareSeed!, 200)] {
             let p = IndexProvider(); p.index = index
             let s = samplerStore(p, seed: seed, preloadState: eggReadyState())
             await s.hatchIfNeeded()
@@ -2170,16 +2173,15 @@ final class CompanionIdentityTests: XCTestCase {
     /// A line counts as collected once complete (`isLineComplete`), so the test uses lines without evolutions or
     /// forms: Kangaskhan, Pinsir.
     func testSamplerHalvesCollectedWeight() async {
-        // 미수집: [200, 200] → 경계 200. id=115 수집 시: [100, 200] → 경계 100.
-        // roll ∈ [100, 200) 인 시드는 수집 전엔 id=115, 수집 후엔 id=127 를 뽑는다.
+        // Both common (w): [w, w] → boundary w. With id=115 collected: [w/2, w] → boundary w/2.
         let index = [BaseSpecies(id: 115, captureRate: 200), BaseSpecies(id: 127, captureRate: 200)]
-        // 같은 시드 → 같은 원시 롤값 v. 미수집 총합 400 / 수집 후 총합 300 으로 모듈로만 달라진다.
-        // v%400 < 200 (미수집 → id=1) 이면서 v%300 ≥ 100 (수집 후 → id=2) 인 시드를 찾는다.
+        let w = UInt64(PokemonOdds.hatchWeight(.common))
+        // 같은 시드 → 같은 원시 롤값 v. v%(2w) < w (미수집 → 115) 이면서 v%(3w/2) ≥ w/2 (수집 후 → 127).
         var found: UInt64?
         for seed: UInt64 in 0..<5000 {
             var r = SeededRNG(seed: seed)
             let v = r.next()
-            if v % 400 < 200, v % 300 >= 100 { found = seed; break }
+            if v % (2 * w) < w, v % (w / 2 + w) >= w / 2 { found = seed; break }
         }
         guard let seed = found else { return XCTFail("시드 탐색 실패") }
         // 수집 전: id=1 구간
@@ -2194,20 +2196,20 @@ final class CompanionIdentityTests: XCTestCase {
         XCTAssertEqual(s2.state.active?.baseID, 127, "수집済 가중치 ½ 로 선택 구간이 이동해야 한다")
     }
 
-    /// A legendary that cannot hatch from an egg weighs 3 like Mewtwo, whatever its capture_rate. Mew,
-    /// Celebi and Rayquaza have 45, so weighing them by capture_rate made each as likely as a Kanto starter.
+    /// A legendary weighs 3 like Mewtwo, whatever its capture_rate. Mew, Celebi and Rayquaza have 45, so weighing
+    /// them by capture_rate made each as likely as a Kanto starter.
     func testSamplerWeighsUnbreedableLegendaryLikeMewtwo() async {
-        // capture_rate weights: [45, 45] → total 90. hatchWeight: [45, 3] → total 48.
+        // capture_rate weights: [45, 45] → total 90. hatchWeight (rare, legendary): [40, 3] → total 43.
         let index = [BaseSpecies(id: 1, captureRate: 45),
                      BaseSpecies(id: 151, captureRate: 45, isUnbreedableLegendary: true)]
-        // Trigger: v%90 ≥ 45 picks Mew under capture_rate weights, v%48 < 45 picks id 1 under hatchWeight.
-        // Control: v%48 ≥ 45 still picks Mew, so the legendary stays reachable.
+        // Trigger: v%90 ≥ 45 picks Mew under capture_rate weights, v%43 < 40 picks id 1 under hatchWeight.
+        // Control: v%43 ≥ 40 still picks Mew, so the legendary stays reachable.
         var triggerSeed: UInt64?, controlSeed: UInt64?
         for seed: UInt64 in 0..<5000 {
             var r = SeededRNG(seed: seed)
             let v = r.next()
-            if triggerSeed == nil, v % 90 >= 45, v % 48 < 45 { triggerSeed = seed }
-            if controlSeed == nil, v % 48 >= 45 { controlSeed = seed }
+            if triggerSeed == nil, v % 90 >= 45, v % 43 < 40 { triggerSeed = seed }
+            if controlSeed == nil, v % 43 >= 40 { controlSeed = seed }
             if triggerSeed != nil, controlSeed != nil { break }
         }
         guard let triggerSeed, let controlSeed else { return XCTFail("seed search failed") }

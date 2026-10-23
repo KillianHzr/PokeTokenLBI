@@ -4,10 +4,8 @@ import Foundation
 struct BaseSpecies: Sendable, Codable {
     let id: Int
     let captureRate: Int    // 3(뮤츠급)~255(캐터피급), 공식 희귀도 신호
-    /// Legendary or mythical species that no game lets hatch from an egg. Their capture_rate does not
-    /// tell how rare they are (Mew, Celebi and Rayquaza are 45 like the Kanto starters), so
-    /// `hatchWeight` ignores it. Required when decoding: a base index cached before this field existed
-    /// fails to decode and is fetched again, instead of keeping capture-rate weights for 30 days.
+    /// Legendary or mythical species that no game lets hatch from an egg. Required when decoding: a base index
+    /// cached before this field existed fails to decode and is fetched again.
     let isUnbreedableLegendary: Bool
     /// Legendary or mythical (PokéAPI `is_legendary`/`is_mythical`): the Azure Flute's target. Required when
     /// decoding, like `isUnbreedableLegendary`, so an index cached before it is fetched again.
@@ -20,8 +18,13 @@ struct BaseSpecies: Sendable, Codable {
         self.isLegendary = isLegendary ?? isUnbreedableLegendary
     }
 
-    /// Weight of this species in the egg roll (`CompanionStore.chooseBase`).
-    var hatchWeight: Int { isUnbreedableLegendary ? PokemonOdds.legendaryHatchWeight : captureRate }
+    /// The species' rarity, as its card shows it: legendary by its flag, the others by capture rate.
+    var rarity: Rarity { Rarity.from(captureRate: captureRate, isLegendary: isLegendary, isMythical: false) }
+
+    /// Weight of this species in the egg roll (`CompanionStore.chooseBase`): its rarity's, the same for every
+    /// line of a rarity. Capture rate measures how hard a Pokémon is to catch with a ball, not how rare it is
+    /// in an egg: it only decides the rarity.
+    var hatchWeight: Int { PokemonOdds.hatchWeight(rarity) }
 
     /// Phione and Manaphy are the only legendary or mythical species with an egg group other than
     /// "no-eggs" (Phione hatches from Manaphy's egg in the games), so they keep their capture_rate.

@@ -52,6 +52,26 @@ private struct RestOnlyTieredProvider: PokeProviding {
     }
 }
 
+/// Legendaries caught in the games' story have a capture_rate of 255 (Necrozma, Eternatus, Terapagos): here one
+/// beside a common at 255. Even ids are legendary for the REST fallback, which samples ids at random.
+private struct ScriptedLegendaryProvider: PokeProviding {
+    var indexThrows = false
+    static func isLegendary(_ id: Int) -> Bool { id == 800 || (id != 1 && id.isMultiple(of: 2)) }
+    static func species(_ id: Int) -> BaseSpecies {
+        BaseSpecies(id: id, captureRate: 255, isUnbreedableLegendary: isLegendary(id))
+    }
+    func baseSpeciesIndex() async throws -> [BaseSpecies] {
+        if indexThrows { throw URLError(.badServerResponse) }
+        return [Self.species(1), Self.species(800)]
+    }
+    func baseSpecies(id: Int) async throws -> BaseSpecies? { Self.species(id) }
+    func line(baseSpeciesID: Int) async throws -> EvoLine {
+        EvoLine(baseID: baseSpeciesID, tree: EvoNode(speciesID: baseSpeciesID, children: []),
+                rarity: Rarity.from(captureRate: 255, isLegendary: Self.isLegendary(baseSpeciesID), isMythical: false),
+                names: [baseSpeciesID: ["en": "M\(baseSpeciesID)"]])
+    }
+}
+
 /// 인덱스는 "희귀(capture_rate 30)"라고 하는데 실제 라인은 common — stale 인덱스 시뮬.
 private struct LyingIndexProvider: PokeProviding {
     func baseSpeciesIndex() async throws -> [BaseSpecies] { [BaseSpecies(id: 7, captureRate: 30)] }
@@ -108,17 +128,38 @@ final class PremiumEggTests: XCTestCase {
         }
     }
 
-    /// 전설은 capture_rate 로 판정할 수 없다(인덱스에 is_legendary 가 없음) → 필터 대상 아님.
-    /// 동시에 전설은 전원 capture_rate ≤ 45 라 고급·희귀 필터에 **자연히 포함**된다("이상" 규칙 성립).
-    func testLegendaryHasNoCaptureRateCeilingButPassesLowerTierFilters() {
+    /// Legendaries have no capture_rate ceiling: tier eggs admit them by their flag, whatever their capture_rate
+    /// (3 to 45 for most, 255 for the three caught in the games' story), as the card's rarity does.
+    func testTierEggsAdmitEveryLegendaryByItsFlag() {
         XCTAssertNil(Rarity.legendary.captureRateCeiling)
         XCTAssertFalse(Rarity.legendary.includes(captureRate: 3))
-        // 실제 전설의 capture_rate 대역(3·30·45)은 고급/희귀 필터를 모두 통과한다.
-        for cr in [3, 30, 45] {
-            XCTAssertTrue(Rarity.rare.includes(captureRate: cr))
-            XCTAssertTrue(Rarity.uncommon.includes(captureRate: cr))
+        for cr in [3, 5, 6, 10, 30, 45, 255] {
+            let legendary = BaseSpecies(id: 800, captureRate: cr, isUnbreedableLegendary: true)
+            XCTAssertTrue(Rarity.rare.admits(legendary), "capture_rate \(cr)")
+            XCTAssertTrue(Rarity.uncommon.admits(legendary), "capture_rate \(cr)")
         }
+        XCTAssertFalse(Rarity.rare.admits(BaseSpecies(id: 1, captureRate: 255)))
+        XCTAssertFalse(Rarity.uncommon.admits(BaseSpecies(id: 1, captureRate: 255)))
         XCTAssertFalse(FreshEgg.shopTiers.contains(.legendary), "전설 전용 알은 팔지 않는다")
+    }
+
+    /// Necrozma, Eternatus and Terapagos have a capture_rate of 255: a Rare-or-better egg still hatches them, and
+    /// never the common at 255 beside them, through the index and through the REST fallback.
+    func testARareEggHatchesALegendaryWithACommonCaptureRate() async {
+        for seed in UInt64(1)...12 {
+            let s = eggStore(tier: .rare, seed: seed, provider: ScriptedLegendaryProvider())
+            await s.hatchIfNeeded()
+            XCTAssertEqual(s.state.active?.baseID, 800, "seed \(seed)")
+        }
+        var hatched = 0
+        for seed in UInt64(1)...12 {
+            let s = eggStore(tier: .uncommon, seed: seed, provider: ScriptedLegendaryProvider(indexThrows: true))
+            await s.hatchIfNeeded()
+            guard let r = s.state.active?.rarity else { continue }
+            hatched += 1
+            XCTAssertEqual(r, .legendary, "seed \(seed)")
+        }
+        XCTAssertGreaterThan(hatched, 0, "the fallback must run")
     }
 
     // MARK: 가격 — 졸업 총량 배율(새 상수 금지)
@@ -146,7 +187,8 @@ final class PremiumEggTests: XCTestCase {
     /// 출처: PokéAPI GraphQL v1beta2, `evolves_from_species_id IS NULL` · id ≤ 649 · 메타몽 제외,
     /// 2026-08-04 측정(base 328종). 풀이 크게 바뀌면 이 값을 다시 재고 결론을 재확인해야 한다.
     func testRareEggIsNotDominatedAtMeasuredPoolComposition() {
-        let weight: [Rarity: Double] = [.common: 37_240, .uncommon: 3_135, .rare: 3_053, .legendary: 339]
+        // Lines × their rarity's weight, the index of 2026-10-23 (252 / 65 / 135 / 88 lines).
+        let weight: [Rarity: Double] = [.common: 53_424, .uncommon: 5_850, .rare: 5_400, .legendary: 264]
         // 고급 알 = 고급 이상 풀(전설 포함). 그 안에서 희귀 이상이 나올 확률.
         let uncommonEggPool = weight[.uncommon]! + weight[.rare]! + weight[.legendary]!
         let rarePlusShare = (weight[.rare]! + weight[.legendary]!) / uncommonEggPool

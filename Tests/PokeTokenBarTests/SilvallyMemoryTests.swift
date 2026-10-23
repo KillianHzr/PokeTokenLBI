@@ -118,6 +118,16 @@ final class SilvallyMemoryTests: XCTestCase {
         let missingBug = try store(state(legendaries: everyMemory.filter { $0 != 649 }))
         XCTAssertEqual(missingBug.silvallyMemoryCount, 16)
         XCTAssertFalse(missingBug.isUnlocked(.typeNullEgg), "Genesect is the only Bug legendary")
+        // Only graduated legendaries count for the egg: a released Genesect, or one being raised, gives Silvally its
+        // form but not the achievement.
+        let released = try store(state(legendaries: everyMemory.filter { $0 != 649 }, extra: [entry(649, released: true)]))
+        XCTAssertEqual(released.state.silvallyMemoryTypes, Set(PokemonForm.memoryTypes))
+        XCTAssertEqual(released.silvallyMemoryCount, 16)
+        XCTAssertFalse(released.isUnlocked(.typeNullEgg))
+        var raising = state(legendaries: everyMemory.filter { $0 != 649 })
+        raising.active = MonState(baseID: 649, pathIDs: [649], stageIndex: 0, usedAtStage: 0, rarity: .legendary,
+                                  totalForms: 1)
+        XCTAssertFalse(try store(raising).isUnlocked(.typeNullEgg))
 
         var st = state(legendaries: everyMemory)
         st.active = MonState(baseID: 25, pathIDs: [25], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 1)

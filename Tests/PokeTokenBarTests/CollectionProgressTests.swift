@@ -23,7 +23,7 @@ final class CollectionProgressTests: XCTestCase {
         // Pikachu (one appearance), three Unown letters, an Arceus with the Fire Plate (Normal and Fire).
         st.dex = [entry(25), entry(201, "a"), entry(201, "b"), entry(201, "question"), entry(25),
                   entry(493, "normal", rarity: .legendary)]
-        st.claimedAchievements = [CompanionState.badgeTierKey(.volcanoBadge, generation: 1)]
+        st.claimedAchievements = [CompanionState.regionTierKey(.volcanoBadge, generation: 1)]
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("progress-\(UUID().uuidString).json")
         try JSONEncoder().encode(st).write(to: url)
         addTeardownBlock { try? FileManager.default.removeItem(at: url) }

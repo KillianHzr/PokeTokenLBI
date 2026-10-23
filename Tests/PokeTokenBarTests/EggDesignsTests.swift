@@ -8,8 +8,8 @@ import XCTest
 /// looping without a jump.
 @MainActor
 final class EggDesignsTests: XCTestCase {
-    private static let designed: [EggKind] = [.tier(.uncommon), .tier(.rare)] + PokemonType.allCases.map { .type($0) }
-        + [.typeNull]
+    private static let designed: [EggKind] = [.tier(.uncommon), .tier(.rare), .tier(.legendary)]
+        + PokemonType.allCases.map { .type($0) } + [.typeNull]
 
     /// The RGBA bytes of an image.
     private func bytes(_ image: CGImage) throws -> [UInt8] {

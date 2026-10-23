@@ -155,6 +155,26 @@ final class DrawnEggTests: XCTestCase {
         XCTAssertFalse(older.eggFromTypeNullEgg)
     }
 
+    /// Home's card behind an egg takes the type it guarantees, as a Pokémon's takes its own; another egg keeps the
+    /// egg's color.
+    func testATypeEggTintsItsCard() throws {
+        func store(_ edit: (inout CompanionState) -> Void) throws -> CompanionStore {
+            let suite = "EggTint-\(UUID())"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+            addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(suite).json")
+            addTeardownBlock { try? FileManager.default.removeItem(at: file) }
+            var state = CompanionState()
+            state.installBaselineSet = true
+            edit(&state)
+            try JSONEncoder().encode(state).write(to: file)
+            return CompanionStore(provider: PokeAPIClient.shared, fileURL: file, defaults: defaults)
+        }
+        XCTAssertEqual(try store { $0.eggTypeGuarantee = .fire }.themeColors, [PokemonType.fire.color])
+        XCTAssertEqual(try store { $0.eggTier = .rare }.themeColors, [Design.eggColor])
+        XCTAssertEqual(try store { _ in }.themeColors, [Design.eggColor])
+    }
+
     func testAnotherEggIsAnotherTask() {
         XCTAssertNotEqual(SpriteView.frameTaskID(speciesID: nil, shiny: false, floor: 0, egg: .plain),
                           SpriteView.frameTaskID(speciesID: nil, shiny: false, floor: 0, egg: .tier(.rare)))
