@@ -1,33 +1,5 @@
 import SwiftUI
 
-/// A four-leaf clover, the Luck screen's glyph: four hearts round the middle, and a stem. SF Symbols has none.
-struct FourLeafClover: Shape {
-    func path(in rect: CGRect) -> Path {
-        let s = min(rect.width, rect.height)
-        let c = CGPoint(x: rect.midX - s * 0.03, y: rect.midY - s * 0.05)
-        var heart = Path()
-        heart.move(to: .zero)
-        heart.addCurve(to: CGPoint(x: -0.5, y: -0.6), control1: CGPoint(x: -0.2, y: -0.2), control2: CGPoint(x: -0.52, y: -0.36))
-        heart.addCurve(to: CGPoint(x: 0, y: -0.8), control1: CGPoint(x: -0.48, y: -0.96), control2: CGPoint(x: -0.06, y: -1.02))
-        heart.addCurve(to: CGPoint(x: 0.5, y: -0.6), control1: CGPoint(x: 0.06, y: -1.02), control2: CGPoint(x: 0.48, y: -0.96))
-        heart.addCurve(to: .zero, control1: CGPoint(x: 0.52, y: -0.36), control2: CGPoint(x: 0.2, y: -0.2))
-        heart.closeSubpath()
-        var clover = Path()
-        for k in 0..<4 {
-            let place = CGAffineTransform(translationX: 0, y: -0.07)
-                .concatenating(CGAffineTransform(scaleX: s * 0.42, y: s * 0.42))
-                .concatenating(CGAffineTransform(rotationAngle: CGFloat(k) * .pi / 2))
-                .concatenating(CGAffineTransform(translationX: c.x, y: c.y))
-            clover.addPath(heart, transform: place)
-        }
-        var stem = Path()
-        stem.move(to: CGPoint(x: c.x + s * 0.03, y: c.y + s * 0.06))
-        stem.addQuadCurve(to: CGPoint(x: c.x + s * 0.42, y: c.y + s * 0.5), control: CGPoint(x: c.x + s * 0.32, y: c.y + s * 0.2))
-        clover.addPath(stem.strokedPath(StrokeStyle(lineWidth: s * 0.085, lineCap: .round)))
-        return clover
-    }
-}
-
 /// How lucky the player's draws were (`HatchLuck`), from the clover on Home: the score and its six criteria, their
 /// curves, and the hatches one by one. Nothing until the species index is loaded.
 @MainActor

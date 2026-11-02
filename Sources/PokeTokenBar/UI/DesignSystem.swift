@@ -343,24 +343,17 @@ struct SectionTitle: View {
     }
 }
 
-/// A round icon button for card corners (Bonuses, recap): an SF Symbol, or a glyph drawn where it has none.
+/// A round icon button for card corners (Bonuses, recap).
 @MainActor
-struct CircleIconButton<Glyph: View>: View {
+struct CircleIconButton: View {
+    let systemImage: String
     let help: String
     var tint: Color = .secondary
     let action: () -> Void
-    let glyph: Glyph
-
-    init(help: String, tint: Color = .secondary, action: @escaping () -> Void, @ViewBuilder glyph: () -> Glyph) {
-        self.help = help
-        self.tint = tint
-        self.action = action
-        self.glyph = glyph()
-    }
 
     var body: some View {
         Button(action: action) {
-            glyph
+            Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 26, height: 26)
@@ -369,12 +362,6 @@ struct CircleIconButton<Glyph: View>: View {
         .buttonStyle(.plain)
         .hoverTip(help)
         .accessibilityLabel(help)
-    }
-}
-
-extension CircleIconButton where Glyph == Image {
-    init(systemImage: String, help: String, tint: Color = .secondary, action: @escaping () -> Void) {
-        self.init(help: help, tint: tint, action: action) { Image(systemName: systemImage) }
     }
 }
 

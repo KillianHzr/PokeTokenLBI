@@ -629,9 +629,7 @@ struct PopoverView: View {
                 Spacer()
                 CircleIconButton(systemImage: "wand.and.stars", help: l.bonusOpen) { nav.showingBonuses = true }
                 CircleIconButton(systemImage: "chart.bar.xaxis", help: l.statsTitle) { nav.showingRecap = true }
-                CircleIconButton(help: l.luckTitle) { nav.showingLuck = true } glyph: {
-                    FourLeafClover().frame(width: 13.5, height: 13.5)
-                }
+                CircleIconButton(systemImage: "suit.club.fill", help: l.luckTitle) { nav.showingLuck = true }
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(TokenFormatter.compact(store.todayTotalTokens))
