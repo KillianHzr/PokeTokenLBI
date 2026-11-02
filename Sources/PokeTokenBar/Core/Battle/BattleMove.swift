@@ -167,6 +167,9 @@ struct SpeciesBattleData: Sendable, Equatable {
     let abilities: [(slug: String, hidden: Bool)]
     /// The four moves a wild one or a boss loops.
     let loop: [String]
+    /// The moves a player's suggestion picks from (`MoveSuggester`): each type's strongest under 100 power and at 100
+    /// or more, the best setup, recovery and status moves.
+    let pool: [String]
 
     static func == (lhs: SpeciesBattleData, rhs: SpeciesBattleData) -> Bool { lhs.pokemonID == rhs.pokemonID }
 }
@@ -176,7 +179,7 @@ enum SpeciesBattleTable {
         var table: [Int: SpeciesBattleData] = [:]
         for line in BattleDataTables.species.split(separator: "\n") {
             let f = line.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
-            guard f.count >= 6, let id = Int(f[0]), let species = Int(f[1]) else { continue }
+            guard f.count >= 7, let id = Int(f[0]), let species = Int(f[1]) else { continue }
             let stats = f[2].split(separator: ",").compactMap { Int($0) }
             guard stats.count == 6 else { continue }
             let abilities = f[4].split(separator: ",").map { slug -> (slug: String, hidden: Bool) in
@@ -184,7 +187,8 @@ enum SpeciesBattleTable {
             }
             table[id] = SpeciesBattleData(pokemonID: id, speciesID: species, baseStats: stats,
                                           types: f[3].split(separator: ",").compactMap { PokemonType(rawValue: String($0)) },
-                                          abilities: abilities, loop: f[5].split(separator: ",").map(String.init))
+                                          abilities: abilities, loop: f[5].split(separator: ",").map(String.init),
+                                          pool: f[6].split(separator: ",").map(String.init))
         }
         return table
     }()

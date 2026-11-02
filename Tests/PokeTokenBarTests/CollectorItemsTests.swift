@@ -69,12 +69,13 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(Set(CompanionStore.achievementItems), Set(ItemKind.allCases.filter { $0.collectorGroup != nil }))
         XCTAssertEqual(s.totalAchievementsCount, 244,
                        "10 stones, 39 artifacts and the Legendary Egg's 9 regions, 161 badge regions, 10 forms, 15 digs")
-        XCTAssertEqual(s.purchasableItems, [.rareCandy, .shinyCharm], "the Shop sells what main sells, the Mint retired")
+        XCTAssertEqual(s.purchasableItems, [.rareCandy, .greatBall, .shinyCharm, .ultraBall],
+                       "the Shop sells what main sells and the dungeons' two balls, the Mint retired")
 
         // An unlocked stone is an achievement to claim, never a Shop item.
         let withFire = store(dex: entries([154, 157, 160]))
         XCTAssertTrue(withFire.isUnlocked(.fireStone))
-        XCTAssertEqual(withFire.purchasableItems, [.rareCandy, .shinyCharm])
+        XCTAssertEqual(withFire.purchasableItems, [.rareCandy, .greatBall, .shinyCharm, .ultraBall])
         XCTAssertFalse(withFire.shopEntries.contains(.item(.fireStone)))
         XCTAssertEqual(withFire.unclaimedAchievementsCount, 1)
     }
@@ -87,6 +88,12 @@ final class CollectorItemsTests: XCTestCase {
                 XCTAssertNil(kind.unlock)
                 XCTAssertNil(kind.shopPrice)
                 XCTAssertFalse(kind.isAchievement)
+            } else if kind.isDungeonItem {
+                // Found in dungeons, never an achievement; only the Great and Ultra Balls are sold (R12 B).
+                XCTAssertNil(kind.unlock)
+                XCTAssertFalse(kind.isAchievement)
+                XCTAssertFalse(kind.isPassive, "\(kind) is used up")
+                XCTAssertEqual(kind.shopPrice != nil, [.greatBall, .ultraBall].contains(kind), "\(kind)")
             } else if kind.collectorGroup == nil {
                 XCTAssertNil(kind.unlock, "\(kind) is always on sale")
                 XCTAssertNotNil(kind.shopPrice, "\(kind) must have a price")

@@ -242,7 +242,19 @@ def loop_moves(pokemon, learnset, moves, types):
     chosen = sorted(chosen, key=lambda n: -damage(n))
     if support:
         chosen = [support] + chosen
-    return chosen[:4]
+    # The moves a player's suggestion picks from (`MoveSuggester`): each type's strongest under 100 power and its
+    # strongest at 100 or more (locked until a Technical Capsule), then the best setup, recovery and status moves.
+    pool, kinds = [], set()
+    for n in ranked:
+        kind = (moves[n]["type"]["name"], (moves[n]["power"] or 0) >= 100)
+        if kind not in kinds:
+            kinds.add(kind)
+            pool.append(n)
+    for table in (BOOSTS, RECOVERY, INFLICT):
+        options = [n for n in known if n in table and n in moves and fits(n)]
+        if options:
+            pool.append(max(options, key=lambda n: (table[n], n)))
+    return chosen[:4], pool[:18]
 
 
 def main():
@@ -257,9 +269,9 @@ def main():
         stats = {row["stat"]["name"]: row["base_stat"] for row in p["pokemonstats"]}
         abilities = ",".join(f'{a["ability"]["name"]}{"*" if a["is_hidden"] else ""}' for a in p["pokemonabilities"])
         types = [t["type"]["name"] for t in p["pokemontypes"]]
-        loop = loop_moves(p, learnsets.get(p["id"], []), by_name, types)
+        loop, pool = loop_moves(p, learnsets.get(p["id"], []), by_name, types)
         fields = [p["id"], p["pokemon_species_id"], ",".join(str(stats.get(k, 0)) for k in STAT_KEYS),
-                  ",".join(types), abilities, ",".join(loop)]
+                  ",".join(types), abilities, ",".join(loop), ",".join(pool)]
         lines.append("|".join(str(f) for f in fields))
     move_lines = [move_line(m) for m in moves]
     species_lines = [species_line(s) for s in fetch_species()]
@@ -279,7 +291,7 @@ enum BattleDataTables {{
 {literal(move_lines)}
 """
 
-    /// pokemonID|speciesID|hp,atk,def,spa,spd,spe|types|abilities (* = hidden)|loop moves
+    /// pokemonID|speciesID|hp,atk,def,spa,spd,spe|types|abilities (* = hidden)|loop moves|suggestion pool
     static let species = """
 {literal(lines)}
 """

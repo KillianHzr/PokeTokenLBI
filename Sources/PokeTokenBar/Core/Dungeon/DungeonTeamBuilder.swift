@@ -4,15 +4,22 @@ import Foundation
 /// boss (R7), both against the dungeon's theme, never its boss.
 enum DungeonTeamBuilder {
     /// A graduated Pokémon at level 100 with its IVs, nature and ability; its loop is the one chosen for it, else the
-    /// four moves it knows.
-    static func spec(for entry: DexEntry, loop: [String]? = nil) -> BattlerSpec? {
+    /// one the app suggests against `theme` with the moves `unlocked` (R4).
+    static func spec(for entry: DexEntry, loop: [String]? = nil, unlocked: Set<String> = [],
+                     theme: [PokemonType] = []) -> BattlerSpec? {
         let ivs = entry.profile.map { p in
             [p.ivs.hp, p.ivs.attack, p.ivs.defense, p.ivs.specialAttack, p.ivs.specialDefense, p.ivs.speed]
         } ?? Array(repeating: 15, count: 6)
-        let moves = loop ?? entry.profile?.moves.map(\.name)
-        return BattlerSpec.make(id: entry.id, speciesID: entry.finalID, form: entry.form, level: 100, ivs: ivs,
-                                nature: entry.nature, ability: entry.profile?.abilityName, moves: moves,
-                                isShiny: entry.isShiny)
+        guard var spec = BattlerSpec.make(id: entry.id, speciesID: entry.finalID, form: entry.form, level: 100, ivs: ivs,
+                                          nature: entry.nature, ability: entry.profile?.abilityName, isShiny: entry.isShiny),
+              let data = SpeciesBattleTable.data(speciesID: entry.finalID, form: entry.form) else { return nil }
+        let chosen = (loop ?? []).filter { MoveTable.move($0) != nil }
+        spec.moves = chosen.isEmpty
+            ? MoveSuggester.suggest(data, stats: spec.stats, types: spec.types,
+                                    learnable: entry.profile?.moves.map(\.name) ?? [], unlocked: unlocked, theme: theme)
+            : Array(chosen.prefix(4))
+        if spec.moves.isEmpty { spec.moves = ["struggle"] }
+        return spec
     }
 
     /// The dungeon's wild Pokémon at the middle of its tier's levels, IVs of 15: what a team is measured against.
