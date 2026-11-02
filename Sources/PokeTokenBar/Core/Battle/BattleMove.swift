@@ -194,3 +194,46 @@ enum SpeciesBattleTable {
         all[PokemonForm.detailsID(speciesID: speciesID, form: form)] ?? all[speciesID]
     }
 }
+
+/// One species' facts from `BattleDataTables.speciesInfo`: its capture rate, whether it is an unbreedable legendary
+/// or mythical (`BaseSpecies.isUnbreedableLegendary`), the species it evolves from and its generation.
+struct SpeciesInfo: Sendable, Equatable {
+    let id: Int
+    let captureRate: Int
+    let isLegendary: Bool
+    let evolvesFrom: Int?
+    let generation: Int
+
+    static let all: [Int: SpeciesInfo] = {
+        var table: [Int: SpeciesInfo] = [:]
+        for line in BattleDataTables.speciesInfo.split(separator: "\n") {
+            let f = line.split(separator: "|").compactMap { Int($0) }
+            guard f.count == 5 else { continue }
+            table[f[0]] = SpeciesInfo(id: f[0], captureRate: f[1], isLegendary: f[2] == 1,
+                                      evolvesFrom: f[3] == 0 ? nil : f[3], generation: f[4])
+        }
+        return table
+    }()
+
+    /// The first species of its line.
+    static func baseID(of id: Int) -> Int {
+        var current = id
+        var seen: Set<Int> = []
+        while let parent = all[current]?.evolvesFrom, !seen.contains(parent) {
+            seen.insert(current)
+            current = parent
+        }
+        return current
+    }
+
+    /// The line's rarity, as the eggs and the Pokédex read it: its first species' (`BaseSpecies.rarity`).
+    static func lineRarity(of id: Int) -> Rarity {
+        guard let base = all[baseID(of: id)] else { return .common }
+        return BaseSpecies(id: base.id, captureRate: base.captureRate, isLegendary: base.isLegendary).rarity
+    }
+
+    private static let parents = Set(all.values.compactMap(\.evolvesFrom))
+
+    /// Whether nothing evolves from it.
+    static func isFinal(_ id: Int) -> Bool { !parents.contains(id) }
+}

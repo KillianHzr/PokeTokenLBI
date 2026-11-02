@@ -316,6 +316,16 @@ extension CompanionStore {
     func effectHint(for kind: ItemKind) -> String {
         switch kind {
         case .rareCandy: return "+\(TokenFormatter.compact(rareCandyXP)) XP"
+        case .greatBall: return "×1.5"
+        case .ultraBall: return "×2"
+        case .masterBall: return "100%"
+        case .oranBerry: return "+25%"
+        case .sitrusBerry: return "+50%"
+        case .revive: return "50%"
+        case .maxRevive: return "100%"
+        case .escapeRope, .treasureMap, .explorerChest, .legendaryKey: return l.dungeonItemHint
+        case .silverCapsule: return "IV 31"
+        case .goldCapsule: return "IV 31 ×6"
         case .mint:      return l.mintEffectHint
         case .shinyCharm: return l.shinyCharmEffectHint
         case .legendCharm: return l.legendCharmEffectHint

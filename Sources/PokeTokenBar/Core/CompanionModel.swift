@@ -246,6 +246,12 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     case risingBadge
     case darkBadge
     case fairyBadge
+    /// The dungeons' items (Q23, Q24, R12). Great and Ultra Balls raise a boss's capture odds (×1.5, ×2), a Master
+    /// Ball makes it sure; berries are eaten in battle, Revives raise the knocked out between battles; an Escape Rope
+    /// takes a team out with its loot; Capsules raise IVs; a Treasure Map opens the Ruins of Alph once; an Explorer's
+    /// Chest gives an Explorer Kit treasure; a Legendary Key opens a T4 dungeon (R10).
+    case greatBall, ultraBall, masterBall, oranBerry, sitrusBerry, revive, maxRevive, escapeRope
+    case silverCapsule, goldCapsule, treasureMap, explorerChest, legendaryKey
 
     var badgeType: PokemonType? {
         switch self {
@@ -337,6 +343,17 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .fairyFeather: return "fairy-feather"
         case .whippedDream: return "whipped-dream"
         case .excavation: return "helix-fossil"
+        case .greatBall: return "great-ball"
+        case .ultraBall: return "ultra-ball"
+        case .masterBall: return "master-ball"
+        case .oranBerry: return "oran-berry"
+        case .sitrusBerry: return "sitrus-berry"
+        case .revive: return "revive"
+        case .maxRevive: return "max-revive"
+        case .escapeRope: return "escape-rope"
+        case .silverCapsule: return "bottle-cap"
+        case .goldCapsule: return "gold-bottle-cap"
+        case .legendaryKey: return "secret-key"
         case .lightBall: return "light-ball"
         case .typeNullEgg: return "mystery-egg"
         case .ovalCharm: return "oval-charm"
@@ -405,6 +422,18 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .excavation: return "🦴"
         case .typeNullEgg, .legendaryEgg, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return "🥚"
         case .lightBall: return "⚡"
+        case .greatBall: return "🔵"
+        case .ultraBall: return "🟡"
+        case .masterBall: return "🟣"
+        case .oranBerry: return "🫐"
+        case .sitrusBerry: return "🍋"
+        case .revive, .maxRevive: return "💎"
+        case .escapeRope: return "🪢"
+        case .silverCapsule: return "🥈"
+        case .goldCapsule: return "🥇"
+        case .treasureMap: return "🗺️"
+        case .explorerChest: return "🧰"
+        case .legendaryKey: return "🗝️"
         case .ovalCharm: return "🔶"
         case .glimmeringCharm: return "✨"
         case .boulderBadge, .cascadeBadge, .thunderBadge, .rainbowBadge,
@@ -427,7 +456,19 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .rareCandy: return RareCandy.price
         case .mint: return Mint.price
         case .shinyCharm: return ShinyCharm.price
+        // R12 B: the balls cost what the Uncommon and Rare Eggs cost; the Master Ball is never sold.
+        case .greatBall: return FreshEgg.price(guaranteeing: .uncommon)
+        case .ultraBall: return FreshEgg.price(guaranteeing: .rare)
         default: return nil
+        }
+    }
+
+    /// The dungeons' items: found in dungeons (the two balls sold too), never an achievement.
+    var isDungeonItem: Bool {
+        switch self {
+        case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .escapeRope,
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: true
+        default: false
         }
     }
     /// 보유형(패시브) 아이템 — 소비하지 않고 보유하는 동안 상시 효과. 1회 구매(재구매 불가), 가방엔 "적용 중" 표시.
@@ -439,7 +480,9 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .cometShard, .redNectar, .smoothRock, .sawsbuckSeasons, .fairyFeather, .furfrouTrims, .vivillonPatterns, .whippedDream, .unownLetters,
              .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg,
              .leafStone, .fireStone, .waterStone, .thunderStone, .sunStone,
-             .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone:
+             .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone,
+             .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .escapeRope,
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey:
             return false
         default:
             return true
@@ -501,6 +544,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         switch self {
         case .rareCandy, .mint, .shinyCharm, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .fossilEgg: return nil
         case .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return nil
+        case _ where self.isDungeonItem: return nil
         case .rotomCatalog, .cometShard, .redNectar, .smoothRock, .sawsbuckSeasons, .fairyFeather, .furfrouTrims, .vivillonPatterns, .whippedDream, .unownLetters: return .forms
         case .excavation: return .evolutionStones   // rocks and stones, side by side
         default: return .legendaryArtifacts
@@ -513,6 +557,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         switch self {
         case .rareCandy, .mint, .shinyCharm, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .fossilEgg: return nil
         case .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return nil
+        case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .escapeRope,
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: return nil
         // The first nine stones follow the generations: each asks for one region's final starters.
         case .leafStone:   return .species([SpeciesGoal([3, 6, 9])])            // Kanto starters
         case .fireStone:   return .species([SpeciesGoal([154, 157, 160])])      // Johto starters

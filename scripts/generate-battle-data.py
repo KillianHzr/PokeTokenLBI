@@ -75,6 +75,22 @@ def fetch_pokemon():
     return data["pokemon"]
 
 
+def fetch_species():
+    data = query("""{ pokemonspecies(order_by: {id: asc}) {
+        id capture_rate is_legendary is_mythical evolves_from_species_id generation_id
+        pokemonegggroups { egggroup { name } } } }""")
+    return data["pokemonspecies"]
+
+
+def species_line(s):
+    """id|captureRate|legendary (1 for the unbreedable legendaries and mythicals, as `BaseSpecies` reads them)|
+    evolvesFrom|generation"""
+    groups = [row["egggroup"]["name"] for row in s["pokemonegggroups"]]
+    legendary = (s["is_legendary"] or s["is_mythical"]) and not any(g != "no-eggs" for g in groups)
+    return "|".join(str(f) for f in [s["id"], s["capture_rate"] or 0, 1 if legendary else 0,
+                                     s["evolves_from_species_id"] or 0, s["generation_id"] or 0])
+
+
 def fetch_learnsets(ids):
     """Level-up and machine moves of these varieties, in every version group: filtered per species below."""
     out = {}
@@ -246,6 +262,7 @@ def main():
                   ",".join(types), abilities, ",".join(loop)]
         lines.append("|".join(str(f) for f in fields))
     move_lines = [move_line(m) for m in moves]
+    species_lines = [species_line(s) for s in fetch_species()]
 
     def literal(rows):
         return "\n".join(rows).replace("\\", "\\\\")
@@ -265,6 +282,11 @@ enum BattleDataTables {{
     /// pokemonID|speciesID|hp,atk,def,spa,spd,spe|types|abilities (* = hidden)|loop moves
     static let species = """
 {literal(lines)}
+"""
+
+    /// speciesID|captureRate|legendary|evolvesFrom|generation
+    static let speciesInfo = """
+{literal(species_lines)}
 """
 }}
 ''', encoding="utf-8")
