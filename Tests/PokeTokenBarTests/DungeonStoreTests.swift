@@ -175,6 +175,69 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(s.dungeonSpec(graduated(6), for: .mtEmber)?.moves, ["flamethrower", "air-slash"])
     }
 
+    // MARK: Eggs
+
+    /// Builds each line asked for, so a hatch is the line rolled.
+    private struct LineProvider: PokeProviding {
+        let index: [BaseSpecies]
+        func line(baseSpeciesID id: Int) async throws -> EvoLine {
+            EvoLine(baseID: id, tree: EvoNode(speciesID: id, children: []), rarity: SpeciesInfo.lineRarity(of: id), names: [:])
+        }
+        func baseSpecies(id: Int) async throws -> BaseSpecies? { index.first { $0.id == id } }
+        func baseSpeciesIndex() async throws -> [BaseSpecies] { index }
+    }
+
+    private func hatchingStore(index: [BaseSpecies], prepare: (inout CompanionState) -> Void) throws -> CompanionStore {
+        var st = CompanionState()
+        st.installBaselineSet = true
+        st.lastDate = "d"
+        st.dex = strong
+        prepare(&st)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dungeon-egg-\(UUID().uuidString).json")
+        try JSONEncoder().encode(st).write(to: url)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return CompanionStore(provider: LineProvider(index: index), clock: { self.now }, fileURL: url, rng: SeededRNG(seed: 5),
+                              difficulty: 0.1)
+    }
+
+    /// Q20 B, R9 B: a boss's egg sends the Pokémon raised off and hatches the boss's line, shiny as the boss was.
+    func testADungeonEggHatchesItsLine() async throws {
+        let s = try hatchingStore(index: [BaseSpecies(id: 1, captureRate: 45)]) {
+            $0.active = MonState(baseID: 16, pathIDs: [16], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 3)
+            $0.dungeons.eggs = [DungeonEgg(id: "dratini", baseID: 147, form: nil, isShiny: true, sourceSpeciesID: 149)]
+        }
+        XCTAssertTrue(s.useDungeonEgg("dratini"))
+        XCTAssertNil(s.state.active)
+        XCTAssertTrue(s.dungeonProgress.eggs.isEmpty)
+        XCTAssertEqual(s.eggKind, .dungeon(149))
+        XCTAssertEqual(s.incubatingEggName, s.l.dungeonEggName)
+        s.setEggUsageForTesting(s.eggHatchThreshold)
+        await s.hatchIfNeeded()
+        XCTAssertEqual(s.state.active?.baseID, 147)
+        XCTAssertEqual(s.state.active?.isShiny, true)
+        XCTAssertNil(s.state.eggFromDungeon)
+    }
+
+    /// R13: Arceus hatches from no egg: not a plain one, not a Legendary Egg, not a Birthday Egg.
+    func testArceusHatchesFromNoEgg() throws {
+        let index = [BaseSpecies(id: 493, captureRate: 3, isLegendary: true), BaseSpecies(id: 150, captureRate: 3, isLegendary: true),
+                     BaseSpecies(id: 16, captureRate: 255)]
+        let s = try hatchingStore(index: index) { _ in }
+        XCTAssertFalse(s.hatchPool(index, egg: CompanionStore.EggSpec()).contains { $0.base.id == 493 })
+        XCTAssertFalse(s.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 493 })
+        XCTAssertFalse(BirthdayGift.pool(index, graduated: []).lines.contains { $0.id == 493 })
+    }
+
+    /// A save that pre-rolled Arceus rolls again.
+    func testAPreRolledArceusRollsAgain() async throws {
+        let s = try hatchingStore(index: [BaseSpecies(id: 16, captureRate: 255)]) {
+            $0.pendingHatchID = 493
+            $0.eggUsage = 10_000_000
+        }
+        await s.hatchIfNeeded()
+        XCTAssertNotEqual(s.state.active?.baseID, 493)
+    }
+
     func testVictoryExtras() {
         var random = BattleRandom(seed: 1)
         XCTAssertEqual(CompanionStore.victoryExtras(tier: .t3, firstT3Victory: true, random: &random).items[ItemKind.legendaryKey.rawValue], 1,

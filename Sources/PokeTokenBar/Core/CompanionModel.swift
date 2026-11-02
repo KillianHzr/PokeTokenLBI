@@ -1185,6 +1185,8 @@ enum PokemonNature: String, Codable, Sendable, CaseIterable {
 enum PokemonOdds {
     /// 색이 다른 포켓몬(shiny) 부화 확률 분모 — 1/64 (본가 1/4096 은 데스크톱 앱 규모에선 평생 못 봄).
     static let shinyDenominator: UInt64 = 64
+    /// R13: Arceus hatches from no egg, no event, no chest: only from the egg of the Hall of Origin's boss.
+    static let dungeonOnly: Set<Int> = [493]
     /// 메타몽 위장 확률 분모 — common·≥2형태 부화에 한해 1/128 (GO 변장 메타몽 추정 1/50~70보다 귀하게).
     static let dittoDisguiseDenominator: UInt64 = 128
     /// 메타몽 종 id — 위장 리빌 전용(일반 부화 풀에서 제외).
@@ -1513,6 +1515,8 @@ struct CompanionState: Codable, Sendable, Equatable {
     var eggFromBirthdayEgg = false
     /// The egg in incubation is a Fossil Egg (`FossilDig`).
     var eggFromFossilEgg = false
+    /// The egg in incubation was won in a dungeon (`DungeonEgg`): it hatches its line, shiny when it was.
+    var eggFromDungeon: DungeonEgg?
     /// Fossil Eggs hatched so far.
     var fossilEggsHatched = 0
     /// The fossil lines graduated when the save first met the digs: their digs are done with nothing to claim. Taken
@@ -1667,6 +1671,7 @@ struct CompanionState: Codable, Sendable, Equatable {
         eggFromLegendaryEgg = c.lenient(Bool.self, forKey: .eggFromLegendaryEgg, default: false)
         eggFromBirthdayEgg = c.lenient(Bool.self, forKey: .eggFromBirthdayEgg, default: false)
         eggFromFossilEgg = c.lenient(Bool.self, forKey: .eggFromFossilEgg, default: false)
+        eggFromDungeon = c.lenientOptional(DungeonEgg.self, forKey: .eggFromDungeon)
         fossilEggsHatched = c.lenient(Int.self, forKey: .fossilEggsHatched, default: 0)
         fossilLinesBeforeDigs = c.lenientOptional(Set<Int>.self, forKey: .fossilLinesBeforeDigs)
         pendingShiny = c.lenient(Bool.self, forKey: .pendingShiny, default: false)

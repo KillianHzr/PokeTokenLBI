@@ -7,6 +7,12 @@ extension L {
           "Для подземелий")
     }
 
+    /// A dungeon's egg, on Home while it incubates: the Bag names its Pokémon.
+    var dungeonEggName: String {
+        t("던전의 알", "Dungeon Egg", "ダンジョンのタマゴ", "Huevo de mazmorra", "Œuf de donjon", "Ovo de masmorra",
+          "Dungeon-Ei", "Яйцо из подземелья")
+    }
+
     /// The places' official names (Q26).
     func dungeonName(_ id: DungeonID) -> String {
         switch id {

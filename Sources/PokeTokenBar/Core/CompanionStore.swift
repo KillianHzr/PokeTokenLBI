@@ -2293,6 +2293,17 @@ final class CompanionStore {
         return count
     }
 
+    /// A save that pre-rolled Arceus before it became the Hall of Origin's alone rolls again (R13), unless the egg is
+    /// that boss's.
+    private func dropDungeonOnlyPreRoll() {
+        guard let pending = state.pendingHatchID, PokemonOdds.dungeonOnly.contains(pending), state.eggFromDungeon == nil
+        else { return }
+        state.pendingHatchID = nil
+        state.pendingForm = nil
+        state.pendingShiny = false
+        AppLog.write("hatch: pre-rolled Arceus dropped, only the Hall of Origin gives it")
+    }
+
     // MARK: The dungeons' access (`CompanionStore+Dungeons`: `state` is written in this file only)
 
     /// The tokens' growth: a dungeon's walk while a team explores (Q1: growth pauses, the Shop and the candies go
@@ -2944,6 +2955,24 @@ final class CompanionStore {
         return true
     }
 
+    /// Whether a dungeon's egg of the Bag can be used: as a Fossil Egg, it sends the Pokémon raised off.
+    func canUseDungeonEgg(_ id: String) -> Bool {
+        hasActive && !isRaisingFossilEggPokemon && state.dungeons.eggs.contains { $0.id == id }
+    }
+
+    /// Uses a dungeon's egg (Q20 B): the Pokémon raised is sent off for it, and it hatches its line, shiny when it was
+    /// (R9 B: IVs and nature drawn at the hatch).
+    @discardableResult
+    func useDungeonEgg(_ id: String) -> Bool {
+        guard canUseDungeonEgg(id), let egg = state.dungeons.eggs.first(where: { $0.id == id }) else { return false }
+        state.dungeons.eggs.removeAll { $0.id == id }
+        replaceActiveWithEgg(price: 0, tier: nil, type: nil)
+        state.eggFromDungeon = egg
+        save()
+        AppLog.write("dungeon egg used: line \(egg.baseID) shiny=\(egg.isShiny)")
+        return true
+    }
+
     // MARK: Event eggs
 
     /// The player's very first catch, its time and line: the companion's anniversary egg follows it.
@@ -3160,6 +3189,7 @@ final class CompanionStore {
         state.eggFromLegendaryEgg = false
         state.eggFromBirthdayEgg = false
         state.eggFromFossilEgg = false
+        state.eggFromDungeon = nil
         state.eggEvent = nil
         state.eggEventKey = nil
         state.pendingHatchID = nil    // 새 보증으로 처음부터 롤(활성 포켓몬이 있는 동안엔 원래 비어 있다)
@@ -3424,6 +3454,7 @@ final class CompanionStore {
 
     func hatchIfNeeded() async {
         guard state.active == nil, !isHatching, state.eggUsage >= eggHatchThreshold else { return }
+        dropDungeonOnlyPreRoll()
         // 프리패치가 "종 롤 중"(pending 미확정)일 때만 대기 — 이중 rng 소비 방지.
         // pending 확정 후의 예열(라인/스프라이트)과는 동시 진행해도 안전하다.
         guard state.pendingHatchID != nil || !prefetchInFlight else { return }
@@ -3500,6 +3531,7 @@ final class CompanionStore {
         prefetchInFlight = true
         defer { finishEggPrefetch(generation: generation, shouldHatch: shouldHatch) }
 
+        dropDungeonOnlyPreRoll()
         if state.pendingHatchID == nil {
             let selected = await chooseBase()
             // await 사이에 부화가 끝났거나(active != nil) 상태가 통째로 교체됐으면(세이브 불러오기)
@@ -3512,7 +3544,8 @@ final class CompanionStore {
             let id = pick.id
             state.pendingHatchID = id
             state.pendingShiny = pick.shiny
-            state.pendingForm = eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
+            state.pendingForm = state.eggFromDungeon.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
+                ?? eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
             save()
         }
         guard let id = state.pendingHatchID else { return }
@@ -3691,6 +3724,7 @@ final class CompanionStore {
         state.eggFromLegendaryEgg = false
         state.eggFromBirthdayEgg = false
         state.eggFromFossilEgg = false
+        state.eggFromDungeon = nil
         if event != nil, let key = state.eggEventKey { state.eventEggHatches[key] = line.baseID }
         state.eggEvent = nil
         state.eggEventKey = nil
@@ -3884,6 +3918,8 @@ final class CompanionStore {
     private func chooseBase() async -> (id: Int, shiny: Bool)? {
         let tier = state.eggTier
         let typeGuarantee = state.eggTypeGuarantee
+        // A dungeon's egg knows its line already.
+        if let egg = state.eggFromDungeon { return (egg.baseID, egg.isShiny) }
         if let full = try? await provider.baseSpeciesIndex(), !full.isEmpty {
             if state.eggFromBirthdayEgg { return chooseBirthdayBase(full) }
             if state.eggFromFossilEgg { return chooseFossilBase(full) }
@@ -3974,7 +4010,10 @@ final class CompanionStore {
         let graduated = graduatedSpeciesIDs
         // The Friendship Egg keeps its promise even then: the line is the player's own first Pokémon.
         let friendship = egg.event == .companion ? companionLineID : nil
-        let admitted = full.filter { !FossilDig.isFossilLine($0.id) || graduated.contains($0.id) || $0.id == friendship }
+        let admitted = full.filter {
+            !PokemonOdds.dungeonOnly.contains($0.id)
+                && (!FossilDig.isFossilLine($0.id) || graduated.contains($0.id) || $0.id == friendship)
+        }
         var index = egg.tier.map { t in admitted.filter(t.admits) } ?? admitted
         // A Legendary Egg hatches a legendary or mythical Pokémon, any of them.
         if egg.legendaryEgg { index = index.filter(\.isLegendary) }
@@ -4133,6 +4172,7 @@ final class CompanionStore {
     private func chooseBaseViaREST() async -> Int? {
         // A Fossil Egg asks for its candidates themselves: 32 random numbers seldom meet one of 15 lines, one in 1,025
         // even less. So does an event egg of a few lines, the Friendship Egg's one above all.
+        if let egg = state.eggFromDungeon { return egg.baseID }
         if state.eggFromFossilEgg { return await chooseListedBaseViaREST(fossilCandidates, charm: false) }
         if let lines = state.eggEvent?.lines(companionLine: companionLineID) {
             return await chooseListedBaseViaREST(lines, charm: ownsOvalCharm)
@@ -4146,7 +4186,7 @@ final class CompanionStore {
             let ids = PokemonAssets.animatedSpeciesIDs
             let id = Int(rng.next() % UInt64(ids.count)) + ids.lowerBound
             do {
-                if let bs = try await provider.baseSpecies(id: id) {
+                if let bs = try await provider.baseSpecies(id: id), !PokemonOdds.dungeonOnly.contains(bs.id) {
                     // 등급 보증은 가중 경로와 **같은 기준**으로 여기서도 걸러야 한다 — 이 폴백만 빠지면
                     // GraphQL 인덱스 장애 때 보증이 조용히 깨진다. 못 찾으면 알 유지(구매 소멸 금지).
                     if let tier, !tier.admits(bs) { continue }

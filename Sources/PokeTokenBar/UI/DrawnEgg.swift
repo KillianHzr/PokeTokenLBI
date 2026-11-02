@@ -57,6 +57,14 @@ enum EggKind: Hashable, Sendable {
     case event(EventEgg)
     /// The Fossil Egg (`FossilDig`).
     case fossil
+    /// A dungeon's egg (`DungeonEgg`), by the Pokémon it came from: a legendary boss's has its own look (R14), the
+    /// others their first type's egg (R8).
+    case dungeon(Int)
+
+    /// The type egg a dungeon's egg is drawn as until its own look exists.
+    static func dungeonLook(_ speciesID: Int) -> EggKind {
+        PokemonTypeData.types(forSpeciesID: speciesID).first.map(EggKind.type) ?? .plain
+    }
 
     /// The egg a guarantee hatches from: the type when there is one, else the rarity.
     init(tier: Rarity?, type: PokemonType? = nil) {
@@ -75,6 +83,7 @@ enum EggKind: Hashable, Sendable {
         case .birthday: return EggColor(1, 0.66, 0.8)
         case .event: return .cream
         case .fossil: return EggColor(0.9, 0.6, 0.2)
+        case .dungeon(let species): return EggKind.dungeonLook(species).shell
         }
     }
 
@@ -87,6 +96,7 @@ enum EggKind: Hashable, Sendable {
         case .birthday: return EggColor(1, 0.98, 0.95)
         case .event: return .eggGreen
         case .fossil: return EggColor(0.45, 0.25, 0.08)
+        case .dungeon(let species): return EggKind.dungeonLook(species).marks
         }
     }
 
@@ -274,6 +284,7 @@ extension CompanionStore {
         if state.active == nil, state.eggFromBirthdayEgg { return .birthday }
         if state.active == nil, let event = state.eggEvent { return .event(event) }
         if state.active == nil, state.eggFromFossilEgg { return .fossil }
+        if state.active == nil, let egg = state.eggFromDungeon { return .dungeon(egg.sourceSpeciesID) }
         return EggKind(tier: eggGuarantee, type: eggTypeGuarantee)
     }
 
@@ -287,6 +298,7 @@ extension CompanionStore {
         case .birthday: l.itemName(.birthdayEgg)
         case .event(let event): l.itemName(event.item)
         case .fossil: l.itemName(.fossilEgg)
+        case .dungeon: l.dungeonEggName
         }
     }
 }

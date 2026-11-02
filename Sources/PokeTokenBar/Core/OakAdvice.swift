@@ -339,6 +339,9 @@ extension CompanionStore {
             next = hatches(.birthdayEgg, index: index) ?? []
         } else if state.eggFromFossilEgg {
             next = hatches(.fossilEgg, index: index) ?? []
+        } else if let egg = state.eggFromDungeon {
+            next = [Hatch(id: egg.baseID, form: egg.form, weight: 1, rarity: SpeciesInfo.lineRarity(of: egg.baseID),
+                          alwaysShiny: egg.isShiny)]
         } else {
             next = hatches(incubatingEgg, index: index)
         }

@@ -176,6 +176,7 @@ enum SaveTransfer {
         if s.active != nil {
             s.eggTier = nil; s.eggTypeGuarantee = nil; s.pendingHatchID = nil; s.eggFromTypeNullEgg = false
             s.eggFromLegendaryEgg = false; s.eggFromBirthdayEgg = false; s.pendingShiny = false; s.eggEvent = nil; s.eggFromFossilEgg = false
+            s.eggFromDungeon = nil
         }
         s.migrateLegacyBadgeClaims()
         s.pendingForm = PokemonForm.resolved(baseID: s.pendingHatchID ?? 0, form: s.pendingForm)
