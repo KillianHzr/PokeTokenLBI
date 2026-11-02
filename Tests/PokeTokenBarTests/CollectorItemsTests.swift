@@ -337,6 +337,19 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(artifacts.count, 40)
     }
 
+    /// Achievements in progress go from the closest to done to the farthest: two titans of three, then Mewtwo without
+    /// Mew, then one bird of three, then those with nothing yet.
+    func testAchievementsInProgressGoFromTheClosestToDone() {
+        let s = store(dex: entries([377, 378, 150, 144], rarity: .legendary))
+        let artifacts = s.collectorItems(in: .legendaryArtifacts)
+        XCTAssertEqual(s.achievementShare(.magmaStone), 2.0 / 3, accuracy: 1e-9)
+        XCTAssertEqual(s.achievementShare(.oldSeaMap), 0.5)
+        XCTAssertEqual(s.achievementShare(.silverWing), 1.0 / 3, accuracy: 1e-9)
+        XCTAssertEqual(s.achievementShare(.rainbowWing), 0)
+        let order = [ItemKind.magmaStone, .oldSeaMap, .silverWing, .rainbowWing].map { artifacts.firstIndex(of: $0)! }
+        XCTAssertEqual(order, order.sorted(), "\(artifacts.map(\.rawValue))")
+    }
+
     // MARK: Effects
 
     /// The Gracidea no longer touches Rare Candies: it doubled every one, bought ones included, which stacked

@@ -12,6 +12,7 @@ struct ShopView: View {
         // 고정 높이 — 컬렉션/가방과 동일(팝오버 재오픈 시 fitting size 축소 방지).
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
+                walletHeader(store.l)
                 OakAdviceCard(store: store, nav: nav)
                 // shopEntries = 판매 아이템 + 알 3종(보증 없음·고급 이상·희귀 이상)을 가격 오름차순으로
                 // 병합한 단일 목록. A bought egg goes in the Bag (`EggCard`).
@@ -28,6 +29,17 @@ struct ShopView: View {
         }
         .frame(height: 520)
         .task { await store.loadHatchIndex() }
+    }
+
+    /// The balance first and large, on one line: Prof. Oak's card below spends it.
+    private func walletHeader(_ l: L) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            SectionTitle(text: l.spendableTokens, systemImage: "creditcard.fill")
+            Spacer(minLength: 8)
+            Text(TokenFormatter.compact(store.availableTokens))
+                .font(.system(size: 22, weight: .bold, design: .rounded)).monospacedDigit()
+        }
+        .heroCard(colors: store.themeColors)
     }
 }
 
