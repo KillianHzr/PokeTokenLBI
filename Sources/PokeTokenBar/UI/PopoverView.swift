@@ -20,7 +20,7 @@ struct PopoverTabPicker: View {
 
     func items() -> [(tab: PopoverTab, title: String, icon: String)] {
         [(.home, l.home, "house.fill"), (.shop, l.shop, "cart.fill"), (.bag, l.bag, "bag.fill"),
-         (.collection, l.collection, "books.vertical.fill"), (.achievements, l.achievements, "trophy.fill"),
+         (.collection, l.collection, "books.vertical.fill"), (.achievements, l.achievementsTabLabel, "trophy.fill"),
          (.dungeons, l.dungeonsTab, "map.fill")]
     }
 

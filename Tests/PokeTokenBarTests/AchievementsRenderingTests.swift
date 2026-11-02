@@ -144,16 +144,18 @@ final class AchievementsRenderingTests: XCTestCase {
     }
 
     /// The Achievements tab made the popover's segmented tab bar five labels wide. With a two-digit count it was
-    /// wider than the popover in German, and Russian overflowed even without one.
-    /// Each tab gets a fifth of the popover's width; its label may shrink to `minimumLabelScale`, never further, in
-    /// every language. The bar itself lays out within the content width.
+    /// wider than the popover in German, and Russian overflowed even without one. The Dungeons tab made it six, and
+    /// "Achievements" was cut in English while this test still counted five tabs: the share is counted from the bar.
+    /// Each tab gets an equal share of the popover's width; its label may shrink to `minimumLabelScale`, never further,
+    /// in every language. The bar itself lays out within the content width.
     func testTabBarFitsThePopoverInEveryLanguage() async throws {
-        // 3 pt padding on each side, 2 pt between the five tabs.
-        let tabWidth = (PopoverMetrics.contentWidth - 6 - 4 * 2) / 5
         for language in AppLanguage.allCases {
             var tab = PopoverTab.home
             let picker = PopoverTabPicker(tab: Binding(get: { tab }, set: { tab = $0 }), l: L(language),
                                           unclaimedAchievements: 41)
+            // 3 pt padding on each side, 2 pt between the tabs.
+            let count = CGFloat(picker.items().count)
+            let tabWidth = (PopoverMetrics.contentWidth - 6 - (count - 1) * 2) / count
             for item in picker.items() {
                 let width = (item.title as NSString).size(withAttributes: [.font: PopoverTabPicker.labelFont]).width
                 XCTAssertLessThanOrEqual(width * PopoverTabPicker.minimumLabelScale, tabWidth,

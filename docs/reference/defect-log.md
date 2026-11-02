@@ -1778,6 +1778,19 @@ read_when:
   in the footer, which left the refresh time some 70 points: "Mis à jour 3 s" broke in two, seen on the PR's renders.
   The icons sit 6 points apart and the time keeps one line (French, German and Russian rendered).
 
+- **A width test counts what it measures from the view, never by hand.** The Dungeons tab made the popover's tab bar
+  six labels wide and "Achievements" was cut in English ("Achieveme…"), seen on the PR's renders.
+  `testTabBarFitsThePopoverInEveryLanguage` passed: it divided the bar by a literal 5, from the day it guarded the
+  fifth tab. It now divides by `picker.items().count`, which failed in English (56 pt for a 53 pt tab) until the tab
+  took a short label ("Trophies", the trophy it shows; the page keeps "Achievements"). Sweep: the Achievements
+  sections' width test reads its categories from `allCases`.
+
+- **A line of sprites and words keeps its words whole.** The expedition journal on Home put a battle's kind, three
+  sprites a side and "Replay" in one `HStack`: in English "Horde" and "Replay" broke in two (PR renders). The words
+  are `fixedSize`, two sprites a side, and a live battle shows its antenna alone ("En direct" overflowed in French
+  and Spanish). Guard: `ExpeditionLayoutTests.testAJournalBattleFitsOnOneLine` measures the line's natural width in
+  every language, live or not, against the card's; three sprites a side make it fail.
+
 ## 에너지 (상시 표시 애니메이션)
 
 - **절전용 정지 상태는 짝 알림 하나에만 복구를 맡기지 마라.** `screensDidSleep` 이 폴링 타이머를 끄고

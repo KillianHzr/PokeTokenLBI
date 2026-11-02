@@ -361,11 +361,12 @@ struct ExpeditionLogRow: View {
         let theirs = sides.count > 1 ? sides[1].battlers : []
         let since = Int(Date().timeIntervalSince(entry.date) * 1000)
         let live = since >= 0 && since < battle.duration
+        // Two sprites a side and words that never break: three a side cut "Horde" and "Replay" in two in English.
         return HStack(spacing: 4) {
-            Text(l.battleKind(battle.kind)).font(.caption.weight(.semibold))
-            sprites(ours, limit: 3)
-            Text("vs").font(.caption2).foregroundStyle(.secondary)
-            sprites(theirs, limit: 3)
+            Text(l.battleKind(battle.kind)).font(.caption.weight(.semibold)).lineLimit(1).fixedSize()
+            sprites(ours, limit: 2)
+            Text("vs").font(.caption2).foregroundStyle(.secondary).fixedSize()
+            sprites(theirs, limit: 2)
             Image(systemName: battle.won ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .font(.caption2)
                 .foregroundStyle(battle.won ? Design.actionColor : Color.readableOrange)
@@ -375,13 +376,16 @@ struct ExpeditionLogRow: View {
                 nav.replayStart = live ? since : 0
                 nav.replayBattle = battle
             } label: {
-                HStack(spacing: 2) {
-                    if live { Image(systemName: "dot.radiowaves.left.and.right") }
-                    Text(live ? l.dungeonLive : l.dungeonReplay)
+                // Live, the antenna alone: its word as well no longer fit the line in French or Spanish.
+                Group {
+                    if live { Image(systemName: "dot.radiowaves.left.and.right") } else { Text(l.dungeonReplay) }
                 }
                 .font(.caption2.weight(.semibold)).foregroundStyle(Design.actionColor)
+                .lineLimit(1).fixedSize()
             }
             .buttonStyle(.plain)
+            .hoverTip(live ? l.dungeonLive : nil)
+            .accessibilityLabel(live ? l.dungeonLive : l.dungeonReplay)
         }
     }
 

@@ -3070,6 +3070,8 @@ struct L {
     // MARK: 업적 (체육관 배지 및 전설의 유물)
     var achievements: String { t("업적", "Achievements", "実績", "Logros", "Succès", "Conquistas", "Erfolge", "Успехи") }
     var achievementsTitle: String { achievements }
+    /// The tab bar's label: six tabs leave "Achievements" no room in English, so the tab says what its icon shows.
+    var achievementsTabLabel: String { t("업적", "Trophies", "実績", "Logros", "Succès", "Conquistas", "Erfolge", "Успехи") }
     /// Popover tab title with the rewards ready to claim ("Achievements 2"). No parentheses, so a two-digit
     /// count still fits the tab bar; Russian shows no count at all, its five tab words already fill the bar.
     func achievementsTab(unclaimed: Int) -> String {
