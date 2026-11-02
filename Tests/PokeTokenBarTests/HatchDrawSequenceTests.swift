@@ -134,6 +134,18 @@ final class HatchDrawSequenceTests: XCTestCase {
         }
     }
 
+    /// A first catch from a fossil line, sent off before the digs: the Friendship Egg still brings it back.
+    func testFriendshipEggBringsBackAFossilFirstCatch() async throws {
+        let out = try await hatches(0..<4) { st in
+            st.eggEvent = .companion
+            var omanyte = self.graduated(138, 138, chain: [138])
+            omanyte.releasedAt = Self.day
+            omanyte.caughtAt = Self.day.addingTimeInterval(-86_400)
+            st.dex = [omanyte, self.graduated(52, 53, chain: [52, 53])]
+        }
+        XCTAssertEqual(out.joined(separator: " "), "138* 138* 138* 138*")
+    }
+
     /// Shiny is one in tens: the seeds where it comes out, over many.
     func testShinySeeds() async throws {
         let plain = try await hatches(0..<256) { _ in }
