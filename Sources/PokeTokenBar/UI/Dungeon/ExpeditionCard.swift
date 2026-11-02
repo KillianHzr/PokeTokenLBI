@@ -469,7 +469,8 @@ struct ExpeditionResultCard: View {
                   l.longDuration(r.endedAt.timeIntervalSince(r.startedAt)), l.dungeonBattles(r.battles)]
                 .joined(separator: " · "))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if r.won {
+            // A challenge's boss is no capture: the form it gave says it below.
+            if r.won, !r.dungeon.isChallenge {
                 HStack(spacing: 8) {
                     SpriteView(speciesID: r.boss.speciesID, size: 36, shiny: r.boss.isShiny, form: r.boss.form,
                                sameScale: true)
