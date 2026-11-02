@@ -86,7 +86,7 @@ struct LuckScreen: View {
         let unknownEggs = luck.hatches.filter { $0.egg == nil }.count
         return VStack(alignment: .leading, spacing: 12) {
             if unknownEggs > 0 {
-                unknownEggsBanner(unknownEggs, l, picks: true)
+                unknownEggsBanner(unknownEggs, l)
             }
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(text: l.luckScoreTitle)
@@ -167,10 +167,10 @@ struct LuckScreen: View {
         let newestFirst = Array(luck.hatches.reversed())
         let shown = showingAllHatches ? newestFirst : Array(newestFirst.prefix(Self.firstHatches))
         let drawItems = ItemKind.drawItems.filter { store.itemCount($0) > 0 }
-        let unknownEggs = luck.hatches.filter { $0.egg == nil }.count
+        let toPick = newestFirst.filter { $0.egg == nil }
         return VStack(alignment: .leading, spacing: 12) {
-            if unknownEggs > 0 {
-                unknownEggsBanner(unknownEggs, l, picks: false)
+            if !toPick.isEmpty {
+                eggsToPickCard(toPick, l)
             }
             if !drawItems.isEmpty, luck.hatches.contains(where: { $0.entry.hatch?.chosenByPlayer != false }) {
                 drawItemsCard(drawItems, l)
@@ -282,6 +282,15 @@ struct LuckScreen: View {
 
     /// The eggs that could have brought a hatch from before the record, for the player to say which.
     private func eggMenu(_ hatch: HatchLuck.Hatch, _ l: L) -> some View {
+        HStack(spacing: 4) {
+            if hatch.egg == nil {
+                Image(systemName: "questionmark.circle.fill").font(.caption).foregroundStyle(Color.readableOrange)
+            }
+            menu(hatch, l)
+        }
+    }
+
+    private func menu(_ hatch: HatchLuck.Hatch, _ l: L) -> some View {
         Menu {
             ForEach(hatch.possibleEggs, id: \.self) { egg in
                 Button { store.chooseHatchEgg(egg, forEntry: hatch.entry.id) } label: {
@@ -299,12 +308,7 @@ struct LuckScreen: View {
                 }
             }
         } label: {
-            if hatch.egg == nil {
-                Label(l.hatchEggName(nil), systemImage: "questionmark.circle.fill")
-                    .font(.caption).foregroundStyle(Color.readableOrange)
-            } else {
-                Text(l.hatchEggName(hatch.egg)).font(.caption)
-            }
+            Text(l.hatchEggName(hatch.egg)).font(.caption)
         }
         .menuStyle(.button)
         .controlSize(.small)
@@ -314,21 +318,42 @@ struct LuckScreen: View {
     }
 
     /// Hatches whose egg is unknown only count for the shiny: the score leaves them out of the rest.
-    private func unknownEggsBanner(_ count: Int, _ l: L, picks: Bool) -> some View {
+    private func unknownEggsBanner(_ count: Int, _ l: L) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.readableOrange)
             VStack(alignment: .leading, spacing: 4) {
                 Text(l.luckApproximate).font(.caption.weight(.semibold))
                 Text(l.luckUnknownEggs(count)).font(.caption).fixedSize(horizontal: false, vertical: true)
-                if picks {
-                    Button(l.luckPickEggsAction) { nav.luckTab = .hatches }
-                        .buttonStyle(.link).font(.caption.weight(.semibold))
-                }
+                Button(l.luckPickEggsAction) { nav.luckTab = .hatches }
+                    .buttonStyle(.link).font(.caption.weight(.semibold))
             }
             Spacer(minLength: 0)
         }
         .padding(8)
         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// The hatches whose egg is still unknown, newest first, to say them without searching the history.
+    private func eggsToPickCard(_ hatches: [HatchLuck.Hatch], _ l: L) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionTitle(text: l.luckEggsToPick)
+            Text(l.luckUnknownEggs(hatches.count)).font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(hatches, id: \.number) { hatch in
+                HStack(spacing: 8) {
+                    sprite(hatch, size: 30)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(name(hatch.entry, hatch.isDitto ? PokemonOdds.dittoSpeciesID : hatch.entry.baseID))
+                            .font(.callout.weight(.semibold)).lineLimit(1)
+                        Text(l.luckHatchNumber(hatch.number)).font(.caption).foregroundStyle(.secondary)
+                    }
+                    .loadsFormNames(hatch.entry.form == nil ? 0 : hatch.entry.baseID)
+                    Spacer(minLength: 4)
+                    eggMenu(hatch, l)
+                }
+            }
+        }
+        .designCard()
     }
 
     /// Since when the player owns each draw item, for the hatches from before the record.
@@ -341,15 +366,17 @@ struct LuckScreen: View {
                 HStack(spacing: 6) {
                     Text(l.itemName(item)).font(.callout.weight(.semibold)).lineLimit(1)
                     Spacer(minLength: 4)
-                    if let since = store.state.drawItemsSince[item.rawValue] {
+                    if let since = store.drawItemSince(item) {
                         Text(l.luckObtainedOn).font(.caption).foregroundStyle(.secondary)
                         DatePicker(l.luckObtainedOn,
                                    selection: Binding(get: { since }, set: { store.setDrawItemSince(item, $0) }),
                                    in: ...Date(), displayedComponents: .date)
                             .labelsHidden().datePickerStyle(.field).fixedSize()
-                        Button { store.setDrawItemSince(item, nil) } label: { Image(systemName: "xmark.circle.fill") }
-                            .buttonStyle(.plain).foregroundStyle(.secondary)
-                            .hoverTip(l.luckRemoveDate).accessibilityLabel(l.luckRemoveDate)
+                        if store.state.drawItemsSince[item.rawValue] != nil {
+                            Button { store.setDrawItemSince(item, nil) } label: { Image(systemName: "xmark.circle.fill") }
+                                .buttonStyle(.plain).foregroundStyle(.secondary)
+                                .hoverTip(l.luckRemoveDate).accessibilityLabel(l.luckRemoveDate)
+                        }
                     } else {
                         Button(l.luckSetDate) { store.setDrawItemSince(item, Date()) }.buttonStyle(.pill())
                     }

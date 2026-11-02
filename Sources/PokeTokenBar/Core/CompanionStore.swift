@@ -3917,13 +3917,16 @@ final class CompanionStore {
     private(set) var hatchLuck: HatchLuck?
     @ObservationIgnored private var replayedLuckInputs: LuckInputs?
 
-    /// What the replay depends on: the Pokédex, and the dates the player gave for their draw items.
+    /// What the replay depends on: the Pokédex, and since when the player owns their draw items (`drawItemSince`).
     struct LuckInputs: Equatable {
         let entries: [DexEntry]
         let itemsSince: [String: Date]
     }
 
-    var luckInputs: LuckInputs { LuckInputs(entries: dexEntries, itemsSince: state.drawItemsSince) }
+    var luckInputs: LuckInputs {
+        let since = ItemKind.drawItems.compactMap { item in drawItemSince(item).map { (item.rawValue, $0) } }
+        return LuckInputs(entries: dexEntries, itemsSince: Dictionary(uniqueKeysWithValues: since))
+    }
 
     /// Replays every hatch off the main thread once the species index is loaded, again only when its inputs changed.
     func loadHatchLuck() async {
@@ -3957,6 +3960,16 @@ final class CompanionStore {
             return
         }
         save()
+    }
+
+    /// PokeTokenBar v2.5.4, the release that let Shop prices go down to 10%: every player had the Shiny Charm from then.
+    static let shinyCharmForEveryone = Date(timeIntervalSince1970: 1_789_223_036)   // 2026-09-12 14:23:56 UTC
+
+    /// Since when the player owns a draw item, for the hatches from before the record: the date they gave, or for a
+    /// Shiny Charm owned, `shinyCharmForEveryone`.
+    func drawItemSince(_ item: ItemKind) -> Date? {
+        state.drawItemsSince[item.rawValue]
+            ?? (item == .shinyCharm && itemCount(item) > 0 ? Self.shinyCharmForEveryone : nil)
     }
 
     /// Since when the player says they own a draw item, for the hatches from before the record; nil forgets it.

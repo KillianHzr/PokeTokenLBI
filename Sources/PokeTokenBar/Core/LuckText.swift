@@ -146,6 +146,11 @@ extension L {
           "Ungefähres Glück", "Удача приблизительна")
     }
 
+    var luckEggsToPick: String {
+        t("알려 줄 알", "Eggs to pick", "選ぶタマゴ", "Huevos por indicar", "Œufs à indiquer", "Ovos a indicar",
+          "Anzugebende Eier", "Яйца, которые нужно указать")
+    }
+
     var luckPickEggsAction: String {
         t("알 알려 주기", "Pick the eggs", "タマゴを選ぶ", "Elegir los huevos", "Indiquer les œufs", "Escolher os ovos",
           "Eier angeben", "Указать яйца")
@@ -161,14 +166,15 @@ extension L {
           "Ziehungsgegenstände", "Предметы для выпадения")
     }
     var luckDrawItemsHint: String {
-        t("업데이트 전에는 부화할 때마다 아이템을 기록하지 않았어요. 각 아이템을 언제부터 가졌는지 알려 주세요. 그 날짜 이후에 시작된 알부터 반영돼요. 날짜가 없으면 업데이트 전에는 반영되지 않아요.",
-          "Before this update, the app did not note your items at each hatch. Say since when you have each one: it counts for the eggs started after that date. Without a date, it does not count before the update.",
-          "アップデート前は、孵化ごとにアイテムを記録していませんでした。それぞれいつから持っているかを入力すると、その日以降に始まったタマゴから数えます。日付がなければ、アップデート前には数えません。",
-          "Antes de esta actualización, la app no anotaba tus objetos en cada eclosión. Indica desde cuándo tienes cada uno: cuenta para los huevos empezados después de esa fecha. Sin fecha, no cuenta antes de la actualización.",
-          "Avant la mise à jour, l'app ne notait pas tes objets à chaque éclosion. Dis depuis quand tu as chacun : il compte pour les œufs commencés après cette date. Sans date, il ne compte pas avant la mise à jour.",
-          "Antes desta atualização, o app não anotava seus itens a cada eclosão. Diga desde quando você tem cada um: ele conta para os ovos iniciados depois dessa data. Sem data, não conta antes da atualização.",
-          "Vor diesem Update hat die App deine Gegenstände nicht bei jedem Schlupf notiert. Gib an, seit wann du jeden hast: Er zählt für die Eier, die danach begonnen haben. Ohne Datum zählt er vor dem Update nicht.",
-          "До этого обновления приложение не записывало предметы при каждом вылуплении. Укажи, с какого дня у тебя каждый: он учитывается для яиц, начатых после этой даты. Без даты он не учитывается до обновления.")
+        let charm = itemName(.shinyCharm)
+        return t("업데이트 전에는 부화할 때마다 아이템을 기록하지 않았어요. 각 아이템을 언제부터 가졌는지 알려 주세요. 그 날짜 이후에 시작된 알부터 반영돼요. 날짜가 없으면 업데이트 전에는 반영되지 않아요. \(charm): 상점 가격을 10%까지 낮출 수 있게 된 뒤로 모두가 가지고 있어요.",
+                 "Before this update, the app did not note your items at each hatch. Say since when you have each one: it counts for the eggs started after that date. Without a date, it does not count before the update. \(charm): every player has had it since Shop prices could go down to 10%.",
+                 "アップデート前は、孵化ごとにアイテムを記録していませんでした。それぞれいつから持っているかを入力すると、その日以降に始まったタマゴから数えます。日付がなければ、アップデート前には数えません。\(charm)：ショップの価格を10%まで下げられるようになってから、みんなが持っています。",
+                 "Antes de esta actualización, la app no anotaba tus objetos en cada eclosión. Indica desde cuándo tienes cada uno: cuenta para los huevos empezados después de esa fecha. Sin fecha, no cuenta antes de la actualización. \(charm): todos lo tienen desde que los precios de la Tienda pudieron bajar al 10%.",
+                 "Avant la mise à jour, l'app ne notait pas tes objets à chaque éclosion. Dis depuis quand tu as chacun : il compte pour les œufs commencés après cette date. Sans date, il ne compte pas avant la mise à jour. \(charm) : tout le monde l'a depuis que les prix de la Boutique peuvent descendre à 10\u{00A0}%.",
+                 "Antes desta atualização, o app não anotava seus itens a cada eclosão. Diga desde quando você tem cada um: ele conta para os ovos iniciados depois dessa data. Sem data, não conta antes da atualização. \(charm): todos têm desde que os preços da Loja puderam baixar para 10%.",
+                 "Vor diesem Update hat die App deine Gegenstände nicht bei jedem Schlupf notiert. Gib an, seit wann du jeden hast: Er zählt für die Eier, die danach begonnen haben. Ohne Datum zählt er vor dem Update nicht. \(charm): zählt für alle, seit die Shop-Preise auf 10\u{00A0}% sinken konnten.",
+                 "До этого обновления приложение не записывало предметы при каждом вылуплении. Укажи, с какого дня у тебя каждый: он учитывается для яиц, начатых после этой даты. Без даты он не учитывается до обновления. \(charm): есть у всех с тех пор, как цены в магазине можно снизить до 10%.")
     }
     var luckObtainedOn: String {
         t("획득일", "Got on", "入手日", "Obtenido el", "Obtenu le", "Obtido em", "Erhalten am", "Получен")

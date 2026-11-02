@@ -26,7 +26,8 @@ final class HatchLuckLoadingTests: XCTestCase {
         func baseSpecies(id: Int) async throws -> BaseSpecies? { nil }
     }
 
-    private func store(provider: any PokeProviding = RosterProvider(), clock: Clock) throws -> CompanionStore {
+    private func store(provider: any PokeProviding = RosterProvider(), clock: Clock,
+                       items: [ItemKind] = []) throws -> CompanionStore {
         var st = CompanionState()
         st.installBaselineSet = true
         st.lastDate = "2026-10-20"
@@ -37,6 +38,7 @@ final class HatchLuckLoadingTests: XCTestCase {
         st.active = MonState(baseID: 37, pathIDs: [37], plannedPathIDs: [37, 38], stageIndex: 0, usedAtStage: 0,
                              rarity: .uncommon, totalForms: 1, nature: .hardy)
         st.inventory[ItemKind.pokemonEgg.rawValue] = 1
+        for item in items { st.inventory[item.rawValue] = 1 }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("hatch-luck-\(UUID().uuidString).json")
         try JSONEncoder().encode(st).write(to: url)
         addTeardownBlock { try? FileManager.default.removeItem(at: url) }
@@ -62,6 +64,27 @@ final class HatchLuckLoadingTests: XCTestCase {
         XCTAssertNil(s.hatchLuck)
         await s.loadHatchLuck()
         XCTAssertEqual(s.hatchLuck?.hatches.last?.isActive, false)
+    }
+
+    /// Every player had the Shiny Charm once Shop prices could go down to 10% (PokeTokenBar v2.5.4, 12 September
+    /// 2026): without a date of theirs, it counts for the eggs started from then.
+    func testTheShinyCharmCountsFromTheTenPercentShopWithoutADate() async throws {
+        let clock = Clock()
+        XCTAssertNil(try store(clock: clock).drawItemSince(.shinyCharm), "not owned")
+        let s = try store(clock: clock, items: [.shinyCharm, .ovalCharm])
+        XCTAssertEqual(CompanionStore.shinyCharmForEveryone, ISO8601DateFormatter().date(from: "2026-09-12T14:23:56Z"))
+        XCTAssertEqual(s.drawItemSince(.shinyCharm), CompanionStore.shinyCharmForEveryone)
+        XCTAssertNil(s.drawItemSince(.ovalCharm), "the Shiny Charm only")
+        await s.loadHatchLuck()
+        let hatches = try XCTUnwrap(s.hatchLuck?.hatches)
+        XCTAssertEqual(try XCTUnwrap(hatches[1].judged[.shiny]?.odds), 1.0 / 64, accuracy: 1e-12,
+                       "started ten minutes before the release")
+        XCTAssertEqual(try XCTUnwrap(hatches[2].judged[.shiny]?.odds), 1.0 / 48, accuracy: 1e-12)
+
+        s.setDrawItemSince(.shinyCharm, clock.now)
+        XCTAssertEqual(s.drawItemSince(.shinyCharm), clock.now, "the player's date first")
+        await s.loadHatchLuck()
+        XCTAssertEqual(try XCTUnwrap(s.hatchLuck?.hatches[2].judged[.shiny]?.odds), 1.0 / 64, accuracy: 1e-12)
     }
 
     func testTheReplayIsKeptWhileThePokedexStaysTheSame() async throws {

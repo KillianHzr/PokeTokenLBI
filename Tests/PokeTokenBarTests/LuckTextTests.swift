@@ -108,7 +108,7 @@ final class LuckTextTests: XCTestCase {
                       l.luckSentence(hatches: 3, score: 50, best: (.rare, 0.6), worst: (.new, 0.2)),
                       l.luckCurvePoint(number: 3, name: "Pidgey", score: 50), l.luckWait(.init(count: 2, unit: .month)),
                       l.luckEggOfHatch, l.luckDrawItemsTitle, l.luckDrawItemsHint, l.luckObtainedOn, l.luckSetDate,
-                      l.luckRemoveDate, l.luckApproximate, l.luckPickEggsAction]
+                      l.luckRemoveDate, l.luckApproximate, l.luckPickEggsAction, l.luckEggsToPick]
             for word in words {
                 XCTAssertFalse(word.isEmpty, "\(language)")
                 XCTAssertFalse(word.contains("\u{2014}") || word.contains("\u{2013}"), "\(language): \(word)")
