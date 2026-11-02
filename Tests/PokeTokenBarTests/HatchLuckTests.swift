@@ -88,6 +88,9 @@ final class HatchLuckTests: XCTestCase {
         let h = l.hatches[1]
         XCTAssertNil(h.egg)
         XCTAssertEqual(Set(h.judged.keys), [.shiny])
+        XCTAssertEqual(h.judged[.shiny]?.odds ?? 0, 1.0 / 64, accuracy: 1e-12)
+        let charmed = luck([entry(16, day: 1, released: true), entry(147, day: 2)], itemsSince: [.shinyCharm: Self.day(0)])
+        XCTAssertEqual(charmed.hatches[1].judged[.shiny]?.odds ?? 0, 1.0 / 48, accuracy: 1e-12, "with its dated items")
         XCTAssertNil(h.lineOdds)
         XCTAssertTrue(h.possibleEggs.contains(.tier(nil)))
         XCTAssertTrue(h.possibleEggs.contains(.tier(.rare)))
@@ -161,6 +164,16 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertEqual(luck([entry(16, day: 1, record: stone)], index: index).hatches.first?.judged[.ditto]?.odds, 0)
     }
 
+    /// The strong and weak points the summary names: the first criterion when two tie.
+    func testStrongestAndWeakest() {
+        let l = luck([entry(147, day: 1)])
+        XCTAssertEqual(l.strongest?.criterion, .rare)
+        XCTAssertEqual(l.weakest?.criterion, .shiny)
+        let even = luck([])
+        XCTAssertEqual(even.strongest?.criterion, .uncommon)
+        XCTAssertEqual(even.weakest?.criterion, .uncommon)
+    }
+
     /// Shiny every time: with the Glimmering Charm, or from an event egg that promises it.
     func testShinyEveryTime() {
         let glimmering = HatchRecord(egg: .tier(nil), hatchItems: [.glimmeringCharm])
@@ -190,6 +203,10 @@ final class HatchLuckTests: XCTestCase {
                       entry(147, day: 5)])
         XCTAssertEqual(l.improbable.map(\.number), [1, 5, 2], "not the third, whose egg is unknown")
         XCTAssertEqual(l.hatchesPerWeek ?? 0, 5 / (29.0 / 7), accuracy: 1e-9)
+        XCTAssertNil(luck([entry(16, day: 1), entry(10, day: 1.5)]).hatchesPerWeek, "under a day apart")
+        let impossible = luck([entry(16, day: 1, record: HatchRecord(egg: .stone(.fire)))])
+        XCTAssertEqual(impossible.hatches[0].lineOdds, 0)
+        XCTAssertTrue(impossible.improbable.isEmpty, "no odds to tell")
     }
 
     /// The eggs an unknown hatch may have come from are exactly those whose draw holds its line: the quick check that
