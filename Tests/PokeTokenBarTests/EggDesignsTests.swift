@@ -9,7 +9,10 @@ import XCTest
 @MainActor
 final class EggDesignsTests: XCTestCase {
     private static let designed: [EggKind] = [.tier(.uncommon), .tier(.rare), .tier(.legendary)]
-        + PokemonType.allCases.map { .type($0) } + [.typeNull]
+        + PokemonType.allCases.map { .type($0) } + [.typeNull] + legendBosses.map { .dungeon($0) }
+
+    /// The dungeons' legendary bosses, each leaving an egg of its own (`LegendEggArt`).
+    private static let legendBosses = [144, 249, 245, 150, 483, 484, 487, 493]
 
     /// The RGBA bytes of an image.
     private func bytes(_ image: CGImage) throws -> [UInt8] {
@@ -38,6 +41,9 @@ final class EggDesignsTests: XCTestCase {
             seen.append(pixels)
         }
         XCTAssertNil(EggDesigns.still(.plain))
+        // Any other boss's egg is its line's type egg.
+        let charizard = try bytes(EggRenderer.still(.dungeon(6))), fire = try bytes(EggRenderer.still(.type(.fire)))
+        XCTAssertEqual(charizard, fire, "Charizard's egg is the Fire egg")
         XCTAssertEqual(EggRenderer.still(.plain).size, NSSize(width: EggRenderer.pixels, height: EggRenderer.pixels))
     }
 
