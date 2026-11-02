@@ -122,6 +122,10 @@ final class PopoverNavigation {
     var dungeonTeam: DungeonID?
     /// A dungeon battle replayed (`BattleReplayScreen`): "Revoir, c'est rejouer".
     var replayBattle: ExpeditionBattle?
+    /// Where the replay starts: a battle still being fought opens live, at its present moment.
+    var replayStart = 0
+    /// The whole journal of the expedition (`ExpeditionLogScreen`).
+    var showingExpeditionLog = false
     /// The changelog entries seen before it was opened: the others are marked new on it.
     var changelogSeenBefore: Set<String> = []
     /// The Collection tab's open Pokédex detail page (`DexSpecies.collectionID`); nil = grid or log.
@@ -177,6 +181,8 @@ final class PopoverNavigation {
         showingOakDetails = false
         dungeonTeam = nil
         replayBattle = nil
+        replayStart = 0
+        showingExpeditionLog = false
         tab = .home
     }
 
@@ -263,7 +269,12 @@ struct PopoverView: View {
             } else if nav.showingOakDetails {
                 OakAdviceScreen(store: companion) { nav.showingOakDetails = false }
             } else if let battle = nav.replayBattle {
-                BattleReplayScreen(store: companion, battle: battle) { nav.replayBattle = nil }
+                BattleReplayScreen(store: companion, battle: battle, startAt: nav.replayStart) {
+                    nav.replayBattle = nil
+                    nav.replayStart = 0
+                }
+            } else if nav.showingExpeditionLog {
+                ExpeditionLogScreen(store: companion, nav: nav)
             } else if let dungeon = nav.dungeonTeam {
                 DungeonTeamScreen(store: companion, dungeon: dungeon) { nav.dungeonTeam = nil } onDepart: {
                     nav.dungeonTeam = nil
@@ -597,6 +608,8 @@ struct PopoverView: View {
                 // 고정 높이 — 상점/가방/컬렉션과 동일(팝오버가 화면을 넘어가는 것을 방지).
                 ScrollView {
                     VStack(alignment: .leading, spacing: Design.sectionSpacing) {
+                        ExpeditionResultCard(store: companion, nav: nav)
+                        ExpeditionCard(store: companion, nav: nav)
                         CompanionHeader(store: companion, onOpenDexEntry: { nav.openDexEntry(collectionID: $0) },
                                         onOpenBonuses: { nav.showingBonuses = true },
                                         onOpenAchievement: { nav.openAchievement($0) })

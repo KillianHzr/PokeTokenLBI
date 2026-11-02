@@ -276,9 +276,10 @@ struct MoveRow: View {
 struct BattleReplayScreen: View {
     let store: CompanionStore
     let battle: ExpeditionBattle
+    var startAt = 0
     let onBack: () -> Void
 
     var body: some View {
-        BattleReplayView(store: store, battle: battle, onBack: onBack)
+        BattleReplayView(store: store, battle: battle, startAt: startAt, onBack: onBack)
     }
 }

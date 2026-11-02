@@ -132,8 +132,6 @@ struct Expedition: Codable, Sendable, Equatable {
     var healOffered = false
     var healUsed = false
     var phase: ExpeditionPhase = .exploring
-    /// Something waits for the player: the emergency heal, the boss, the end (R13: the menu bar badge).
-    var needsAttention = false
     var battles = 0
 
     var floors: Int { dungeon == .hallOfOrigin ? DungeonTier.t5.floors : DungeonCatalog.dungeon(dungeon).floors }
@@ -431,7 +429,6 @@ enum ExpeditionEngine {
         let won = outcome.winner == 0
         append(&e, .battle(ExpeditionBattle(kind: .boss, setup: setup, won: won, duration: outcome.duration,
                                             foes: [e.boss.speciesID])), rare: won, context: context)
-        e.needsAttention = true
         if won {
             e.loot.candies += e.candiesLeft
             e.candiesLeft = 0
@@ -495,7 +492,6 @@ enum ExpeditionEngine {
               !e.team.allSatisfy(\.isFainted) else { return }
         e.healOffered = true
         e.phase = .awaitingHeal(price: healPrice(cost: e.cost))
-        e.needsAttention = true
     }
 
     /// R5: paid, the team is back to full and the knocked-out stand; either way it moves on with the reserve.
@@ -507,7 +503,6 @@ enum ExpeditionEngine {
             append(&e, .emergencyHeal(paid: price), context: context)
         }
         e.phase = .exploring
-        e.needsAttention = false
         e.floor += 1
         let reserve = e.reserve
         e.reserve = 0
@@ -518,8 +513,18 @@ enum ExpeditionEngine {
 
     static func finish(_ e: inout Expedition, won: Bool, context: ExpeditionContext) {
         e.phase = .finished(won: won)
-        e.needsAttention = true
         if !won { append(&e, .defeat, context: context) }
+    }
+
+    /// A throw's odds at this boss: its line's (Q19), a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure.
+    static func throwOdds(_ boss: ExpeditionBoss, ball: ItemKind?) -> Double {
+        let factor: Double = switch ball {
+        case .greatBall?: 1.5
+        case .ultraBall?: 2
+        case .masterBall?: 100
+        default: 1
+        }
+        return min(1, captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID)) * factor)
     }
 
     /// A throw at the fallen boss (Q18, R12): a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure. Returns
@@ -527,14 +532,7 @@ enum ExpeditionEngine {
     static func throwBall(_ e: inout Expedition, ball: ItemKind?, context: ExpeditionContext) -> Bool {
         guard case .capture(let left) = e.phase, left > 0 else { return false }
         var random = BattleRandom(seed: e.seed &+ 0xC0FFEE &+ UInt64(left))
-        let base = captureOdds(SpeciesInfo.lineRarity(of: e.boss.speciesID))
-        let factor: Double = switch ball {
-        case .greatBall?: 1.5
-        case .ultraBall?: 2
-        case .masterBall?: 100
-        default: 1
-        }
-        let caught = Double(random.below(1000)) / 1000 < min(1, base * factor)
+        let caught = Double(random.below(1000)) / 1000 < throwOdds(e.boss, ball: ball)
         append(&e, .capture(attempt: 4 - left, ball: ball?.rawValue, caught: caught), rare: caught, context: context)
         if caught {
             e.loot.eggs.append(DungeonEgg(id: "boss-\(e.seed)", baseID: SpeciesInfo.baseID(of: e.boss.speciesID),

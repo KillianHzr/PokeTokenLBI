@@ -187,6 +187,37 @@ final class BattleEngineTests: XCTestCase {
         XCTAssertEqual(outcome.berriesLeft[0][.oran], 0)
     }
 
+    // MARK: Replay
+
+    /// "Revoir, c'est rejouer": the frame folded from the events shows who is on the field, their HP and casts; at the
+    /// end the loser's side is down, and the last hits kept are the latest.
+    func testAReplayFrameFollowsTheBattle() throws {
+        let setup = BattleSetup(sides: [BattleSideSpec(battlers: [try mon("ty", 248, moves: ["stone-edge"])], active: 1),
+                                        BattleSideSpec(battlers: [try mon("a", 16, level: 30), try mon("b", 19, level: 30)],
+                                                       active: 1)],
+                                seed: 4)
+        let outcome = BattleEngine.run(setup)
+        let start = BattleFrame.at(0, setup: setup, events: outcome.events)
+        XCTAssertEqual(start.units.map(\.hp), start.units.map(\.maxHP), "everyone starts whole")
+        XCTAssertTrue(start.units.first { $0.id == "ty" }!.onField)
+        XCTAssertFalse(start.units.first { $0.id == "b" }!.onField, "the bench waits")
+        let end = BattleFrame.at(outcome.duration, setup: setup, events: outcome.events, keepHits: 2)
+        XCTAssertEqual(outcome.winner, 0)
+        XCTAssertTrue(end.units.filter { $0.side == 1 }.allSatisfy { $0.fainted && $0.hp == 0 && !$0.onField })
+        let hits = outcome.events.compactMap { event -> Int? in
+            if case .hit = event.event { return event.time }
+            return nil
+        }
+        XCTAssertEqual(end.recentHits.map(\.time), Array(hits.suffix(2)))
+        // Mid-cast, the bar stands between its ends.
+        let cast = try XCTUnwrap(outcome.events.first { if case .cast("ty", _, _, _) = $0.event { return true }; return false })
+        guard case .cast(_, _, _, let ends) = cast.event else { return XCTFail() }
+        let mid = BattleFrame.at((cast.time + ends) / 2, setup: setup, events: outcome.events)
+        let progress = mid.units.first { $0.id == "ty" }!.castProgress(at: (cast.time + ends) / 2)
+        XCTAssertGreaterThan(progress, 0.3)
+        XCTAssertLessThan(progress, 0.7)
+    }
+
     // MARK: Random battles
 
     /// Thousands of battles at random: each ends, no HP ever below zero, events in time order, the limit kept.

@@ -302,6 +302,300 @@ extension L {
     var battleLost: String { t("패배", "Lost", "敗北", "Derrota", "Défaite", "Derrota", "Verloren", "Поражение") }
     var battleKO: String { t("기절", "K.O.", "ひんし", "Debilitado", "K.O.", "Desmaiado", "K.O.", "Без сил") }
 
+    // MARK: The expedition on Home (maquettes 3, 4, 6, 7)
+
+    func dungeonFloorOf(_ floor: Int, _ floors: Int) -> String {
+        t("\(floor)/\(floors)층", "Floor \(floor) of \(floors)", "\(floor)/\(floors)階", "Piso \(floor) de \(floors)",
+          "Étage \(floor) sur \(floors)", "Andar \(floor) de \(floors)", "Ebene \(floor) von \(floors)",
+          "Этаж \(floor) из \(floors)")
+    }
+    func dungeonFloor(_ floor: Int) -> String {
+        t("\(floor)층", "Floor \(floor)", "\(floor)階", "Piso \(floor)", "Étage \(floor)", "Andar \(floor)", "Ebene \(floor)",
+          "Этаж \(floor)")
+    }
+    /// The menu bar's short tag: "É6/12".
+    func dungeonFloorTag(_ floor: Int, _ floors: Int) -> String {
+        t("\(floor)/\(floors)층", "F\(floor)/\(floors)", "\(floor)/\(floors)階", "P\(floor)/\(floors)", "É\(floor)/\(floors)",
+          "A\(floor)/\(floors)", "E\(floor)/\(floors)", "Э\(floor)/\(floors)")
+    }
+    func dungeonToNextFloor(_ have: String, _ need: String, next: Int) -> String {
+        t("\(next)층까지 \(have) / \(need)", "\(have) / \(need) to floor \(next)", "\(next)階まで \(have) / \(need)",
+          "\(have) / \(need) hasta el piso \(next)", "\(have) / \(need) avant l'étage \(next)",
+          "\(have) / \(need) até o andar \(next)", "\(have) / \(need) bis Ebene \(next)", "\(have) / \(need) до этажа \(next)")
+    }
+    func dungeonToBoss(_ have: String, _ need: String) -> String {
+        t("보스까지 \(have) / \(need)", "\(have) / \(need) to the boss", "ボスまで \(have) / \(need)",
+          "\(have) / \(need) hasta el jefe", "\(have) / \(need) avant le boss", "\(have) / \(need) até o chefe",
+          "\(have) / \(need) bis zum Boss", "\(have) / \(need) до босса")
+    }
+    var dungeonBossHidden: String { t("보스: ?", "Boss: ?", "ボス：？", "Jefe: ?", "Boss : ?", "Chefe: ?", "Boss: ?", "Босс: ?") }
+    var dungeonRare: String { t("희귀", "Rare", "レア", "Raro", "Rare", "Raro", "Selten", "Редкое") }
+    var dungeonReplay: String { t("다시 보기", "Replay", "見直す", "Repetir", "Revoir", "Rever", "Ansehen", "Повтор") }
+    var dungeonLive: String { t("실시간", "Live", "ライブ", "En directo", "En direct", "Ao vivo", "Live", "В эфире") }
+    var dungeonLogTitle: String { t("탐험 기록", "Journal", "たんけんの記録", "Diario", "Journal", "Diário", "Tagebuch", "Журнал") }
+    var dungeonWholeLog: String {
+        t("전체 기록", "Whole journal", "すべての記録", "Diario completo", "Tout le journal", "Diário completo", "Ganzes Tagebuch",
+          "Весь журнал")
+    }
+    var dungeonSeeLog: String {
+        t("기록 보기", "See the journal", "記録を見る", "Ver el diario", "Voir le journal", "Ver o diário", "Tagebuch ansehen",
+          "Открыть журнал")
+    }
+    var dungeonGrowthPaused: String {
+        t("팀이 돌아오면 키우는 포켓몬이 다시 자라요.", "Your Pokémon being raised grows again once the team is back.",
+          "チームが戻ると、育てているポケモンがまた育ちます。", "Tu Pokémon en crianza vuelve a crecer cuando regresa el equipo.",
+          "Ton Pokémon en cours reprend sa croissance au retour de l'équipe.",
+          "Seu Pokémon em criação volta a crescer quando a equipe voltar.",
+          "Dein Pokémon in Aufzucht wächst weiter, sobald das Team zurück ist.",
+          "Растущий покемон продолжит расти, когда команда вернётся.")
+    }
+    var dungeonAbandon: String { t("포기", "Give up", "あきらめる", "Abandonar", "Abandonner", "Desistir", "Aufgeben", "Сдаться") }
+    var dungeonLeave: String {
+        t("던전 나가기", "Leave the dungeon", "ダンジョンを出る", "Salir de la mazmorra", "Quitter le donjon", "Sair da masmorra",
+          "Dungeon verlassen", "Покинуть подземелье")
+    }
+    /// What giving up costs: nothing with an Escape Rope, the loot without one (Q4).
+    func dungeonAbandonCost(rope: String, has: Bool) -> String {
+        has
+            ? t("\(KoreanParticle.direction.attach(to: rope)) 팀이 돌아와요. 모은 물건은 그대로 가져와요.",
+                "Your \(rope) brings the team back: the loot is kept.", "\(rope)でチームが戻ります。集めたものは持ち帰れます。",
+                "Tu \(rope) trae al equipo de vuelta: el botín se conserva.", "Ta \(rope) ramène l'équipe : le butin est gardé.",
+                "Sua \(rope) traz a equipe de volta: o saque fica.", "Dein \(rope) bringt das Team zurück: Die Beute bleibt.",
+                "\(rope) вернёт команду: добыча сохранится.")
+            : t("\(rope) 없이 나가면 모은 물건을 모두 잃어요.", "With no \(rope) in the Bag, the expedition's loot is lost.",
+                "\(rope)がないので、集めたものはすべて失われます。", "Sin \(rope), el botín de la expedición se pierde.",
+                "Sans \(rope), le butin de l'expédition est perdu.", "Sem \(rope), o saque da expedição é perdido.",
+                "Ohne \(rope) geht die Beute der Expedition verloren.", "Без предмета \"\(rope)\" добыча экспедиции пропадёт.")
+    }
+
+    // The journal's lines: the species stand beside them as sprites, named on hover.
+
+    var dungeonLogChest: String { t("상자", "Chest", "たからばこ", "Cofre", "Coffre", "Baú", "Truhe", "Сундук") }
+    var dungeonLogEmptyChest: String {
+        t("빈 상자", "Empty chest", "からっぽのたからばこ", "Cofre vacío", "Coffre vide", "Baú vazio", "Leere Truhe", "Пустой сундук")
+    }
+    func dungeonLogTrap(percent: Int) -> String {
+        t("함정: 팀이 HP를 \(percent)% 잃었어요", "Trap: the team loses \(percent)% of its HP", "わな：チームのHPが\(percent)%減った",
+          "Trampa: el equipo pierde el \(percent) % de sus PS", "Piège : l'équipe perd \(percent) % de ses PV",
+          "Armadilha: a equipe perde \(percent)% dos PS", "Falle: Das Team verliert \(percent) % seiner KP",
+          "Ловушка: команда теряет \(percent)% ОЗ")
+    }
+    func dungeonLogTrapItem(_ item: String) -> String {
+        t("함정: 모은 물건 중 \(item) 1개를 잃었어요", "Trap: the loot loses 1 × \(item)", "わな：\(item)を1こ失った",
+          "Trampa: el botín pierde 1 × \(item)", "Piège : le butin perd 1 × \(item)", "Armadilha: o saque perde 1 × \(item)",
+          "Falle: Die Beute verliert 1 × \(item)", "Ловушка: добыча теряет \(item) ×1")
+    }
+    func dungeonLogSpring(percent: Int) -> String {
+        t("샘: 팀이 HP를 \(percent)% 회복했어요", "Spring: the team gets \(percent)% of its HP back",
+          "いずみ：チームのHPが\(percent)%回復した", "Manantial: el equipo recupera el \(percent) % de sus PS",
+          "Source : l'équipe récupère \(percent) % de ses PV", "Fonte: a equipe recupera \(percent)% dos PS",
+          "Quelle: Das Team erhält \(percent) % seiner KP zurück", "Источник: команда восстанавливает \(percent)% ОЗ")
+    }
+    var dungeonLogCenter: String {
+        t("포켓몬센터: 팀 전원이 회복했어요", "Pokémon Center: the whole team is healed", "ポケモンセンター：チーム全員が回復した",
+          "Centro Pokémon: todo el equipo se cura", "Centre Pokémon : toute l'équipe est soignée",
+          "Centro Pokémon: toda a equipe é curada", "Pokémon-Center: Das ganze Team ist geheilt",
+          "Покемон-центр: вся команда вылечена")
+    }
+    func dungeonLogLost(percent: Int) -> String {
+        t("길 잃은 포켓몬: 팀이 데려다주고(HP -\(percent)%) 선물을 받았어요",
+          "Lost Pokémon: the team walks it home (-\(percent)% HP) and gets a gift",
+          "まいごのポケモン：送りとどけて(HP -\(percent)%)、おれいをもらった",
+          "Pokémon perdido: el equipo lo acompaña (-\(percent) % PS) y recibe un regalo",
+          "Pokémon égaré : l'équipe le raccompagne (-\(percent) % PV) et reçoit un cadeau",
+          "Pokémon perdido: a equipe o acompanha (-\(percent)% PS) e ganha um presente",
+          "Verirrtes Pokémon: Das Team bringt es heim (-\(percent) % KP) und erhält ein Geschenk",
+          "Потерявшийся покемон: команда провожает его (-\(percent)% ОЗ) и получает подарок")
+    }
+    func dungeonLogShiny(caught: Bool) -> String {
+        caught
+            ? t("이로치 조우: 잡았어요! 알을 얻었어요", "Shiny encounter: caught! Its egg joins the loot",
+                "色違いに出会った：つかまえた！タマゴを手に入れた", "Encuentro variocolor: ¡capturado! Su huevo va al botín",
+                "Rencontre chromatique : capturé ! Son œuf rejoint le butin", "Encontro brilhante: capturado! O ovo vai para o saque",
+                "Schillerndes Pokémon: gefangen! Sein Ei kommt zur Beute", "Встреча с шайни: пойман! Его яйцо в добыче")
+            : t("이로치 조우: 도망쳤어요", "Shiny encounter: it fled", "色違いに出会った：にげられた", "Encuentro variocolor: huyó",
+                "Rencontre chromatique : il s'est enfui", "Encontro brilhante: fugiu", "Schillerndes Pokémon: geflohen",
+                "Встреча с шайни: сбежал")
+    }
+    func dungeonLogBranch(roll: Int, risky: Bool) -> String {
+        risky
+            ? t("주사위: 6 중 \(roll), 위험한 길", "Dice: \(roll) of 6, risky path", "サイコロ：6のうち\(roll)、きけんな道",
+                "Dados: \(roll) de 6, camino arriesgado", "Dés : \(roll) sur 6, chemin risqué", "Dados: \(roll) de 6, caminho arriscado",
+                "Würfel: \(roll) von 6, riskanter Weg", "Кубик: \(roll) из 6, опасный путь")
+            : t("주사위: 6 중 \(roll), 안전한 길", "Dice: \(roll) of 6, safe path", "サイコロ：6のうち\(roll)、あんぜんな道",
+                "Dados: \(roll) de 6, camino seguro", "Dés : \(roll) sur 6, chemin sûr", "Dados: \(roll) de 6, caminho seguro",
+                "Würfel: \(roll) von 6, sicherer Weg", "Кубик: \(roll) из 6, безопасный путь")
+    }
+    func dungeonLogItemUsed(_ item: String) -> String {
+        t("\(item) 사용", "\(item) used", "\(item)をつかった", "\(item) usado", "\(item) utilisé", "\(item) usado",
+          "\(item) eingesetzt", "Использован предмет \"\(item)\"")
+    }
+    func dungeonLogHeal(_ price: String) -> String {
+        t("긴급 회복: 팀 전원 HP 100% (\(price))", "Emergency heal: the whole team at 100% (\(price))",
+          "きんきゅう回復：チーム全員HP100% (\(price))", "Curación de urgencia: todo el equipo al 100 % (\(price))",
+          "Soin d'urgence : toute l'équipe à 100 % (\(price))", "Cura de emergência: toda a equipe a 100% (\(price))",
+          "Notheilung: Das ganze Team auf 100 % (\(price))", "Срочное лечение: вся команда на 100% (\(price))")
+    }
+    var dungeonLogBoss: String {
+        t("보스 등장", "The boss appears", "ボスがあらわれた", "Aparece el jefe", "Le boss apparaît", "O chefe aparece",
+          "Der Boss erscheint", "Появляется босс")
+    }
+    func dungeonLogThrow(_ attempt: Int, ball: String, caught: Bool) -> String {
+        caught
+            ? t("\(attempt)번째 던지기 (\(ball)): 잡았다!", "Throw \(attempt) (\(ball)): caught!", "\(attempt)回目 (\(ball))：つかまえた！",
+                "Lanzamiento \(attempt) (\(ball)): ¡capturado!", "Lancer \(attempt) (\(ball)) : capturé !",
+                "Lance \(attempt) (\(ball)): capturado!", "Wurf \(attempt) (\(ball)): gefangen!", "Бросок \(attempt) (\(ball)): пойман!")
+            : t("\(attempt)번째 던지기 (\(ball)): 놓쳤다", "Throw \(attempt) (\(ball)): missed", "\(attempt)回目 (\(ball))：だめだった",
+                "Lanzamiento \(attempt) (\(ball)): fallido", "Lancer \(attempt) (\(ball)) : raté", "Lance \(attempt) (\(ball)): errou",
+                "Wurf \(attempt) (\(ball)): daneben", "Бросок \(attempt) (\(ball)): мимо")
+    }
+    var dungeonLogVictory: String {
+        t("보스 격파: 모은 물건을 얻었어요", "Boss beaten: the loot is won", "ボスをたおした：集めたものを手に入れた",
+          "Jefe vencido: el botín es tuyo", "Boss vaincu : le butin est gagné", "Chefe vencido: o saque é seu",
+          "Boss besiegt: Die Beute gehört dir", "Босс повержен: добыча твоя")
+    }
+    var dungeonLogDefeat: String {
+        t("팀 전멸: 모은 물건을 잃었어요", "Team down: the loot is lost", "チームぜんめつ：集めたものを失った",
+          "Equipo derrotado: el botín se pierde", "Équipe K.O. : le butin est perdu", "Equipe derrotada: o saque é perdido",
+          "Team besiegt: Die Beute ist verloren", "Команда побеждена: добыча потеряна")
+    }
+    func dungeonLogAbandon(rope: String?) -> String {
+        if let rope {
+            return t("\(KoreanParticle.direction.attach(to: rope)) 탈출: 모은 물건은 지켰어요", "Out with the \(rope): loot kept",
+                     "\(rope)で脱出：集めたものは無事", "Salida con \(rope): botín conservado", "Sortie avec \(rope) : butin gardé",
+                     "Saída com \(rope): saque mantido", "Raus mit \(rope): Beute behalten",
+                     "Выход с помощью предмета \"\(rope)\": добыча сохранена")
+        }
+        return t("포기: 모은 물건을 잃었어요", "Gave up: loot lost", "あきらめた：集めたものを失った", "Abandono: botín perdido",
+                 "Abandon : butin perdu", "Desistência: saque perdido", "Aufgegeben: Beute verloren", "Сдались: добыча потеряна")
+    }
+
+    // The emergency heal (R5, maquette 4).
+
+    var dungeonPaused: String { t("일시정지", "paused", "一時停止中", "en pausa", "en pause", "em pausa", "pausiert", "на паузе") }
+    func dungeonTeamInDanger(_ percent: Int) -> String {
+        t("팀 위험: HP \(percent)%", "Team in danger: \(percent)% of its HP", "チームがあぶない：HP \(percent)%",
+          "Equipo en peligro: \(percent) % de sus PS", "Équipe en danger : \(percent) % de ses PV",
+          "Equipe em perigo: \(percent)% dos PS", "Team in Gefahr: \(percent) % seiner KP", "Команда в опасности: \(percent)% ОЗ")
+    }
+    var dungeonHealExplain: String {
+        t("긴급 회복: 팀 전원 HP 100%, 기절한 포켓몬도 일어나요. 탐험마다 한 번뿐이에요. 회복하지 않고 지면 모은 물건을 모두 잃어요.",
+          "Emergency heal: the whole team back to 100%, fainted ones revived. Once per expedition. Without it, a defeat loses all the loot.",
+          "きんきゅう回復：チーム全員HP100%、ひんしも回復。たんけん1回につき1度だけ。回復せずに負けると、集めたものをすべて失います。",
+          "Curación de urgencia: todo el equipo al 100 %, los debilitados se levantan. Una sola vez por expedición. Sin ella, una derrota pierde todo el botín.",
+          "Soin d'urgence : toute l'équipe à 100 %, les K.O. relevés. Une seule fois par expédition. Sans lui, une défaite fait perdre tout le butin.",
+          "Cura de emergência: toda a equipe a 100%, os desmaiados de pé. Uma vez por expedição. Sem ela, uma derrota perde todo o saque.",
+          "Notheilung: Das ganze Team auf 100 %, besiegte Pokémon stehen wieder auf. Einmal pro Expedition. Ohne sie kostet eine Niederlage die ganze Beute.",
+          "Срочное лечение: вся команда на 100%, павшие встают. Один раз за экспедицию. Без него поражение стоит всей добычи.")
+    }
+    func dungeonHealPrice(_ price: String, have: String) -> String {
+        t("가격: \(price) · 보유 \(have)", "Price: \(price) · you have \(have)", "ねだん：\(price)・所持 \(have)",
+          "Precio: \(price) · tienes \(have)", "Prix : \(price) · tu as \(have)", "Preço: \(price) · você tem \(have)",
+          "Preis: \(price) · du hast \(have)", "Цена: \(price) · у тебя \(have)")
+    }
+    var dungeonHealSkip: String {
+        t("그냥 계속", "Go on without", "そのまま進む", "Seguir sin ella", "Continuer sans", "Seguir sem", "Ohne weiter", "Продолжить без")
+    }
+    func dungeonHealPay(_ price: String) -> String {
+        t("회복 · \(price)", "Heal · \(price)", "回復・\(price)", "Curar · \(price)", "Soigner · \(price)", "Curar · \(price)",
+          "Heilen · \(price)", "Лечить · \(price)")
+    }
+    func dungeonReserve(_ tokens: String) -> String {
+        t("토큰 \(tokens) 대기 중, 답하면 바로 반영돼요.", "\(tokens) tokens on hold, put in as soon as you answer.",
+          "トークン\(tokens)が待機中。答えるとすぐに反映されます。", "\(tokens) tokens en reserva, aplicados en cuanto respondas.",
+          "\(tokens) de tokens en réserve, appliqués dès ta réponse.", "\(tokens) tokens em reserva, aplicados assim que você responder.",
+          "\(tokens) Tokens in Reserve, angerechnet, sobald du antwortest.", "\(tokens) токенов в резерве, учтутся сразу после ответа.")
+    }
+
+    // The capture (Q18, maquette 6).
+
+    func dungeonBossWas(_ floor: Int) -> String {
+        t("\(floor)층 · 보스는…", "Floor \(floor) · the boss was…", "\(floor)階・ボスは…", "Piso \(floor) · el jefe era…",
+          "Étage \(floor) · le boss était…", "Andar \(floor) · o chefe era…", "Ebene \(floor) · der Boss war…",
+          "Этаж \(floor) · боссом был…")
+    }
+    var dungeonBossBeatenThrow: String {
+        t("쓰러뜨렸어요! 모은 물건을 얻었어요. 볼을 던져 알을 얻으세요.", "Beaten! The loot is won. Throw a ball to get its egg.",
+          "たおした！集めたものを手に入れた。ボールを投げてタマゴを手に入れよう。",
+          "¡Vencido! El botín es tuyo. Lanza una ball para conseguir su huevo.",
+          "Vaincu ! Le butin est gagné. Lance une ball pour obtenir son œuf.", "Vencido! O saque é seu. Lance uma bola para ganhar o ovo.",
+          "Besiegt! Die Beute gehört dir. Wirf einen Ball, um sein Ei zu bekommen.",
+          "Повержен! Добыча твоя. Брось бол, чтобы получить его яйцо.")
+    }
+    func dungeonThrowsLeft(_ n: Int) -> String {
+        t("남은 던지기: \(n)", "Throws left: \(n)", "のこり\(n)回", "Lanzamientos restantes: \(n)", "Lancers restants : \(n)",
+          "Lances restantes: \(n)", "Würfe übrig: \(n)", "Осталось бросков: \(n)")
+    }
+    var dungeonMissed: String { t("놓침", "missed", "だめ", "fallido", "raté", "errou", "daneben", "мимо") }
+    func dungeonThrowOdds(_ ball: String, _ percent: Int) -> String {
+        t("\(ball) · \(percent)%", "\(ball) · \(percent)%", "\(ball)・\(percent)%", "\(ball) · \(percent) %", "\(ball) · \(percent) %",
+          "\(ball) · \(percent)%", "\(ball) · \(percent) %", "\(ball) · \(percent)%")
+    }
+    var dungeonPokeBall: String {
+        t("몬스터볼", "Poké Ball", "モンスターボール", "Poké Ball", "Poké Ball", "Poké Bola", "Pokéball", "Покебол")
+    }
+    var dungeonLetGo: String { t("보내 주기", "Let it go", "にがす", "Dejarlo ir", "Laisser partir", "Deixar ir", "Ziehen lassen", "Отпустить") }
+    var dungeonLetGoCost: String {
+        t("더 던지지 않으면 알 없이 탐험이 끝나요.", "No more throws: the expedition ends without its egg.",
+          "これ以上投げないと、タマゴなしでたんけんが終わります。", "Sin más lanzamientos: la expedición termina sin su huevo.",
+          "Plus de lancer : l'expédition se termine sans son œuf.", "Sem mais lances: a expedição termina sem o ovo.",
+          "Keine Würfe mehr: Die Expedition endet ohne sein Ei.", "Больше бросков не будет: экспедиция закончится без яйца.")
+    }
+
+    // The return (maquette 7).
+
+    func dungeonResultTitle(won: Bool, roped: Bool) -> String {
+        if won {
+            return t("탐험 성공", "Expedition won", "たんけん成功", "Expedición superada", "Expédition réussie", "Expedição concluída",
+                     "Expedition geschafft", "Экспедиция удалась")
+        }
+        if roped {
+            return t("조기 귀환", "Back early", "早めの帰還", "Regreso anticipado", "Retour anticipé", "Retorno antecipado",
+                     "Früh zurück", "Досрочное возвращение")
+        }
+        return t("탐험 실패", "Expedition failed", "たんけん失敗", "Expedición fallida", "Expédition échouée", "Expedição fracassada",
+                 "Expedition gescheitert", "Экспедиция провалена")
+    }
+    var dungeonFirstVictory: String {
+        t("첫 승리", "1st win", "初勝利", "1.ª victoria", "1re victoire", "1ª vitória", "1. Sieg", "1-я победа")
+    }
+    func dungeonBattles(_ n: Int) -> String {
+        t("전투 \(n)회", n == 1 ? "1 battle" : "\(n) battles", "\(n)戦", n == 1 ? "1 combate" : "\(n) combates",
+          n <= 1 ? "\(n) combat" : "\(n) combats", n == 1 ? "1 batalha" : "\(n) batalhas", n == 1 ? "1 Kampf" : "\(n) Kämpfe",
+          "Боёв: \(n)")
+    }
+    var dungeonBossCaught: String {
+        t("잡았어요: 알은 가방에 있어요", "Caught: its egg is in the Bag", "つかまえた：タマゴはバッグに",
+          "Capturado: su huevo está en la Bolsa", "Capturé : son œuf est dans le Sac", "Capturado: o ovo está na Mochila",
+          "Gefangen: Sein Ei ist im Beutel", "Пойман: его яйцо в сумке")
+    }
+    var dungeonBossNotCaught: String {
+        t("잡지 못했어요", "Not caught", "つかまえられなかった", "No capturado", "Pas capturé", "Não capturado", "Nicht gefangen", "Не пойман")
+    }
+    func dungeonUnlocked(_ names: String) -> String {
+        t("열림: \(names)", "Unlocked: \(names)", "解放：\(names)", "Desbloqueado: \(names)", "Débloqué : \(names)",
+          "Desbloqueado: \(names)", "Freigeschaltet: \(names)", "Открыто: \(names)")
+    }
+    var dungeonTechnicalCapsule: String {
+        t("기술 캡슐", "Technical Capsule", "わざカプセル", "Cápsula Técnica", "Capsule Technique", "Cápsula Técnica", "Technikkapsel",
+          "Техническая капсула")
+    }
+    var dungeonLootLost: String {
+        t("모은 물건은 잃었어요. 쓰지 않은 가져간 물건은 가방으로 돌아왔어요.",
+          "The loot is lost. What the team took along and didn't use is back in the Bag.",
+          "集めたものは失われました。使わなかった持ち物はバッグにもどりました。",
+          "El botín se ha perdido. Lo que el equipo llevó y no usó vuelve a la Bolsa.",
+          "Le butin est perdu. Ce que l'équipe avait emporté sans l'utiliser est revenu au Sac.",
+          "O saque foi perdido. O que a equipe levou e não usou voltou para a Mochila.",
+          "Die Beute ist verloren. Was das Team mitnahm und nicht brauchte, ist zurück im Beutel.",
+          "Добыча потеряна. Неиспользованные вещи вернулись в сумку.")
+    }
+    var dungeonGrowthResumes: String {
+        t("키우는 포켓몬이 다시 자라요.", "Your Pokémon being raised grows again.", "育てているポケモンがまた育ちます。",
+          "Tu Pokémon en crianza vuelve a crecer.", "Ton Pokémon en cours reprend sa croissance.",
+          "Seu Pokémon em criação volta a crescer.", "Dein Pokémon in Aufzucht wächst wieder.", "Растущий покемон снова растёт.")
+    }
+
     /// The places' official names (Q26).
     func dungeonName(_ id: DungeonID) -> String {
         switch id {

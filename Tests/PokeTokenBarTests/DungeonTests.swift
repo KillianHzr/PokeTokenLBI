@@ -175,7 +175,6 @@ final class DungeonTests: XCTestCase {
         var e = try XCTUnwrap(waiting, "some floor leaves the team under a quarter of its HP")
         guard case .awaitingHeal(let price) = e.phase else { return XCTFail() }
         XCTAssertEqual(price, ExpeditionEngine.healPrice(cost: e.cost))
-        XCTAssertTrue(e.needsAttention)
         let floor = e.floor
         ExpeditionEngine.feed(&e, tokens: 500, context: ctx)
         XCTAssertEqual(e.reserve, 500)

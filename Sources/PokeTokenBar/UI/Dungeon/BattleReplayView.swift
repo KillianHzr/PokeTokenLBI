@@ -6,6 +6,8 @@ import SwiftUI
 struct BattleReplayView: View {
     let store: CompanionStore
     let battle: ExpeditionBattle
+    /// Where it starts, in milliseconds: a battle still being fought opens at its present moment.
+    var startAt = 0
     let onBack: () -> Void
 
     @State private var outcome: BattleOutcome?
@@ -64,6 +66,7 @@ struct BattleReplayView: View {
         .task {
             let setup = battle.setup
             let ran = await Task.detached(priority: .userInitiated) { BattleEngine.run(setup) }.value
+            elapsed = min(max(0, startAt), ran.duration)
             outcome = ran
             while !Task.isCancelled, elapsed < ran.duration {
                 try? await Task.sleep(for: .milliseconds(Self.step))

@@ -217,10 +217,20 @@ extension CompanionStore {
         store(e)
     }
 
-    /// The badge on the menu bar is seen (R13).
-    func expeditionSeen() {
-        guard expedition?.needsAttention == true else { return }
-        changeDungeons { $0.expedition?.needsAttention = false }
+    /// Something waits for the player (R13): the emergency heal, the throws at the boss, the return not yet closed.
+    var dungeonNeedsAttention: Bool {
+        if let e = expedition {
+            switch e.phase {
+            case .awaitingHeal, .capture: return true
+            case .exploring, .finished: return false
+            }
+        }
+        return state.dungeons.lastResult != nil
+    }
+
+    /// The menu bar's floor while a team explores ("É6/12"), in place of the growth it pauses.
+    var dungeonMenuFloor: String? {
+        expedition.map { l.dungeonFloorTag(min($0.floor, $0.floors), $0.floors) }
     }
 
     func dismissExpeditionResult() {

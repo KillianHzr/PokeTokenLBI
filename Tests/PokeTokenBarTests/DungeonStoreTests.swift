@@ -165,6 +165,28 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(rich.expedition?.healUsed, true)
     }
 
+    /// R13: the dungeon waits for the player while the heal or the throws wait, and while the return is not closed;
+    /// not while the team walks. The menu bar shows the floor of the expedition under way.
+    func testWhatWaitsForThePlayer() throws {
+        let s = try store(dex: strong)
+        XCTAssertFalse(s.dungeonNeedsAttention)
+        XCTAssertNil(s.dungeonMenuFloor)
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        XCTAssertFalse(s.dungeonNeedsAttention, "the team walks on its own")
+        XCTAssertEqual(s.dungeonMenuFloor, s.l.dungeonFloorTag(1, DungeonTier.t1.floors))
+        s.changeDungeons { $0.expedition?.phase = .awaitingHeal(price: 1) }
+        XCTAssertTrue(s.dungeonNeedsAttention, "the heal waits for its answer")
+        s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
+        XCTAssertTrue(s.dungeonNeedsAttention, "the throws wait")
+        s.endCapture()
+        XCTAssertNil(s.expedition)
+        XCTAssertNotNil(s.dungeonProgress.lastResult)
+        XCTAssertTrue(s.dungeonNeedsAttention, "the return waits to be seen")
+        XCTAssertNil(s.dungeonMenuFloor)
+        s.dismissExpeditionResult()
+        XCTAssertFalse(s.dungeonNeedsAttention)
+    }
+
     /// R4: a loop is set outside an expedition, a locked move refused until unlocked.
     func testMoveLoopsKeepTheLocks() throws {
         let s = try store(dex: strong)

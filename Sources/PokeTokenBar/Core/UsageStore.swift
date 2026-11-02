@@ -118,6 +118,11 @@ final class UsageStore {
         var toNext: Int
         /// Tokens the Shop can spend.
         var shop: Int
+        /// While a team explores, its floor ("É6/12"), shown in place of the growth it pauses.
+        var dungeonFloor: String? = nil
+        /// The dungeon waits for the player (R13): a "!" before the first line, whatever the menu shows, since the
+        /// dungeons send no notification.
+        var dungeonAlert = false
     }
     var companionMenu: CompanionMenu?
     static let companionMenuDefaultsKey = "menuShowsCompanionItems"
@@ -379,7 +384,11 @@ final class UsageStore {
     var menuLines: [String] {
         guard lastUpdated != nil else { return ["-"] }
         var companion: [String] = []
-        if showEvolutionInMenu, let next = companionMenu?.toNext { companion.append("↑" + TokenFormatter.compact(next)) }
+        if showEvolutionInMenu, let floor = companionMenu?.dungeonFloor {
+            companion.append(floor)
+        } else if showEvolutionInMenu, let next = companionMenu?.toNext {
+            companion.append("↑" + TokenFormatter.compact(next))
+        }
         if showShopInMenu, let shop = companionMenu?.shop { companion.append("¤" + TokenFormatter.compact(shop)) }
         var usage: [String] = []
         if showTokensInMenu { usage.append(TokenFormatter.compact(todayTotalTokens)) }
@@ -387,9 +396,18 @@ final class UsageStore {
         let limit = menuLimitLine   // nil = 한도 미표시/미가용
 
         let items = companion + usage + (limit.map { [$0] } ?? [])
-        guard items.count > 2 else { return items }
-        if let limit { return [(companion + usage).joined(separator: " · "), limit] }
-        return [companion.joined(separator: " · "), usage.joined(separator: " · ")]
+        var lines: [String]
+        if items.count <= 2 {
+            lines = items
+        } else if let limit {
+            lines = [(companion + usage).joined(separator: " · "), limit]
+        } else {
+            lines = [companion.joined(separator: " · "), usage.joined(separator: " · ")]
+        }
+        if companionMenu?.dungeonAlert == true {
+            if lines.isEmpty { lines = ["!"] } else { lines[0] = "! " + lines[0] }
+        }
+        return lines
     }
 
     /// 메뉴바 한도 줄 — **오늘 실제 사용한 프로바이더만** 한 줄에 나란히(미사용/미가용이면 nil).
