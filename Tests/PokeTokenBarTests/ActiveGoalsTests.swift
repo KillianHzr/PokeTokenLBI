@@ -68,6 +68,10 @@ final class HowToGetTests: XCTestCase {
         XCTAssertEqual(CompanionStore.source(of: 138), .fossil)
         XCTAssertEqual(CompanionStore.source(of: 144), .legendary)
         XCTAssertEqual(CompanionStore.source(of: 151), .mythical)
+        XCTAssertEqual(CompanionStore.source(of: DungeonCatalog.arceusID), .dungeon(.hallOfOrigin),
+                       "Arceus comes from the Hall of Origin alone (R13)")
+        XCTAssertTrue(L(.fr).dexHowToGet(DungeonCatalog.arceusID, source: .dungeon(.hallOfOrigin), name: { "#\($0)" },
+                                         goals: [], nextDig: nil).contains("Salle Originelle"))
         XCTAssertEqual(CompanionStore.source(of: 1), .egg)
         XCTAssertEqual(CompanionStore.source(of: 791), .evolves(from: 790, base: 789), "Solgaleo from Cosmoem")
     }

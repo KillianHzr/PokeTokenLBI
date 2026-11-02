@@ -880,10 +880,10 @@ final class CompanionStore {
     }
 
     /// How a species not caught yet comes (7.5): from the species it evolves from (`base`: its line's first), a fossil
-    /// line's egg, a legendary's or a mythical's eggs, else any egg.
+    /// line's egg, a dungeon's boss alone (Arceus, R13), a legendary's or a mythical's eggs, else any egg.
     enum SpeciesSource: Equatable, Sendable {
         case evolves(from: Int, base: Int)
-        case fossil, legendary, mythical, egg
+        case fossil, dungeon(DungeonID), legendary, mythical, egg
     }
 
     nonisolated static func source(of speciesID: Int) -> SpeciesSource {
@@ -893,6 +893,10 @@ final class CompanionStore {
             return .evolves(from: parent, base: base)
         }
         if FossilDig.isFossilLine(speciesID) { return .fossil }
+        if PokemonOdds.dungeonOnly.contains(speciesID),
+           let dungeon = DungeonCatalog.all.first(where: { $0.bosses.contains(speciesID) }) {
+            return .dungeon(dungeon.id)
+        }
         if SpeciesGoal.mythicals.contains(speciesID) { return .mythical }
         if SpeciesGoal.legendaries.contains(speciesID) { return .legendary }
         return .egg

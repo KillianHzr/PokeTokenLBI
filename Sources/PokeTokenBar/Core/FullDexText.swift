@@ -39,6 +39,16 @@ extension L {
                            "\(dig)で手に入る\(egg)から生まれます\(progress)。", "Sale de un \(egg), ganado en la \(dig)\(progress).",
                            "Sort d'un \(egg), gagné aux \(dig)\(progress).", "Nasce de um \(egg), ganho na \(dig)\(progress).",
                            "Schlüpft aus einem \(egg) der \(dig)\(progress).", "Вылупляется из \"\(egg)\" за \"\(dig)\"\(progress)."))
+        case .dungeon(let dungeon):
+            let place = dungeonName(dungeon)
+            lines.append(dexMissingHint(id))
+            lines.append(t("\(place)의 보스로만 나와요. 잡으면 알을 얻어요.", "Only the \(place)'s boss: catch it for its egg.",
+                           "\(place)のボスとしてだけあらわれます。つかまえるとタマゴが手に入ります。",
+                           "Solo como jefe de \(place): captúralo para tener su huevo.",
+                           "Seulement en boss de donjon (\(place)) : capture-le pour avoir son œuf.",
+                           "Só como chefe de \(place): capture-o para ganhar o ovo.",
+                           "Nur als Boss von \(place): Fang es für sein Ei.",
+                           "Только босс локации \"\(place)\": поймай его, чтобы получить яйцо."))
         case .legendary:
             let egg = itemName(.legendaryEgg)
             lines.append(t("#\(id) · 전설", "#\(id) · legendary", "#\(id) · 伝説", "#\(id) · legendario", "#\(id) · légendaire",
