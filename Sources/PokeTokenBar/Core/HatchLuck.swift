@@ -88,10 +88,11 @@ struct HatchLuck: Sendable {
                 (rollItems, hatchItems) = (owned, owned)
             }
             let previousEgg = hatches.last?.egg
+            let rules = HatchRules(rolledAt: previous?.caughtAt ?? entry.caughtAt)
             hatches.append(Self.hatch(number: i + 1, entry: entry, isActive: includesActive && i == entries.count - 1,
                                       egg: egg, chosen: record?.chosenByPlayer ?? false,
                                       asked: record?.chosenByPlayer ?? (previous?.isReleased == true),
-                                      roll: HatchDraw(collection: collection, items: rollItems),
+                                      roll: HatchDraw(collection: collection, items: rollItems, rules: rules),
                                       hatch: HatchDraw(collection: collection, items: hatchItems),
                                       afterFossilEgg: previousEgg == .fossil, index: index, rarities: rarities))
             if !entry.isReleased { collection.collectedFinals.insert("\(entry.baseID):\(entry.finalID)") }

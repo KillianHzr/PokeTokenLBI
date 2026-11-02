@@ -3,7 +3,8 @@ import XCTest
 
 /// The Luck screen's replay (`HatchLuck`), on Pokédexes built by hand with odds known in advance.
 final class HatchLuckTests: XCTestCase {
-    private static let start = Date(timeIntervalSince1970: 1_790_000_000)
+    /// After every change of `HatchRules`: today's rules.
+    private static let start = Date(timeIntervalSince1970: 1_793_534_400)   // 2026-11-01 12:00 UTC
     private static func day(_ n: Double) -> Date { start.addingTimeInterval(n * 86_400) }
 
     /// Two three-stage commons (212 each), a rare (40) and a legendary (3): 467 in all.

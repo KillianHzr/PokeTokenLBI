@@ -6,9 +6,9 @@ extension ItemKind {
     static let drawItems: [ItemKind] = [.shinyCharm, .ovalCharm, .legendCharm, .revealGlass, .glimmeringCharm]
 }
 
-/// The egg roll's rules, as functions of a Pokédex and the draw items owned, nothing else. The hatch rolls with them
-/// (`CompanionStore.chooseBase`, `hatchCore`), and the Luck screen replays every past hatch with them against the
-/// Pokédex and items of that hatch, so the two never part.
+/// The egg roll's rules, as functions of a Pokédex, the draw items owned and the updates' changes, nothing else. The
+/// hatch rolls with them (`CompanionStore.chooseBase`, `hatchCore`), and the Luck screen replays every past hatch with
+/// them against the Pokédex, items and rules of that hatch, so the two never part.
 struct HatchDraw: Sendable {
     typealias EggSpec = CompanionStore.EggSpec
 
@@ -17,12 +17,14 @@ struct HatchDraw: Sendable {
     let collection: CompanionState
     /// The draw items owned, among `ItemKind.drawItems`.
     let items: Set<ItemKind>
+    let rules: HatchRules
     /// The collection's graduated forms, read once for the many lines of a roll.
     private let graduated: GraduatedForms
 
-    init(collection: CompanionState, items: Set<ItemKind>) {
+    init(collection: CompanionState, items: Set<ItemKind>, rules: HatchRules = .current) {
         self.collection = collection
         self.items = items
+        self.rules = rules
         graduated = GraduatedForms(collection.dex)
     }
 
@@ -60,10 +62,11 @@ struct HatchDraw: Sendable {
     /// collected one to a quarter rather than a half: a stone is spent on that egg.
     func hatchWeight(for e: BaseSpecies, type: PokemonType? = nil) -> Int {
         var w: Int
-        if let type {
-            w = collection.isLineComplete(baseID: e.id, type: type, graduated: graduated) ? max(1, e.hatchWeight / 4) : max(1, e.hatchWeight)
+        let weight = rules.weight(e)
+        if let type, rules.has(.stoneEggDuplicates) {
+            w = collection.isLineComplete(baseID: e.id, type: type, graduated: graduated) ? max(1, weight / 4) : max(1, weight)
         } else {
-            w = CollectionWeight.adjusted(e.hatchWeight, isCollected: collection.isLineComplete(baseID: e.id, graduated: graduated))
+            w = CollectionWeight.adjusted(weight, isCollected: collection.isLineComplete(baseID: e.id, graduated: graduated))
         }
         // The legendary rarity: every legendary and mythical, never Beldum (capture rate 3).
         if items.contains(.legendCharm) && e.rarity == .legendary {
@@ -83,6 +86,7 @@ struct HatchDraw: Sendable {
         // every other species: shiny, twice, with another nature.
         let guarantees = guaranteeCheck(egg)
         var index = full.filter(guarantees)
+        if !rules.has(.laterGenerations) { index = index.filter { $0.id <= PokemonTypeData.generations[4].upperBound } }
         // An event egg hatches the event's Pokémon (`EventEgg.admits`). None of them in the pool (a first catch
         // the index leaves out), it hatches as a plain egg would rather than wait forever: no other egg can be
         // used while it incubates.
@@ -102,7 +106,7 @@ struct HatchDraw: Sendable {
             let missing = index.filter { collection.lineMissesForms(baseID: $0.id, types: egg.formTypes, graduated: graduated) }
             if !missing.isEmpty { index = missing }
         }
-        index = CompanionStore.withoutLastHatched(index, last: collection.lastHatchedBaseID)
+        if rules.has(.stoneEggDuplicates) { index = CompanionStore.withoutLastHatched(index, last: collection.lastHatchedBaseID) }
         return index.map { ($0, hatchWeight(for: $0, type: egg.type)) }
     }
 
@@ -113,7 +117,8 @@ struct HatchDraw: Sendable {
         // The Friendship Egg keeps its promise even then: the line is the player's own first Pokémon.
         let friendship = egg.event == .companion ? collection.companionLineID : nil
         return { base in
-            (!FossilDig.isFossilLine(base.id) || graduatedSpecies.contains(base.id) || base.id == friendship)
+            (!rules.has(.fossilEggsOnly) || !FossilDig.isFossilLine(base.id) || graduatedSpecies.contains(base.id)
+                || base.id == friendship)
                 && (egg.tier?.admits(base) ?? true)
                 // A Legendary Egg hatches a legendary or mythical Pokémon, any of them.
                 && (!egg.legendaryEgg || base.isLegendary)
@@ -125,7 +130,7 @@ struct HatchDraw: Sendable {
     /// line without any.
     func lineFormDraw(baseID: Int, types: [PokemonType]) -> (forms: [PokemonForm], collected: Set<PokemonForm>) {
         // The same forms the Oval Charm's species filter reads (`CompanionState.lineMissesForms`).
-        var forms = CompanionState.eggForms(baseID: baseID, types: types)
+        var forms = rules.has(.forms) ? CompanionState.eggForms(baseID: baseID, types: types) : []
         guard !forms.isEmpty else { return ([], []) }
         let collected = collection.graduatedLineForms(baseID: baseID, graduated: graduated)
         // The Oval Charm hatches a form still missing when the line has one.
