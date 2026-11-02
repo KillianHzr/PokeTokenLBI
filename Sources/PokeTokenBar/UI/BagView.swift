@@ -6,16 +6,15 @@ struct BagView: View {
     let store: CompanionStore
     let nav: PopoverNavigation
     @State private var section: Section = .items
-    /// What the last Explorer's Chest held: shown above the dungeon items, the chest gone with its last.
+    /// What the last Explorer's Chest held: shown above the items, the chest gone with its last.
     @State private var chestFound: (kind: ItemKind, count: Int)?
 
-    /// The Bag's sections, as the Achievements tabs: items (Shop, candies, stones), gym badges, artifacts, and the
-    /// dungeons' items and eggs. The 18 badges used to fill the list and hide the other items.
+    /// The Bag's sections, as the Achievements tabs: items (Shop, candies, stones, the dungeons' consumables and
+    /// eggs), gym badges, artifacts. The 18 badges used to fill the list and hide the other items.
     enum Section: CaseIterable, Hashable {
-        case items, badges, artifacts, dungeons
+        case items, badges, artifacts
 
         static func of(_ kind: ItemKind) -> Section {
-            if kind.isDungeonItem { return .dungeons }
             switch kind.collectorGroup {
             case .gymBadges?: return .badges
             case .legendaryArtifacts?, .forms?: return .artifacts
@@ -38,7 +37,7 @@ struct BagView: View {
             emptyState
         } else {
             let sections = Section.allCases.filter { s in
-                owned.contains { Section.of($0.kind) == s } || (s == .dungeons && (!eggs.isEmpty || chestFound != nil))
+                owned.contains { Section.of($0.kind) == s } || (s == .items && (!eggs.isEmpty || chestFound != nil))
             }
             let current = sections.contains(section) ? section : sections[0]
             let items = owned.filter { Section.of($0.kind) == current }
@@ -47,7 +46,7 @@ struct BagView: View {
                 if sections.count > 1 {
                     PillPicker(selection: Binding(get: { current }, set: { section = $0 }),
                                options: sections.map { s in
-                                   (s, "\(title(s)) \(owned.filter { Section.of($0.kind) == s }.count + (s == .dungeons ? eggs.count : 0))")
+                                   (s, "\(title(s)) \(owned.filter { Section.of($0.kind) == s }.count + (s == .items ? eggs.count : 0))")
                                })
                 }
                 ScrollView {
@@ -55,7 +54,7 @@ struct BagView: View {
                         badgeGrid(items.map(\.kind))
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
-                            if current == .dungeons {
+                            if current == .items {
                                 if let found = chestFound { chestBanner(found) }
                                 ForEach(eggs) { egg in
                                     DungeonEggCard(store: store, nav: nav, egg: egg)
@@ -80,7 +79,6 @@ struct BagView: View {
         case .items: return store.l.bagItemsTitle
         case .badges: return store.l.collectorGroupTitle(.gymBadges)
         case .artifacts: return store.l.collectorGroupTitle(.legendaryArtifacts)
-        case .dungeons: return store.l.dungeonsTab
         }
     }
 
