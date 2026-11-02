@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-02", entries: [
+            .improved("2026-11-02-candy-100m") { l in
+                let candy = l.itemName(.rareCandy)
+                return l.t("\(candy) 하나가 이제 75M 대신 100M 경험치를 줘요.",
+                           "One \(candy) now gives 100M EXP instead of 75M.",
+                           "\(candy)1個で、75Mではなく100Mの経験値がもらえるようになりました。",
+                           "Un \(candy) da ahora 100M de EXP en lugar de 75M.",
+                           "Un \(candy) donne maintenant 100M d'EXP au lieu de 75M.",
+                           "Um \(candy) agora dá 100M de EXP em vez de 75M.",
+                           "Ein \(candy) gibt jetzt 100M EP statt 75M.",
+                           "\"\(candy)\" теперь даёт 100M опыта вместо 75M.")
+            },
             .improved("2026-11-02-achievements-closest-first", { $0.t("진행 중인 업적이 이제 완료에 가까운 순서대로 놓여요.",
                                                                   "Achievements in progress are now listed from the closest to done to the farthest.",
                                                                   "進行中の実績が、達成に近い順に並ぶようになりました。",
