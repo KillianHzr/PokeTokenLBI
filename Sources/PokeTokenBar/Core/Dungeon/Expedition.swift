@@ -171,14 +171,16 @@ enum ExpeditionEngine {
         }
     }
 
-    /// The candies a tier's expedition holds, around its average (Q22).
+    /// The candies a tier's expedition holds, around its average (Q22). Balanced on 2026-11-02 on the odds of
+    /// winning (a Rare Candy is 100M EXP, the tokens walked are growth paused): the near-sure T1 gives back about its
+    /// cost, the T4 a strong team wins two times in five about its cost over the tries, before its rare extras.
     static func candyRange(_ tier: DungeonTier) -> ClosedRange<Int> {
         switch tier {
-        case .t1: 0...3
+        case .t1: 0...2
         case .t2: 1...4
-        case .t3: 2...6
-        case .t4: 5...11
-        case .t5: 8...16
+        case .t3: 3...7
+        case .t4: 10...18
+        case .t5: 16...28
         }
     }
 
