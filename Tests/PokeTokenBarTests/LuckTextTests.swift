@@ -90,6 +90,14 @@ final class LuckTextTests: XCTestCase {
         XCTAssertEqual(fr.hatchEggName(.event(.summer, key: "summer@2026")), fr.itemName(summer))
     }
 
+    /// The shiny criterion uses the app's own word in each language.
+    func testShinyIsTheAppsWord() {
+        XCTAssertEqual(fr.luckCriterion(.shiny), "Chromatiques")
+        for language in AppLanguage.allCases {
+            XCTAssertEqual(L(language).luckCriterion(.shiny), L(language).bonusThemeTitle(.shiny), "\(language)")
+        }
+    }
+
     /// Every language has every criterion, and no dash.
     func testEveryLanguage() {
         for language in AppLanguage.allCases {
@@ -98,7 +106,9 @@ final class LuckTextTests: XCTestCase {
             words += [l.luckTitle, l.luckScoreTitle, l.luckByCriterionHint, l.luckTooFew, l.luckCurveTitle,
                       l.luckImprobableTitle, l.luckHistoryTitle, l.luckShowMore(321), l.luckUnknownEggs(27),
                       l.luckSentence(hatches: 3, score: 50, best: (.rare, 0.6), worst: (.new, 0.2)),
-                      l.luckCurvePoint(number: 3, name: "Pidgey", score: 50), l.luckWait(.init(count: 2, unit: .month))]
+                      l.luckCurvePoint(number: 3, name: "Pidgey", score: 50), l.luckWait(.init(count: 2, unit: .month)),
+                      l.luckEggOfHatch, l.luckDrawItemsTitle, l.luckDrawItemsHint, l.luckObtainedOn, l.luckSetDate,
+                      l.luckRemoveDate]
             for word in words {
                 XCTAssertFalse(word.isEmpty, "\(language)")
                 XCTAssertFalse(word.contains("\u{2014}") || word.contains("\u{2013}"), "\(language): \(word)")

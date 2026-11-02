@@ -22,7 +22,7 @@ extension L {
         case .uncommon: t("고급", "Uncommon", "アンコモン", "Poco comunes", "Peu communs", "Incomuns", "Ungewöhnliche", "Необычные")
         case .rare: t("희귀", "Rare", "レア", "Raros", "Rares", "Raros", "Seltene", "Редкие")
         case .legendary: t("전설", "Legendary", "伝説", "Legendarios", "Légendaires", "Lendários", "Legendäre", "Легендарные")
-        case .shiny: t("이로치", "Shiny", "色違い", "Variocolor", "Shiny", "Shiny", "Schillernd", "Шайни")
+        case .shiny: bonusThemeTitle(.shiny)
         case .new: t("새로움", "Something new", "新しいもの", "Algo nuevo", "Du nouveau", "Algo novo", "Etwas Neues", "Новое")
         case .ditto: t("메타몽", "Ditto", "メタモン", "Ditto", "Métamorph", "Ditto", "Ditto", "Дитто")
         }
@@ -130,14 +130,55 @@ extension L {
     }
 
     func luckUnknownEggs(_ count: Int) -> String {
-        t("알 수 없는 알: \(count)개. 업데이트 전에 놓아준 뒤 부화한 포켓몬은 이로치에만 반영돼요.",
-          "Unknown eggs: \(count). A hatch from before this update that follows a release only counts for Shiny.",
-          "不明なタマゴ: \(count)個。アップデート前に逃がした後の孵化は色違いにだけ数えます。",
-          "Huevos desconocidos: \(count). Una eclosión de antes de esta actualización que sigue a una liberación solo cuenta para Variocolor.",
-          "Œufs inconnus : \(count). Une éclosion d'avant la mise à jour qui suit un relâché ne compte que pour le shiny.",
-          "Ovos desconhecidos: \(count). Uma eclosão de antes desta atualização que vem depois de uma soltura só conta para Shiny.",
-          "Unbekannte Eier: \(count). Ein Schlupf von vor diesem Update nach einer Freilassung zählt nur für Schillernd.",
-          "Неизвестных яиц: \(count). Вылупление до этого обновления после отпускания учитывается только для шайни.")
+        let shiny = luckCriterion(.shiny)
+        return t("알 수 없는 알: \(count)개. 업데이트 전에 놓아준 뒤 부화한 포켓몬은 \(shiny)에만 반영돼요.",
+                 "Unknown eggs: \(count). A hatch from before this update that follows a release only counts for \(shiny).",
+                 "不明なタマゴ: \(count)個。アップデート前に逃がした後の孵化は\(shiny)にだけ数えます。",
+                 "Huevos desconocidos: \(count). Una eclosión de antes de esta actualización que sigue a una liberación solo cuenta para \(shiny).",
+                 "Œufs inconnus : \(count). Une éclosion d'avant la mise à jour qui suit un relâché ne compte que pour le critère \(shiny).",
+                 "Ovos desconhecidos: \(count). Uma eclosão de antes desta atualização que vem depois de uma soltura só conta para \(shiny).",
+                 "Unbekannte Eier: \(count). Ein Schlupf von vor diesem Update nach einer Freilassung zählt nur für \(shiny).",
+                 "Неизвестных яиц: \(count). Вылупление до этого обновления после отпускания учитывается только для \(shiny).")
+            + " " + luckPickEggs
+    }
+
+    private var luckPickEggs: String {
+        let tab = luckTab(.hatches)
+        return t("\(tab) 탭에서 고를 수 있어요.", "You can pick them in the \(tab) tab.", "\(tab)タブで選べます。",
+                 "Puedes elegirlos en la pestaña \(tab).", "Tu peux les choisir dans l'onglet \(tab).",
+                 "Você pode escolhê-los na aba \(tab).", "Du kannst sie im Tab \(tab) wählen.",
+                 "Их можно выбрать на вкладке \(tab).")
+    }
+
+    var luckEggOfHatch: String {
+        t("이 부화의 알", "Egg of this hatch", "この孵化のタマゴ", "Huevo de esta eclosión", "Œuf de cette éclosion",
+          "Ovo desta eclosão", "Ei dieses Schlupfs", "Яйцо этого вылупления")
+    }
+
+    var luckDrawItemsTitle: String {
+        t("뽑기 아이템", "Draw items", "抽選アイテム", "Objetos de sorteo", "Objets de tirage", "Itens de sorteio",
+          "Ziehungsgegenstände", "Предметы для выпадения")
+    }
+    var luckDrawItemsHint: String {
+        t("업데이트 전에는 부화할 때마다 아이템을 기록하지 않았어요. 각 아이템을 언제부터 가졌는지 알려 주세요. 그 날짜 이후에 시작된 알부터 반영돼요. 날짜가 없으면 업데이트 전에는 반영되지 않아요.",
+          "Before this update, the app did not note your items at each hatch. Say since when you have each one: it counts for the eggs started after that date. Without a date, it does not count before the update.",
+          "アップデート前は、孵化ごとにアイテムを記録していませんでした。それぞれいつから持っているかを入力すると、その日以降に始まったタマゴから数えます。日付がなければ、アップデート前には数えません。",
+          "Antes de esta actualización, la app no anotaba tus objetos en cada eclosión. Indica desde cuándo tienes cada uno: cuenta para los huevos empezados después de esa fecha. Sin fecha, no cuenta antes de la actualización.",
+          "Avant la mise à jour, l'app ne notait pas tes objets à chaque éclosion. Dis depuis quand tu as chacun : il compte pour les œufs commencés après cette date. Sans date, il ne compte pas avant la mise à jour.",
+          "Antes desta atualização, o app não anotava seus itens a cada eclosão. Diga desde quando você tem cada um: ele conta para os ovos iniciados depois dessa data. Sem data, não conta antes da atualização.",
+          "Vor diesem Update hat die App deine Gegenstände nicht bei jedem Schlupf notiert. Gib an, seit wann du jeden hast: Er zählt für die Eier, die danach begonnen haben. Ohne Datum zählt er vor dem Update nicht.",
+          "До этого обновления приложение не записывало предметы при каждом вылуплении. Укажи, с какого дня у тебя каждый: он учитывается для яиц, начатых после этой даты. Без даты он не учитывается до обновления.")
+    }
+    var luckObtainedOn: String {
+        t("획득일", "Got on", "入手日", "Obtenido el", "Obtenu le", "Obtido em", "Erhalten am", "Получен")
+    }
+    var luckSetDate: String {
+        t("날짜 입력", "Set the date", "日付を入力", "Indicar la fecha", "Indiquer la date", "Indicar a data", "Datum angeben",
+          "Указать дату")
+    }
+    var luckRemoveDate: String {
+        t("날짜 지우기", "Remove the date", "日付を消す", "Quitar la fecha", "Retirer la date", "Remover a data", "Datum entfernen",
+          "Убрать дату")
     }
 
     var luckTooFew: String {
@@ -245,7 +286,6 @@ extension L {
                      "Unbekanntes Ei", "Неизвестное яйцо")
         }
         switch egg {
-        case .tier(let tier): return eggName(tier)
         case .event(let event, _): return ItemKind.allCases.first { EventEgg(item: $0) == event }.map(itemName) ?? eggName(nil)
         default: return ItemKind.allCases.first { HatchEgg(item: $0) == egg }.map(itemName) ?? eggName(nil)
         }

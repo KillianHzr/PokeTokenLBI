@@ -625,6 +625,7 @@ struct PopoverView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 SectionTitle(text: l.todayTokens, systemImage: "bolt.fill")
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer()
                 CircleIconButton(systemImage: "wand.and.stars", help: l.bonusOpen) { nav.showingBonuses = true }
                 CircleIconButton(systemImage: "chart.bar.xaxis", help: l.statsTitle) { nav.showingRecap = true }

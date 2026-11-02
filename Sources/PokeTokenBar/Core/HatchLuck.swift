@@ -28,7 +28,9 @@ struct HatchLuck: Sendable {
         /// The record's egg, the player's choice, or a Pokémon Egg after a graduation; nil when unknown.
         let egg: HatchEgg?
         let eggChosenByPlayer: Bool
-        /// The eggs that could have brought it, for a hatch whose egg the record does not name after a release.
+        /// The player may say its egg (`HatchRecord.chosenByPlayer`): a hatch after a release the app did not note.
+        let asksEgg: Bool
+        /// The eggs that could have brought it, for the player to say which.
         let possibleEggs: [HatchEgg]
         /// The odds of the rarity it hatched in, of a Ditto for one.
         let rarityOdds: OddsRange
@@ -88,6 +90,7 @@ struct HatchLuck: Sendable {
             let previousEgg = hatches.last?.egg
             hatches.append(Self.hatch(number: i + 1, entry: entry, isActive: includesActive && i == entries.count - 1,
                                       egg: egg, chosen: record?.chosenByPlayer ?? false,
+                                      asked: record?.chosenByPlayer ?? (previous?.isReleased == true),
                                       roll: HatchDraw(collection: collection, items: rollItems),
                                       hatch: HatchDraw(collection: collection, items: hatchItems),
                                       afterFossilEgg: previousEgg == .fossil, index: index, rarities: rarities))
@@ -192,22 +195,21 @@ struct HatchLuck: Sendable {
         }
     }
 
-    private static func hatch(number: Int, entry: DexEntry, isActive: Bool, egg: HatchEgg?, chosen: Bool,
+    private static func hatch(number: Int, entry: DexEntry, isActive: Bool, egg: HatchEgg?, chosen: Bool, asked: Bool,
                               roll: HatchDraw, hatch: HatchDraw, afterFossilEgg: Bool, index: [BaseSpecies],
                               rarities: [Int: Rarity]) -> Hatch {
         let isDitto = entry.baseID == PokemonOdds.dittoSpeciesID
         let rarity = rarities[entry.baseID] ?? entry.rarity
         let bringsNew = roll.bringsNew()
         let new = !isDitto && bringsNew(entry.baseID, entry.form)
-        // An unknown egg: those whose pool holds the line, a Ditto only from an egg it can hide in.
-        let candidates = egg.map { [$0] } ?? bagEggs.filter { candidate in
-            !(afterFossilEgg && candidate == .fossil) && (isDitto || mayHold(candidate, base: entry.baseID, roll: roll, index: index))
+        func measure(_ candidate: HatchEgg) -> EggOdds {
+            odds(of: candidate, base: entry.baseID, roll: roll, hatch: hatch, index: index, bringsNew: bringsNew)
         }
-        let measured = candidates.map {
-            ($0, odds(of: $0, base: entry.baseID, roll: roll, hatch: hatch, index: index, bringsNew: bringsNew))
-        }.filter { egg != nil || (isDitto ? $0.1.ditto > 0 : $0.1.line > 0) }
-        let eggs = measured.map(\.0)
-        let all = measured.map(\.1)
+        // Those whose pool holds the line, a Ditto only from an egg it can hide in.
+        let possible = !asked ? [] : bagEggs.filter { candidate in
+            !(afterFossilEgg && candidate == .fossil) && (isDitto || mayHold(candidate, base: entry.baseID, roll: roll, index: index))
+        }.map { ($0, measure($0)) }.filter { isDitto ? $0.1.ditto > 0 : $0.1.line > 0 }
+        let all = egg.map { egg in [possible.first { $0.0 == egg }?.1 ?? measure(egg)] } ?? possible.map(\.1)
         func range(_ value: (EggOdds) -> Double) -> OddsRange {
             let values = all.map(value)
             return OddsRange(low: values.min() ?? 0, high: values.max() ?? 0)
@@ -227,7 +229,7 @@ struct HatchLuck: Sendable {
         }
         return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, rarity: rarity, egg: egg,
                      eggChosenByPlayer: chosen,
-                     possibleEggs: egg == nil ? eggs : [], rarityOdds: rarityOdds, bringsNew: new,
+                     asksEgg: asked, possibleEggs: possible.map(\.0), rarityOdds: rarityOdds, bringsNew: new,
                      newOdds: isDitto ? nil : range { new ? $0.new : 1 - $0.new },
                      lineOdds: egg == nil ? nil : all.first.map { isDitto ? $0.ditto : $0.line }, judged: judged)
     }

@@ -3913,22 +3913,56 @@ final class CompanionStore {
         hatchIndex = full
     }
 
-    /// The Luck screen's replay (`loadHatchLuck`), and the Pokédex it replayed.
+    /// The Luck screen's replay (`loadHatchLuck`), and what it replayed.
     private(set) var hatchLuck: HatchLuck?
-    @ObservationIgnored private var hatchLuckEntries: [DexEntry]?
+    @ObservationIgnored private var replayedLuckInputs: LuckInputs?
 
-    /// Replays every hatch off the main thread once the species index is loaded, again only when the Pokédex changed.
+    /// What the replay depends on: the Pokédex, and the dates the player gave for their draw items.
+    struct LuckInputs: Equatable {
+        let entries: [DexEntry]
+        let itemsSince: [String: Date]
+    }
+
+    var luckInputs: LuckInputs { LuckInputs(entries: dexEntries, itemsSince: state.drawItemsSince) }
+
+    /// Replays every hatch off the main thread once the species index is loaded, again only when its inputs changed.
     func loadHatchLuck() async {
-        let entries = dexEntries
+        let inputs = luckInputs
         await loadHatchIndex()
-        guard let index = hatchIndex, entries != hatchLuckEntries else { return }
+        guard let index = hatchIndex, inputs != replayedLuckInputs else { return }
         let today = state, includesActive = state.active != nil, now = clock()
+        let itemsSince = Dictionary(uniqueKeysWithValues: inputs.itemsSince.compactMap { key, date in
+            ItemKind(rawValue: key).map { ($0, date) }
+        })
         let luck = await Task.detached(priority: .userInitiated) {
-            HatchLuck(entries: entries, includesActive: includesActive, today: today, index: index, now: now)
+            HatchLuck(entries: inputs.entries, includesActive: includesActive, today: today, index: index,
+                      itemsSince: itemsSince, now: now)
         }.value
-        guard dexEntries == entries else { return }
+        guard luckInputs == inputs else { return }
         hatchLuck = luck
-        hatchLuckEntries = entries
+        replayedLuckInputs = inputs
+    }
+
+    /// Notes the egg the player says a hatch from before the record came from, after a release; nil forgets it. The
+    /// Pokémon Egg after a graduation, and what the app noted itself, are not theirs to say.
+    func chooseHatchEgg(_ egg: HatchEgg?, forEntry id: String) {
+        let record = egg.map { HatchRecord(egg: $0, chosenByPlayer: true) }
+        if let i = state.dex.firstIndex(where: { $0.id == id }) {
+            guard i > 0, state.dex[i - 1].isReleased, state.dex[i].hatch?.chosenByPlayer != false else { return }
+            state.dex[i].hatch = record
+        } else if id == activeDexEntry?.id, state.dex.last?.isReleased == true,
+                  state.active?.hatch?.chosenByPlayer != false {
+            state.active?.hatch = record
+        } else {
+            return
+        }
+        save()
+    }
+
+    /// Since when the player says they own a draw item, for the hatches from before the record; nil forgets it.
+    func setDrawItemSince(_ item: ItemKind, _ date: Date?) {
+        state.drawItemsSince[item.rawValue] = date
+        save()
     }
 
     /// One rarity's share of an egg's pool, by weight.

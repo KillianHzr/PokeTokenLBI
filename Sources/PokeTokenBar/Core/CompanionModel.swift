@@ -1536,6 +1536,8 @@ struct CompanionState: Codable, Sendable, Equatable {
     var pendingForm: PokemonForm?
     /// The draw items owned when `pendingHatchID` was rolled (`HatchRecord.rollItems`); nil for an egg that rolls nothing.
     var pendingHatchItems: Set<ItemKind>?
+    /// Since when the player says they own each draw item (`ItemKind.rawValue`), for the hatches from before the record.
+    var drawItemsSince: [String: Date] = [:]
     /// 오늘 사용량 적립 기준값 — 프로바이더별로 독립 관리한다.
     ///
     /// `nil`은 aggregate `claimedTodayTokens`만 가지고 있던 구버전 세이브가 아직 첫 유효
@@ -1607,6 +1609,7 @@ struct CompanionState: Codable, Sendable, Equatable {
             form: PokemonForm.decoded(from: decoder, keys: "pendingForm", "pendingUnownForm"))
         pendingHatchItems = (try? c.decodeIfPresent([String].self, forKey: .pendingHatchItems))?
             .map { Set($0.compactMap(ItemKind.init(rawValue:))) }
+        drawItemsSince = c.lenient([String: Date].self, forKey: .drawItemsSince, default: [:])
         if c.contains(.claimedTodayTokensByProvider) {
             claimedTodayTokensByProvider = c.lenient([String: Int].self,
                                                       forKey: .claimedTodayTokensByProvider,

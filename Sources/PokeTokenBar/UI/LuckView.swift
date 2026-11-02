@@ -76,7 +76,7 @@ struct LuckScreen: View {
         }
         .padding(PopoverMetrics.padding)
         .frame(height: 540, alignment: .top)
-        .task(id: store.dexEntries) { await store.loadHatchLuck() }
+        .task(id: store.luckInputs) { await store.loadHatchLuck() }
     }
 
     // MARK: Summary
@@ -167,7 +167,11 @@ struct LuckScreen: View {
     private func hatches(_ luck: HatchLuck, _ l: L) -> some View {
         let newestFirst = Array(luck.hatches.reversed())
         let shown = showingAllHatches ? newestFirst : Array(newestFirst.prefix(Self.firstHatches))
+        let drawItems = ItemKind.drawItems.filter { store.itemCount($0) > 0 }
         return VStack(alignment: .leading, spacing: 12) {
+            if !drawItems.isEmpty, luck.hatches.contains(where: { $0.entry.hatch?.chosenByPlayer != false }) {
+                drawItemsCard(drawItems, l)
+            }
             if !luck.improbable.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     SectionTitle(text: l.luckImprobableTitle)
@@ -259,7 +263,9 @@ struct LuckScreen: View {
                 } else {
                     odds(rarity, hatch.rarityOdds)
                 }
-                if afterRelease {
+                if hatch.asksEgg {
+                    eggMenu(hatch, l)
+                } else if afterRelease {
                     Text(l.hatchEggName(hatch.egg)).font(.caption2).foregroundStyle(.secondary)
                 }
             }
@@ -269,6 +275,62 @@ struct LuckScreen: View {
                 .foregroundStyle(direction > 0 ? Color.readableGreen : direction < 0 ? Color.red : Color.secondary)
                 .padding(.top, 7)
         }
+    }
+
+    /// The eggs that could have brought a hatch from before the record, for the player to say which.
+    private func eggMenu(_ hatch: HatchLuck.Hatch, _ l: L) -> some View {
+        Menu {
+            ForEach(hatch.possibleEggs, id: \.self) { egg in
+                Button { store.chooseHatchEgg(egg, forEntry: hatch.entry.id) } label: {
+                    HStack {
+                        Text(l.hatchEggName(egg))
+                        if hatch.egg == egg { Image(systemName: "checkmark") }
+                    }
+                }
+            }
+            Divider()
+            Button { store.chooseHatchEgg(nil, forEntry: hatch.entry.id) } label: {
+                HStack {
+                    Text(l.hatchEggName(nil))
+                    if hatch.egg == nil { Image(systemName: "checkmark") }
+                }
+            }
+        } label: {
+            Text(l.hatchEggName(hatch.egg)).font(.caption)
+        }
+        .menuStyle(.button)
+        .controlSize(.small)
+        .fixedSize()
+        .hoverTip(l.luckEggOfHatch)
+        .accessibilityLabel(l.luckEggOfHatch)
+    }
+
+    /// Since when the player owns each draw item, for the hatches from before the record.
+    private func drawItemsCard(_ items: [ItemKind], _ l: L) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionTitle(text: l.luckDrawItemsTitle)
+            Text(l.luckDrawItemsHint).font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(items, id: \.self) { item in
+                HStack(spacing: 6) {
+                    Text(l.itemName(item)).font(.callout.weight(.semibold)).lineLimit(1)
+                    Spacer(minLength: 4)
+                    if let since = store.state.drawItemsSince[item.rawValue] {
+                        Text(l.luckObtainedOn).font(.caption).foregroundStyle(.secondary)
+                        DatePicker(l.luckObtainedOn,
+                                   selection: Binding(get: { since }, set: { store.setDrawItemSince(item, $0) }),
+                                   in: ...Date(), displayedComponents: .date)
+                            .labelsHidden().datePickerStyle(.field).fixedSize()
+                        Button { store.setDrawItemSince(item, nil) } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain).foregroundStyle(.secondary)
+                            .hoverTip(l.luckRemoveDate).accessibilityLabel(l.luckRemoveDate)
+                    } else {
+                        Button(l.luckSetDate) { store.setDrawItemSince(item, Date()) }.buttonStyle(.pill())
+                    }
+                }
+            }
+        }
+        .designCard()
     }
 
     private func sprite(_ hatch: HatchLuck.Hatch, size: CGFloat) -> some View {
@@ -285,6 +347,7 @@ struct LuckScreen: View {
 }
 
 /// A share on a bar, with a mark at the middle: 50 % is average.
+@MainActor
 private struct LuckMeter: View {
     let share: Double
     var height: CGFloat = 8
@@ -303,6 +366,7 @@ private struct LuckMeter: View {
 }
 
 /// Values from 0 to 1, hatch after hatch, with the average dashed and a dot on `highlighted`, the last by default.
+@MainActor
 private struct LuckLine: View {
     let values: [Double]
     var highlighted: Int?

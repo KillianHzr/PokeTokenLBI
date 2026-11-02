@@ -75,7 +75,7 @@ enum Changelog {
                     "Un trèfle à quatre feuilles sur la carte Tokens du jour ouvre ta chance au tirage : chaque éclosion rejouée avec les chances de son moment, un indice de chance, chaque critère, ses courbes et tes tirages les plus improbables.",
                     "Um trevo de quatro folhas no cartão Tokens de hoje abre sua sorte nas eclosões: cada eclosão refeita com as chances do seu momento, um índice de sorte, cada critério, suas curvas e seus sorteios mais improváveis.",
                     "Ein vierblättriges Kleeblatt auf der Karte Heute verbrauchte Tokens öffnet dein Schlüpfglück: jeder Schlupf mit den Chancen seines Moments nachgespielt, ein Glückswert, jedes Kriterium, sein Verlauf und deine unwahrscheinlichsten Ziehungen.",
-                    "Четырёхлистный клевер на карточке «Токены за сегодня» открывает твою удачу при вылуплении: каждое вылупление пересчитано с шансами своего момента, индекс удачи, каждый критерий, графики и самые невероятные выпадения.")
+                    "Четырёхлистный клевер на карточке \"Токены за сегодня\" открывает твою удачу при вылуплении: каждое вылупление пересчитано с шансами своего момента, индекс удачи, каждый критерий, графики и самые невероятные выпадения.")
             },
             .improved("2026-11-02-candy-100m") { l in
                 let candy = l.itemName(.rareCandy)

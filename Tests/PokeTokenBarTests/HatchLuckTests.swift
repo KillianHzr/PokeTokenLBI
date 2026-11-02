@@ -109,9 +109,22 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertTrue(h.eggChosenByPlayer)
         XCTAssertEqual(Set(h.judged.keys), Set(HatchLuck.Criterion.allCases))
         XCTAssertEqual(h.judged[.rare], .init(odds: 40.0 / 43, hit: true))
+        XCTAssertTrue(h.asksEgg, "the player may change it")
+        XCTAssertTrue(h.possibleEggs.contains(.tier(nil)), "the eggs to change it for")
+        XCTAssertTrue(h.possibleEggs.contains(.tier(.rare)))
         let dated = luck([entry(16, day: 1, released: true), entry(147, day: 2, record: chosen)],
                          itemsSince: [.shinyCharm: Self.day(0)])
         XCTAssertEqual(dated.hatches[1].judged[.shiny]?.odds ?? 0, 1.0 / 48, accuracy: 1e-12, "its items from their dates")
+    }
+
+    /// The player may say the egg of a hatch after a release that the app did not note, and only of one.
+    func testWhichHatchesAskTheirEgg() {
+        let noted = HatchRecord(egg: .tier(.rare))
+        let l = luck([entry(16, day: 1, released: true), entry(147, day: 2), entry(10, day: 3, released: true),
+                      entry(147, day: 4, record: noted), entry(16, day: 5)])
+        XCTAssertEqual(l.hatches.map(\.asksEgg), [false, true, false, false, false])
+        XCTAssertTrue(l.hatches[2].possibleEggs.isEmpty, "a Pokémon Egg after a graduation")
+        XCTAssertTrue(l.hatches[3].possibleEggs.isEmpty, "noted by the app")
     }
 
     /// A Fossil Egg is never used on a Fossil Egg's own Pokémon: the egg after it was not one.
