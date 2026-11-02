@@ -963,6 +963,8 @@ struct CompanionHeader: View {
     var onOpenDexEntry: ((String) -> Void)? = nil
     /// Opens the Bonuses page from the growth badge. nil = the badge only explains itself on hover.
     var onOpenBonuses: (() -> Void)? = nil
+    /// Opens an achievement the Pokémon raised counts for. nil = the goals are plain lines.
+    var onOpenAchievement: ((ItemKind) -> Void)? = nil
     // 연출 상태 — 부화/진화 순간 흰 플래시 + 스프링 스케일(본가 진화 신 오마주)
     @State private var flashOpacity: Double = 0
     @State private var celebScale: CGFloat = 1
@@ -1185,7 +1187,7 @@ struct CompanionHeader: View {
             if store.hasActive, !track.isEmpty {
                 evolutionTrack(track, dexLinks: dexLinks)
             }
-            ActiveGoalsList(store: store)
+            ActiveGoalsList(store: store, onOpen: onOpenAchievement)
             if let g = store.justGraduated {
                 Text(store.l.graduated(g))
                     .font(.caption2).foregroundStyle(Color.readableOrange)
@@ -3109,6 +3111,8 @@ struct FormUnlockToast: View {
 @MainActor
 struct ActiveGoalsList: View {
     let store: CompanionStore
+    /// Opens the goal's achievement; nil, the lines are not links.
+    var onOpen: ((ItemKind) -> Void)? = nil
     static let shown = 3
 
     var body: some View {
@@ -3118,14 +3122,25 @@ struct ActiveGoalsList: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(l.countsFor).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 ForEach(Array(goals.prefix(Self.shown).enumerated()), id: \.offset) { _, goal in
-                    HStack(spacing: 6) {
+                    let row = HStack(spacing: 6) {
                         ItemIconView(kind: goal.item, size: 16)
                         Text(l.activeGoalName(goal)).lineLimit(1).truncationMode(.tail)
                         Spacer(minLength: 4)
                         Text("+\(goal.gain)").fontWeight(.bold)
                         Text("\(goal.count)/\(goal.needed)").foregroundStyle(.secondary)
+                        if onOpen != nil {
+                            Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .font(.caption).monospacedDigit()
+                    if let onOpen {
+                        Button { onOpen(goal.item) } label: { row.contentShape(Rectangle()) }
+                            .buttonStyle(.plain)
+                            .hoverTip(HoverTip(id: "goal:\(goal.item.rawValue)", title: l.openAchievementHint))
+                    } else {
+                        row
+                    }
                 }
                 if goals.count > Self.shown {
                     Text(l.moreGoals(goals.count - Self.shown, goals.dropFirst(Self.shown)
@@ -3134,7 +3149,7 @@ struct ActiveGoalsList: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: onOpen == nil ? .combine : .contain)
         }
     }
 

@@ -24,12 +24,21 @@ struct AchievementsView: View {
     }
 
     @State private var selectedCategory: AchievementCategory
+    /// The achievement opened from Home, lit for a moment.
+    @State private var litItem: ItemKind?
 
-    /// Opens on `category`, or on the first section with a reward ready to claim (Stones when none is).
+    /// Opens on `category`, on the section of the achievement Home opened (`PopoverNavigation.achievementFocus`), or
+    /// on the first section with a reward ready to claim (Stones when none is).
     init(store: CompanionStore, nav: PopoverNavigation, category: AchievementCategory? = nil) {
         self.store = store
         self.nav = nav
-        _selectedCategory = State(initialValue: category ?? Self.firstCategoryWithRewards(store) ?? .evolutionStones)
+        _selectedCategory = State(initialValue: category ?? nav.achievementFocus.flatMap(Self.category(of:))
+            ?? Self.firstCategoryWithRewards(store) ?? .evolutionStones)
+    }
+
+    /// The section an achievement is listed in.
+    static func category(of kind: ItemKind) -> AchievementCategory? {
+        AchievementCategory.allCases.first { $0.collectorGroup == kind.collectorGroup }
     }
 
     /// Rewards ready to claim in one section: unlocked and not claimed yet (each badge region counts).
@@ -85,15 +94,33 @@ struct AchievementsView: View {
 
             categoryProgress(tallies.byGroup[selectedCategory.collectorGroup] ?? .init(), l)
 
-            ScrollView {
-                // Lazy: a section mounts the cards it shows, not its ninety sprites at each change of section.
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    let items = store.achievementItems(in: selectedCategory.collectorGroup)
-                    ForEach(items, id: \.self) { kind in
-                        AchievementCard(store: store, nav: nav, kind: kind)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    // Lazy: a section mounts the cards it shows, not its ninety sprites at each change of section.
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        let items = store.achievementItems(in: selectedCategory.collectorGroup)
+                        ForEach(items, id: \.self) { kind in
+                            AchievementCard(store: store, nav: nav, kind: kind)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Design.cornerRadius, style: .continuous)
+                                        .strokeBorder(Design.actionColor, lineWidth: 2)
+                                        .opacity(litItem == kind ? 1 : 0)
+                                        .allowsHitTesting(false)
+                                }
+                                .id(kind)
+                        }
                     }
+                    .reservesScrollerLane()
                 }
-                .reservesScrollerLane()
+                .task {
+                    // Home opened one achievement: scrolled to and lit, then the light fades.
+                    guard let focus = nav.achievementFocus else { return }
+                    nav.achievementFocus = nil
+                    proxy.scrollTo(focus, anchor: .top)
+                    litItem = focus
+                    try? await Task.sleep(for: .seconds(2))
+                    withAnimation(.easeOut(duration: 0.6)) { litItem = nil }
+                }
             }
             // No height of its own: the list takes what the header, banner and picker leave of the 520 pt.
         }

@@ -2871,6 +2871,10 @@ struct L {
     var countsFor: String { t("이 포켓몬이 채워 주는 목표", "Counts toward", "この子が進める目標", "Cuenta para", "Compte pour",
                               "Conta para", "Zählt für", "Засчитывается в") }
     /// A goal of `CompanionStore.activeGoals`: an item, with its region for a regional one ("Rock Badge, Johto").
+    var openAchievementHint: String {
+        t("업적 보기", "See the achievement", "実績を見る", "Ver el logro", "Voir le succès", "Ver a conquista",
+          "Erfolg ansehen", "Открыть успех")
+    }
     func activeGoalName(_ goal: CompanionStore.ActiveGoal) -> String {
         let name = itemName(goal.item)
         guard let generation = goal.generation, goal.item != .excavation else { return name }
