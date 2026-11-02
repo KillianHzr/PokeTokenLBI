@@ -276,4 +276,17 @@ extension CompanionStore {
         if state.active == nil, state.eggFromFossilEgg { return .fossil }
         return EggKind(tier: eggGuarantee, type: eggTypeGuarantee)
     }
+
+    /// The egg being incubated, named as the Bag names it: a stone's egg is a Pokémon Egg, its type on its badge.
+    var incubatingEggName: String {
+        switch eggKind {
+        case .plain, .type: l.eggName(nil)
+        case .tier(.legendary): l.itemName(.legendaryEgg)
+        case .tier(let tier): l.eggName(tier)
+        case .typeNull: l.itemName(.typeNullEgg)
+        case .birthday: l.itemName(.birthdayEgg)
+        case .event(let event): l.itemName(event.item)
+        case .fossil: l.itemName(.fossilEgg)
+        }
+    }
 }

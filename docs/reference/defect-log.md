@@ -99,7 +99,8 @@ read_when:
   Guards: `EventEggTests` (`testASeasonEggHatchesDeerlingOrTheSeasonsTypes`,
   `testTheRestFallbackKeepsTheShinyPromise`) and `DittoPromiseTests.testAnEventEggNeverHidesADitto`; reverting each
   fix fails its test. For the next kind of egg: a pool filter goes to `chooseBase` and `chooseBaseViaREST` together,
-  a type promise to the form roll too, and any promise to `keepsAPromise`.
+  a type promise to the form roll too, and any promise to `keepsAPromise`. Its look and its name on Home come from
+  `eggKind` (see "The egg being incubated goes by its own name").
 
 - **A text states what the code does, from the value it uses (#58).** The Rare Candy's description read the
   constant (100M) under the Bag's "+150M XP" with the Soul Dew; the Magma Stone and Liberty Pass decide by form, the
@@ -1316,6 +1317,19 @@ read_when:
 
 ## 표시·UI
 
+- **The egg being incubated goes by its own name.** Home named every egg "Token Egg", in English in every language:
+  `displayName` returned that literal whenever no Pokémon was raised, from the days the app had a single egg. The
+  Shop's, the stones', the Legendary, Type: Null, Birthday, Fossil and event eggs came later with their own drawing
+  (`eggKind`) and badges, never with a name; a Fossil Egg had neither name nor badge. **Why it was missed:** each
+  egg's tests checked its roll and its drawing, and the only test reading `displayName` asserted it was *not* "Token
+  Egg" once a Pokémon was loaded. The name is now `incubatingEggName`, a `switch` over `eggKind` with no `default`: a
+  new kind of egg does not compile without a name. It names the egg as the Bag does (a stone's egg is a Pokémon Egg,
+  its type on its badge). `IncubatingEggNameTests` uses every egg through the store's own `use…` functions. Sweep:
+  no other egg name is written outside `L`, but the same literal named a raised Pokémon whose line was still loading
+  (launch, offline): it now reads "…", the placeholder the app shows for a name not loaded yet. The graduation
+  message announced "a new Token Egg" too, in every language: it now says a new egg arrived, its name on Home. The import test that
+  asserted the name was not "Token Egg" now asserts the species' name, since "…" would pass it with no line loaded.
+
 - **The app draws its own tooltips (`HoverTip`), never the system's.** The owner saw no tooltip over the faded
   sprites of the achievements' missing Pokémon (grayscale and 35% opacity), only over the ones in color; the system
   tooltip also waits about a second. The exact reason AppKit drops it there is not traced. Every `.help` is now a
@@ -2131,6 +2145,11 @@ read_when:
   "미번 달" with "이번 달" in none of its ten candidates; the GPU path of a local run tied or read it right. The
   test now reads on the CPU everywhere (`setComputeDevice`), which reproduced the CI reading on CI's own render, and
   the tile labels are 11 pt semibold: read at confidence 1.0 on the CPU.
+  The Stats page's caption failed the same way on 2026-11-02 (CI run `41407118849`), only on that day's render:
+  Vision on CI's CPU read "날짜별" as "날짜벌" in all ten candidates, and a local CPU read of CI's own PNG reproduced
+  it, the render itself being right. Both Stats renders now read in English ("DAY BY DAY", confidence 1.0 on the
+  CPU), Home staying in Korean; showing `EmptyView()` in place of `StatsChart` still fails the historical-chart
+  assertion. The other OCR harnesses read English, or check readability per language (`CollectionReadability`).
 
 - **Use unambiguous fixture words for exact OCR navigation assertions.**
   `DexBackNavigationTests.testBackFromDetailReturnsTheLogToWhereItWas` failed in CI run

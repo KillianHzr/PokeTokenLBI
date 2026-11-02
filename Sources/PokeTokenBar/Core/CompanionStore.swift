@@ -7,7 +7,7 @@ import UserNotifications
 @MainActor
 @Observable
 final class CompanionStore {
-    private(set) var state = CompanionState() { didSet { dexSpeciesCache = [:]; goalsBySpecies = nil } }
+    private(set) var state = CompanionState() { didSet { dexSpeciesCache = [:]; goalsBySpecies = nil; oakOddsCache = [:] } }
     private(set) var displayState: CompanionStateKind = .egg
     private(set) var currentLine: EvoLine? { didSet { dexSpeciesCache = [:] } }
     /// `collectedDexSpecies` by `groupForms`, until the state or the line changes: a form species' page read it some
@@ -15,6 +15,9 @@ final class CompanionStore {
     @ObservationIgnored private var dexSpeciesCache: [Bool: [DexSpecies]] = [:]
     /// `goals(counting:)` for every species, until the state changes.
     @ObservationIgnored private var goalsBySpecies: [Int: [ActiveGoal]]?
+    /// Each egg's odds of something new for Prof. Oak (`newOdds`), until the state or the hatch index changes: his card
+    /// reads them several times a draw, each over the egg's whole pool.
+    @ObservationIgnored var oakOddsCache: [ItemKind: Double?] = [:]
     /// How many times the Pokédex was folded: the tests check the cache with it.
     @ObservationIgnored private(set) var dexSpeciesFolds = 0
     /// Writes of the save file, for the tests of what writes it.
@@ -255,7 +258,7 @@ final class CompanionStore {
     /// 난이도를 반영한 단계 임계. **`PokemonBalance.phaseThreshold` 를 직접 부르지 않는다** —
     /// 배율을 빠뜨린 호출부가 생기면 그 경로만 조용히 기본 난이도로 돌아간다.
     /// The repeat boost is already in `phaseThreshold`; the bonuses divide it by their sum (+33% and +10%: 1.43).
-    private func stageThreshold(for mon: MonState) -> Int {
+    func stageThreshold(for mon: MonState) -> Int {
         var base = mon.phaseThreshold
         let speed = 1 + Self.bonusSum(thresholdGrowthFactors(for: mon))
         if speed > 1.0 {
@@ -503,7 +506,8 @@ final class CompanionStore {
     private(set) var isHatchRetryDelayed = false
 
     var displayName: String {
-        guard let a = state.active, let line = currentLine else { return "Token Egg" }
+        guard let a = state.active else { return incubatingEggName }
+        guard let line = currentLine else { return "…" }
         return formDisplayName(line.localizedName(a.currentID, state.language),
                                speciesID: a.currentID, form: currentForm)
     }
@@ -741,28 +745,66 @@ final class CompanionStore {
     /// Nil for an egg.
     var activeNews: ActiveNews? {
         guard let a = state.active else { return nil }
-        let graduated = state.dex.filter { !$0.isReleased }
-        let held = Set(graduated.flatMap { e in e.chainOrder.map { DexSpeciesKey(speciesID: $0, form: e.form) } })
-        var line = Array(a.pathIDs.prefix(a.stageIndex + 1))
-        var next = [a.currentID]
-        while let id = next.popLast() {
-            for child in PokemonEvolutionData.children(of: id, form: a.form) where !line.contains(child) {
-                line.append(child)
-                next.append(child)
-            }
-        }
+        let held = graduatedSpeciesForms
+        let line = Self.lineAhead(Array(a.pathIDs.prefix(a.stageIndex + 1)), from: a.currentID, form: a.form)
         let newSpecies = line.filter { !held.contains(DexSpeciesKey(speciesID: $0, form: a.form)) }
         // A first shiny as the Pokédex counts one: a species of the line, in this form, with no graduated shiny. The
         // shine a disguised Ditto hides stays hidden (`displaysShiny`).
-        let shinyHeld = Set(graduated.filter(\.isShiny).flatMap { e in
-            e.chainOrder.map { DexSpeciesKey(speciesID: $0, form: e.form) }
-        })
+        let shinyHeld = graduatedShinySpeciesForms
         let firstShiny = a.displaysShiny && line.contains { !shinyHeld.contains(DexSpeciesKey(speciesID: $0, form: a.form)) }
         // The costume comes on arriving as Pikachu (`grantPikachuCostume`): one already reached brought its own.
         let costume = line.contains(PikachuCostume.speciesID)
             && !a.pathIDs.prefix(a.stageIndex + 1).contains(PikachuCostume.speciesID)
             && PikachuCostume.next(owned: state.pikachuCostumes, seed: 0) != nil
         return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume)
+    }
+
+    /// What `activeNews` asks of the Pokémon raised, for one an egg would hatch from `baseID` in `form`: whether it
+    /// brings something new, its shine aside. Made once for the many lines of an egg.
+    func hatchBringsNew() -> (_ baseID: Int, _ form: PokemonForm?) -> Bool {
+        let held = graduatedSpeciesForms
+        let costumeMissing = PikachuCostume.next(owned: state.pikachuCostumes, seed: 0) != nil
+        return { baseID, form in
+            let line = Self.lineAhead([baseID], from: baseID, form: form)
+            return line.contains { !held.contains(DexSpeciesKey(speciesID: $0, form: form)) }
+                || costumeMissing && line.contains(PikachuCostume.speciesID)
+        }
+    }
+
+    /// What `activeNews` asks of a shiny Pokémon raised, for one an egg would hatch from `baseID` in `form`: whether
+    /// shining, it would be the first shiny of a species of its line in that form.
+    func hatchBringsFirstShiny() -> (_ baseID: Int, _ form: PokemonForm?) -> Bool {
+        let held = graduatedShinySpeciesForms
+        return { baseID, form in
+            Self.lineAhead([baseID], from: baseID, form: form).contains { !held.contains(DexSpeciesKey(speciesID: $0, form: form)) }
+        }
+    }
+
+    /// Each species a graduated shiny holds, in its form.
+    private var graduatedShinySpeciesForms: Set<DexSpeciesKey> {
+        Set(state.dex.filter { !$0.isReleased && $0.isShiny }.flatMap { e in
+            e.chainOrder.map { DexSpeciesKey(speciesID: $0, form: e.form) }
+        })
+    }
+
+    /// Each species a graduated Pokémon holds, in its form.
+    private var graduatedSpeciesForms: Set<DexSpeciesKey> {
+        Set(state.dex.filter { !$0.isReleased }.flatMap { e in
+            e.chainOrder.map { DexSpeciesKey(speciesID: $0, form: e.form) }
+        })
+    }
+
+    /// The species reached on `path` and those still ahead of `current` in `form`, every branch counted.
+    private static func lineAhead(_ path: [Int], from current: Int, form: PokemonForm?) -> [Int] {
+        var line = path
+        var next = [current]
+        while let id = next.popLast() {
+            for child in PokemonEvolutionData.children(of: id, form: form) where !line.contains(child) {
+                line.append(child)
+                next.append(child)
+            }
+        }
+        return line
     }
 
     /// A goal the Pokémon raised advances: graduated, it adds `gain` species to it, which stands at `count` of `needed`.
@@ -1028,7 +1070,7 @@ final class CompanionStore {
         }
     }
 
-    private struct DexSpeciesKey: Hashable {
+    struct DexSpeciesKey: Hashable {
         let speciesID: Int
         let form: PokemonForm?
 
@@ -2065,8 +2107,11 @@ final class CompanionStore {
     /// The odds a shiny hatch's notification tells: none with the Glimmering Charm, which makes every hatch shiny.
     func shinyHatchNotificationOdds(_ denominator: UInt64) -> UInt64? { ownsGlimmeringCharm ? nil : denominator }
 
+    /// The growth the Pokémon being raised still needs to graduate, as Rare Candies count it.
+    var growthToGraduation: Int { max(0, rareCandyStageCosts.reduce(0, +) - (state.active?.usedAtStage ?? 0)) }
+
     var maxRareCandyUseCount: Int {
-        let remaining = max(0, rareCandyStageCosts.reduce(0, +) - (state.active?.usedAtStage ?? 0))
+        let remaining = growthToGraduation
         let xp = rareCandyXP
         let needed = remaining / xp + (remaining % xp == 0 ? 0 : 1)
         return min(rareCandyCount, needed)
@@ -2965,8 +3010,8 @@ final class CompanionStore {
     }
 
     /// The form an event egg fixes: Deerling in its season's.
-    private func eventForm(baseID: Int) -> PokemonForm? {
-        guard baseID == EventEgg.deerlingID, let form = state.eggEvent?.seasonForm else { return nil }
+    func eventForm(baseID: Int, event: EventEgg?) -> PokemonForm? {
+        guard baseID == EventEgg.deerlingID, let form = event?.seasonForm else { return nil }
         return PokemonForm.resolved(baseID: baseID, form: form)
     }
 
@@ -3347,13 +3392,13 @@ final class CompanionStore {
             isHatchRetryDelayed = true
             return
         }
-        let pendingForm = state.pendingHatchID == base ? state.pendingForm : eventForm(baseID: base)
+        let pendingForm = state.pendingHatchID == base ? state.pendingForm : eventForm(baseID: base, event: state.eggEvent)
         await hatchCore(baseID: base, generation: generation, form: pendingForm, forceShiny: forceShiny)
     }
 
     /// 부화가 폐기된 뒤 남은 개체(대개 방금 불러온 개체)의 진화 라인을 다시 로드한다.
     /// `loadCurrentLine` 은 `!isHatching` 을 요구하므로 부화 중에 걸린 로드는 조용히 실패한다 —
-    /// 아무도 재시도하지 않으면 다음 update 틱(기본 120초)까지 이름이 "Token Egg" 로 남는다.
+    /// 아무도 재시도하지 않으면 다음 update 틱(기본 120초)까지 이름이 "…" 로 남는다.
     /// Task 본문은 현재 동기 실행(= defer 로 isHatching 해제)이 끝난 뒤 돌므로 락이 이미 풀려 있다.
     private func kickLineLoadIfNeeded() {
         guard state.active != nil, currentLine == nil else { return }
@@ -3406,7 +3451,7 @@ final class CompanionStore {
             let id = pick.id
             state.pendingHatchID = id
             state.pendingShiny = pick.shiny
-            state.pendingForm = eventForm(baseID: id) ?? rollLineForm(baseID: id, types: eggFormTypes)
+            state.pendingForm = eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
             save()
         }
         guard let id = state.pendingHatchID else { return }
@@ -3443,16 +3488,24 @@ final class CompanionStore {
 
     /// Draws only for lines with forms, so other species keep their random sequence.
     private func rollLineForm(baseID: Int, types: [PokemonType] = []) -> PokemonForm? {
+        let draw = lineFormDraw(baseID: baseID, types: types)
+        guard !draw.forms.isEmpty else { return nil }
+        return PokemonForm.roll(rng.next(), among: draw.forms, collected: draw.collected)
+    }
+
+    /// The forms an egg of this line rolls among, and those the line graduated in (`PokemonForm.roll`). No forms for a
+    /// line without any.
+    func lineFormDraw(baseID: Int, types: [PokemonType]) -> (forms: [PokemonForm], collected: Set<PokemonForm>) {
         // The same forms the Oval Charm's species filter reads (`CompanionState.lineMissesForms`).
         var forms = CompanionState.eggForms(baseID: baseID, types: types)
-        guard !forms.isEmpty else { return nil }
+        guard !forms.isEmpty else { return ([], []) }
         let collected = state.graduatedLineForms(baseID: baseID)
         // The Oval Charm hatches a form still missing when the line has one.
         if ownsOvalCharm {
             let missing = forms.filter { !collected.contains($0) }
             if !missing.isEmpty { forms = missing }
         }
-        return PokemonForm.roll(rng.next(), among: forms, collected: collected)
+        return (forms, collected)
     }
 
     /// Warms the localized names the hatch, evolution and graduation messages of this line show.
@@ -3774,12 +3827,7 @@ final class CompanionStore {
             if state.eggFromBirthdayEgg { return chooseBirthdayBase(full) }
             if state.eggFromFossilEgg { return chooseFossilBase(full) }
             let event = state.eggEvent
-            // A season's egg hatches Deerling in the season's form one time in three, under the rules every egg keeps:
-            // not the line hatched last, and with the Oval Charm, not a form already collected.
-            if let event, let seasonForm = event.seasonForm, full.contains(where: { $0.id == EventEgg.deerlingID }),
-               state.lastHatchedBaseID != EventEgg.deerlingID,
-               !ownsOvalCharm || !state.graduatedLineForms(baseID: EventEgg.deerlingID).contains(seasonForm),
-               rng.next() % EventEgg.deerlingOdds == 0 {
+            if let event, seasonDeerling(full, event: event) != nil, rng.next() % EventEgg.deerlingOdds == 0 {
                 AppLog.write("hatch roll: \(event.rawValue) egg base=\(EventEgg.deerlingID)")
                 return (EventEgg.deerlingID, event.alwaysShiny)
             }
@@ -3848,7 +3896,7 @@ final class CompanionStore {
         }
     }
 
-    private var incubatingEgg: EggSpec {
+    var incubatingEgg: EggSpec {
         EggSpec(tier: state.eggTier, type: state.eggTypeGuarantee, legendaryEgg: state.eggFromLegendaryEgg,
                 event: state.eggEvent)
     }
@@ -3897,7 +3945,7 @@ final class CompanionStore {
     }
 
     /// The base index the egg cards' odds read, loaded once (`loadHatchIndex`). The roll reads the index itself.
-    private(set) var hatchIndex: [BaseSpecies]?
+    private(set) var hatchIndex: [BaseSpecies]? { didSet { oakOddsCache = [:] } }
 
     func loadHatchIndex() async {
         guard hatchIndex == nil, let full = try? await provider.baseSpeciesIndex(), !full.isEmpty else { return }
@@ -3960,10 +4008,25 @@ final class CompanionStore {
         return Set(missing.isEmpty ? FossilDig.lines : missing)
     }
 
-    /// A Fossil Egg's roll: one of its candidates, each as likely, not the line hatched last while another is left.
-    private func chooseFossilBase(_ index: [BaseSpecies]) -> (id: Int, shiny: Bool)? {
+    /// The lines a Fossil Egg draws from, each as likely: its candidates, not the line hatched last while another is left.
+    func fossilDraw(_ index: [BaseSpecies]) -> [BaseSpecies] {
         let candidates = fossilCandidates
-        let lines = Self.withoutLastHatched(index.filter { candidates.contains($0.id) }, last: state.lastHatchedBaseID)
+        return Self.withoutLastHatched(index.filter { candidates.contains($0.id) }, last: state.lastHatchedBaseID)
+    }
+
+    /// The season's form a season's egg first rolls Deerling in, one time in `EventEgg.deerlingOdds`, under the rules
+    /// every egg keeps: not the line hatched last, and with the Oval Charm, not a form already collected. Nil when it
+    /// cannot.
+    func seasonDeerling(_ index: [BaseSpecies], event: EventEgg?) -> PokemonForm? {
+        guard let seasonForm = event?.seasonForm, index.contains(where: { $0.id == EventEgg.deerlingID }),
+              state.lastHatchedBaseID != EventEgg.deerlingID,
+              !ownsOvalCharm || !state.graduatedLineForms(baseID: EventEgg.deerlingID).contains(seasonForm) else { return nil }
+        return seasonForm
+    }
+
+    /// A Fossil Egg's roll: one of `fossilDraw`'s lines.
+    private func chooseFossilBase(_ index: [BaseSpecies]) -> (id: Int, shiny: Bool)? {
+        let lines = fossilDraw(index)
         guard !lines.isEmpty else {
             AppLog.write("hatch: no fossil line for the fossil egg, egg kept; retry next tick")
             return nil
@@ -3973,25 +4036,31 @@ final class CompanionStore {
         return (pick.id, false)
     }
 
-    /// A Birthday Egg's roll: a mythical line not graduated yet, else a legendary one, each as likely; once every one
+    /// The lines a Birthday Egg draws from (`BirthdayGift.pool`), not the line hatched last while another is left, each
+    /// with its weight: a mythical line not graduated yet, else a legendary one, each as likely; once every one
     /// graduated, any of them by its hatch weight, shiny.
-    private func chooseBirthdayBase(_ index: [BaseSpecies]) -> (id: Int, shiny: Bool)? {
+    func birthdayDraw(_ index: [BaseSpecies]) -> (lines: [(base: BaseSpecies, weight: Int)], shiny: Bool) {
         let (pool, byWeight) = BirthdayGift.pool(index, graduated: graduatedSpeciesIDs)
         let lines = Self.withoutLastHatched(pool, last: state.lastHatchedBaseID)
+        return (lines.map { ($0, byWeight ? hatchWeight(for: $0) : 1) }, byWeight)
+    }
+
+    /// A Birthday Egg's roll among `birthdayDraw`'s lines.
+    private func chooseBirthdayBase(_ index: [BaseSpecies]) -> (id: Int, shiny: Bool)? {
+        let (lines, byWeight) = birthdayDraw(index)
         guard !lines.isEmpty else {
             AppLog.write("hatch: no legendary or mythical line for the birthday egg, egg kept; retry next tick")
             return nil
         }
-        var pick = lines[lines.count - 1]
+        var pick = lines[lines.count - 1].base
         if byWeight {
-            let weights = lines.map { hatchWeight(for: $0) }
-            var r = Int(rng.next() % UInt64(max(1, weights.reduce(0, +))))
-            for (line, w) in zip(lines, weights) {
-                r -= w
-                if r < 0 { pick = line; break }
+            var r = Int(rng.next() % UInt64(max(1, lines.reduce(0) { $0 + $1.weight })))
+            for line in lines {
+                r -= line.weight
+                if r < 0 { pick = line.base; break }
             }
         } else {
-            pick = lines[Int(rng.next() % UInt64(lines.count))]
+            pick = lines[Int(rng.next() % UInt64(lines.count))].base
         }
         AppLog.write("hatch roll: birthday egg base=\(pick.id) of \(lines.count) candidates shiny=\(byWeight)")
         return (pick.id, byWeight)

@@ -1176,14 +1176,14 @@ struct L {
           "Шайни: 1 из \(denominator)")
     }
     func graduated(_ name: String) -> String {
-        t("\(name) 졸업 → 도감에 보존. 새 Token Egg가 도착했어요!",
-          "\(name) graduated → saved to the dex. A new Token Egg has arrived!",
-          "\(name) 卒業 → 図鑑に保存。新しいToken Eggが届きました！",
-          "\(name) se graduó → guardado en la Pokédex. ¡Ha llegado un nuevo Token Egg!",
-          "\(name) a été diplômé → conservé dans le Pokédex. Un nouveau Token Egg est arrivé !",
-          "\(name) se formou → guardado na Pokédex. Chegou um novo Token Egg!",
-          "\(name) verabschiedet sich → im Pokédex gespeichert. Ein neues Token Egg ist da!",
-          "\(name) выпускается → запись в Покедексе. Появилось новое Token Egg!")
+        t("\(name) 졸업 → 도감에 보존. 새 알이 도착했어요!",
+          "\(name) graduated → saved to the dex. A new egg has arrived!",
+          "\(name) 卒業 → 図鑑に保存。新しいタマゴが届きました！",
+          "\(name) se graduó → guardado en la Pokédex. ¡Ha llegado un nuevo huevo!",
+          "\(name) a été diplômé → conservé dans le Pokédex. Un nouvel œuf est arrivé !",
+          "\(name) se formou → guardado na Pokédex. Chegou um novo ovo!",
+          "\(name) verabschiedet sich → im Pokédex gespeichert. Ein neues Ei ist da!",
+          "\(name) выпускается → запись в Покедексе. Появилось новое яйцо!")
     }
     var dexEmptyTitle: String { t("아직 잡은 포켓몬이 없어요!", "No Pokémon caught yet!", "まだ捕まえたポケモンがいません！", "¡Todavía no has capturado ningún Pokémon!", "Aucun Pokémon capturé pour l'instant !", "Você ainda não capturou nenhum Pokémon!", "Du hast noch kein Pokémon gefangen!", "Пока ни одного покемона!") }
     var dexEmptyHint: String { t("토큰을 써서 첫 포켓몬을 부화시켜 보세요.", "Spend tokens to hatch your first Pokémon.", "トークンを使って最初のポケモンを孵化させましょう。", "Usa tokens para eclosionar tu primer Pokémon.", "Dépense des tokens pour faire éclore ton premier Pokémon.", "Use tokens para chocar seu primeiro Pokémon.", "Verwende Tokens, damit dein erstes Pokémon schlüpft.", "Тратьте токены, чтобы вывести первого покемона.") }
@@ -2383,7 +2383,481 @@ struct L {
     // MARK: 상점 (재화 = 사용한 토큰)
     var shop: String { t("상점", "Shop", "ショップ", "Tienda", "Boutique", "Loja", "Laden", "Магазин") }
     var spendableTokens: String { t("쓸 수 있는 토큰", "Spendable tokens", "使えるトークン", "Tokens disponibles", "Tokens disponibles", "Tokens disponíveis", "Verfügbare Tokens", "Доступно токенов") }
-    var shopHint: String { t("사용한 토큰으로 아이템을 살 수 있어요.", "Spend the tokens you've used on items.", "使ったトークンでアイテムを購入できます。", "Usa los tokens que has consumido para comprar objetos.", "Dépense les tokens que tu as consommés pour acheter des objets.", "Compre itens com os tokens que você já usou.", "Mit deinen verbrauchten Tokens kannst du Gegenstände kaufen.", "Тратьте использованные токены на предметы.") }
+
+    // MARK: Prof. Oak's advice (Shop)
+    var oakAdviceTitle: String {
+        t("오박사의 조언", "Prof. Oak's advice", "オーキド博士のアドバイス", "Consejos del Profesor Oak", "Conseils du Prof. Chen",
+          "Conselhos do Prof. Carvalho", "Tipps von Prof. Eich", "Советы профессора Оука")
+    }
+    func oakVerdictLabel(_ verdict: ActiveVerdict) -> String {
+        switch verdict {
+        case .lineToComplete:
+            return t("채울 계열", "Line to complete", "未完成の系統", "Línea por completar", "Ligne à compléter", "Linha a completar",
+                     "Linie offen", "Линия не собрана")
+        case .newForm:
+            return t("새 폼", "New form", "新しいフォルム", "Forma nueva", "Forme nouvelle", "Forma nova", "Neue Form", "Новая форма")
+        case .costume:
+            return t("코스튬 예정", "Costume ahead", "コスチューム付き", "Trae un disfraz", "Costume à gagner", "Traz uma fantasia",
+                     "Bringt ein Kostüm", "Принесёт костюм")
+        case .shinyToKeep:
+            return t("지킬 이로치", "Shiny to keep", "残したい色違い", "Variocolor a conservar", "Chromatique à garder",
+                     "Shiny para guardar", "Schillernd: behalten", "Шайни: оставить")
+        case .keptForAchievement:
+            return t("업적용", "Keep for an achievement", "実績のために育てる", "Conservar por un logro", "À garder pour un succès",
+                     "Guardar por uma conquista", "Für einen Erfolg behalten", "Оставить ради успеха")
+        case .spare:
+            return t("중복", "Spare", "ダブり", "Repetido", "En trop", "Repetido", "Doppelt", "Дубликат")
+        }
+    }
+    var oakEggBubble: String {
+        t("알이 아직 부화하지 않았구나. 무엇이 나올지 기대되는걸!", "Your egg hasn't hatched yet. I can't wait to see what comes out!",
+          "タマゴはまだかえっておらんようじゃ。何が生まれるか楽しみじゃのう！", "Tu huevo aún no ha eclosionado. ¡Qué ganas de ver lo que sale!",
+          "Ton œuf n'a pas encore éclos. J'ai hâte de voir ce qui va en sortir !",
+          "Seu ovo ainda não chocou. Mal posso esperar para ver o que vai sair!",
+          "Dein Ei ist noch nicht geschlüpft. Ich bin gespannt, was herauskommt!",
+          "Яйцо ещё не вылупилось. Не терпится увидеть, кто из него появится!")
+    }
+    /// Prof. Oak's bubble on the Pokémon being raised. `name`: its name in its form; `newFormName`: the species it
+    /// brings in its form, for `.newForm`.
+    func oakBubble(_ verdict: ActiveVerdict, name: String, newFormName: String) -> String {
+        switch verdict {
+        case .lineToComplete(let n):
+            return t("\(KoreanParticle.subject.attach(to: name)) 아직 도감에 없는 종을 \(n)종 가져올 거란다! 절대 놓아주지 말거라.",
+                     "Your \(name) will bring \(n == 1 ? "a species" : "\(n) species") your Pokédex doesn't have yet! Whatever you do, don't release it.",
+                     "\(name)は図鑑にまだない種類を\(n)つ連れてくるぞ！決して逃がしてはならんぞ。",
+                     "¡Tu \(name) traerá \(n == 1 ? "una especie que aún no tienes" : "\(n) especies que aún no tienes") en tu Pokédex! No lo sueltes por nada del mundo.",
+                     "Ton \(name) va t'apporter \(n == 1 ? "une espèce qui manque" : "\(n) espèces qui manquent") à ton Pokédex ! Surtout, ne le relâche pas.",
+                     "Seu \(name) vai trazer \(n == 1 ? "uma espécie que ainda falta" : "\(n) espécies que ainda faltam") na sua Pokédex! Não o solte de jeito nenhum.",
+                     "Dein \(name) bringt \(n == 1 ? "eine Art, die deinem Pokédex noch fehlt" : "\(n) Arten, die deinem Pokédex noch fehlen")! Lass es auf keinen Fall frei.",
+                     "\(name) принесёт в покедекс новые виды: \(n)! Ни в коем случае не отпускайте его.")
+        case .newForm:
+            return t("계열의 종은 모두 있지만 \(KoreanParticle.subject.attach(to: newFormName)) 아직 없구나! 놓아주지 말거라.",
+                     "You have every species of its line, but not \(newFormName)! Don't release it.",
+                     "系統の種類はそろっておるが、\(newFormName)はまだじゃな！逃がしてはならんぞ。",
+                     "Ya tienes todas las especies de su línea, ¡pero no \(newFormName)! No lo sueltes.",
+                     "Tu as déjà toutes les espèces de sa lignée, mais pas \(newFormName) ! Ne le relâche pas.",
+                     "Você já tem todas as espécies da linha dele, mas não \(newFormName)! Não o solte.",
+                     "Du hast schon jede Art seiner Linie, aber nicht \(newFormName)! Lass es nicht frei.",
+                     "Все виды его линии у вас уже есть, но не \(newFormName)! Не отпускайте его.")
+        case .costume:
+            return t("피카츄가 되면 아직 없는 코스튬을 가져온단다. 잘 키우거라!",
+                     "Once it becomes Pikachu, it will bring a costume you don't have yet. Keep it!",
+                     "ピカチュウになれば、まだ持っておらんコスチュームを持ってくるぞ。大事に育てるのじゃ！",
+                     "Cuando se convierta en Pikachu, traerá un disfraz que aún no tienes. ¡Consérvalo!",
+                     "Quand il deviendra Pikachu, il t'apportera un costume qui te manque. Garde-le !",
+                     "Quando virar Pikachu, vai trazer uma fantasia que você ainda não tem. Fique com ele!",
+                     "Wird es zu Pikachu, bringt es ein Kostüm mit, das dir noch fehlt. Behalte es!",
+                     "Став Пикачу, он принесёт костюм, которого у вас ещё нет. Оставьте его!")
+        case .shinyToKeep:
+            return t("계열은 이미 다 모았지만, 이 폼의 첫 이로치로구나. 이렇게 귀한 녀석은 지켜야지!",
+                     "You already have its whole line, but it's your first shiny in this form. A rarity like that is worth keeping!",
+                     "系統はそろっておるが、このフォルムで初めての色違いじゃ。こんな珍しいポケモンは手放してはならん！",
+                     "Ya tienes toda su línea, pero es tu primer variocolor de esta forma. ¡Una rareza así se conserva!",
+                     "Tu as déjà toute sa lignée, mais c'est ton premier chromatique sous cette forme. Une telle rareté, ça se garde !",
+                     "Você já tem a linha toda, mas é seu primeiro shiny desta forma. Uma raridade assim merece ficar!",
+                     "Seine Linie hast du schon, aber es ist dein erstes Schillerndes in dieser Form. So eine Seltenheit behält man!",
+                     "Вся его линия у вас уже есть, но это ваш первый шайни в этой форме. Такую редкость стоит оставить!")
+        case .keptForAchievement(let kind):
+            let achievement = itemName(kind)
+            return t("중복이지만, 졸업하면 업적이 열린단다: \(achievement). 끝까지 키우거라!",
+                     "It's a Spare, but graduating it unlocks an achievement: \(achievement). Raise it all the way!",
+                     "ダブりじゃが、卒業すれば実績が解放されるぞ：\(achievement)。最後まで育てるのじゃ！",
+                     "Está repetido, pero al graduarse desbloquea un logro: \(achievement). ¡Críalo hasta el final!",
+                     "Il est en trop, mais une fois diplômé, il débloque un succès : \(achievement). Fais-le grandir jusqu'au bout !",
+                     "Ele é repetido, mas ao se formar desbloqueia uma conquista: \(achievement). Crie-o até o fim!",
+                     "Es ist doppelt, aber sein Abschied schaltet einen Erfolg frei: \(achievement). Zieh es bis zum Ende groß!",
+                     "Это дубликат, но после выпуска откроется успех: \"\(achievement)\". Вырастите его до конца!")
+        case .spare:
+            return t("\(KoreanParticle.subject.attach(to: name)) 새 종도, 새 폼도, 새 이로치도 가져오지 않는구나. 중복이란다.",
+                     "Your \(name) brings no new species, form or shiny: it's a Spare.",
+                     "\(name)は新しい種類もフォルムも色違いも連れてこんのう。ダブりじゃ。",
+                     "Tu \(name) no trae ninguna especie, forma ni variocolor nuevos: está repetido.",
+                     "Ton \(name) n'apporte ni espèce, ni forme, ni chromatique nouveaux : il est en trop.",
+                     "Seu \(name) não traz espécie, forma nem shiny novos: é repetido.",
+                     "Dein \(name) bringt keine neue Art, Form oder Schillernde: Es ist doppelt.",
+                     "\(name) не приносит новых видов, форм или шайни: это дубликат.")
+        }
+    }
+    /// The first step for a Pokémon worth keeping.
+    func oakRaise(_ name: String) -> String {
+        t("\(KoreanParticle.object.attach(to: name)) 키우세요", "Raise \(name)", "\(name)を育てる", "Cría a \(name)",
+          "Fais grandir \(name)", "Crie \(name)", "Zieh \(name) groß", "Растите дальше: \(name)")
+    }
+    func oakGiveCandies(_ n: Int, to name: String) -> String {
+        t("\(name)에게 이상한 사탕을 \(n)개 주세요", n == 1 ? "Give \(name) a Rare Candy" : "Give \(name) \(n) Rare Candies",
+          "\(name)にふしぎなアメを\(n)個あげよう", n == 1 ? "Dale a \(name) un Caramelo Raro" : "Dale a \(name) \(n) Caramelos Raros",
+          n == 1 ? "Donne un Super Bonbon à \(name)" : "Donne \(n) Super Bonbons à \(name)",
+          n == 1 ? "Dê a \(name) um Doce Raro" : "Dê a \(name) \(n) Doces Raros",
+          n == 1 ? "Gib \(name) ein Sonderbonbon" : "Gib \(name) \(n) Sonderbonbons", "Дайте ему редкие конфеты: \(n)")
+    }
+    func oakCandiesGoIn(_ n: Int, need: String, xp: String) -> String {
+        t("졸업까지 \(need) 남아서 \(n)개(개당 \(xp))가 들어가요.", "It needs \(need) more to graduate: \(n) × \(xp) go in.",
+          "卒業まであと\(need)：\(n)×\(xp)が使えます。", "Le faltan \(need) para graduarse: entran \(n) × \(xp).",
+          "Il lui reste \(need) avant son diplôme : \(n) × \(xp) y passent.",
+          "Faltam \(need) para se formar: entram \(n) × \(xp).",
+          "Bis zum Abschied fehlen \(need): \(n) × \(xp) gehen hinein.",
+          "До выпуска осталось \(need): \(n) × \(xp) уйдут на него.")
+    }
+    var oakLastCandyLosesLittle: String {
+        t("마지막 사탕은 졸업할 때 10% 이하만 사라져요.", "The last one loses a tenth of its XP at most at graduation.",
+          "最後の1個は、卒業時のむだが1割以下です。", "El último pierde como mucho una décima parte al graduarse.",
+          "Le dernier en perd un dixième au plus au diplôme.", "O último perde no máximo um décimo ao se formar.",
+          "Das letzte verliert beim Abschied höchstens ein Zehntel.", "Последняя потеряет при выпуске не больше десятой части.")
+    }
+    var oakNoCandyBeforeRelease: String {
+        t("놓아주기 전에는 주지 마세요. 경험치가 함께 사라지니 다음 포켓몬을 위해 아껴 두세요.",
+          "Not before releasing it: its XP would go with it. Keep them for the next one.",
+          "逃がす前にはあげないこと。経験値も一緒に消えるので、次のポケモンのためにとっておこう。",
+          "No antes de soltarlo: su experiencia se iría con él. Guárdalos para el siguiente.",
+          "Pas avant de le relâcher : son XP partirait avec lui. Garde-les pour le suivant.",
+          "Não antes de soltá-lo: a experiência iria embora com ele. Guarde-os para o próximo.",
+          "Nicht bevor du es freilässt: Seine Erfahrung ginge mit ihm. Behalte sie für das nächste.",
+          "Не раньше, чем отпустите его: опыт уйдёт вместе с ним. Сохраните их для следующего.")
+    }
+    func oakKeepOtherCandies(_ n: Int) -> String {
+        t("나머지 \(n)개는 다음 포켓몬을 위해 아껴 두세요.",
+          n == 1 ? "Keep the other one for the next Pokémon." : "Keep the other \(n) for the next Pokémon.",
+          "残りの\(n)個は次のポケモンのためにとっておこう。",
+          n == 1 ? "Guarda el otro para el siguiente." : "Guarda los otros \(n) para el siguiente.",
+          n == 1 ? "Garde l'autre pour le suivant." : "Garde les \(n) autres pour le suivant.",
+          n == 1 ? "Guarde o outro para o próximo." : "Guarde os outros \(n) para o próximo.",
+          n == 1 ? "Behalte das andere für das nächste." : "Behalte die anderen \(n) für das nächste.",
+          "Остальные (\(n)) сохраните для следующего покемона.")
+    }
+    func oakKeepCandies(_ n: Int) -> String {
+        t("이상한 사탕 \(n)개는 아껴 두세요", n == 1 ? "Keep your Rare Candy" : "Keep your \(n) Rare Candies",
+          "ふしぎなアメ\(n)個はとっておこう", n == 1 ? "Guarda tu Caramelo Raro" : "Guarda tus \(n) Caramelos Raros",
+          n == 1 ? "Garde ton Super Bonbon" : "Garde tes \(n) Super Bonbons",
+          n == 1 ? "Guarde seu Doce Raro" : "Guarde seus \(n) Doces Raros",
+          n == 1 ? "Behalte dein Sonderbonbon" : "Behalte deine \(n) Sonderbonbons", "Сохраните редкие конфеты: \(n)")
+    }
+    func oakCandyWouldLose(need: String, xp: String, name: String) -> String {
+        t("\(name)에게 남은 건 \(need)뿐이라, \(xp)짜리 사탕은 졸업할 때 일부가 사라져요.",
+          "\(name) only needs \(need): a \(xp) Rare Candy would lose part of it at graduation.",
+          "\(name)は残り\(need)だけ：\(xp)のアメでは卒業時に一部がむだになります。",
+          "A \(name) solo le faltan \(need): un caramelo de \(xp) perdería parte al graduarse.",
+          "Il ne reste que \(need) à \(name) : un bonbon de \(xp) en perdrait une partie au diplôme.",
+          "\(name) só precisa de \(need): um doce de \(xp) perderia parte ao se formar.",
+          "\(name) fehlen nur noch \(need): Ein Bonbon mit \(xp) verlöre beim Abschied einen Teil.",
+          "До выпуска осталось всего \(need): конфета на \(xp) потеряет часть опыта.")
+    }
+    var oakCandiesForTheHatch: String {
+        t("곧 부화할 포켓몬에게 쓰세요.", "They will go to the Pokémon about to hatch.", "これから生まれるポケモンに使おう。",
+          "Servirán al Pokémon que va a eclosionar.", "Ils serviront au Pokémon qui va éclore.",
+          "Vão servir ao Pokémon que vai chocar.", "Sie sind für das Pokémon, das gleich schlüpft.",
+          "Они пригодятся покемону, который скоро вылупится.")
+    }
+    func oakReinsCandy(_ reins: String) -> String {
+        t("졸업하면 \(KoreanParticle.subject.attach(to: reins)) 하나 더 줘요.", "When it graduates, the \(reins) give you one more.",
+          "卒業すると\(reins)がもう1個くれます。", "Al graduarse, las \(reins) te darán uno más.",
+          "Une fois diplômé, les \(reins) t'en donneront un de plus.",
+          "Ao se formar, você ganha mais um com as \(reins).", "Bei seinem Abschied geben dir die \(reins) eins mehr.",
+          "После выпуска \"\(reins)\" дадут ещё одну.")
+    }
+    /// Prof. Oak's last words on a Spare: what to do with it.
+    func oakReleaseBubble(_ release: OakRelease) -> String {
+        switch release {
+        case .bag, .claim, .buy:
+            return t("새로운 걸 가져올 수 있는 알과 바꿔 놓아주거라!", "Release it for an egg that can bring you something new!",
+                     "新しいものを連れてくるかもしれんタマゴと引き換えに、逃がしてやるのじゃ！",
+                     "¡Suéltalo por un huevo que pueda traerte algo nuevo!", "Relâche-le contre un œuf qui peut t'apporter du nouveau !",
+                     "Solte-o por um ovo que possa trazer algo novo!", "Lass es für ein Ei frei, das dir Neues bringen kann!",
+                     "Отпустите его ради яйца, которое может принести что-то новое!")
+        case .wait:
+            return t("알을 살 수 있을 때까지만 키우거라.", "Keep it only until you can afford an egg.",
+                     "タマゴが買えるようになるまで育てておくのじゃ。", "Quédatelo solo hasta que puedas comprar un huevo.",
+                     "Garde-le juste le temps de pouvoir t'offrir un œuf.", "Fique com ele só até poder comprar um ovo.",
+                     "Behalte es nur, bis du dir ein Ei leisten kannst.", "Оставьте его, только пока не сможете купить яйцо.")
+        case .finish(_, .noBetterEgg):
+            return t("어떤 알도 졸업 때 받는 알보다 새로운 걸 더 자주 가져오지 못하니, 끝까지 키우거라!",
+                     "No egg would bring you something new more often than the one its graduation gives: let it finish!",
+                     "卒業でもらえるタマゴより新しいものを連れてくるタマゴはない。最後まで育ててやるのじゃ！",
+                     "Ningún huevo te traería algo nuevo más a menudo que el que da su graduación: ¡deja que termine!",
+                     "Aucun œuf ne t'apporterait du nouveau plus souvent que celui de son diplôme : laisse-le finir !",
+                     "Nenhum ovo traria algo novo com mais frequência que o da formatura dele: deixe-o terminar!",
+                     "Kein Ei brächte dir öfter Neues als das, das sein Abschied gibt: Lass es fertig werden!",
+                     "Ни одно яйцо не принесёт новое чаще, чем яйцо за его выпуск: дайте ему дорасти!")
+        case .finish(_, .tooFarAlong):
+            return t("이미 너무 많이 자랐으니, 끝까지 키우거라!", "It has grown too far to be worth releasing: let it finish!",
+                     "もう育ちすぎて、逃がすのはもったいない。最後まで育ててやるのじゃ！",
+                     "Ya ha crecido demasiado para que valga la pena soltarlo: ¡deja que termine!",
+                     "Il a déjà trop grandi pour que le relâcher vaille le coup : laisse-le finir !",
+                     "Ele já cresceu demais para valer a pena soltá-lo: deixe-o terminar!",
+                     "Es ist schon zu weit gewachsen, um es freizulassen: Lass es fertig werden!",
+                     "Он уже слишком вырос, чтобы его отпускать: дайте ему дорасти!")
+        case .finish(_, .outgrowsTheWait):
+            return t("알을 살 수 있을 즈음엔 너무 자라 있을 테니, 끝까지 키우거라!",
+                     "By the time you can afford the egg, it will have grown too far: let it finish!",
+                     "タマゴが買えるころには育ちすぎておる。最後まで育ててやるのじゃ！",
+                     "Cuando puedas pagar el huevo, ya habrá crecido demasiado: ¡deja que termine!",
+                     "Le temps de pouvoir t'offrir l'œuf, il aura trop grandi : laisse-le finir !",
+                     "Quando você puder pagar o ovo, ele já terá crescido demais: deixe-o terminar!",
+                     "Bis du dir das Ei leisten kannst, ist es zu weit gewachsen: Lass es fertig werden!",
+                     "Пока вы накопите на яйцо, он слишком вырастет: дайте ему дорасти!")
+        }
+    }
+    func oakUseFromBag(_ item: String) -> String {
+        t("가방에서 사용하세요: \(item)", "Use from your Bag: \(item)", "バッグから使おう：\(item)", "Usa desde tu Bolsa: \(item)",
+          "Utilise depuis ton Sac : \(item)", "Use da sua Bolsa: \(item)", "Verwende aus deinem Beutel: \(item)",
+          "Используйте из сумки: \(item)")
+    }
+    func oakClaimThenUse(_ egg: String) -> String {
+        t("받은 뒤 가방에서 사용하세요: \(egg)", "Take it, then use it from your Bag: \(egg)", "受け取ってバッグから使おう：\(egg)",
+          "Recógelo y úsalo desde tu Bolsa: \(egg)", "Prends-le puis utilise-le depuis ton Sac : \(egg)",
+          "Pegue e use da sua Bolsa: \(egg)", "Nimm es und verwende es aus deinem Beutel: \(egg)",
+          "Заберите и используйте из сумки: \(egg)")
+    }
+    func oakBuyThenUse(_ egg: String) -> String {
+        t("구매한 뒤 가방에서 사용하세요: \(egg)", "Buy it, then use it from your Bag: \(egg)", "買ってバッグから使おう：\(egg)",
+          "Cómpralo y úsalo desde tu Bolsa: \(egg)", "Achète-le puis utilise-le depuis ton Sac : \(egg)",
+          "Compre e use da sua Bolsa: \(egg)", "Kauf es und verwende es aus deinem Beutel: \(egg)",
+          "Купите и используйте из сумки: \(egg)")
+    }
+    func oakKeepThenBuy(_ name: String, _ egg: String) -> String {
+        t("\(KoreanParticle.object.attach(to: name)) 키우다가 사세요: \(egg)", "Keep \(name), then buy: \(egg)",
+          "\(name)を育てつつ、あとで買おう：\(egg)", "Quédate con \(name) y luego compra: \(egg)",
+          "Garde \(name), puis achète : \(egg)", "Fique com \(name) e depois compre: \(egg)",
+          "Behalte \(name) und kauf dann: \(egg)", "Оставьте \(name), потом купите: \(egg)")
+    }
+    func oakSendsOff(_ name: String, odds: String) -> String {
+        t("\(KoreanParticle.object.attach(to: name)) 놓아주고, 태어날 포켓몬이 새로운 걸 가져올 확률은 \(odds)예요.",
+          "You send \(name) off, and what hatches has a \(odds) chance to bring you something new.",
+          "\(name)を手放し、生まれるポケモンが新しいものを連れてくる確率は\(odds)です。",
+          "Sueltas a \(name), y lo que eclosione tiene un \(odds) de probabilidad de traerte algo nuevo.",
+          "Tu relâches \(name), et ce qui éclot a \(odds) de chances de t'apporter du nouveau.",
+          "Você solta \(name), e o que chocar tem \(odds) de chance de trazer algo novo.",
+          "Du lässt \(name) frei, und was schlüpft, bringt dir mit \(odds) Wahrscheinlichkeit etwas Neues.",
+          "\(name) будет отпущен, а из яйца с вероятностью \(odds) появится что-то новое.")
+    }
+    var oakClaimWaits: String {
+        t("홈에서 기다리고 있어요.", "It waits for you on Home.", "ホームで待っています。", "Te espera en Inicio.",
+          "Il t'attend sur l'Accueil.", "Ele espera por você no Início.", "Es wartet auf der Startseite auf dich.",
+          "Оно ждёт вас на главной.")
+    }
+    func oakEggCosts(_ price: String) -> String {
+        t("가격은 \(price)예요.", "It costs \(price).", "値段は\(price)です。", "Cuesta \(price).", "Il coûte \(price).",
+          "Custa \(price).", "Es kostet \(price).", "Оно стоит \(price).")
+    }
+    /// The egg a Spare waits for. `eta`: `oakAtYourPace`, or empty while the pace is unknown.
+    func oakWaitForEgg(price: String, short: String, eta: String, odds: String) -> String {
+        t("가격은 \(price), 아직 \(short) 부족해요\(eta). 사면 가방에서 사용하세요. 태어날 포켓몬이 새로운 걸 가져올 확률은 \(odds)예요.",
+          "It costs \(price): \(short) to go\(eta). Once bought, use it from your Bag: what hatches will have a \(odds) chance to bring you something new.",
+          "値段は\(price)、あと\(short)足りません\(eta)。買ったらバッグから使おう。生まれるポケモンが新しいものを連れてくる確率は\(odds)です。",
+          "Cuesta \(price): te faltan \(short)\(eta). Cuando lo compres, úsalo desde tu Bolsa: lo que eclosione tendrá un \(odds) de probabilidad de traerte algo nuevo.",
+          "Il coûte \(price) : il te manque \(short)\(eta). Une fois acheté, utilise-le depuis ton Sac : ce qui éclot aura \(odds) de chances de t'apporter du nouveau.",
+          "Custa \(price): faltam \(short)\(eta). Depois de comprar, use da sua Bolsa: o que chocar terá \(odds) de chance de trazer algo novo.",
+          "Es kostet \(price): Dir fehlen noch \(short)\(eta). Hast du es gekauft, verwende es aus deinem Beutel: Was schlüpft, bringt dir mit \(odds) Wahrscheinlichkeit etwas Neues.",
+          "Оно стоит \(price): не хватает \(short)\(eta). Купив, используйте его из сумки: из яйца с вероятностью \(odds) появится что-то новое.")
+    }
+    func oakAtYourPace(_ duration: String) -> String {
+        t(" (지금 속도로 약 \(duration))", " (about \(duration) at your pace)", "（今のペースで約\(duration)）",
+          " (aprox. \(duration) a tu ritmo)", " (environ \(duration) à ton rythme)", " (cerca de \(duration) no seu ritmo)",
+          " (etwa \(duration) bei deinem Tempo)", " (примерно \(duration) в вашем темпе)")
+    }
+    func oakLetFinish(_ name: String, left: String) -> String {
+        t("\(KoreanParticle.object.attach(to: name)) 끝까지 키우세요: \(left) 남았어요", "Let \(name) finish: \(left) to go",
+          "\(name)を最後まで育てよう：残り\(left)", "Deja que \(name) termine: le faltan \(left)",
+          "Laisse \(name) finir : il lui reste \(left)", "Deixe \(name) terminar: faltam \(left)",
+          "Lass \(name) fertig werden: noch \(left)", "Дайте \(name) дорасти: осталось \(left)")
+    }
+    var oakNoEggBeatsGraduation: String {
+        t("가방의 알도, 받을 수 있는 알도, 상점의 알도 졸업 때 받는 알보다 새로운 걸 더 자주 가져오지 못해요. 놓아줘도 얻을 게 없어요.",
+          "No egg in your Bag, to take or in the Shop brings something new more often than the egg its graduation gives: nothing to gain by sending it off.",
+          "バッグのタマゴも、受け取れるタマゴも、ショップのタマゴも、卒業でもらえるタマゴより新しいものを連れてきません。手放しても得るものはありません。",
+          "Ningún huevo de tu Bolsa, por recoger o de la tienda trae algo nuevo más a menudo que el que da su graduación: no ganas nada soltándolo.",
+          "Aucun œuf du Sac, à prendre ou de la Boutique n'apporte du nouveau plus souvent que celui que donne son diplôme : rien à gagner à le relâcher.",
+          "Nenhum ovo da sua Bolsa, para pegar ou da loja traz algo novo com mais frequência que o da formatura dele: não há o que ganhar soltando-o.",
+          "Kein Ei im Beutel, zum Abholen oder im Laden bringt öfter Neues als das, das sein Abschied gibt: Es freizulassen bringt nichts.",
+          "Ни одно яйцо в сумке, к получению или в магазине не приносит новое чаще, чем яйцо за выпуск: отпускать его нет смысла.")
+    }
+    var oakTooFarAlong: String {
+        t("지금 놓아주면 졸업까지 남은 것보다 더 많은 성장을 잃어요.",
+          "Sent off now, it would lose more growth than it has left before graduating.",
+          "今手放すと、卒業までの残りより多くの成長を失います。",
+          "Si lo sueltas ahora, perdería más crecimiento del que le falta para graduarse.",
+          "Relâché maintenant, il perdrait plus de croissance qu'il ne lui en reste avant son diplôme.",
+          "Se for solto agora, perderia mais crescimento do que falta para se formar.",
+          "Jetzt freigelassen, verlöre es mehr Wachstum, als ihm bis zum Abschied fehlt.",
+          "Если отпустить его сейчас, он потеряет больше роста, чем ему осталось до выпуска.")
+    }
+    func oakEvenWithAmber(_ amber: String) -> String {
+        t("\(KoreanParticle.subject.attach(to: amber)) 넘겨주는 절반을 빼도 마찬가지예요.", "Even with the half your \(amber) carries over.",
+          "\(amber)が引き継ぐ半分を除いても同じです。", "Incluso con la mitad que pasa tu \(amber).",
+          "Même avec la moitié que garde ton \(amber).", "Mesmo com a metade que seu \(amber) passa adiante.",
+          "Auch mit der Hälfte, die dein \(amber) weitergibt.", "Даже с половиной, которую передаст \"\(amber)\".")
+    }
+    var oakOutgrowsTheWait: String {
+        t("잔액이 알값에 닿을 때쯤이면, 놓아줄 때 졸업까지 남은 것보다 더 많은 성장을 잃게 돼요.",
+          "By the time your balance pays for the egg, sending it off would lose more growth than it has left.",
+          "残高がタマゴの値段に届くころには、手放すと卒業までの残りより多くの成長を失います。",
+          "Para cuando tu saldo pague el huevo, soltarlo le haría perder más crecimiento del que le falta.",
+          "Le temps que ton solde paie l'œuf, le relâcher lui ferait perdre plus de croissance qu'il ne lui en reste.",
+          "Quando seu saldo pagar o ovo, soltá-lo faria perder mais crescimento do que falta.",
+          "Bis dein Guthaben das Ei bezahlt, verlöre es freigelassen mehr Wachstum, als ihm noch fehlt.",
+          "Когда баланса хватит на яйцо, отпустив его, вы потеряете больше роста, чем ему осталось.")
+    }
+    func oakWhyEgg(rare: String, uncommon: String, amber: String) -> String {
+        t("놓아줄까, 끝까지 키울까? 놓아주면 자란 만큼을 잃고(\(KoreanParticle.subject.attach(to: amber)) 있으면 이번 단계의 절반은 다음 포켓몬에게 넘어가요), 졸업하면 알을 하나 받아요. 그래서 남은 것보다 덜 자랐을 때만, 그리고 그 알보다 새로운 걸 더 자주 가져오는 알이 있을 때만 놓아줘요. 가방에서 확률이 가장 높은 알이에요. 받을 수 있는 이벤트 알도 포함하고, 확률이 같으면 가방에서 앞에 있는 알이에요. 없으면 그보다 나은 상점 알 중 가장 까다로운 알: \(rare), 그다음 \(uncommon). 잔액이 되면 사지만, 그때까지 너무 자라면 사지 않아요. 확률에는 첫 이로치도 들어가요. 부화한 포켓몬이 이로치로 나오는 확률만큼이에요.",
+          "Release it or let it finish? Sent off, it loses what it has grown (with the \(amber), half its stage goes to the next one); graduated, it gives you an egg. So it is only released while it has grown less than it has left, and only for an egg that brings something new more often than that one: the one in your Bag with the best chance, an event egg to take included; on a tie, the first in the Bag. If none, the most selective Shop egg that does better: \(rare), then \(uncommon), bought once your balance allows, unless it has grown too far by then. Each chance counts a first shiny too, as often as a hatch shines.",
+          "逃がすか、最後まで育てるか？手放すと育った分を失い（\(amber)があれば今の段階の半分が次に引き継がれます）、卒業すればタマゴが1個もらえます。だから逃がすのは、残りより育っていないうちだけ、しかもそのタマゴより新しいものを連れてくるタマゴがあるときだけです。バッグの中でいちばん確率が高いタマゴで、受け取れるイベントのタマゴも含み、同じ確率ならバッグで先のもの。なければ、それより良いショップのタマゴのうちいちばん絞り込んだもの：\(rare)、次に\(uncommon)。残高が足りたら買いますが、それまでに育ちすぎたら買いません。確率には初めての色違いも含みます。生まれるポケモンが色違いになる確率の分です。",
+          "¿Soltarlo o dejar que termine? Si lo sueltas, pierde lo que ha crecido (con el \(amber), la mitad de su etapa pasa al siguiente); si se gradúa, te da un huevo. Así que solo se suelta mientras haya crecido menos de lo que le falta, y solo por un huevo que traiga algo nuevo más a menudo que ese: el de tu Bolsa con más probabilidad, incluido un huevo de evento por recoger; si empatan, el primero de la Bolsa. Si no hay, el huevo más selectivo de la tienda que lo mejore: \(rare), luego \(uncommon), comprado en cuanto tu saldo lo permita, salvo que para entonces haya crecido demasiado. Cada probabilidad cuenta también un primer variocolor, tan a menudo como una eclosión sale variocolor.",
+          "Le relâcher ou le laisser finir ? Relâché, il perd ce qu'il a grandi (avec le \(amber), la moitié de son stade passe au suivant) ; diplômé, il te donne un œuf. Il n'est donc relâché que tant qu'il a moins grandi qu'il ne lui reste, et seulement contre un œuf qui apporte du nouveau plus souvent que celui-là : celui du Sac qui a le plus de chances, un œuf d'événement à prendre compris ; à égalité, le premier du Sac. Sinon l'œuf de la Boutique le plus sélectif qui fait mieux : \(rare), puis \(uncommon), acheté dès que ton solde le permet, sauf s'il a trop grandi d'ici là. Chaque chance compte aussi un premier chromatique, aussi souvent qu'une éclosion brille.",
+          "Soltar ou deixar terminar? Solto, ele perde o que cresceu (com o \(amber), metade da fase passa para o próximo); formado, ele dá um ovo. Então só é solto enquanto cresceu menos do que falta, e só por um ovo que traga algo novo com mais frequência que esse: o da sua Bolsa com mais chance, incluindo um ovo de evento para pegar; em caso de empate, o primeiro da Bolsa. Se não houver, o ovo mais seletivo da loja que faça melhor: \(rare), depois \(uncommon), comprado assim que o saldo permitir, a não ser que até lá ele tenha crescido demais. Cada chance conta também um primeiro shiny, com a mesma frequência com que um ovo choca shiny.",
+          "Freilassen oder fertig werden lassen? Freigelassen verliert es, was es gewachsen ist (mit dem \(amber) geht die Hälfte seiner Stufe an das nächste); verabschiedet gibt es dir ein Ei. Es wird also nur freigelassen, solange es weniger gewachsen ist, als ihm fehlt, und nur für ein Ei, das öfter Neues bringt als jenes: das in deinem Beutel mit der besten Chance, ein abholbares Event-Ei eingeschlossen; bei Gleichstand das erste im Beutel. Sonst das wählerischste Ei im Laden, das besser ist: \(rare), dann \(uncommon), gekauft, sobald dein Guthaben reicht, außer es ist bis dahin zu weit gewachsen. Jede Chance zählt auch ein erstes Schillerndes, so oft wie ein Schlüpfling schillert.",
+          "Отпустить или дать дорасти? Отпущенный, он теряет то, что вырос (если есть \"\(amber)\", половина его стадии переходит следующему); после выпуска он даёт яйцо. Поэтому его отпускают, только пока он вырос меньше, чем ему осталось, и только ради яйца, которое приносит новое чаще этого: того, что в сумке с лучшим шансом, включая яйцо события, которое можно забрать; при равенстве первого в сумке. Если такого нет, самого избирательного яйца магазина, которое лучше: \(rare), затем \(uncommon), купленного, как только позволит баланс, если к тому времени он не вырастет слишком. Каждый шанс учитывает и первого шайни, так же часто, как вылупляется шайни.")
+    }
+    func oakAmberKeeps(_ amber: String, name: String) -> String {
+        t("\(KoreanParticle.subject.attach(to: amber)) \(name)의 이번 단계 경험치 절반을 태어날 포켓몬에게 넘겨줘요.",
+          "Your \(amber) passes half the XP \(name) gained at its stage to the one that hatches.",
+          "\(amber)が、\(name)の今の段階の経験値の半分を生まれるポケモンに引き継ぎます。",
+          "Tu \(amber) pasa la mitad de la experiencia de la etapa de \(name) al que eclosione.",
+          "Ton \(amber) passe la moitié de l'XP du stade de \(name) à celui qui éclot.",
+          "Seu \(amber) passa metade da experiência da fase de \(name) para o que chocar.",
+          "Dein \(amber) gibt die Hälfte der Erfahrung, die \(name) in seiner Stufe gesammelt hat, an das weiter, was schlüpft.",
+          "\"\(amber)\" передаст половину опыта \(name) на этой стадии тому, кто вылупится.")
+    }
+    func oakBuyAhead(_ n: Int, _ egg: String) -> String {
+        t("미리 \(n)개 사 두세요: \(egg)", n == 1 ? "Buy one ahead: \(egg)" : "Buy \(n) ahead: \(egg)",
+          "前もって\(n)個買っておこう：\(egg)",
+          n == 1 ? "Compra uno por adelantado: \(egg)" : "Compra \(n) por adelantado: \(egg)",
+          n == 1 ? "Achètes-en un d'avance : \(egg)" : "Achètes-en \(n) d'avance : \(egg)",
+          n == 1 ? "Compre um com antecedência: \(egg)" : "Compre \(n) com antecedência: \(egg)",
+          n == 1 ? "Kauf eins im Voraus: \(egg)" : "Kauf \(n) im Voraus: \(egg)",
+          "Купите заранее (\(n)): \(egg)")
+    }
+    func oakSetAside(_ amount: String, count n: Int, egg: String) -> String {
+        t("\(n) × \(egg) 몫으로 \(amount) 남겨 두세요", "Keep \(amount) aside for \(n) × \(egg)",
+          "\(n) × \(egg)のために\(amount)とっておこう", "Guarda \(amount) para \(n) × \(egg)",
+          "Garde \(amount) de côté pour \(n) × \(egg)", "Guarde \(amount) para \(n) × \(egg)",
+          "Leg \(amount) für \(n) × \(egg) zurück", "Отложите \(amount) на \(n) × \(egg)")
+    }
+    /// The eggs to hold for one new Pokémon (`OakBudget.stockTarget`).
+    func oakStockFor(_ n: Int, takes: Int, odds: String) -> String {
+        n == 1
+            ? t("알 하나당 확률이 \(odds)라 하나만 있어도 충분해요.", "At \(odds) a chance, one egg on hand is enough.",
+                "1個あたり\(odds)の確率なので、1個あれば十分です。",
+                "Con un \(odds) de probabilidad por huevo, basta con tener uno a mano.",
+                "À \(odds) de chances par œuf, en avoir un sous la main suffit.",
+                "Com \(odds) de chance por ovo, basta ter um à mão.", "Bei \(odds) Chance pro Ei reicht eins auf Vorrat.",
+                "С шансом \(odds) на яйцо достаточно одного в запасе.")
+            : t("알 하나당 확률이 \(odds)라 새로운 걸 얻으려면 평균 \(takes)개가 필요해요. \(n)개(최대 3개)를 갖춰 두세요.",
+                "At \(odds) a chance, it takes about \(takes) eggs for something new: keep \(n) on hand, 3 at most.",
+                "1個あたり\(odds)の確率なので、新しいものには平均\(takes)個必要です。\(n)個（最大3個）そろえておこう。",
+                "Con un \(odds) de probabilidad por huevo, hacen falta unos \(takes) para algo nuevo: ten \(n) a mano, 3 como máximo.",
+                "À \(odds) de chances par œuf, il en faut environ \(takes) pour du nouveau : garde-en \(n) sous la main, 3 au plus.",
+                "Com \(odds) de chance por ovo, são precisos uns \(takes) para algo novo: tenha \(n) à mão, no máximo 3.",
+                "Bei \(odds) Chance pro Ei braucht es etwa \(takes) für etwas Neues: Halte \(n) auf Vorrat, höchstens 3.",
+                "С шансом \(odds) на яйцо для чего-то нового нужно около \(takes): держите \(n) в запасе, не больше 3.")
+    }
+    func oakStockHeld(_ n: Int) -> String {
+        t("가방에 있는 그만큼 좋은 알 \(n)개도 포함돼요.",
+          n == 1 ? "The one as good in your Bag counts." : "The \(n) as good in your Bag count.",
+          "バッグにある同じくらい良いタマゴ\(n)個も数えます。",
+          n == 1 ? "Cuenta el de tu Bolsa, igual de bueno." : "Cuentan los \(n) de tu Bolsa, igual de buenos.",
+          n == 1 ? "Celui du Sac, aussi bon, compte." : "Les \(n) du Sac, aussi bons, comptent.",
+          n == 1 ? "O da sua Bolsa, tão bom quanto, conta." : "Os \(n) da sua Bolsa, tão bons quanto, contam.",
+          n == 1 ? "Das gleich gute in deinem Beutel zählt mit." : "Die \(n) gleich guten in deinem Beutel zählen mit.",
+          "Не худшие яйца в сумке тоже считаются (\(n)).")
+    }
+    func oakAlsoSetAside(_ amount: String) -> String {
+        t("나머지 몫으로 \(amount)도 남겨 두세요.", "Keep \(amount) aside for the rest.", "残りの分として\(amount)もとっておこう。",
+          "Guarda también \(amount) para el resto.", "Garde aussi \(amount) de côté pour les autres.",
+          "Guarde também \(amount) para o resto.", "Leg auch \(amount) für den Rest zurück.", "Отложите и \(amount) на остальные.")
+    }
+    var oakNotYet: String {
+        t("아직 사지 마세요. 다음 포켓몬이 들어오면 이 알은 더 가져올 새 포켓몬이 없을 수도 있어요.",
+          "Not yet: once the next Pokémon is in, this egg may have nothing new left to bring.",
+          "まだ買わないで。次のポケモンが加わると、このタマゴにはもう新しいものが残っていないかもしれません。",
+          "Todavía no: cuando llegue el próximo Pokémon, puede que este huevo ya no tenga nada nuevo que traer.",
+          "Pas encore : une fois le prochain Pokémon arrivé, cet œuf n'aura peut-être plus rien de nouveau à apporter.",
+          "Ainda não: quando o próximo Pokémon chegar, este ovo talvez não tenha mais nada novo a trazer.",
+          "Noch nicht: Sobald das nächste Pokémon da ist, hat dieses Ei vielleicht nichts Neues mehr zu bieten.",
+          "Пока не покупайте: после следующего покемона в этом яйце может не остаться ничего нового.")
+    }
+    func oakBuyAndGiveCandies(_ buy: Int, _ give: Int, to name: String) -> String {
+        t("이상한 사탕을 \(buy)개 사서 \(name)에게 \(give)개 주세요",
+          buy == 1 ? "Buy a Rare Candy and give \(name) \(give)" : "Buy \(buy) Rare Candies and give \(name) \(give)",
+          "ふしぎなアメを\(buy)個買って、\(name)に\(give)個あげよう",
+          buy == 1 ? "Compra un Caramelo Raro y dale \(give) a \(name)" : "Compra \(buy) Caramelos Raros y dale \(give) a \(name)",
+          buy == 1 ? "Achète un Super Bonbon et donnes-en \(give) à \(name)"
+              : "Achète \(buy) Super Bonbons et donnes-en \(give) à \(name)",
+          buy == 1 ? "Compre um Doce Raro e dê \(give) a \(name)" : "Compre \(buy) Doces Raros e dê \(give) a \(name)",
+          buy == 1 ? "Kauf ein Sonderbonbon und gib \(name) \(give) davon"
+              : "Kauf \(buy) Sonderbonbons und gib \(name) \(give) davon",
+          "Купите редкие конфеты (\(buy)) и дайте ему \(give)")
+    }
+    func oakBuyAndKeepCandies(_ n: Int) -> String {
+        t("이상한 사탕을 \(n)개 사서 아껴 두세요",
+          n == 1 ? "Buy a Rare Candy and keep it" : "Buy \(n) Rare Candies and keep them",
+          "ふしぎなアメを\(n)個買って、とっておこう",
+          n == 1 ? "Compra un Caramelo Raro y guárdalo" : "Compra \(n) Caramelos Raros y guárdalos",
+          n == 1 ? "Achète un Super Bonbon et garde-le" : "Achète \(n) Super Bonbons et garde-les",
+          n == 1 ? "Compre um Doce Raro e guarde-o" : "Compre \(n) Doces Raros e guarde-os",
+          n == 1 ? "Kauf ein Sonderbonbon und behalte es" : "Kauf \(n) Sonderbonbons und behalte sie",
+          "Купите редкие конфеты (\(n)) и сохраните их")
+    }
+    var oakCandiesFromTheRest: String {
+        t("알 값을 치르고 남겨 둔 뒤 남는 토큰이에요.", "What the balance has left once the eggs are paid for and set aside.",
+          "タマゴの代金を払い、取り置いたあとに残るぶんです。", "Lo que queda del saldo tras pagar y apartar los huevos.",
+          "Ce qui reste du solde une fois les œufs payés et mis de côté.",
+          "O que sobra do saldo depois de pagar e separar os ovos.",
+          "Was vom Guthaben bleibt, wenn die Eier bezahlt und zurückgelegt sind.", "Остаток баланса после оплаты и резерва яиц.")
+    }
+    var oakNoShopEggBeatsGraduation: String {
+        t("상점의 어떤 알도 졸업 때 받는 알보다 새로운 걸 더 자주 가져오지 못해요.",
+          "No Shop egg brings something new more often than the egg a graduation gives.",
+          "ショップのどのタマゴも、卒業でもらえるタマゴより新しいものを連れてきません。",
+          "Ningún huevo de la tienda trae algo nuevo más a menudo que el que da una graduación.",
+          "Aucun œuf de la Boutique n'apporte du nouveau plus souvent que celui que donne un diplôme.",
+          "Nenhum ovo da loja traz algo novo com mais frequência que o de uma formatura.",
+          "Kein Ei im Laden bringt öfter Neues als das, das ein Abschied gibt.",
+          "Ни одно яйцо магазина не приносит новое чаще, чем яйцо за выпуск.")
+    }
+    func oakShinyCharm(_ charm: String) -> String {
+        t("\(charm)도 생각해 보세요", "Think of the \(charm)", "\(charm)も考えておこう", "Piensa en el \(charm)",
+          "Pense au \(charm)", "Pense no \(charm)", "Denk an den \(charm)", "Подумайте о \"\(charm)\"")
+    }
+    func oakShinyCharmWhy(_ price: String) -> String {
+        t("종도 폼도 바꾸지 않지만 이로치가 더 자주 나와요. 가격은 \(price)예요.",
+          "It changes neither species nor forms, but makes shinies more frequent. It costs \(price).",
+          "種類もフォルムも変えませんが、色違いが出やすくなります。値段は\(price)です。",
+          "No cambia ni las especies ni las formas, pero hace los variocolores más frecuentes. Cuesta \(price).",
+          "Il ne change ni les espèces ni les formes, mais rend les chromatiques plus fréquents. Il coûte \(price).",
+          "Não muda nem as espécies nem as formas, mas deixa os shinies mais frequentes. Custa \(price).",
+          "Er ändert weder Arten noch Formen, macht Schillernde aber häufiger. Er kostet \(price).",
+          "Он не меняет ни виды, ни формы, но шайни будут попадаться чаще. Он стоит \(price).")
+    }
+    var oakWhyStock: String {
+        t("알은 몇 개나 미리? 알이 N번에 한 번 새로운 걸 가져온다면 평균 N개가 필요해요. 가방에 있는 그만큼 좋은 알을 포함해 그만큼(최대 3개) 갖춰 두세요. 다음에 무엇이 나오든 쓸모가 남는 알만 미리 사고, 아니면 그 값을 남겨 두세요. 나머지 토큰은 이상한 사탕에 써요.",
+          "How many eggs ahead? If an egg brings something new one time in N, it takes N on average: keep that many on hand, 3 at most, the Bag's as good included. Only buy ahead eggs that stay useful whatever comes next; otherwise set their price aside. The rest of the balance goes into Rare Candies.",
+          "タマゴは前もって何個？新しいものを連れてくるのがN回に1回なら、平均N個必要です。バッグの同じくらい良いタマゴも含めて、その数（最大3個）をそろえておこう。次に何が来ても役に立ち続けるタマゴだけ前もって買い、そうでなければ代金をとっておこう。残りはふしぎなアメに。",
+          "¿Cuántos huevos por adelantado? Si un huevo trae algo nuevo una vez de cada N, hacen falta N de media: ten esos a mano, 3 como máximo, incluidos los de tu Bolsa igual de buenos. Compra por adelantado solo huevos que sigan sirviendo pase lo que pase; si no, aparta su precio. El resto del saldo va a Caramelos Raros.",
+          "Combien d'œufs d'avance ? Si un œuf apporte du nouveau une fois sur N, il en faut N en moyenne : garde-en autant sous la main, 3 au plus, ceux du Sac aussi bons compris. N'en achète d'avance que s'ils resteront utiles quoi qu'il arrive ensuite, sinon mets leur prix de côté. Le reste du solde part en Super Bonbons.",
+          "Quantos ovos com antecedência? Se um ovo traz algo novo uma vez em N, são precisos N em média: tenha esses à mão, no máximo 3, incluindo os da sua Bolsa tão bons quanto. Só compre com antecedência ovos que continuem úteis aconteça o que acontecer; senão, separe o preço deles. O resto do saldo vai para Doces Raros.",
+          "Wie viele Eier im Voraus? Bringt ein Ei einmal in N Fällen etwas Neues, braucht es im Schnitt N: Halte so viele auf Vorrat, höchstens 3, die gleich guten im Beutel eingerechnet. Kauf nur Eier im Voraus, die nützlich bleiben, was auch kommt; sonst leg ihren Preis zurück. Der Rest des Guthabens geht in Sonderbonbons.",
+          "Сколько яиц заранее? Если яйцо приносит новое один раз из N, в среднем нужно N: держите столько в запасе, не больше 3, считая не худшие яйца в сумке. Заранее покупайте только яйца, которые останутся полезными, что бы ни случилось дальше; иначе отложите их цену. Остаток баланса уходит на редкие конфеты.")
+    }
+    var oakWhyTitle: String { t("왜?", "Why", "なぜ？", "Por qué", "Pourquoi", "Por quê", "Warum", "Почему") }
+    var oakWhyCandies: String {
+        t("이상한 사탕은 키우는 포켓몬에게 줘요. 단, 곧 놓아줄 중복 포켓몬에게는 주지 마세요. 경험치가 함께 사라지니 다음 포켓몬을 위해 아껴 두세요. 남는 경험치는 진화하면 다음 단계로 넘어가지만, 졸업할 때는 사라져요. 남은 양보다 많이 주지 마세요. 단, 10% 이하만 사라지는 마지막 하나는 괜찮아요.",
+          "Rare Candies go to the Pokémon being raised, but not to a Spare you are going to release: its XP would go with it, so keep them for the next one. Extra XP carries over to the next stage when it evolves, but is lost at graduation: never give it more than it still needs, but for a last one that loses a tenth at most.",
+          "ふしぎなアメは育てているポケモンに使います。ただし、これから逃がすダブりのポケモンには使わず、次のためにとっておきます。経験値も一緒に消えるからです。余った経験値は進化すると次の段階に持ち越されますが、卒業時には消えます。残りより多くは与えないこと。ただし、むだが1割以下の最後の1個はかまいません。",
+          "Los Caramelos Raros van al Pokémon que crías, pero no a uno repetido que vas a soltar: su experiencia se iría con él, así que guárdalos para el siguiente. La experiencia sobrante pasa a la siguiente etapa cuando evoluciona, pero se pierde al graduarse: nunca le des más de lo que le falta, salvo un último que pierda como mucho una décima parte.",
+          "Les Super Bonbons vont au Pokémon en cours, sauf à un Pokémon en trop que tu vas relâcher : son XP partirait avec lui, garde-les pour le suivant. L'XP en trop passe au stade suivant quand il évolue, mais elle est perdue au diplôme : n'en donne jamais plus qu'il ne lui reste, sauf un dernier qui en perdrait un dixième au plus.",
+          "Os Doces Raros vão para o Pokémon que você cria, mas não para um repetido que você vai soltar: a experiência iria embora com ele, então guarde-os para o próximo. A experiência que sobra passa para a próxima fase quando ele evolui, mas se perde ao se formar: nunca dê mais do que falta, exceto um último que perca no máximo um décimo.",
+          "Sonderbonbons bekommt das Pokémon, das du großziehst, aber kein doppeltes, das du freilassen wirst: Seine Erfahrung ginge mit ihm, also behalte sie für das nächste. Überschüssige Erfahrung geht bei einer Entwicklung in die nächste Stufe über, beim Abschied aber verloren: Gib ihm nie mehr, als ihm noch fehlt, außer einem letzten, das höchstens ein Zehntel verliert.",
+          "Редкие конфеты даются покемону, которого вы растите, но не дубликату, которого вы отпустите: опыт уйдёт вместе с ним, так что сохраните их для следующего. Лишний опыт переходит на следующую стадию при эволюции, но теряется при выпуске: не давайте больше, чем ему осталось, кроме последней, которая потеряет не больше десятой части.")
+    }
+    func oakWhy(flute: String) -> String {
+        t("중복 포켓몬은 도감에 아무것도 더하지 않아요. 계열의 모든 종이 같은 폼으로 이미 졸업했고, 그 폼의 첫 이로치도 아니며, 없는 피카츄 코스튬도 가져오지 않아요. 단 하나의 예외: 같은 전설의 포켓몬을 두 번째로 졸업시키면 \(KoreanParticle.subject.attach(to: flute)) 열리는 경우예요.",
+          "A Pokémon is a Spare when it brings your Pokédex nothing: every species of its line is already graduated in its form, it is not your first shiny of that form, and it brings no Pikachu costume you lack. The one exception: a legendary Spare, when its second graduated copy unlocks the \(flute).",
+          "ダブりのポケモンは図鑑に何も加えません。系統のすべての種類がそのフォルムで卒業済みで、そのフォルムで初めての色違いでもなく、足りないピカチュウのコスチュームも持ってきません。唯一の例外：同じ伝説のポケモンの2匹目の卒業で\(flute)が解放される場合です。",
+          "Un Pokémon está repetido cuando no aporta nada a tu Pokédex: cada especie de su línea ya se graduó en su forma, no es tu primer variocolor de esa forma y no trae ningún disfraz de Pikachu que te falte. La única excepción: un legendario repetido, cuando su segunda copia graduada desbloquea la \(flute).",
+          "Un Pokémon est en trop quand il n'apporte rien à ton Pokédex : chaque espèce de sa lignée y est déjà diplômée sous sa forme, ce n'est pas ton premier chromatique de cette forme, et il n'apporte aucun costume de Pikachu qui te manque. Seule exception : un légendaire en trop, quand son deuxième exemplaire diplômé débloque la \(flute).",
+          "Um Pokémon é repetido quando não acrescenta nada à sua Pokédex: cada espécie da linha já se formou nessa forma, não é seu primeiro shiny dessa forma e não traz nenhuma fantasia de Pikachu que falte. A única exceção: um lendário repetido, quando a segunda cópia formada desbloqueia a \(flute).",
+          "Ein Pokémon ist doppelt, wenn es deinem Pokédex nichts bringt: Jede Art seiner Linie ist in seiner Form schon verabschiedet, es ist nicht dein erstes Schillerndes dieser Form, und es bringt kein fehlendes Pikachu-Kostüm. Die einzige Ausnahme: ein doppeltes legendäres Pokémon, wenn sein zweites verabschiedetes Exemplar die \(flute) freischaltet.",
+          "Покемон считается дубликатом, если ничего не добавляет в покедекс: все виды его линии в этой форме уже выпущены, это не первый шайни этой формы, и он не принесёт недостающий костюм Пикачу. Единственное исключение: легендарный дубликат, если второй выпущенный экземпляр открывает \"\(flute)\".")
+    }
     var buy: String { t("구매", "Buy", "購入", "Comprar", "Acheter", "Comprar", "Kaufen", "Купить") }
     func buyConfirm(_ name: String) -> String { t("\(name) 구매할까요?", "Buy \(name)?", "\(name) を購入しますか？", "¿Comprar \(name)?", "Acheter \(name) ?", "Comprar \(name)?", "\(name) kaufen?", "Купить \"\(name)\"?") }
     func newsCount(_ n: Int) -> String {

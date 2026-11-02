@@ -6,13 +6,13 @@ import SwiftUI
 @MainActor
 struct ShopView: View {
     let store: CompanionStore
+    let nav: PopoverNavigation
 
     var body: some View {
-        let l = store.l
         // 고정 높이 — 컬렉션/가방과 동일(팝오버 재오픈 시 fitting size 축소 방지).
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                walletHeader(l)
+                OakAdviceCard(store: store, nav: nav)
                 // shopEntries = 판매 아이템 + 알 3종(보증 없음·고급 이상·희귀 이상)을 가격 오름차순으로
                 // 병합한 단일 목록. A bought egg goes in the Bag (`EggCard`).
                 ForEach(store.shopEntries, id: \.self) { entry in
@@ -28,18 +28,6 @@ struct ShopView: View {
         }
         .frame(height: 520)
         .task { await store.loadHatchIndex() }
-    }
-
-    private func walletHeader(_ l: L) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            SectionTitle(text: l.spendableTokens, systemImage: "creditcard.fill")
-            Text(TokenFormatter.compact(store.availableTokens))
-                .font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
-            Text(l.shopHint)
-                .font(.caption2).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .heroCard(colors: store.themeColors)
     }
 }
 
