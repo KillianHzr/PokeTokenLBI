@@ -25,10 +25,13 @@ struct DungeonsView: View {
                     Text(l.dungeonsIntro).font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                // The daily and weekly dungeons first: what they give changes with the day and the week.
-                ForEach([DungeonID.daily, .weekly], id: \.self) { id in
-                    ChallengeCard(store: store, id: id) { nav.dungeonTeam = id }
+                // The daily and weekly dungeons first, side by side: what they give changes with the day and the week.
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach([DungeonID.daily, .weekly], id: \.self) { id in
+                        ChallengeCard(store: store, id: id) { nav.dungeonTeam = id }
+                    }
                 }
+                .fixedSize(horizontal: false, vertical: true)
                 ForEach(shown, id: \.self) { id in
                     DungeonCard(store: store, id: id) { nav.dungeonTeam = id }
                 }
@@ -168,7 +171,8 @@ private struct DungeonCard: View {
     }
 }
 
-/// The daily or weekly dungeon (2026-11-02): the battle form its boss is and gives, its one try, its length.
+/// The daily or weekly dungeon (2026-11-02), half a row: its boss, the form it gives, then what to do or why not now.
+/// Its length, cost, one try and difficulty are on hover.
 @MainActor
 private struct ChallengeCard: View {
     let store: CompanionStore
@@ -180,60 +184,56 @@ private struct ChallengeCard: View {
         let dungeon = DungeonCatalog.dungeon(id)
         let unmet = store.unmetUnlocks(id)
         let boss = store.challengeBoss(id)
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 10) {
+        let tried = store.challengeTried(id)
+        let details = [l.dungeonFloors(dungeon.floors),
+                       l.dungeonCost(TokenFormatter.compact(dungeon.cost(difficulty: store.growthDifficulty))),
+                       id == .daily ? l.challengeOneTryADay : l.challengeOneTryAWeek].joined(separator: " · ")
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 6) {
                 Group {
                     if let boss {
-                        SpriteView(speciesID: boss.speciesID, size: 40, form: boss.form, sameScale: true)
-                            .speciesNameTooltip(boss.speciesID, form: boss.form, language: store.language)
+                        SpriteView(speciesID: boss.speciesID, size: 36, form: boss.form, sameScale: true)
                     } else {
-                        Image(systemName: id == .daily ? "sun.max.fill" : "calendar").font(.title2).foregroundStyle(.secondary)
+                        Image(systemName: id == .daily ? "sun.max.fill" : "calendar").font(.title3).foregroundStyle(.secondary)
                     }
                 }
-                .frame(width: 44, height: 44)
+                .frame(width: 38, height: 38)
                 .grayscale(unmet.isEmpty ? 0 : 1).opacity(unmet.isEmpty ? 1 : 0.5)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(l.dungeonName(id)).font(.callout.weight(.semibold))
-                        Spacer(minLength: 4)
-                        if !unmet.isEmpty {
-                            Label(l.dungeonLocked, systemImage: "lock.fill").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                        }
-                    }
-                    Text([l.dungeonFloors(dungeon.floors), l.dungeonCost(TokenFormatter.compact(dungeon.cost(difficulty: store.growthDifficulty))),
-                          id == .daily ? l.challengeOneTryADay : l.challengeOneTryAWeek].joined(separator: " · "))
-                        .font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(l.dungeonName(id)).font(.caption.weight(.semibold)).lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     if let boss {
-                        BattleFormTitle(form: boss, language: store.language, wrap: l.challengeReward)
-                            .font(.caption.weight(.semibold))
+                        BattleFormTitle(form: boss, language: store.language)
+                            .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
-            if !unmet.isEmpty {
-                ForEach(Array(unmet.enumerated()), id: \.offset) { _, unlock in
-                    Label(l.dungeonUnlock(unlock), systemImage: "circle").font(.caption).foregroundStyle(.secondary)
-                }
-            } else if boss == nil {
-                Label(l.challengeAllWon, systemImage: "checkmark.seal.fill").font(.caption).foregroundStyle(.secondary)
-            } else if store.challengeTried(id) {
-                Label(id == .daily ? l.challengeTriedToday : l.challengeTriedThisWeek, systemImage: "hourglass")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                HStack {
-                    Text(l.challengeHard).font(.caption2).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 4)
+            Spacer(minLength: 0)
+            Group {
+                if let unlock = unmet.first {
+                    Label(l.dungeonUnlock(unlock), systemImage: "lock.fill")
+                } else if boss == nil {
+                    Label(l.challengeAllWonShort, systemImage: "checkmark.seal.fill")
+                } else if tried {
+                    Label(id == .daily ? l.challengeTriedShortDay : l.challengeTriedShortWeek, systemImage: "hourglass")
+                } else {
                     Button(l.dungeonPrepare, action: onPrepare)
                         .buttonStyle(.pill(prominent: true))
                         .disabled(!store.canEnter(id))
-                        .hoverTip(store.expedition != nil ? l.dungeonOneAtATime : nil)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
+            .font(.caption2).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
+        .padding(10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .designSurface(cornerRadius: Design.cornerRadius)
+        .hoverTip(boss == nil && unmet.isEmpty ? l.challengeAllWon
+                  : tried ? (id == .daily ? l.challengeTriedToday : l.challengeTriedThisWeek)
+                  : store.expedition != nil && unmet.isEmpty ? l.dungeonOneAtATime
+                  : details + "\n" + l.challengeHard)
     }
 }
 

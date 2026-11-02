@@ -804,11 +804,6 @@ extension L {
         t("주 한 번", "one try a week", "1週間に1回", "un intento por semana", "une tentative par semaine",
           "uma tentativa por semana", "ein Versuch pro Woche", "одна попытка в неделю")
     }
-    func challengeReward(_ form: String) -> String {
-        t("보스를 쓰러뜨리면: \(form)", "Beat the boss to win: \(form)", "ボスを倒すと：\(form)", "Vence al jefe y gana: \(form)",
-          "Bats le boss pour gagner : \(form)", "Vença o chefe e ganhe: \(form)", "Besiege den Boss und gewinne: \(form)",
-          "Победите босса и получите: \(form)")
-    }
     var challengeAllWon: String {
         t("졸업한 포켓몬의 형태를 모두 얻었어요. 새로 졸업하면 더 생겨요.",
           "Every form your graduated Pokémon can take is won. New graduations bring more.",
@@ -870,5 +865,18 @@ extension L {
                      "Alle (\(n))", "Все (\(n))")
         }
         return t("형태 \(n)개", "\(n) forms", "すがた\(n)", "\(n) formas", "\(n) formes", "\(n) formas", "\(n) Formen", "Форм: \(n)")
+    }
+
+    // Short, for the challenges' half-row cards.
+    var challengeTriedShortDay: String {
+        t("오늘 도전함", "Tried today", "今日は挑戦済み", "Intentado hoy", "Tenté aujourd'hui", "Tentado hoje", "Heute versucht",
+          "Сегодня было")
+    }
+    var challengeTriedShortWeek: String {
+        t("이번 주 도전함", "Tried this week", "今週は挑戦済み", "Intentado esta semana", "Tenté cette semaine",
+          "Tentado nesta semana", "Diese Woche versucht", "На этой неделе было")
+    }
+    var challengeAllWonShort: String {
+        t("모두 획득", "All won", "すべて入手", "Todo ganado", "Tout gagné", "Tudo ganho", "Alle gewonnen", "Всё получено")
     }
 }
