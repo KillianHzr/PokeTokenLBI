@@ -28,14 +28,36 @@ enum DungeonTier: Int, Codable, Sendable, CaseIterable, Comparable {
         }
     }
 
-    /// The wild Pokémon's levels.
+    /// The wild Pokémon's levels: close to the team's 100 from the start, or a full Pokédex never notices them.
     var wildLevels: ClosedRange<Int> {
         switch self {
-        case .t1: 40...50
-        case .t2: 60...70
-        case .t3: 80...90
-        case .t4: 90...100
-        case .t5: 100...100
+        case .t1: 55...65
+        case .t2: 70...80
+        case .t3: 85...95
+        case .t4: 95...100
+        case .t5: 90...100
+        }
+    }
+
+    /// The least IV a wild Pokémon has; a trainer's ten more.
+    var foeIVFloor: Int {
+        switch self {
+        case .t1: 0
+        case .t2: 5
+        case .t3: 10
+        case .t4: 15
+        case .t5: 10
+        }
+    }
+
+    /// How many wild Pokémon a battle shows, one of these drawn: more of them deeper.
+    var wildCounts: [Int] {
+        switch self {
+        case .t1: [1, 1, 1, 1, 2, 2, 2, 2, 3, 3]
+        case .t2: [1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
+        // The Hall of Origin's length and its shinies-only team are its test: its floors fight as T3's.
+        case .t3, .t5: [1, 2, 2, 2, 3, 3, 3, 3, 3, 3]
+        case .t4: [2, 2, 3, 3, 3, 3, 3, 3, 3, 3]
         }
     }
 

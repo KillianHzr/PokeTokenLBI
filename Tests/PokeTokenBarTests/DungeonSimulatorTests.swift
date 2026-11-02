@@ -2,7 +2,8 @@ import XCTest
 @testable import PokeTokenBar
 
 /// The balance simulator (D2): full expeditions in each dungeon with a team "Compose for me" builds, the share that
-/// reaches the boss and the share that wins. Targets with a sound team: T1 95%, T2 85%, T3 70%, T4 50 to 60%.
+/// reaches the boss and the share that wins. Balanced on 2026-11-02 against a full Pokédex (491 graduated) so it
+/// still has to fight: T1 a warm-up near 100%, T2 85 to 100%, T3 70 to 90%, T4 30 to 50%, the Hall of Origin under 10%.
 ///
 ///     PTB_DUNGEON_SIM=1 [PTB_DUNGEON_SAVE=<companion-state.json copy>] swift test --filter DungeonSimulatorTests
 ///

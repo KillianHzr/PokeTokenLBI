@@ -262,11 +262,11 @@ enum ExpeditionEngine {
         if tier >= .t3, random.below(100) == 0 { return .shiny }
         let battle = e.risky ? 1.4 : 1.0
         var weights: [(ExpeditionEventKind, Double)] = [
-            (.wild, 30 * battle), (.chest, 16), (.trap, e.risky ? 14 : 9), (.spring, 10), (.lost, 8),
+            (.wild, 40 * battle), (.chest, 12), (.trap, e.risky ? 12 : 8), (.spring, 7), (.lost, 6),
         ]
         if tier >= .t2 {
-            weights.append((.horde, 10 * battle))
-            weights.append((.trainer, 12 * battle))
+            weights.append((.horde, 12 * battle))
+            weights.append((.trainer, 14 * battle))
         }
         let total = weights.reduce(0) { $0 + $1.1 }
         var roll = Double(random.below(10_000)) / 10_000 * total
@@ -286,7 +286,7 @@ enum ExpeditionEngine {
             switch kind {
             case .horde: count = 3 + random.below(3)
             case .trainer: count = 3
-            default: count = [1, 1, 1, 1, 1, 1, 2, 2, 2, 3][random.below(10)]
+            default: count = tier.wildCounts[random.below(tier.wildCounts.count)]
             }
             let foes = drawFoes(count: count, kind: kind, dungeon: dungeon, tier: tier, random: &random)
             fight(&e, kind: kind, foes: foes, foesActive: kind == .trainer ? 1 : foes.count, random: &random,
@@ -357,7 +357,7 @@ enum ExpeditionEngine {
             var level = random.between(levels.lowerBound, levels.upperBound)
             if kind == .horde { level = max(1, level - 8) }
             if kind == .trainer { level = levels.upperBound }
-            let floorIV = kind == .trainer ? 20 : 0
+            let floorIV = min(31, tier.foeIVFloor + (kind == .trainer ? 10 : 0))
             let ivs = (0..<6).map { _ in floorIV + random.below(32 - floorIV) }
             let nature = PokemonNature.allCases[random.below(PokemonNature.allCases.count)]
             let abilities = SpeciesBattleTable.data(speciesID: species)?.abilities.filter { !$0.hidden } ?? []
@@ -410,7 +410,7 @@ enum ExpeditionEngine {
     private static func fightBoss(_ e: inout Expedition, dungeon: Dungeon, random: inout BattleRandom,
                                   context: ExpeditionContext) {
         append(&e, .bossReached(speciesID: e.boss.speciesID, isShiny: e.boss.isShiny), rare: true, context: context)
-        let boss = bossSpec(e.boss, random: &random)
+        let boss = bossSpec(e.boss, tier: dungeon.tier, random: &random)
         let alive = e.team.filter { !$0.isFainted }
         guard let boss, !alive.isEmpty else {
             finish(&e, won: false, context: context)
@@ -439,15 +439,25 @@ enum ExpeditionEngine {
         }
     }
 
-    /// R13: level 100, IVs of 20 to 31, three times the HP; a legendary four times and stats ×1.2, Arceus five
-    /// times and ×1.3.
-    static func bossSpec(_ boss: ExpeditionBoss, random: inout BattleRandom) -> BattlerSpec? {
+    /// R13: level 100, IVs of 20 to 31, its HP and stats raised: deeper, the more (balanced 2026-11-02 so a full
+    /// Pokédex still has a fight), a legendary four times the HP and ×1.18, Arceus ×4.5 and ×1.2.
+    static func bossSpec(_ boss: ExpeditionBoss, tier: DungeonTier, random: inout BattleRandom) -> BattlerSpec? {
         let ivs = (0..<6).map { _ in 20 + random.below(12) }
         let legendary = SpeciesInfo.all[boss.speciesID]?.isLegendary ?? false
-        let arceus = boss.speciesID == DungeonCatalog.arceusID
+        let (hp, stats): (Double, Double)
+        if boss.speciesID == DungeonCatalog.arceusID {
+            (hp, stats) = (4.5, 1.2)
+        } else if legendary {
+            (hp, stats) = (4, 1.18)
+        } else {
+            switch tier {
+            case .t1: (hp, stats) = (3, 1.1)
+            case .t2: (hp, stats) = (3.5, 1.2)
+            default: (hp, stats) = (4, 1.25)
+            }
+        }
         return BattlerSpec.make(id: "boss-\(boss.speciesID)", speciesID: boss.speciesID, form: boss.form, level: 100,
-                                ivs: ivs, isShiny: boss.isShiny, isBoss: true,
-                                hpFactor: arceus ? 5 : legendary ? 4 : 3, statFactor: arceus ? 1.3 : legendary ? 1.2 : 1)
+                                ivs: ivs, isShiny: boss.isShiny, isBoss: true, hpFactor: hp, statFactor: stats)
     }
 
     // MARK: Loot
