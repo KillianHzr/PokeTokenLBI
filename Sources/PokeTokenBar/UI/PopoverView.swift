@@ -126,6 +126,8 @@ final class PopoverNavigation {
     var replayStart = 0
     /// The whole journal of the expedition (`ExpeditionLogScreen`).
     var showingExpeditionLog = false
+    /// A Capsule being used from the Bag (`CapsuleScreen`).
+    var capsule: ItemKind?
     /// The changelog entries seen before it was opened: the others are marked new on it.
     var changelogSeenBefore: Set<String> = []
     /// The Collection tab's open Pokédex detail page (`DexSpecies.collectionID`); nil = grid or log.
@@ -183,6 +185,7 @@ final class PopoverNavigation {
         replayBattle = nil
         replayStart = 0
         showingExpeditionLog = false
+        capsule = nil
         tab = .home
     }
 
@@ -275,6 +278,8 @@ struct PopoverView: View {
                 }
             } else if nav.showingExpeditionLog {
                 ExpeditionLogScreen(store: companion, nav: nav)
+            } else if let capsule = nav.capsule {
+                CapsuleScreen(store: companion, kind: capsule) { nav.capsule = nil }
             } else if let dungeon = nav.dungeonTeam {
                 DungeonTeamScreen(store: companion, dungeon: dungeon) { nav.dungeonTeam = nil } onDepart: {
                     nav.dungeonTeam = nil

@@ -154,7 +154,7 @@ private struct DungeonCard: View {
                 Text(l.dungeonEntryMap(l.itemName(.treasureMap))).font(.caption2).foregroundStyle(.secondary)
             }
             Button(store.dungeonProgress.wins(id) > 0 ? l.dungeonGoAgain : l.dungeonPrepare, action: onPrepare)
-                .buttonStyle(.borderedProminent).controlSize(.small)
+                .buttonStyle(.pill(prominent: true))
                 .disabled(!store.canEnter(id))
                 .hoverTip(store.expedition != nil ? l.dungeonOneAtATime : nil)
         }

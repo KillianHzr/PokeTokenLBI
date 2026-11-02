@@ -596,6 +596,50 @@ extension L {
           "Seu Pokémon em criação volta a crescer.", "Dein Pokémon in Aufzucht wächst wieder.", "Растущий покемон снова растёт.")
     }
 
+    // The Bag's dungeon items.
+
+    var dungeonOpen: String { t("열기", "Open", "開ける", "Abrir", "Ouvrir", "Abrir", "Öffnen", "Открыть") }
+    func dungeonChestFound(_ what: String) -> String {
+        t("발견: \(what)", "Found: \(what)", "見つけた：\(what)", "Encontrado: \(what)", "Trouvé : \(what)",
+          "Encontrado: \(what)", "Gefunden: \(what)", "Найдено: \(what)")
+    }
+    var dungeonNoCapsuleTarget: String {
+        t("개체값이 31 미만인 졸업 포켓몬이 없어요", "No graduated Pokémon with an IV under 31",
+          "個体値が31未満の卒業ポケモンがいません", "Ningún Pokémon graduado con un IV bajo 31",
+          "Aucun diplômé avec un IV sous 31", "Nenhum Pokémon formado com IV abaixo de 31",
+          "Kein verabschiedetes Pokémon mit einem DV unter 31", "Нет выпускников с IV ниже 31")
+    }
+    var dungeonCapsulePick: String {
+        t("졸업 포켓몬을 고르세요", "Pick a graduated Pokémon", "卒業ポケモンをえらんでね", "Elige un Pokémon graduado",
+          "Choisis un diplômé", "Escolha um Pokémon formado", "Wähle ein verabschiedetes Pokémon", "Выбери выпускника")
+    }
+    var dungeonCapsulePickStat: String {
+        t("31로 올릴 개체값을 고르세요", "Pick the IV to raise to 31", "31にする個体値をえらんでね",
+          "Elige el IV que subir a 31", "Choisis l'IV à monter à 31", "Escolha o IV a subir para 31",
+          "Wähle den DV, der auf 31 steigt", "Выбери IV, который поднять до 31")
+    }
+    var dungeonCapsuleRaiseAll: String {
+        t("모두 31로", "All to 31", "すべて31に", "Todo a 31", "Tout à 31", "Tudo para 31", "Alle auf 31", "Все до 31")
+    }
+    var dungeonCapsuleDone: String {
+        t("개체값을 31로 올렸어요", "IVs raised to 31", "個体値を31にしました", "IV subidos a 31", "IV montés à 31",
+          "IVs elevados a 31", "DV auf 31 erhöht", "IV подняты до 31")
+    }
+    var dungeonEggHatches: String {
+        t("계열의 첫 포켓몬이 태어나요. 개체값과 성격은 부화할 때 정해져요.",
+          "Hatches the first Pokémon of its line; IVs and nature are drawn at the hatch.",
+          "進化の最初のポケモンが生まれます。個体値と性格はかえるときに決まります。",
+          "Nace el primer Pokémon de su línea; los IV y la naturaleza se sortean al eclosionar.",
+          "Fait éclore le premier Pokémon de sa lignée ; IV et nature sont tirés à l'éclosion.",
+          "Choca o primeiro Pokémon da linha; IVs e natureza são sorteados ao chocar.",
+          "Schlüpft als erstes Pokémon seiner Linie; DV und Wesen werden beim Schlüpfen gezogen.",
+          "Вылупляется первый покемон линии; IV и характер определяются при вылуплении.")
+    }
+    var dungeonEggShiny: String {
+        t("이로치 확정", "Shiny guaranteed", "色違い確定", "Variocolor asegurado", "Chromatique garanti", "Brilhante garantido",
+          "Schillernd garantiert", "Гарантированно шайни")
+    }
+
     /// The places' official names (Q26).
     func dungeonName(_ id: DungeonID) -> String {
         switch id {

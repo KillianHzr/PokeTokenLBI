@@ -134,13 +134,13 @@ struct DungeonTeamScreen: View {
                     self.team = store.composeTeam(for: dungeon)
                     focus = nil
                 }
-                .buttonStyle(.bordered).controlSize(.small)
+                .buttonStyle(.pill())
                 Spacer()
                 let keys = store.keysToEnter(dungeon)
                 Button(keys > 0 ? "\(l.dungeonSetOff) · 🗝️ \(keys)" : l.dungeonSetOff) {
                     if store.startExpedition(dungeon, team: self.team) { onDepart() }
                 }
-                .buttonStyle(.borderedProminent).controlSize(.small)
+                .buttonStyle(.pill(prominent: true))
                 .disabled(!valid || !store.canEnter(dungeon))
             }
         }

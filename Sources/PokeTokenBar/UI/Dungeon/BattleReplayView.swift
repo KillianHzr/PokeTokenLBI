@@ -45,7 +45,7 @@ struct BattleReplayView: View {
                 Spacer(minLength: 0)
                 HStack {
                     Button(playing ? l.battlePause : l.battlePlay) { playing.toggle() }
-                        .buttonStyle(.bordered).controlSize(.small)
+                        .buttonStyle(.pill())
                     Spacer()
                     if elapsed >= outcome.duration {
                         Label(outcome.winner == 0 ? l.battleWon : l.battleLost,
@@ -54,7 +54,7 @@ struct BattleReplayView: View {
                             .foregroundStyle(outcome.winner == 0 ? Design.actionColor : .orange)
                     } else {
                         Button(l.battleSkip) { elapsed = outcome.duration }
-                            .buttonStyle(.bordered).controlSize(.small)
+                            .buttonStyle(.pill())
                     }
                 }
             } else {

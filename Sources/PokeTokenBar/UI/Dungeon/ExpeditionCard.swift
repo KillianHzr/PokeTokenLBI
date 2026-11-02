@@ -79,28 +79,42 @@ struct ExpeditionCard: View {
                 }
             }
         }
-        HStack(spacing: 8) {
-            if e.log.count > 4 {
-                Button(l.dungeonWholeLog) { nav.showingExpeditionLog = true }
-                    .buttonStyle(.borderless).controlSize(.small).font(.caption.weight(.semibold))
+        if confirmingAbandon {
+            abandonConfirmation
+        } else {
+            HStack(spacing: 8) {
+                if e.log.count > 4 {
+                    Button(l.dungeonWholeLog) { nav.showingExpeditionLog = true }
+                        .buttonStyle(.borderless).controlSize(.small).font(.caption.weight(.semibold))
+                }
+                Spacer(minLength: 4)
+                Button(l.dungeonAbandon) { confirmingAbandon = true }
+                    .buttonStyle(.borderless).controlSize(.small).font(.caption).foregroundStyle(.secondary)
             }
-            Spacer(minLength: 4)
-            abandonButton
         }
         Label(l.dungeonGrowthPaused, systemImage: "pause.circle")
             .font(.caption2).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var abandonButton: some View {
+    /// Inline, as the Bag's confirmations: a sheet or an alert left behind by the closing popover would swallow clicks.
+    private var abandonConfirmation: some View {
         let hasRope = store.itemCount(.escapeRope) > 0
-        return Button(l.dungeonAbandon) { confirmingAbandon = true }
-            .buttonStyle(.borderless).controlSize(.small).font(.caption).foregroundStyle(.secondary)
-            .confirmationDialog(l.dungeonLeave, isPresented: $confirmingAbandon) {
-                Button(l.dungeonLeave, role: hasRope ? nil : .destructive) { store.abandonExpedition() }
-            } message: {
-                Text(l.dungeonAbandonCost(rope: l.itemName(.escapeRope), has: hasRope))
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(l.dungeonAbandonCost(rope: l.itemName(.escapeRope), has: hasRope))
+                .font(.caption).foregroundStyle(hasRope ? Color.secondary : Color.readableOrange)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                Button(l.cancel) { confirmingAbandon = false }
+                    .buttonStyle(.borderless).controlSize(.small)
+                Button(l.dungeonLeave) {
+                    confirmingAbandon = false
+                    store.abandonExpedition()
+                }
+                .buttonStyle(.pill(prominent: true))
             }
+        }
     }
 
     // MARK: The emergency heal (R5, maquette 4)
@@ -118,9 +132,9 @@ struct ExpeditionCard: View {
         HStack(spacing: 8) {
             Spacer(minLength: 0)
             Button(l.dungeonHealSkip) { store.answerEmergencyHeal(pay: false) }
-                .buttonStyle(.bordered).controlSize(.small)
+                .buttonStyle(.pill())
             Button(l.dungeonHealPay(TokenFormatter.compact(price))) { store.answerEmergencyHeal(pay: true) }
-                .buttonStyle(.borderedProminent).controlSize(.small)
+                .buttonStyle(.pill(prominent: true))
                 .disabled(available < price)
         }
         if e.reserve > 0 {
@@ -160,15 +174,27 @@ struct ExpeditionCard: View {
                 if count > 0 { throwButton(e, ball: ball, name: l.itemName(ball), count: count) }
             }
         }
-        HStack {
-            Spacer()
-            Button(l.dungeonLetGo) { confirmingLetGo = true }
-                .buttonStyle(.borderless).controlSize(.small).font(.caption).foregroundStyle(.secondary)
-                .confirmationDialog(l.dungeonLetGo, isPresented: $confirmingLetGo) {
-                    Button(l.dungeonLetGo, role: .destructive) { store.endCapture() }
-                } message: {
-                    Text(l.dungeonLetGoCost)
+        if confirmingLetGo {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(l.dungeonLetGoCost).font(.caption).foregroundStyle(Color.readableOrange)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Spacer(minLength: 0)
+                    Button(l.cancel) { confirmingLetGo = false }
+                        .buttonStyle(.borderless).controlSize(.small)
+                    Button(l.dungeonLetGo) {
+                        confirmingLetGo = false
+                        store.endCapture()
+                    }
+                    .buttonStyle(.pill(prominent: true))
                 }
+            }
+        } else {
+            HStack {
+                Spacer()
+                Button(l.dungeonLetGo) { confirmingLetGo = true }
+                    .buttonStyle(.borderless).controlSize(.small).font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -462,11 +488,11 @@ struct ExpeditionResultCard: View {
                         store.dismissExpeditionResult()
                         nav.dungeonTeam = r.dungeon
                     }
-                    .buttonStyle(.bordered).controlSize(.small)
+                    .buttonStyle(.pill())
                     .disabled(!store.canEnter(r.dungeon))
                 }
                 Button(l.close) { store.dismissExpeditionResult() }
-                    .buttonStyle(.borderedProminent).controlSize(.small)
+                    .buttonStyle(.pill(prominent: true))
             }
         }
         .designCard()

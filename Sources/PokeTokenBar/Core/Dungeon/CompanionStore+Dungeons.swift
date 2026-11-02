@@ -239,6 +239,53 @@ extension CompanionStore {
         persist()
     }
 
+    // MARK: The Bag's dungeon items
+
+    /// The six IVs in the order the Pokédex shows them, HP to Speed.
+    static let ivKeyPaths: [WritableKeyPath<PokemonIVs, Int>] = [\.hp, \.attack, \.defense, \.specialAttack,
+                                                                \.specialDefense, \.speed]
+
+    /// The graduated Pokémon a Capsule can raise: those with an IV under 31.
+    var capsuleCandidates: [DexEntry] {
+        state.dex.filter { entry in
+            !entry.isReleased && entry.profile.map { p in Self.ivKeyPaths.contains { p.ivs[keyPath: $0] < 31 } } == true
+        }
+    }
+
+    /// A Silver Capsule raises one IV (`stat`, 0 for HP to 5 for Speed) to 31, a Gold Capsule all six. Spent only
+    /// when it raised something.
+    @discardableResult
+    func useCapsule(_ kind: ItemKind, on entryID: String, stat: Int? = nil) -> Bool {
+        guard itemCount(kind) > 0, let entry = capsuleCandidates.first(where: { $0.id == entryID }),
+              let ivs = entry.profile?.ivs else { return false }
+        let raised: [WritableKeyPath<PokemonIVs, Int>]
+        switch kind {
+        case .goldCapsule:
+            raised = Self.ivKeyPaths
+        case .silverCapsule:
+            guard let stat, Self.ivKeyPaths.indices.contains(stat), ivs[keyPath: Self.ivKeyPaths[stat]] < 31 else { return false }
+            raised = [Self.ivKeyPaths[stat]]
+        default:
+            return false
+        }
+        changeProfile(of: entryID) { profile in for path in raised { profile.ivs[keyPath: path] = 31 } }
+        changeBag(kind, by: -1)
+        AppLog.write("dungeon: \(kind.rawValue) on \(entryID), stat \(stat.map(String.init) ?? "all")")
+        persist()
+        return true
+    }
+
+    /// Q23: an Explorer's Chest holds one of the Explorer Kit's treasures, drawn at the opening.
+    @discardableResult
+    func openExplorerChest() -> (kind: ItemKind, count: Int)? {
+        guard changeBag(.explorerChest, by: -1) == -1 else { return nil }
+        let treasure = ExplorerKit.treasure(roll: Int(drawSeed() % UInt64(ExplorerKit.rollRange)))
+        if treasure.kind == .rareCandy { _ = grantRareCandies(treasure.count) } else { changeBag(treasure.kind, by: treasure.count) }
+        AppLog.write("dungeon: explorer's chest gave \(treasure.count) \(treasure.kind.rawValue)")
+        persist()
+        return treasure
+    }
+
     // MARK: The end
 
     /// The tier's extras on a victory (Q22, Q23, R10, R4): an egg sometimes, the very rare items, a Legendary Key

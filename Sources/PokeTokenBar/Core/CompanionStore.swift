@@ -2332,6 +2332,15 @@ final class CompanionStore {
     }
 
     func grantRareCandies(_ count: Int) -> Int { addRareCandies(count) }
+
+    /// A graduated Pokémon's profile, changed in place (a Capsule raises its IVs). Returns whether it has one.
+    @discardableResult
+    func changeProfile(of entryID: String, _ change: (inout PokemonProfile) -> Void) -> Bool {
+        guard let i = state.dex.firstIndex(where: { $0.id == entryID }), var profile = state.dex[i].profile else { return false }
+        change(&profile)
+        state.dex[i].profile = profile
+        return true
+    }
     /// The store's clock (`clock`, injected by the tests).
     var currentDate: Date { clock() }
     func drawSeed() -> UInt64 { rng.next() }

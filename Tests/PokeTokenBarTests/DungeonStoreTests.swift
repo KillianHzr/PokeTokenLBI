@@ -187,6 +187,46 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertFalse(s.dungeonNeedsAttention)
     }
 
+    /// A Silver Capsule raises the one IV chosen to 31, a Gold Capsule all six; neither is spent for nothing.
+    func testCapsulesRaiseIVs() throws {
+        var low = graduated(143)
+        low.profile = PokemonProfile.generate(seed: 1)
+        low.profile?.ivs = PokemonIVs(hp: 3, attack: 31, defense: 10, specialAttack: 0, specialDefense: 31, speed: 7)
+        var perfect = graduated(130)
+        perfect.profile = PokemonProfile.generate(seed: 2)
+        perfect.profile?.ivs = PokemonIVs(hp: 31, attack: 31, defense: 31, specialAttack: 31, specialDefense: 31, speed: 31)
+        let s = try store(dex: [low, perfect], inventory: [.silverCapsule: 1, .goldCapsule: 1])
+        XCTAssertEqual(s.capsuleCandidates.map(\.id), [low.id], "only an IV under 31 can be raised")
+        XCTAssertFalse(s.useCapsule(.silverCapsule, on: low.id, stat: 1), "Attack is already 31")
+        XCTAssertFalse(s.useCapsule(.silverCapsule, on: perfect.id, stat: 0))
+        XCTAssertFalse(s.useCapsule(.silverCapsule, on: low.id), "a Silver Capsule needs its IV")
+        XCTAssertEqual(s.itemCount(.silverCapsule), 1)
+        XCTAssertTrue(s.useCapsule(.silverCapsule, on: low.id, stat: 3))
+        var ivs = try XCTUnwrap(s.state.dex.first { $0.id == low.id }?.profile?.ivs)
+        XCTAssertEqual([ivs.hp, ivs.attack, ivs.defense, ivs.specialAttack, ivs.specialDefense, ivs.speed], [3, 31, 10, 31, 31, 7])
+        XCTAssertEqual(s.itemCount(.silverCapsule), 0)
+        XCTAssertFalse(s.useCapsule(.silverCapsule, on: low.id, stat: 0), "none left")
+        XCTAssertTrue(s.useCapsule(.goldCapsule, on: low.id))
+        ivs = try XCTUnwrap(s.state.dex.first { $0.id == low.id }?.profile?.ivs)
+        XCTAssertEqual([ivs.hp, ivs.attack, ivs.defense, ivs.specialAttack, ivs.specialDefense, ivs.speed], Array(repeating: 31, count: 6))
+        XCTAssertTrue(s.capsuleCandidates.isEmpty)
+        XCTAssertEqual(s.itemCount(.goldCapsule), 0)
+        // The battle self follows: every IV at 31.
+        let spec = try XCTUnwrap(s.dungeonSpec(try XCTUnwrap(s.state.dex.first { $0.id == low.id }), for: .viridianForest))
+        XCTAssertEqual(spec.stats, BattlerSpec.make(id: "x", speciesID: 143, level: 100, nature: low.nature)?.stats)
+    }
+
+    /// Q23: an Explorer's Chest gives one of the Explorer Kit's treasures and is gone.
+    func testAnExplorersChestHoldsAKitTreasure() throws {
+        let s = try store(dex: strong, inventory: [.explorerChest: 1])
+        let before = Dictionary(uniqueKeysWithValues: [ItemKind.rareCandy, .uncommonEgg, .rareEgg, .legendaryEgg].map { ($0, s.itemCount($0)) })
+        let found = try XCTUnwrap(s.openExplorerChest())
+        XCTAssertEqual(s.itemCount(.explorerChest), 0)
+        XCTAssertTrue([ItemKind.rareCandy, .uncommonEgg, .rareEgg, .legendaryEgg].contains(found.kind))
+        XCTAssertEqual(s.itemCount(found.kind), (before[found.kind] ?? 0) + found.count)
+        XCTAssertNil(s.openExplorerChest(), "no chest left")
+    }
+
     /// R4: a loop is set outside an expedition, a locked move refused until unlocked.
     func testMoveLoopsKeepTheLocks() throws {
         let s = try store(dex: strong)
