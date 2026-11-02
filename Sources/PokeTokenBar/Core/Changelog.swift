@@ -67,6 +67,16 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-02", entries: [
+            .improved("2026-11-02-achievements-in-bag") { l in
+                l.t("업적이 이제 가방 안에 있어요: 탭 하나에서 아이템과 업적을 오가요.",
+                    "Achievements are now in the Bag: one tab for your items and your achievements.",
+                    "実績はバッグの中に移りました。1つのタブでアイテムと実績を切り替えられます。",
+                    "Los logros están ahora en la bolsa: una sola pestaña para tus objetos y tus logros.",
+                    "Les Succès sont maintenant dans le Sac : un seul onglet pour tes objets et tes succès.",
+                    "As conquistas agora ficam na bolsa: uma só aba para seus itens e suas conquistas.",
+                    "Erfolge sind jetzt im Beutel: ein Tab für deine Gegenstände und deine Erfolge.",
+                    "Успехи теперь в сумке: одна вкладка для предметов и успехов.")
+            },
             .new("2026-11-02-dungeons") { l in
                 l.t("던전: 졸업한 포켓몬으로 팀을 꾸려 토큰으로 13개의 던전을 탐험하세요. 자동 전투와 전리품이 있고, 보스를 잡으면 그 알을 받아요.",
                     "Dungeons: send a team of graduated Pokémon to explore 13 dungeons with your tokens. Automatic battles, loot, and a boss to catch for its egg.",

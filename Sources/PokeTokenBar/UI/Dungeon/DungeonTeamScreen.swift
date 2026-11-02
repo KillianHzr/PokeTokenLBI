@@ -33,6 +33,11 @@ struct DungeonTeamScreen: View {
             teamRow(picked, size: size)
             if let focus, let entry = picked.first(where: { $0.id == focus }) {
                 LoopEditor(store: store, entry: entry, dungeon: dungeon, editingSlot: $editingSlot)
+            } else {
+                // What to do next, said where it is done.
+                Text(picked.count < size ? l.dungeonTeamPickHint(compose: l.dungeonComposeForMe) : l.dungeonTeamEditHint)
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             ScrollView {
                 candidateList(size: size, rules: rules, l)
@@ -126,8 +131,12 @@ struct DungeonTeamScreen: View {
             HStack {
                 Text(l.dungeonReachOdds).font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Text(valid ? odds.map { "\(Int(($0 * 100).rounded())) %" } ?? "…" : "-")
-                    .font(.callout.weight(.bold)).monospacedDigit()
+                if valid {
+                    Text(odds.map { "\(Int(($0 * 100).rounded())) %" } ?? "…")
+                        .font(.callout.weight(.bold)).monospacedDigit()
+                } else {
+                    Text(l.dungeonTeamIncomplete).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
             }
             HStack(spacing: 8) {
                 Button(l.dungeonComposeForMe) {

@@ -6,6 +6,8 @@ import SwiftUI
 struct AchievementsView: View {
     let store: CompanionStore
     let nav: PopoverNavigation
+    /// What `BagHubView` leaves under its switch.
+    let height: CGFloat
 
     enum AchievementCategory: Hashable, CaseIterable {
         case evolutionStones
@@ -29,9 +31,10 @@ struct AchievementsView: View {
 
     /// Opens on `category`, on the section of the achievement Home opened (`PopoverNavigation.achievementFocus`), or
     /// on the first section with a reward ready to claim (Stones when none is).
-    init(store: CompanionStore, nav: PopoverNavigation, category: AchievementCategory? = nil) {
+    init(store: CompanionStore, nav: PopoverNavigation, category: AchievementCategory? = nil, height: CGFloat = 520) {
         self.store = store
         self.nav = nav
+        self.height = height
         _selectedCategory = State(initialValue: category ?? nav.achievementFocus.flatMap(Self.category(of:))
             ?? Self.firstCategoryWithRewards(store) ?? .evolutionStones)
     }
@@ -122,9 +125,9 @@ struct AchievementsView: View {
                     withAnimation(.easeOut(duration: 0.6)) { litItem = nil }
                 }
             }
-            // No height of its own: the list takes what the header, banner and picker leave of the 520 pt.
+            // No height of its own: the list takes what the header, banner and picker leave of the height.
         }
-        .frame(height: 520)
+        .frame(height: height)
     }
 
     /// Progress of the section on screen ("1 of 10 completed"), and what counts: graduated Pokémon, not the one
@@ -151,15 +154,11 @@ struct AchievementsView: View {
         let unclaimed = all.ready
 
         return VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(l.achievementsTitle)
-                    .font(.headline.weight(.bold))
-                Spacer()
-                Text(l.achievementsProgress(claimed, total))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
+            // No title: the Bag's switch above names the page.
+            Text(l.achievementsProgress(claimed, total))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
 
             if unclaimed > 0 {
                 HStack(spacing: 8) {

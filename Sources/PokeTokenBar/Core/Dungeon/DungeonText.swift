@@ -7,12 +7,6 @@ extension L {
           "Для подземелий")
     }
 
-    /// A dungeon's egg, on Home while it incubates: the Bag names its Pokémon.
-    var dungeonEggName: String {
-        t("던전의 알", "Dungeon Egg", "ダンジョンのタマゴ", "Huevo de mazmorra", "Œuf de donjon", "Ovo de masmorra",
-          "Dungeon-Ei", "Яйцо из подземелья")
-    }
-
     /// Prof. Oak's note while a team explores: the Pokémon raised waits.
     func oakDungeonPause(_ name: String, _ dungeon: String) -> String {
         t("팀이 \(KoreanParticle.object.attach(to: dungeon)) 탐험하는 동안 \(KoreanParticle.subject.attach(to: name)) 자라지 않아요. 이상한 사탕은 그대로 쓸 수 있어요.",
@@ -347,14 +341,6 @@ extension L {
         t("기록 보기", "See the journal", "記録を見る", "Ver el diario", "Voir le journal", "Ver o diário", "Tagebuch ansehen",
           "Открыть журнал")
     }
-    var dungeonGrowthPaused: String {
-        t("팀이 돌아오면 키우는 포켓몬이 다시 자라요.", "Your Pokémon being raised grows again once the team is back.",
-          "チームが戻ると、育てているポケモンがまた育ちます。", "Tu Pokémon en crianza vuelve a crecer cuando regresa el equipo.",
-          "Ton Pokémon en cours reprend sa croissance au retour de l'équipe.",
-          "Seu Pokémon em criação volta a crescer quando a equipe voltar.",
-          "Dein Pokémon in Aufzucht wächst weiter, sobald das Team zurück ist.",
-          "Растущий покемон продолжит расти, когда команда вернётся.")
-    }
     var dungeonAbandon: String { t("포기", "Give up", "あきらめる", "Abandonar", "Abandonner", "Desistir", "Aufgeben", "Сдаться") }
     var dungeonLeave: String {
         t("던전 나가기", "Leave the dungeon", "ダンジョンを出る", "Salir de la mazmorra", "Quitter le donjon", "Sair da masmorra",
@@ -631,16 +617,6 @@ extension L {
         t("개체값을 31로 올렸어요", "IVs raised to 31", "個体値を31にしました", "IV subidos a 31", "IV montés à 31",
           "IVs elevados a 31", "DV auf 31 erhöht", "IV подняты до 31")
     }
-    var dungeonEggHatches: String {
-        t("계열의 첫 포켓몬이 태어나요. 개체값과 성격은 부화할 때 정해져요.",
-          "Hatches the first Pokémon of its line; IVs and nature are drawn at the hatch.",
-          "進化の最初のポケモンが生まれます。個体値と性格はかえるときに決まります。",
-          "Nace el primer Pokémon de su línea; los IV y la naturaleza se sortean al eclosionar.",
-          "Fait éclore le premier Pokémon de sa lignée ; IV et nature sont tirés à l'éclosion.",
-          "Choca o primeiro Pokémon da linha; IVs e natureza são sorteados ao chocar.",
-          "Schlüpft als erstes Pokémon seiner Linie; DV und Wesen werden beim Schlüpfen gezogen.",
-          "Вылупляется первый покемон линии; IV и характер определяются при вылуплении.")
-    }
     var dungeonEggShiny: String {
         t("이로치 확정", "Shiny guaranteed", "色違い確定", "Variocolor asegurado", "Chromatique garanti", "Brilhante garantido",
           "Schillernd garantiert", "Гарантированно шайни")
@@ -684,5 +660,91 @@ extension L {
         case .hallOfOrigin: t("시작의 방", "Hall of Origin", "はじまりのま", "Sala del Origen", "Salle Originelle",
                               "Salão da Origem", "Saal des Ursprungs", "Зал Истоков")
         }
+    }
+}
+
+// MARK: Home during an expedition, the dungeon eggs' names (02/11 review)
+
+extension L {
+    /// A dungeon egg by the Pokémon it hatches ("Mewtwo Egg"), never "dungeon egg": where it came from goes without saying.
+    func eggOf(_ name: String) -> String {
+        let vowel = name.first.map { "AEIOUYÉÈÊÂÎÔaeiouyéèêâîô".contains($0) } ?? false
+        return t("\(name)의 알", "\(name) Egg", "\(name)のタマゴ", "Huevo de \(name)", vowel ? "Œuf d'\(name)" : "Œuf de \(name)",
+                 "Ovo de \(name)", "\(name)-Ei", "Яйцо: \(name)")
+    }
+
+    /// What is going on while the team explores, said once at the top of its card.
+    var dungeonExploringNow: String {
+        t("팀이 탐험 중이에요. 쓰는 토큰만큼 앞으로 나아가요.", "Your team is exploring: every token you spend moves it on.",
+          "チームが探検中。使ったトークンのぶんだけ先へ進みます。", "Tu equipo explora: cada token que gastas lo hace avanzar.",
+          "Ton équipe explore : chaque token dépensé la fait avancer.", "Sua equipe explora: cada token gasto a faz avançar.",
+          "Dein Team erkundet: Jeder verbrauchte Token bringt es weiter.",
+          "Ваша команда исследует: каждый потраченный токен продвигает её вперёд.")
+    }
+
+    func dungeonBossAt(_ floor: Int) -> String {
+        t("보스: \(floor)층", "Boss on floor \(floor)", "ボス：\(floor)階", "Jefe en el piso \(floor)", "Boss à l'étage \(floor)",
+          "Chefe no andar \(floor)", "Boss auf Ebene \(floor)", "Босс на этаже \(floor)")
+    }
+
+    func dungeonLeftToBoss(_ tokens: String) -> String {
+        t("보스까지 \(tokens) 남음", "\(tokens) left to the boss", "ボスまであと\(tokens)", "Faltan \(tokens) hasta el jefe",
+          "Encore \(tokens) avant le boss", "Faltam \(tokens) até o chefe", "Noch \(tokens) bis zum Boss", "До босса ещё \(tokens)")
+    }
+
+    var dungeonTeamTitle: String { t("팀", "Team", "チーム", "Equipo", "Équipe", "Equipe", "Team", "Команда") }
+
+    var dungeonRecentTitle: String {
+        t("최근 일지", "Latest events", "最近のできごと", "Últimos sucesos", "Derniers événements", "Últimos eventos",
+          "Letzte Ereignisse", "Последние события")
+    }
+
+    /// Under the Pokémon raised, shrunk to a strip while its growth waits for the team.
+    var companionPausedForExpedition: String {
+        t("팀이 돌아올 때까지 일시정지", "Paused until the team is back", "チームが戻るまで一時停止",
+          "En pausa hasta que vuelva el equipo", "En pause jusqu'au retour de l'équipe", "Em pausa até a equipe voltar",
+          "Pausiert, bis das Team zurück ist", "На паузе до возвращения команды")
+    }
+
+    /// The team screen's guidance: how to fill the team, then how to set a member's moves.
+    func dungeonTeamPickHint(compose: String) -> String {
+        t("규칙에 맞는 졸업 포켓몬을 눌러 팀을 꾸리거나 \"\(compose)\"를 눌러요. 다시 누르면 빠져요.",
+          "Click graduated Pokémon that fit the rules to build the team, or use \"\(compose)\". Click again to remove one.",
+          "ルールに合う卒業ポケモンを押してチームを組むか、\"\(compose)\"を押そう。もう一度押すと外れます。",
+          "Pulsa Pokémon graduados que cumplan las reglas para formar el equipo, o usa \"\(compose)\". Púlsalo otra vez para quitarlo.",
+          "Clique sur des Pokémon diplômés qui respectent les règles pour former l'équipe, ou sur \"\(compose)\". Reclique pour en retirer un.",
+          "Clique em Pokémon formados que sigam as regras para montar a equipe, ou use \"\(compose)\". Clique de novo para tirar.",
+          "Klicke verabschiedete Pokémon an, die den Regeln entsprechen, oder nutze \"\(compose)\". Erneut klicken entfernt eines.",
+          "Нажимайте на выпущенных покемонов по правилам, чтобы собрать команду, или на \"\(compose)\". Повторное нажатие убирает.")
+    }
+
+    var dungeonTeamEditHint: String {
+        t("팀원을 누르면 그 포켓몬의 기술 4개를 정할 수 있어요.", "Click a team member to set its four moves.",
+          "チームのポケモンを押すと、4つのわざを決められます。", "Pulsa un miembro del equipo para elegir sus cuatro movimientos.",
+          "Clique sur un membre de l'équipe pour régler ses quatre attaques.", "Clique em um membro da equipe para escolher seus quatro golpes.",
+          "Klicke ein Teammitglied an, um seine vier Attacken festzulegen.", "Нажмите на члена команды, чтобы выбрать его четыре приёма.")
+    }
+
+    var dungeonTeamIncomplete: String {
+        t("팀 미완성", "Team incomplete", "チーム未完成", "Equipo incompleto", "Équipe incomplète", "Equipe incompleta",
+          "Team unvollständig", "Команда не собрана")
+    }
+
+    /// The Dungeons tab's first line: the whole idea, for a player who never sent a team.
+    var dungeonsIntro: String {
+        t("졸업한 포켓몬 팀을 보내면, 쓰는 토큰이 팀을 한 층씩 보스까지 데려가요. 그동안 키우는 포켓몬은 쉬어요.",
+          "Send a team of graduated Pokémon: the tokens you spend take it floor by floor to the boss, while your Pokémon raised rests.",
+          "卒業ポケモンのチームを送り出すと、使ったトークンでボスまで1階ずつ進みます。その間、育てているポケモンはお休み。",
+          "Envía un equipo de Pokémon graduados: los tokens que gastas lo llevan piso a piso hasta el jefe, mientras tu Pokémon descansa.",
+          "Envoie une équipe de Pokémon diplômés : tes tokens la font avancer étage par étage jusqu'au boss, pendant que ton Pokémon en cours se repose.",
+          "Envie uma equipe de Pokémon formados: os tokens gastos a levam andar por andar até o chefe, enquanto seu Pokémon descansa.",
+          "Schicke ein Team verabschiedeter Pokémon los: Deine Tokens bringen es Ebene für Ebene zum Boss, während dein Pokémon ruht.",
+          "Отправьте команду выпущенных покемонов: потраченные токены ведут её этаж за этажом к боссу, пока ваш покемон отдыхает.")
+    }
+
+    /// A dungeon's length in tokens, on its card.
+    func dungeonCost(_ tokens: String) -> String {
+        t("토큰 \(tokens)", "\(tokens) tokens", "\(tokens)トークン", "\(tokens) de tokens", "\(tokens) de tokens", "\(tokens) de tokens",
+          "\(tokens) Tokens", "\(tokens) токенов")
     }
 }

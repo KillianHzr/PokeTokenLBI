@@ -5,6 +5,8 @@ import SwiftUI
 struct BagView: View {
     let store: CompanionStore
     let nav: PopoverNavigation
+    /// The Bag's own height: what `BagHubView` leaves under its switch.
+    var height: CGFloat = 520
     @State private var section: Section = .items
     /// What the last Explorer's Chest held: shown above the items, the chest gone with its last.
     @State private var chestFound: (kind: ItemKind, count: Int)?
@@ -70,7 +72,7 @@ struct BagView: View {
                     }
                 }
             }
-            .frame(height: 520)
+            .frame(height: height)
         }
     }
 

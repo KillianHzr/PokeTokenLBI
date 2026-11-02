@@ -21,6 +21,9 @@ struct DungeonsView: View {
                 }
                 if let expedition = store.expedition {
                     underway(expedition, l)
+                } else {
+                    Text(l.dungeonsIntro).font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 ForEach(shown, id: \.self) { id in
                     DungeonCard(store: store, id: id) { nav.dungeonTeam = id }
@@ -84,7 +87,7 @@ private struct DungeonCard: View {
                         status(unmet: unmet, wins: wins, l)
                     }
                     Text(([l.dungeonTeamSize(size)] + rules.map(l.dungeonRule)
-                          + [TokenFormatter.compact(dungeon.tier.cost(difficulty: store.growthDifficulty))])
+                          + [l.dungeonCost(TokenFormatter.compact(dungeon.tier.cost(difficulty: store.growthDifficulty)))])
                         .joined(separator: " · "))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

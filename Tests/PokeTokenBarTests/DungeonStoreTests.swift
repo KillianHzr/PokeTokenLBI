@@ -187,6 +187,29 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertFalse(s.dungeonNeedsAttention)
     }
 
+    /// Home shrinks the Pokémon raised to a strip only while its growth waits for the team (exploring, the heal); it
+    /// grows again, its card back, as soon as the boss falls or the team loses, the result still shown above it.
+    func testGrowthComesBackWhenTheTeamIsDone() throws {
+        for won in [true, false] {
+            let s = try store(dex: strong)
+            XCTAssertFalse(s.growthPaused)
+            XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+            XCTAssertTrue(s.growthPaused, "exploring")
+            s.changeDungeons { $0.expedition?.phase = .awaitingHeal(price: 1) }
+            XCTAssertTrue(s.growthPaused, "the heal")
+            if won {
+                s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
+                XCTAssertFalse(s.growthPaused, "the boss fell: growth again while the throws wait")
+                s.endCapture()
+            } else {
+                s.abandonExpedition()
+            }
+            XCTAssertNil(s.expedition)
+            XCTAssertFalse(s.growthPaused, won ? "won" : "lost")
+            XCTAssertNotNil(s.dungeonProgress.lastResult, "the result stays above until closed")
+        }
+    }
+
     /// A Silver Capsule raises the one IV chosen to 31, a Gold Capsule all six; neither is spent for nothing.
     func testCapsulesRaiseIVs() throws {
         var low = graduated(143)
@@ -280,7 +303,8 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertNil(s.state.active)
         XCTAssertTrue(s.dungeonProgress.eggs.isEmpty)
         XCTAssertEqual(s.eggKind, .dungeon(149))
-        XCTAssertEqual(s.incubatingEggName, s.l.dungeonEggName)
+        // Named by the Pokémon it hatches, Dratini, never "dungeon egg".
+        XCTAssertEqual(s.incubatingEggName, DungeonEggTitle.text(147, l: s.l, language: s.language))
         s.setEggUsageForTesting(s.eggHatchThreshold)
         await s.hatchIfNeeded()
         XCTAssertEqual(s.state.active?.baseID, 147)

@@ -298,7 +298,7 @@ extension CompanionStore {
         case .birthday: l.itemName(.birthdayEgg)
         case .event(let event): l.itemName(event.item)
         case .fossil: l.itemName(.fossilEgg)
-        case .dungeon: l.dungeonEggName
+        case .dungeon: state.eggFromDungeon.map { DungeonEggTitle.text($0.baseID, l: l, language: language) } ?? l.eggName(nil)
         }
     }
 }

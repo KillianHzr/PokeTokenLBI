@@ -168,6 +168,14 @@ final class AchievementsRenderingTests: XCTestCase {
         }
     }
 
+    /// Five tabs at most (the owner, 2026-11-02): the achievements are in the Bag, which lights up for them.
+    func testTheAchievementsLiveInTheBag() {
+        var tab = PopoverTab.achievements
+        let picker = PopoverTabPicker(tab: Binding(get: { tab }, set: { tab = $0 }), l: L(.en), unclaimedAchievements: 3)
+        XCTAssertEqual(picker.items().map(\.tab), [.home, .shop, .bag, .collection, .dungeons])
+        XCTAssertLessThanOrEqual(picker.items().count, 5)
+    }
+
     private func descendants<T: NSView>(of view: NSView, _ type: T.Type) -> [T] {
         view.subviews.compactMap { $0 as? T } + view.subviews.flatMap { descendants(of: $0, type) }
     }

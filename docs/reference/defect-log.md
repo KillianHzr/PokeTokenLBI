@@ -1781,9 +1781,9 @@ read_when:
 - **A width test counts what it measures from the view, never by hand.** The Dungeons tab made the popover's tab bar
   six labels wide and "Achievements" was cut in English ("Achieveme…"), seen on the PR's renders.
   `testTabBarFitsThePopoverInEveryLanguage` passed: it divided the bar by a literal 5, from the day it guarded the
-  fifth tab. It now divides by `picker.items().count`, which failed in English (56 pt for a 53 pt tab) until the tab
-  took a short label ("Trophies", the trophy it shows; the page keeps "Achievements"). Sweep: the Achievements
-  sections' width test reads its categories from `allCases`.
+  fifth tab. It now divides by `picker.items().count`, which failed in English (56 pt for a 53 pt tab). The owner then
+  asked for five tabs at most: the achievements moved into the Bag tab (`BagHubView`, "Items | Achievements").
+  Sweep: the Achievements sections' width test reads its categories from `allCases`.
 
 - **A line of sprites and words keeps its words whole.** The expedition journal on Home put a battle's kind, three
   sprites a side and "Replay" in one `HStack`: in English "Horde" and "Replay" broke in two (PR renders). The words

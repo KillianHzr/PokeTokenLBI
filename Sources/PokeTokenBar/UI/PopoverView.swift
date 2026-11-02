@@ -19,22 +19,22 @@ struct PopoverTabPicker: View {
     static let minimumLabelScale: CGFloat = 0.8
 
     func items() -> [(tab: PopoverTab, title: String, icon: String)] {
+        // Five tabs: the achievements are in the Bag (`BagHubView`), a sixth tab left no room for the labels.
         [(.home, l.home, "house.fill"), (.shop, l.shop, "cart.fill"), (.bag, l.bag, "bag.fill"),
-         (.collection, l.collection, "books.vertical.fill"), (.achievements, l.achievementsTabLabel, "trophy.fill"),
-         (.dungeons, l.dungeonsTab, "map.fill")]
+         (.collection, l.collection, "books.vertical.fill"), (.dungeons, l.dungeonsTab, "map.fill")]
     }
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(items(), id: \.tab) { item in
-                let selected = tab == item.tab
+                let selected = tab == item.tab || (item.tab == .bag && tab == .achievements)
                 Button { tab = item.tab } label: {
                     VStack(spacing: 3) {
                         Image(systemName: item.icon)
                             .font(.system(size: 14, weight: .semibold))
                             .frame(height: 16)
                             .overlay(alignment: .topTrailing) {
-                                if item.tab == .achievements, unclaimedAchievements > 0 {
+                                if item.tab == .bag, unclaimedAchievements > 0 {
                                     Text("\(unclaimedAchievements)")
                                         .font(.system(size: 8, weight: .bold, design: .rounded))
                                         .foregroundStyle(.white)
@@ -56,8 +56,8 @@ struct PopoverTabPicker: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(item.tab == .achievements ? l.achievementsTab(unclaimed: unclaimedAchievements)
-                                                              : item.title)
+                .accessibilityLabel(item.tab == .bag && unclaimedAchievements > 0
+                                    ? "\(item.title), \(l.achievementsTab(unclaimed: unclaimedAchievements))" : item.title)
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
@@ -603,10 +603,8 @@ struct PopoverView: View {
                 DungeonsView(store: companion, nav: nav)
             } else if nav.tab == .collection {
                 CollectionView(store: companion, navigation: nav)
-            } else if nav.tab == .achievements {
-                AchievementsView(store: companion, nav: nav)
-            } else if nav.tab == .bag {
-                BagView(store: companion, nav: nav)
+            } else if nav.tab == .bag || nav.tab == .achievements {
+                BagHubView(store: companion, nav: nav)
             } else if nav.tab == .shop {
                 ShopView(store: companion, nav: nav)
             } else {
@@ -615,9 +613,15 @@ struct PopoverView: View {
                     VStack(alignment: .leading, spacing: Design.sectionSpacing) {
                         ExpeditionResultCard(store: companion, nav: nav)
                         ExpeditionCard(store: companion, nav: nav)
-                        CompanionHeader(store: companion, onOpenDexEntry: { nav.openDexEntry(collectionID: $0) },
-                                        onOpenBonuses: { nav.showingBonuses = true },
-                                        onOpenAchievement: { nav.openAchievement($0) })
+                        // While a team explores, the Pokémon raised waits as one small line; the card comes back
+                        // with its growth.
+                        if companion.growthPaused {
+                            PausedCompanionStrip(store: companion)
+                        } else {
+                            CompanionHeader(store: companion, onOpenDexEntry: { nav.openDexEntry(collectionID: $0) },
+                                            onOpenBonuses: { nav.showingBonuses = true },
+                                            onOpenAchievement: { nav.openAchievement($0) })
+                        }
                         header
                         providerStatusBanner   // 인시던트 있을 때만 — 한도 가용 여부와 무관(API 다운=한도 nil 케이스에도)
                         if selectedProviderHasLimits {

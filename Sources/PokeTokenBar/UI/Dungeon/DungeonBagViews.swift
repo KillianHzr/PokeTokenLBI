@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A dungeon's egg in the Bag (Q20 B): the line it hatches, shiny when it was, used as the Shop's eggs are.
+/// A dungeon's egg in the Bag (Q20 B): named by the Pokémon it hatches, shiny when it was, used as the Shop's eggs are.
 @MainActor
 struct DungeonEggCard: View {
     let store: CompanionStore
@@ -9,36 +9,53 @@ struct DungeonEggCard: View {
 
     var body: some View {
         let l = store.l
+        let name = DungeonEggTitle.text(egg.baseID, l: l, language: store.language)
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
                 SpriteView(speciesID: nil, size: 30, egg: .dungeon(egg.sourceSpeciesID))
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(l.dungeonEggName).font(.callout.weight(.semibold))
-                        Text("·").foregroundStyle(.secondary)
-                        PokemonNameLabel(.pokemonSpecies, String(egg.baseID), language: store.language)
-                            .font(.callout)
-                        Spacer(minLength: 0)
-                    }
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 3) {
+                    DungeonEggTitle(speciesID: egg.baseID, l: l, language: store.language)
+                        .font(.callout.weight(.semibold)).lineLimit(1)
                     if egg.isShiny { Badge("✦ " + l.dungeonEggShiny.uppercased(), tint: .orange, style: .tinted) }
-                    Text(l.dungeonEggHatches).font(.caption).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                     if store.hasActive {
                         Text(l.eggReleaseNote).font(.caption2).foregroundStyle(.tertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                Spacer(minLength: 0)
             }
             ReleaseForEggControls(store: store, nav: nav, detail: "", actionTitle: l.useItem,
                                   isAvailable: store.canUseDungeonEgg(egg.id), unavailableText: l.useNeedsPokemon,
-                                  confirmText: l.stoneConfirm(store.displayName, l.dungeonEggName),
+                                  confirmText: l.stoneConfirm(store.displayName, name),
                                   lockedHint: store.isRaisingFossilEggPokemon ? l.fossilEggInProgress : nil) {
                 store.useDungeonEgg(egg.id)
             }
         }
         .padding(12)
         .designSurface(cornerRadius: Design.cornerRadius)
+    }
+}
+
+/// "Mewtwo Egg" in the player's language: the Pokémon's name loaded as `PokemonNameLabel` loads it, "…" until then.
+@MainActor
+struct DungeonEggTitle: View {
+    let speciesID: Int
+    let l: L
+    let language: AppLanguage
+    var displayStore = PokemonNameDisplayStore.shared
+
+    static func text(_ speciesID: Int, l: L, language: AppLanguage,
+                     names: PokemonNameDisplayStore.Names = PokemonNameDisplayStore.shared.names) -> String {
+        let item = PokemonNameItem(resource: PokemonNameResource(kind: .pokemonSpecies, name: String(speciesID)))
+        return l.eggOf(PokemonNameText(items: [item], language: language, names: names).text)
+    }
+
+    var body: some View {
+        let resource = PokemonNameResource(kind: .pokemonSpecies, name: String(speciesID))
+        Text(Self.text(speciesID, l: l, language: language, names: displayStore.names))
+            .task(id: resource) {
+                if displayStore.names[resource] == nil { _ = await displayStore.load(resource, provider: PokemonNameClient.shared) }
+            }
     }
 }
 

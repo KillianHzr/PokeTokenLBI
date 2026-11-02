@@ -36,7 +36,10 @@ struct ExpeditionCard: View {
             if case .capture = e.phase {
                 EmptyView()
             } else {
-                Text(l.dungeonBossHidden).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                // Where the boss waits, never who it is (Q17).
+                Label(l.dungeonBossAt(e.floors), systemImage: "crown.fill")
+                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    .hoverTip(l.dungeonBossHidden)
             }
         }
     }
@@ -49,17 +52,29 @@ struct ExpeditionCard: View {
 
     // MARK: Exploring (maquette 3)
 
+    /// What is going on, said once; the floors walked toward the boss; the team; what happened last.
     @ViewBuilder
     private func exploring(_ e: Expedition) -> some View {
+        let floor = min(e.floor, e.floors)
         let have = TokenFormatter.compact(e.floorTokens)
         let need = TokenFormatter.compact(e.floorCost)
-        VStack(alignment: .leading, spacing: 3) {
-            ExpeditionBar(value: Double(e.floorTokens) / Double(max(1, e.floorCost)), color: Design.actionColor, height: 6)
+        let toBoss = (e.floors - floor) * e.floorCost + max(0, e.floorCost - e.floorTokens)
+        Text(l.dungeonExploringNow).font(.caption).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 4) {
+            ExpeditionFloors(floor: floor, floors: e.floors, progress: Double(e.floorTokens) / Double(max(1, e.floorCost)))
             Text(e.floor >= e.floors ? l.dungeonToBoss(have, need) : l.dungeonToNextFloor(have, need, next: e.floor + 1))
                 .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+            if e.floor < e.floors {
+                Text(l.dungeonLeftToBoss(TokenFormatter.compact(toBoss)))
+                    .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+            }
         }
+        sectionLabel(l.dungeonTeamTitle)
         ExpeditionTeamGrid(store: store, team: e.team)
         let rare = e.log.last(where: \.isRare)
+        let recent = e.log.filter { $0.id != rare?.id }.suffix(4).reversed()
+        if rare != nil || !recent.isEmpty { sectionLabel(l.dungeonRecentTitle) }
         if let rare {
             ExpeditionLogRow(store: store, nav: nav, entry: rare, team: e.team)
                 .padding(8)
@@ -71,7 +86,6 @@ struct ExpeditionCard: View {
                     Badge("✦ " + l.dungeonRare.uppercased(), tint: .orange, style: .tinted).padding(4)
                 }
         }
-        let recent = e.log.filter { $0.id != rare?.id }.suffix(4).reversed()
         if !recent.isEmpty {
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(Array(recent)) { entry in
@@ -92,9 +106,11 @@ struct ExpeditionCard: View {
                     .buttonStyle(.borderless).controlSize(.small).font(.caption).foregroundStyle(.secondary)
             }
         }
-        Label(l.dungeonGrowthPaused, systemImage: "pause.circle")
-            .font(.caption2).foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text.uppercased()).font(.caption2.weight(.bold)).tracking(0.6).foregroundStyle(.secondary)
+            .padding(.top, 2)
     }
 
     /// Inline, as the Bag's confirmations: a sheet or an alert left behind by the closing popover would swallow clicks.
@@ -516,7 +532,7 @@ struct ExpeditionResultCard: View {
             ForEach(r.loot.eggs) { egg in
                 HStack(spacing: 6) {
                     SpriteView(speciesID: nil, size: 18, egg: .dungeon(egg.sourceSpeciesID))
-                    Text(l.dungeonEggName).font(.caption)
+                    DungeonEggTitle(speciesID: egg.baseID, l: l, language: store.language).font(.caption)
                     if egg.isShiny { Image(systemName: "sparkles").font(.caption2).foregroundStyle(.secondary) }
                 }
             }
@@ -565,5 +581,67 @@ struct ExpeditionLogScreen: View {
         }
         .padding(PopoverMetrics.padding)
         .frame(height: 520, alignment: .top)
+    }
+}
+
+/// The Pokémon raised (or its egg) while a team explores: one small line under the expedition, its growth paused. The
+/// whole card comes back as soon as the growth does, at the boss's fall or the team's defeat.
+@MainActor
+struct PausedCompanionStrip: View {
+    let store: CompanionStore
+
+    var body: some View {
+        let l = store.l
+        HStack(spacing: 8) {
+            Group {
+                if store.hasActive {
+                    SpriteView(speciesID: store.currentSpeciesID, size: 26, shiny: store.state.active?.isShiny == true,
+                               form: store.currentForm, sameScale: true)
+                } else {
+                    SpriteView(speciesID: nil, size: 26, egg: store.eggKind)
+                }
+            }
+            .frame(width: 30, height: 30)
+            .background(Circle().fill(Color.primary.opacity(0.06)))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(store.displayName).font(.caption.weight(.semibold)).lineLimit(1)
+                Text(l.companionPausedForExpedition).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "pause.circle.fill").font(.callout).foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .designSurface(cornerRadius: Design.cornerRadius)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The dungeon's floors as segments: those walked full, the current one filling with the tokens, the boss's last
+/// under a crown. Full and empty differ by fill, not only by color.
+@MainActor
+struct ExpeditionFloors: View {
+    let floor: Int
+    let floors: Int
+    let progress: Double
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(1...max(1, floors), id: \.self) { n in
+                GeometryReader { geo in
+                    let share = n < floor ? 1 : n == floor ? min(1, max(0, progress)) : 0
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.primary.opacity(0.1))
+                        Capsule().fill(Design.actionColor).frame(width: geo.size.width * share)
+                    }
+                }
+                .frame(height: 6)
+            }
+            Image(systemName: "crown.fill").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+                .padding(.leading, 2)
+                .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityValue("\(floor)/\(floors)")
     }
 }
