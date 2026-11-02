@@ -67,6 +67,16 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-02", entries: [
+            .new("2026-11-02-hatch-luck") { l in
+                l.t("오늘 사용한 토큰 카드에 네잎클로버 버튼이 생겼어요. 모든 부화를 그때의 확률로 다시 돌려 운 지수, 항목별 결과, 추이, 가장 희박했던 뽑기를 보여 줘요.",
+                    "A four-leaf clover on the Today's tokens card opens your hatch luck: every hatch replayed with the odds of its moment, a luck score, each criterion, its curves and your most unlikely draws.",
+                    "本日のトークンのカードに四つ葉のクローバーが加わりました。すべての孵化をその時の確率で振り返り、運スコア、項目別の結果、推移、最もありえなかった抽選を表示します。",
+                    "Un trébol de cuatro hojas en la tarjeta Tokens de hoy abre tu suerte al eclosionar: cada eclosión repasada con las probabilidades de su momento, un índice de suerte, cada criterio, sus curvas y tus sorteos más improbables.",
+                    "Un trèfle à quatre feuilles sur la carte Tokens du jour ouvre ta chance au tirage : chaque éclosion rejouée avec les chances de son moment, un indice de chance, chaque critère, ses courbes et tes tirages les plus improbables.",
+                    "Um trevo de quatro folhas no cartão Tokens de hoje abre sua sorte nas eclosões: cada eclosão refeita com as chances do seu momento, um índice de sorte, cada critério, suas curvas e seus sorteios mais improváveis.",
+                    "Ein vierblättriges Kleeblatt auf der Karte Heute verbrauchte Tokens öffnet dein Schlüpfglück: jeder Schlupf mit den Chancen seines Moments nachgespielt, ein Glückswert, jedes Kriterium, sein Verlauf und deine unwahrscheinlichsten Ziehungen.",
+                    "Четырёхлистный клевер на карточке «Токены за сегодня» открывает твою удачу при вылуплении: каждое вылупление пересчитано с шансами своего момента, индекс удачи, каждый критерий, графики и самые невероятные выпадения.")
+            },
             .improved("2026-11-02-candy-100m") { l in
                 let candy = l.itemName(.rareCandy)
                 return l.t("\(candy) 하나가 이제 75M 대신 100M 경험치를 줘요.",

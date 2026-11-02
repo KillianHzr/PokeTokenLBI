@@ -117,6 +117,10 @@ final class PopoverNavigation {
     var showingCalendar = false { didSet { if showingCalendar { dexDetailCollectionID = nil } } }
     /// Prof. Oak's details page (`OakAdviceScreen`) too.
     var showingOakDetails = false { didSet { if showingOakDetails { dexDetailCollectionID = nil } } }
+    /// The Luck screen (`LuckScreen`) too, on one of its tabs; it reopens on its summary.
+    var showingLuck = false { didSet { if showingLuck { dexDetailCollectionID = nil } } }
+    enum LuckTab: Hashable, CaseIterable { case summary, curves, hatches }
+    var luckTab: LuckTab = .summary
     /// The changelog entries seen before it was opened: the others are marked new on it.
     var changelogSeenBefore: Set<String> = []
     /// The Collection tab's open Pokédex detail page (`DexSpecies.collectionID`); nil = grid or log.
@@ -170,6 +174,8 @@ final class PopoverNavigation {
         showingIdeas = false
         showingCalendar = false
         showingOakDetails = false
+        showingLuck = false
+        luckTab = .summary
         tab = .home
     }
 
@@ -255,6 +261,8 @@ struct PopoverView: View {
                 EventCalendarScreen(store: companion) { nav.showingCalendar = false }
             } else if nav.showingOakDetails {
                 OakAdviceScreen(store: companion) { nav.showingOakDetails = false }
+            } else if nav.showingLuck {
+                LuckScreen(store: companion, nav: nav) { nav.showingLuck = false }
             } else {
                 mainContent
             }
@@ -620,6 +628,9 @@ struct PopoverView: View {
                 Spacer()
                 CircleIconButton(systemImage: "wand.and.stars", help: l.bonusOpen) { nav.showingBonuses = true }
                 CircleIconButton(systemImage: "chart.bar.xaxis", help: l.statsTitle) { nav.showingRecap = true }
+                CircleIconButton(help: l.luckTitle) { nav.showingLuck = true } glyph: {
+                    FourLeafClover().frame(width: 13.5, height: 13.5)
+                }
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(TokenFormatter.compact(store.todayTotalTokens))

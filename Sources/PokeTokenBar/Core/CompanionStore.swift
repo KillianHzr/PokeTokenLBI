@@ -3913,6 +3913,24 @@ final class CompanionStore {
         hatchIndex = full
     }
 
+    /// The Luck screen's replay (`loadHatchLuck`), and the Pokédex it replayed.
+    private(set) var hatchLuck: HatchLuck?
+    @ObservationIgnored private var hatchLuckEntries: [DexEntry]?
+
+    /// Replays every hatch off the main thread once the species index is loaded, again only when the Pokédex changed.
+    func loadHatchLuck() async {
+        let entries = dexEntries
+        await loadHatchIndex()
+        guard let index = hatchIndex, entries != hatchLuckEntries else { return }
+        let today = state, includesActive = state.active != nil, now = clock()
+        let luck = await Task.detached(priority: .userInitiated) {
+            HatchLuck(entries: entries, includesActive: includesActive, today: today, index: index, now: now)
+        }.value
+        guard dexEntries == entries else { return }
+        hatchLuck = luck
+        hatchLuckEntries = entries
+    }
+
     /// One rarity's share of an egg's pool, by weight.
     struct RarityShare: Equatable, Sendable {
         let rarity: Rarity

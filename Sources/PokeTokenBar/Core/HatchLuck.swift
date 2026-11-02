@@ -23,6 +23,8 @@ struct HatchLuck: Sendable {
         let entry: DexEntry
         let isActive: Bool
         let isDitto: Bool
+        /// Its line's rarity in the species index.
+        let rarity: Rarity
         /// The record's egg, the player's choice, or a Pokémon Egg after a graduation; nil when unknown.
         let egg: HatchEgg?
         let eggChosenByPlayer: Bool
@@ -223,7 +225,8 @@ struct HatchLuck: Sendable {
         } else {
             judged[.shiny] = Judgement(odds: shiny, hit: entry.isShiny)
         }
-        return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, egg: egg, eggChosenByPlayer: chosen,
+        return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, rarity: rarity, egg: egg,
+                     eggChosenByPlayer: chosen,
                      possibleEggs: egg == nil ? eggs : [], rarityOdds: rarityOdds, bringsNew: new,
                      newOdds: isDitto ? nil : range { new ? $0.new : 1 - $0.new },
                      lineOdds: egg == nil ? nil : all.first.map { isDitto ? $0.ditto : $0.line }, judged: judged)
@@ -232,6 +235,33 @@ struct HatchLuck: Sendable {
     /// The three draws least likely, from eggs known.
     var improbable: [Hatch] {
         Array(hatches.filter { ($0.lineOdds ?? 0) > 0 }.sorted { $0.lineOdds! < $1.lineOdds! }.prefix(3))
+    }
+
+    /// The criteria the player did best and worst on, the first of those tied.
+    var strongest: CriterionResult? { criteria.max { $0.percentile < $1.percentile } }
+    var weakest: CriterionResult? { criteria.min { $0.percentile < $1.percentile } }
+
+    /// +1 when a hatch raised the score by half a point or more, as shown to a tenth; -1 when it lowered it as much.
+    static func effectDirection(_ effect: Double) -> Int {
+        let shown = (effect * 10).rounded() / 10
+        return shown >= 0.5 ? 1 : shown <= -0.5 ? -1 : 0
+    }
+
+    struct Wait: Equatable, Sendable {
+        enum Unit: Sendable { case day, week, month, year }
+        let count: Int
+        let unit: Unit
+    }
+
+    /// How long drawing something of `odds` takes on average at `perWeek` hatches a week: in days under two weeks,
+    /// weeks under three months, months under two years.
+    static func averageWait(odds: Double, perWeek: Double) -> Wait {
+        let day = 86_400.0, week = 7 * day, year = 365.25 * day, month = year / 12
+        let time = 1 / odds / perWeek * week
+        let (unit, size): (Wait.Unit, Double) = (time / day).rounded() < 14 ? (.day, day)
+            : time < 3 * month ? (.week, week)
+            : (time / month).rounded() < 24 ? (.month, month) : (.year, year)
+        return Wait(count: max(1, Int((time / size).rounded())), unit: unit)
     }
 
     /// The Luck score: the criteria's mean percentile, out of 100.
