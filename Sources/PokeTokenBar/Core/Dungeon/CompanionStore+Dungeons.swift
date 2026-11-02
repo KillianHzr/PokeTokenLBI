@@ -6,6 +6,14 @@ extension CompanionStore {
     var expedition: Expedition? { state.dungeons.expedition }
     var dungeonProgress: DungeonProgress { state.dungeons }
 
+    /// Q1: while a team explores or waits for its heal, the Pokémon raised and the egg do not grow.
+    var growthPaused: Bool {
+        switch expedition?.phase {
+        case .exploring?, .awaitingHeal?: true
+        default: false
+        }
+    }
+
     private var expeditionContext: ExpeditionContext? {
         expedition.map { ExpeditionContext(tier: DungeonCatalog.dungeon($0.dungeon).tier,
                                            shinyDenominator: Int(shinyDenominator), now: currentDate) }

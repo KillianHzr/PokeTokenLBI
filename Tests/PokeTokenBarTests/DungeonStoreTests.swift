@@ -101,6 +101,7 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(s.state.active?.usedAtStage, growth, "growth pauses")
         XCTAssertEqual(s.expedition?.tokensIn, 1_000_000)
         XCTAssertEqual(s.availableTokens, 1_000_000, "the Shop still counts them")
+        XCTAssertTrue(s.growthPaused, "Prof. Oak reads the pause")
     }
 
     /// The whole dungeon walked: the boss falls to a strong team, the throws end it, its loot goes to the Bag with

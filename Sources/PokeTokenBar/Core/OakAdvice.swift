@@ -213,7 +213,8 @@ extension CompanionStore {
         mon.stageIndex = stage
         let thresholdSpeed = 1 + Self.bonusSum(thresholdGrowthFactors(for: mon))
         return SpareGrowth(thresholds: thresholds, grown: thresholds.prefix(stage).reduce(used, +),
-                           perToken: (thresholdSpeed + Self.bonusSum(tokenGrowthFactors)) / thresholdSpeed)
+                           // A team in a dungeon takes the tokens: the Pokémon raised does not grow meanwhile (Q1).
+                           perToken: growthPaused ? 0 : (thresholdSpeed + Self.bonusSum(tokenGrowthFactors)) / thresholdSpeed)
     }
 
     /// What the Old Amber carries on average to what `egg` hatches, `stage` grown at the Spare's stage: half of it, short

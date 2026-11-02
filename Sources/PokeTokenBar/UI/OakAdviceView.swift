@@ -25,6 +25,11 @@ struct OakAdviceCard: View {
                     OakBust().frame(width: Self.bustWidth).frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                         .clipped()
                 }
+            if let pause = words.pauseNote {
+                Label(pause, systemImage: "pause.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             stepList(l, words)
             Button { nav.showingOakDetails = true } label: {
                 HStack(spacing: 4) {
@@ -198,6 +203,11 @@ struct OakAdviceScreen: View {
                     VStack(alignment: .leading, spacing: 4) {
                         OakVerdictLabel(store: store, verdict: words.verdict)
                         Text(words.verdictInFull).font(.callout).fixedSize(horizontal: false, vertical: true)
+                        if let pause = words.pauseNote {
+                            Label(pause, systemImage: "pause.circle")
+                                .font(.caption).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     ForEach(Array(words.steps.enumerated()), id: \.offset) { index, step in
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -260,6 +270,12 @@ private struct OakWords {
 
     private var l: L { store.l }
     private var name: String { store.displayName }
+
+    /// While a team explores, what Oak says of the growth: paused until it is back (Q1).
+    var pauseNote: String? {
+        guard store.growthPaused, let dungeon = store.expedition?.dungeon else { return nil }
+        return verdict == nil ? l.oakDungeonPauseEgg(l.dungeonName(dungeon)) : l.oakDungeonPause(name, l.dungeonName(dungeon))
+    }
 
     /// One sentence: what to do with a Spare, else what the Pokémon brings.
     var bubble: String {

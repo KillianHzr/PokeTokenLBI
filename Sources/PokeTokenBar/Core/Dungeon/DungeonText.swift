@@ -13,6 +13,29 @@ extension L {
           "Dungeon-Ei", "Яйцо из подземелья")
     }
 
+    /// Prof. Oak's note while a team explores: the Pokémon raised waits.
+    func oakDungeonPause(_ name: String, _ dungeon: String) -> String {
+        t("팀이 \(KoreanParticle.object.attach(to: dungeon)) 탐험하는 동안 \(KoreanParticle.subject.attach(to: name)) 자라지 않아요. 이상한 사탕은 그대로 쓸 수 있어요.",
+          "While your team explores \(dungeon), \(name) doesn't grow. Rare Candies still work.",
+          "チームが\(dungeon)を探検しているあいだ、\(name)は育ちません。ふしぎなアメは使えます。",
+          "Mientras tu equipo explora \(dungeon), \(name) no crece. Los Caramelos Raros siguen funcionando.",
+          "Tant que ton équipe explore \(dungeon), \(name) ne grandit pas. Les Super Bonbons marchent toujours.",
+          "Enquanto sua equipe explora \(dungeon), \(name) não cresce. Os Doces Raros continuam funcionando.",
+          "Solange dein Team \(dungeon) erkundet, wächst \(name) nicht. Sonderbonbons wirken weiterhin.",
+          "Пока команда исследует \"\(dungeon)\", \(name) не растёт. Редкие конфеты по-прежнему работают.")
+    }
+
+    func oakDungeonPauseEgg(_ dungeon: String) -> String {
+        t("팀이 \(KoreanParticle.object.attach(to: dungeon)) 탐험하는 동안 알은 부화하지 않아요.",
+          "While your team explores \(dungeon), your egg doesn't hatch.",
+          "チームが\(dungeon)を探検しているあいだ、タマゴはかえりません。",
+          "Mientras tu equipo explora \(dungeon), tu huevo no eclosiona.",
+          "Tant que ton équipe explore \(dungeon), ton œuf n'éclot pas.",
+          "Enquanto sua equipe explora \(dungeon), seu ovo não choca.",
+          "Solange dein Team \(dungeon) erkundet, schlüpft dein Ei nicht.",
+          "Пока команда исследует \"\(dungeon)\", яйцо не вылупляется.")
+    }
+
     /// The places' official names (Q26).
     func dungeonName(_ id: DungeonID) -> String {
         switch id {
