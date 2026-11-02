@@ -1782,7 +1782,7 @@ read_when:
   six labels wide and "Achievements" was cut in English ("Achieveme…"), seen on the PR's renders.
   `testTabBarFitsThePopoverInEveryLanguage` passed: it divided the bar by a literal 5, from the day it guarded the
   fifth tab. It now divides by `picker.items().count`, which failed in English (56 pt for a 53 pt tab). The owner then
-  asked for five tabs at most: the achievements moved into the Bag tab (`BagHubView`, "Items | Achievements").
+  asked for five tabs at most: the Bag and the achievements share a Trainer tab (`BagHubView`, "Bag | Achievements").
   Sweep: the Achievements sections' width test reads its categories from `allCases`.
 
 - **A line of sprites and words keeps its words whole.** The expedition journal on Home put a battle's kind, three

@@ -1694,6 +1694,8 @@ struct L {
 
     // MARK: 가방 / 아이템
     var bag: String { t("가방", "Bag", "バッグ", "Bolsa", "Sac", "Bolsa", "Beutel", "Сумка") }
+    /// The tab holding the Bag and the achievements, earned or not: the trainer's, as the games' Trainer Card.
+    var trainerTab: String { t("트레이너", "Trainer", "トレーナー", "Entrenador", "Dresseur", "Treinador", "Trainer", "Тренер") }
     /// The Bag's first section: Shop items, candies, mints and stones.
     var bagItemsTitle: String { t("아이템", "Items", "アイテム", "Artículos", "Objets", "Itens", "Gegenstände", "Предметы") }
     /// One line above the Bag's badges, instead of each badge repeating it.

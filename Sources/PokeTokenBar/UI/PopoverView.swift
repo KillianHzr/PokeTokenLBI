@@ -19,8 +19,8 @@ struct PopoverTabPicker: View {
     static let minimumLabelScale: CGFloat = 0.8
 
     func items() -> [(tab: PopoverTab, title: String, icon: String)] {
-        // Five tabs: the achievements are in the Bag (`BagHubView`), a sixth tab left no room for the labels.
-        [(.home, l.home, "house.fill"), (.shop, l.shop, "cart.fill"), (.bag, l.bag, "bag.fill"),
+        // Five tabs: the Bag and the achievements share the Trainer tab (`BagHubView`), a sixth left no room.
+        [(.home, l.home, "house.fill"), (.shop, l.shop, "cart.fill"), (.bag, l.trainerTab, "person.fill"),
          (.collection, l.collection, "books.vertical.fill"), (.dungeons, l.dungeonsTab, "map.fill")]
     }
 

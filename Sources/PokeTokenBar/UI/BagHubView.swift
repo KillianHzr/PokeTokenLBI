@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The Bag tab: what the player holds, and the achievements that fill it, under one switch. Six tabs left the labels
-/// no room, and the achievements' rewards land in the Bag anyway. `PopoverTab.achievements` is this tab on its
-/// achievements, so Home's goals and the claim notices still open them.
+/// The Trainer tab: the Bag, what the player holds, and the achievements, earned or not, under one switch ("Bag |
+/// Achievements"). Six tabs left the labels no room; achievements not earned yet are not in a bag, hence the trainer's.
+/// `PopoverTab.bag` is this tab on its Bag, `.achievements` on its achievements, so Home's goals and the claim notices
+/// still open them.
 @MainActor
 struct BagHubView: View {
     let store: CompanionStore
@@ -18,7 +19,7 @@ struct BagHubView: View {
         let height = 520 - Self.switchHeight - Self.gap
         VStack(alignment: .leading, spacing: Self.gap) {
             HStack(spacing: 0) {
-                part(.bag, title: l.bagItemsTitle, icon: "bag.fill", count: 0)
+                part(.bag, title: l.bag, icon: "bag.fill", count: 0)
                 part(.achievements, title: l.achievements, icon: "trophy.fill", count: ready)
             }
             .frame(height: Self.switchHeight)

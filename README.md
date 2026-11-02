@@ -41,7 +41,7 @@ PokeTokenBar turns the AI coding tokens you're already burning — Claude Code, 
 3. ⚡ **Evolve.** Keep coding and it grows through its actual evolution tree (1/2/3 stages, branching), with a little flash celebration at each step.
 4. 🎓 **Graduate & collect.** Final form + threshold permanently archives it in your **Pokédex**: rarer takes longer (≈7 hours common, ≈2.4 days legendary at about 250M tokens a day), and a fresh egg arrives. Home shows the time to the next stage at your pace, and the Pokédex keeps a raising record of each Pokémon (hatch, graduation, tokens by tool, main model, candies, cost).
 5. 🍬 **Use your plan, get candies.** Your 5-hour and weekly usage limits pay **Rare Candy** as they fill, at the same pace on every plan, and each limit shows the candies its window paid. Tools without limit windows (Cursor, Gemini CLI…) pay one every 65M tokens. Spend them from the **Bag** to grow your current Pokémon.
-6. 🛒 **Spend at the Shop.** Every token you've used is spendable currency: buy **Rare Candy**, a **Shiny Charm** that permanently raises your shiny odds, or an egg that waits in the **Bag** until you send your companion off for it. Eggs come in three grades, each with its odds shown: a plain **Pokémon Egg**, an **Uncommon Egg** guaranteed to hatch Uncommon or better, and a **Rare Egg** guaranteed to hatch Rare or better. Once your Pokédex holds the Pokémon they ask for, **evolution stones**, **legendary artifacts** and **gym badges** can be claimed for free from the **Achievements** in the Bag.
+6. 🛒 **Spend at the Shop.** Every token you've used is spendable currency: buy **Rare Candy**, a **Shiny Charm** that permanently raises your shiny odds, or an egg that waits in the **Bag** until you send your companion off for it. Eggs come in three grades, each with its odds shown: a plain **Pokémon Egg**, an **Uncommon Egg** guaranteed to hatch Uncommon or better, and a **Rare Egg** guaranteed to hatch Rare or better. Once your Pokédex holds the Pokémon they ask for, **evolution stones**, **legendary artifacts** and **gym badges** can be claimed for free from the **Achievements** in the **Trainer** tab.
 
 ## Tour
 
@@ -162,7 +162,7 @@ Reset countdowns include the clock time, and the colored percentage stays aligne
 
 ## Collector items
 
-Each collector item stays **locked** until you register the Pokémon it asks for in your Pokédex: graduated or released Pokémon count, and so do the stages your current Pokémon has reached. Every collector item is then claimed for free from the **Achievements** in the Bag, whose tab counts the rewards ready to claim. There, a locked card shows the Pokémon it needs, greyed out until registered; once claimed, the card keeps the goal as a small reminder.
+Each collector item stays **locked** until you register the Pokémon it asks for in your Pokédex: graduated or released Pokémon count, and so do the stages your current Pokémon has reached. Every collector item is then claimed for free from the **Achievements** in the **Trainer** tab, which counts the rewards ready to claim. There, a locked card shows the Pokémon it needs, greyed out until registered; once claimed, the card keeps the goal as a small reminder.
 
 ### Evolution Stones
 
@@ -185,7 +185,7 @@ The first nine stones follow the generations in order: each one asks for a regio
 
 ### Legendary Artifacts
 
-Claimed once from the **Achievements** (in the Bag), active for as long as they sit in the Bag.
+Claimed once from the **Achievements** (in the **Trainer** tab), active for as long as they sit in the Bag.
 
 | Artifact | Sprite | Unlocks with | Effect |
 | :--- | :---: | :--- | :--- |
@@ -255,7 +255,7 @@ Only the Azure Flute and the Oval Charm change which Pokémon hatch, and the Ova
 
 ### Gym Badges
 
-Every badge has a **region per generation**: register every Pokémon of its type from that region to complete it, then claim it from the **Achievements** in the Bag (each badge card shows its nine regions: claimed, ready or in progress). Each claimed region makes the Pokémon weak to the badge's type grow 2.5% faster, so a badge with all nine regions gives 22.5%; Dark has no Kanto Pokémon, so its badge has eight regions (20%). Bonuses stack when a Pokémon is weak to several badges. Badges claimed before regions existed count as their Kanto region (Johto for Dark). Each badge also gives Arceus the Plate of its type: Arceus hatches in its Normal form, and once it is in your Pokédex every badge with a claimed region unlocks the matching form (Fire Arceus with the Volcano Badge), shown under each form in its Pokédex page.
+Every badge has a **region per generation**: register every Pokémon of its type from that region to complete it, then claim it from the **Achievements** in the **Trainer** tab (each badge card shows its nine regions: claimed, ready or in progress). Each claimed region makes the Pokémon weak to the badge's type grow 2.5% faster, so a badge with all nine regions gives 22.5%; Dark has no Kanto Pokémon, so its badge has eight regions (20%). Bonuses stack when a Pokémon is weak to several badges. Badges claimed before regions existed count as their Kanto region (Johto for Dark). Each badge also gives Arceus the Plate of its type: Arceus hatches in its Normal form, and once it is in your Pokédex every badge with a claimed region unlocks the matching form (Fire Arceus with the Volcano Badge), shown under each form in its Pokédex page.
 
 | Badge | Sprite | Type | Pokémon per region | Boosts Pokémon weak to it |
 | :--- | :---: | :---: | :--- | :--- |
