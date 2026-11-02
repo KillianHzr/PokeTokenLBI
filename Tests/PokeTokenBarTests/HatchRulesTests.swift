@@ -25,10 +25,11 @@ final class HatchRulesTests: XCTestCase {
         XCTAssertEqual(HatchRules(rolledAt: date("2026-10-14 12:00", paris), timeZone: paris).changes, [])
         XCTAssertEqual(HatchRules(rolledAt: date("2026-10-19 23:59", paris), timeZone: paris).changes, [.forms])
         XCTAssertEqual(HatchRules(rolledAt: date("2026-10-20 00:00", paris), timeZone: paris).changes,
-                       [.forms, .laterGenerations, .unbreedableLegendariesLikeMewtwo])
+                       [.forms, .laterGenerations, .unbreedableLegendariesLikeMewtwo, .collectorItems])
         XCTAssertEqual(HatchRules(rolledAt: date("2026-10-27 00:00", paris), timeZone: paris), .current)
         XCTAssertEqual(HatchRules(rolledAt: nil), .current, "a roll of unknown date")
         let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        XCTAssertEqual(HatchRules.Change.charms.start(in: tokyo), date("2026-10-21 00:00", tokyo))
         XCTAssertTrue(HatchRules(rolledAt: date("2026-10-19 23:59", paris), timeZone: tokyo).has(.laterGenerations),
                       "already the 20th in Tokyo")
     }

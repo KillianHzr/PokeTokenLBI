@@ -83,18 +83,4 @@ final class HatchEggChoiceTests: XCTestCase {
         s.chooseHatchEgg(.tier(.rare), forEntry: try XCTUnwrap(s.dexEntries.last?.id))
         XCTAssertEqual(s.state.active?.hatch, noted)
     }
-
-    /// A draw item's date counts for the eggs started after it, and the replay follows it.
-    func testTheDateOfADrawItem() async throws {
-        let s = try store([entry(16, days: 9, released: true), entry(10, days: 5), entry(16, days: 2)])
-        s.setDrawItemSince(.shinyCharm, Self.now)
-        await s.loadHatchLuck()
-        let before = try XCTUnwrap(s.hatchLuck?.hatches[2].judged[.shiny]?.odds)
-        s.setDrawItemSince(.shinyCharm, Self.now.addingTimeInterval(-6 * 86_400))
-        XCTAssertEqual(relaunched().state.drawItemsSince[ItemKind.shinyCharm.rawValue], Self.now.addingTimeInterval(-6 * 86_400))
-        await s.loadHatchLuck()
-        XCTAssertGreaterThan(try XCTUnwrap(s.hatchLuck?.hatches[2].judged[.shiny]?.odds), before)
-        s.setDrawItemSince(.shinyCharm, nil)
-        XCTAssertNil(s.state.drawItemsSince[ItemKind.shinyCharm.rawValue])
-    }
 }

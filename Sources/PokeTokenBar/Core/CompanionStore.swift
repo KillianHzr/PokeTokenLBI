@@ -2341,12 +2341,15 @@ final class CompanionStore {
     /// The collection the Oval and Glimmering Charms' achievements count: graduated Pokémon only.
     var graduatedCollectionProgress: CollectionProgress { collectionProgress(graduatedOnly: true) }
 
-    private func collectionProgress(graduatedOnly: Bool) -> CollectionProgress {
-        let ids = graduatedOnly ? graduatedSpeciesIDs : registeredSpeciesIDs
+    private func collectionProgress(graduatedOnly: Bool, of s: CompanionState? = nil) -> CollectionProgress {
+        let s = s ?? state
+        let ids = graduatedOnly ? s.graduatedSpeciesIDs : registeredSpeciesIDs
         let species = ids.filter(PokemonAssets.animatedSpeciesIDs.contains)
-        let forms = species.reduce(0) {
-            let collected = state.collectedForms(speciesID: $1, graduatedOnly: graduatedOnly)
-            return $0 + (PokemonForm.hasForms(speciesID: $1) ? max(1, collected.count) : 1)
+        let graduated = graduatedOnly ? GraduatedForms(s.dex) : nil
+        let forms = species.reduce(0) { total, id in
+            let collected = graduated.map { s.graduatedForms(speciesID: id, $0) }
+                ?? s.collectedForms(speciesID: id, graduatedOnly: false)
+            return total + (PokemonForm.hasForms(speciesID: id) ? max(1, collected.count) : 1)
         }
         return CollectionProgress(species: species.count, speciesTotal: PokemonAssets.animatedSpeciesIDs.count,
                                   forms: forms, formsTotal: Self.collectableFormCount,
@@ -2376,11 +2379,7 @@ final class CompanionStore {
     /// Silvally's Memories won so far by graduated Pokémon, out of `PokemonForm.memoryTypes`.
     var silvallyMemoryCount: Int { state.graduatedSilvallyMemoryTypes.count }
 
-    /// Most graduated copies of a single legendary species (released copies excluded).
-    var graduatedLegendaryCopies: Int {
-        let graduated = state.dex.filter { $0.rarity == .legendary && !$0.isReleased }
-        return Dictionary(grouping: graduated, by: \.finalID).values.map(\.count).max() ?? 0
-    }
+    var graduatedLegendaryCopies: Int { state.graduatedLegendaryCopies }
 
     /// One regional tier of an achievement: a gym badge's type from one generation, or every species of a
     /// generation for the Legendary Egg.
@@ -2472,23 +2471,42 @@ final class CompanionStore {
         state.claimedAchievements.contains(CompanionState.regionTierKey(kind, generation: generation))
     }
 
-    /// Whether this item's achievement goal is met, counting graduated Pokémon only. Items without a Pokédex
-    /// condition are always unlocked. For a regional achievement: one of its regional tiers is complete.
-    func isUnlocked(_ kind: ItemKind, registered: Set<Int>? = nil) -> Bool {
+    /// Whether this item's achievement goal is met, counting graduated Pokémon only, in the save or in `s`. Items
+    /// without a Pokédex condition are always unlocked. For a regional achievement: one of its regional tiers is complete.
+    func isUnlocked(_ kind: ItemKind, registered: Set<Int>? = nil, in s: CompanionState? = nil) -> Bool {
+        let s = s ?? state
         switch kind.unlock {
         case nil: return true
-        case .duplicateLegendary: return graduatedLegendaryCopies >= 2
-        case .silvallyMemories: return silvallyMemoryCount >= PokemonForm.memoryTypes.count
+        case .duplicateLegendary: return s.graduatedLegendaryCopies >= 2
+        case .silvallyMemories: return s.graduatedSilvallyMemoryTypes.count >= PokemonForm.memoryTypes.count
         case .allSpecies:
-            let progress = graduatedCollectionProgress
+            let progress = collectionProgress(graduatedOnly: true, of: s)
             return progress.species >= progress.speciesTotal
         case .allForms:
-            let progress = graduatedCollectionProgress
+            let progress = collectionProgress(graduatedOnly: true, of: s)
             return progress.forms >= progress.formsTotal
-        case .allPikachuCostumes: return state.pikachuCostumes.count >= PikachuCostume.allCases.count
-        case .forms(let goal): return formProgress(goal).isMet
-        case .species: return unlockProgress(of: kind, registered: registered).contains(where: \.isMet)
+        case .allPikachuCostumes: return s.pikachuCostumes.count >= PikachuCostume.allCases.count
+        case .forms(let goal): return formProgress(goal, of: s).isMet
+        case .species:
+            return unlockProgress(of: kind, registered: registered ?? s.graduatedSpeciesIDs).contains(where: \.isMet)
         }
+    }
+
+    /// The graduation that first met an item's condition, the Pokédex read back to each date; nil while unmet.
+    func unlockedAt(_ kind: ItemKind) -> Date? {
+        let dates = Set(state.dex.compactMap(\.caughtAt)).sorted()
+        func met(_ i: Int) -> Bool {
+            var s = state
+            s.dex = state.dex.filter { $0.caughtAt.map { $0 <= dates[i] } ?? false }
+            return isUnlocked(kind, in: s)
+        }
+        guard !dates.isEmpty, met(dates.count - 1) else { return nil }
+        var (low, high) = (0, dates.count - 1)
+        while low < high {
+            let mid = (low + high) / 2
+            if met(mid) { high = mid } else { low = mid + 1 }
+        }
+        return dates[low]
     }
 
     /// The forms of a forms achievement graduated, in the goal's order.
@@ -2499,8 +2517,8 @@ final class CompanionStore {
         var isMet: Bool { count >= goal.forms.count }
     }
 
-    func formProgress(_ goal: FormGoal) -> FormProgress {
-        let graduated = state.collectedForms(speciesID: goal.speciesID, graduatedOnly: true)
+    func formProgress(_ goal: FormGoal, of s: CompanionState? = nil) -> FormProgress {
+        let graduated = (s ?? state).collectedForms(speciesID: goal.speciesID, graduatedOnly: true)
         return FormProgress(goal: goal, graduated: goal.forms.filter(graduated.contains))
     }
 
@@ -3917,15 +3935,14 @@ final class CompanionStore {
     private(set) var hatchLuck: HatchLuck?
     @ObservationIgnored private var replayedLuckInputs: LuckInputs?
 
-    /// What the replay depends on: the Pokédex, and since when the player owns their draw items (`drawItemSince`).
+    /// What the replay depends on: the Pokédex, and the draw items owned, dated from it (`drawItemSince`).
     struct LuckInputs: Equatable {
         let entries: [DexEntry]
-        let itemsSince: [String: Date]
+        let drawItems: [ItemKind]
     }
 
     var luckInputs: LuckInputs {
-        let since = ItemKind.drawItems.compactMap { item in drawItemSince(item).map { (item.rawValue, $0) } }
-        return LuckInputs(entries: dexEntries, itemsSince: Dictionary(uniqueKeysWithValues: since))
+        LuckInputs(entries: dexEntries, drawItems: ItemKind.drawItems.filter { itemCount($0) > 0 })
     }
 
     /// Replays every hatch off the main thread once the species index is loaded, again only when its inputs changed.
@@ -3934,8 +3951,8 @@ final class CompanionStore {
         await loadHatchIndex()
         guard let index = hatchIndex, inputs != replayedLuckInputs else { return }
         let today = state, includesActive = state.active != nil, now = clock()
-        let itemsSince = Dictionary(uniqueKeysWithValues: inputs.itemsSince.compactMap { key, date in
-            ItemKind(rawValue: key).map { ($0, date) }
+        let itemsSince = Dictionary(uniqueKeysWithValues: inputs.drawItems.compactMap { item in
+            drawItemSince(item).map { (item, $0) }
         })
         let luck = await Task.detached(priority: .userInitiated) {
             HatchLuck(entries: inputs.entries, includesActive: includesActive, today: today, index: index,
@@ -3965,17 +3982,13 @@ final class CompanionStore {
     /// PokeTokenBar v2.5.4, the release that let Shop prices go down to 10%: every player had the Shiny Charm from then.
     static let shinyCharmForEveryone = Date(timeIntervalSince1970: 1_789_223_036)   // 2026-09-12 14:23:56 UTC
 
-    /// Since when the player owns a draw item, for the hatches from before the record: the date they gave, or for a
-    /// Shiny Charm owned, `shinyCharmForEveryone`.
+    /// Since when the player has a draw item they own, for the hatches from before the record: from the update that
+    /// brought it, or from the graduation that met its condition when later. The Shiny Charm, sold in the Shop, from
+    /// `shinyCharmForEveryone`.
     func drawItemSince(_ item: ItemKind) -> Date? {
-        state.drawItemsSince[item.rawValue]
-            ?? (item == .shinyCharm && itemCount(item) > 0 ? Self.shinyCharmForEveryone : nil)
-    }
-
-    /// Since when the player says they own a draw item, for the hatches from before the record; nil forgets it.
-    func setDrawItemSince(_ item: ItemKind, _ date: Date?) {
-        state.drawItemsSince[item.rawValue] = date
-        save()
+        guard itemCount(item) > 0 else { return nil }
+        guard let arrival = HatchRules.Change.arrival(of: item)?.start() else { return Self.shinyCharmForEveryone }
+        return max(arrival, unlockedAt(item) ?? arrival)
     }
 
     /// One rarity's share of an egg's pool, by weight.

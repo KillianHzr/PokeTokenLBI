@@ -27,7 +27,7 @@ final class HatchLuckLoadingTests: XCTestCase {
     }
 
     private func store(provider: any PokeProviding = RosterProvider(), clock: Clock,
-                       items: [ItemKind] = []) throws -> CompanionStore {
+                       items: [ItemKind] = [], dex: [DexEntry]? = nil) throws -> CompanionStore {
         var st = CompanionState()
         st.installBaselineSet = true
         st.lastDate = "2026-10-20"
@@ -35,6 +35,7 @@ final class HatchLuckLoadingTests: XCTestCase {
                            caughtAt: clock.now.addingTimeInterval(-9 * 86_400)),
                   DexEntry(baseID: 10, finalID: 12, chainOrder: [10, 11, 12], rarity: .common,
                            caughtAt: clock.now.addingTimeInterval(-2 * 86_400))]
+        if let dex { st.dex = dex }
         st.active = MonState(baseID: 37, pathIDs: [37], plannedPathIDs: [37, 38], stageIndex: 0, usedAtStage: 0,
                              rarity: .uncommon, totalForms: 1, nature: .hardy)
         st.inventory[ItemKind.pokemonEgg.rawValue] = 1
@@ -67,24 +68,59 @@ final class HatchLuckLoadingTests: XCTestCase {
     }
 
     /// Every player had the Shiny Charm once Shop prices could go down to 10% (PokeTokenBar v2.5.4, 12 September
-    /// 2026): without a date of theirs, it counts for the eggs started from then.
-    func testTheShinyCharmCountsFromTheTenPercentShopWithoutADate() async throws {
+    /// 2026): it counts for the eggs started from then.
+    func testTheShinyCharmCountsFromTheTenPercentShop() async throws {
         let clock = Clock()
         XCTAssertNil(try store(clock: clock).drawItemSince(.shinyCharm), "not owned")
-        let s = try store(clock: clock, items: [.shinyCharm, .ovalCharm])
+        let s = try store(clock: clock, items: [.shinyCharm])
         XCTAssertEqual(CompanionStore.shinyCharmForEveryone, ISO8601DateFormatter().date(from: "2026-09-12T14:23:56Z"))
         XCTAssertEqual(s.drawItemSince(.shinyCharm), CompanionStore.shinyCharmForEveryone)
-        XCTAssertNil(s.drawItemSince(.ovalCharm), "the Shiny Charm only")
         await s.loadHatchLuck()
         let hatches = try XCTUnwrap(s.hatchLuck?.hatches)
         XCTAssertEqual(try XCTUnwrap(hatches[1].judged[.shiny]?.odds), 1.0 / 64, accuracy: 1e-12,
                        "started ten minutes before the release")
         XCTAssertEqual(try XCTUnwrap(hatches[2].judged[.shiny]?.odds), 1.0 / 48, accuracy: 1e-12)
+    }
 
-        s.setDrawItemSince(.shinyCharm, clock.now)
-        XCTAssertEqual(s.drawItemSince(.shinyCharm), clock.now, "the player's date first")
-        await s.loadHatchLuck()
-        XCTAssertEqual(try XCTUnwrap(s.hatchLuck?.hatches[2].judged[.shiny]?.odds), 1.0 / 64, accuracy: 1e-12)
+    /// An achievement's draw item is owned from the What's New day of the update that brought it, or from the
+    /// graduation that met its condition when later: never a date to ask the player.
+    func testADrawItemCountsFromItsUpdateOrFromTheGraduationThatEarnedIt() throws {
+        func at(_ text: String) -> Date {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyy-MM-dd HH:mm"
+            return f.date(from: text)!
+        }
+        func legendary(_ id: Int, _ day: String, released: Bool = false) -> DexEntry {
+            DexEntry(baseID: id, finalID: id, chainOrder: [id], rarity: .legendary, caughtAt: at(day),
+                     releasedAt: released ? at(day) : nil)
+        }
+        let clock = Clock()
+        func since(_ item: ItemKind, _ dex: [DexEntry]) throws -> Date? {
+            try store(clock: clock, items: [item], dex: dex).drawItemSince(item)
+        }
+        let flute = [legendary(144, "2026-10-24 09:00"), legendary(145, "2026-10-25 10:00"),
+                     legendary(144, "2026-10-27 11:00"), legendary(144, "2026-10-29 12:00")]
+        XCTAssertEqual(try since(.legendCharm, flute), at("2026-10-27 11:00"), "the second Articuno")
+        XCTAssertNil(try store(clock: clock, dex: flute).drawItemSince(.legendCharm), "not owned")
+        XCTAssertEqual(try since(.legendCharm, [legendary(144, "2026-10-02 09:00"), legendary(144, "2026-10-03 09:00")]),
+                       at("2026-10-20 00:00"), "earned before the update that brought it")
+        XCTAssertEqual(try since(.legendCharm, [legendary(144, "2026-10-24 09:00"), legendary(144, "2026-10-26 09:00", released: true),
+                                                legendary(144, "2026-10-28 09:00")]),
+                       at("2026-10-28 09:00"), "a released copy was never raised to the end")
+        let forces = [legendary(641, "2026-10-22 09:00"), legendary(905, "2026-10-23 09:00"),
+                      legendary(645, "2026-10-24 09:00"), legendary(642, "2026-10-25 09:00")]
+        XCTAssertEqual(try since(.revealGlass, forces), at("2026-10-24 09:00"), "three Forces of Nature")
+        XCTAssertEqual(try since(.revealGlass, [legendary(641, "2026-10-02 09:00"), legendary(642, "2026-10-03 09:00"),
+                                                legendary(645, "2026-10-04 09:00")]), at("2026-10-20 00:00"))
+        XCTAssertEqual(try since(.ovalCharm, forces), at("2026-10-21 00:00"),
+                       "owned, from a Pokédex smaller than today's")
+        XCTAssertEqual(try since(.glimmeringCharm, forces), at("2026-10-21 00:00"))
+        let everySpecies = PokemonAssets.animatedSpeciesIDs.sorted().enumerated().map { i, id in
+            DexEntry(baseID: id, finalID: id, chainOrder: [id], rarity: .common,
+                     caughtAt: at("2026-10-22 09:00").addingTimeInterval(Double(i) * 60))
+        }
+        XCTAssertEqual(try since(.ovalCharm, everySpecies), everySpecies.last?.caughtAt, "the last species")
     }
 
     func testTheReplayIsKeptWhileThePokedexStaysTheSame() async throws {

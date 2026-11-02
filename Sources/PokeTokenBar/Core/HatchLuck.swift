@@ -63,8 +63,8 @@ struct HatchLuck: Sendable {
     let hatchesPerWeek: Double?
 
     /// `entries`: the Pokédex in hatch order, the Pokémon raised last when `includesActive`. `today`: what the save does
-    /// not date, the Plates' achievements, taken as they are. `itemsSince`: when the player says they got each draw
-    /// item, for hatches without a record.
+    /// not date, the Plates' achievements, taken as they are. `itemsSince`: when the player got each draw item, for
+    /// hatches without a record (`CompanionStore.drawItemSince`).
     init(entries: [DexEntry], includesActive: Bool, today: CompanionState, index: [BaseSpecies],
          itemsSince: [ItemKind: Date] = [:], now: Date) {
         let rarities = Dictionary(index.map { ($0.id, $0.rarity) }, uniquingKeysWith: { a, _ in a })
@@ -84,7 +84,7 @@ struct HatchLuck: Sendable {
                 (rollItems, hatchItems) = (record.rollItems, record.hatchItems)
             } else {
                 let started = previous?.caughtAt
-                let owned = Set(itemsSince.filter { since in started.map { since.value <= $0 } ?? false }.keys)
+                let owned = Set(itemsSince.filter { since in started.map { since.value < $0 } ?? false }.keys)
                 (rollItems, hatchItems) = (owned, owned)
             }
             let previousEgg = hatches.last?.egg

@@ -25,8 +25,29 @@ struct HatchRules: Sendable, Equatable {
         case fossilEgg = "2026-10-27-excavation"
         /// The event eggs.
         case eventEggs = "2026-10-27-event-eggs"
+        /// The achievements' draw items: the Azure Flute and the Reveal Glass.
+        case collectorItems = "2026-10-20-stones-achievements"
+        /// The Pokédex's draw items: the Oval and Glimmering Charms.
+        case charms = "2026-10-21-charms"
 
         var day: Substring { rawValue.prefix(10) }
+
+        /// The start of its day where the player is.
+        func start(in timeZone: TimeZone = .current) -> Date {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
+            let parts = day.split(separator: "-").compactMap { Int($0) }
+            return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))!
+        }
+
+        /// The update that brought an achievement's draw item; nil for the Shiny Charm, sold before the What's New.
+        static func arrival(of item: ItemKind) -> Change? {
+            switch item {
+            case .legendCharm, .revealGlass: return .collectorItems
+            case .ovalCharm, .glimmeringCharm: return .charms
+            default: return nil
+            }
+        }
     }
 
     let changes: Set<Change>

@@ -356,7 +356,7 @@ struct LuckScreen: View {
         .designCard()
     }
 
-    /// Since when the player owns each draw item, for the hatches from before the record.
+    /// Since when the player owns each draw item, for the hatches from before the record (`drawItemSince`).
     private func drawItemsCard(_ items: [ItemKind], _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionTitle(text: l.luckDrawItemsTitle)
@@ -368,17 +368,9 @@ struct LuckScreen: View {
                     Spacer(minLength: 4)
                     if let since = store.drawItemSince(item) {
                         Text(l.luckObtainedOn).font(.caption).foregroundStyle(.secondary)
-                        DatePicker(l.luckObtainedOn,
-                                   selection: Binding(get: { since }, set: { store.setDrawItemSince(item, $0) }),
-                                   in: ...Date(), displayedComponents: .date)
-                            .labelsHidden().datePickerStyle(.field).fixedSize()
-                        if store.state.drawItemsSince[item.rawValue] != nil {
-                            Button { store.setDrawItemSince(item, nil) } label: { Image(systemName: "xmark.circle.fill") }
-                                .buttonStyle(.plain).foregroundStyle(.secondary)
-                                .hoverTip(l.luckRemoveDate).accessibilityLabel(l.luckRemoveDate)
-                        }
-                    } else {
-                        Button(l.luckSetDate) { store.setDrawItemSince(item, Date()) }.buttonStyle(.pill())
+                        Text(since.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted)
+                            .locale(store.language.displayLocale)))
+                            .font(.caption.monospacedDigit())
                     }
                 }
             }

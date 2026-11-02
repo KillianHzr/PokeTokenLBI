@@ -153,13 +153,16 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertFalse(l.hatches[2].possibleEggs.contains(.fossil))
     }
 
-    /// Without a record, a draw item counts from the date the player gave for it, for the eggs started after.
+    /// Without a record, a draw item counts for the eggs started after the player got it: not for the one rolled
+    /// at the graduation that earned it, whose reward was still to claim.
     func testADatedItemCountsForTheEggsStartedAfter() {
         let l = luck([entry(16, day: 1), entry(10, day: 3), entry(147, day: 4)], active: true,
                      itemsSince: [.shinyCharm: Self.day(2)])
         for (h, odds) in zip(l.hatches, [1.0 / 64, 1.0 / 64, 1.0 / 48]) {
             XCTAssertEqual(h.judged[.shiny]?.odds ?? 0, odds, accuracy: 1e-12, "hatch \(h.number)")
         }
+        let earned = luck([entry(16, day: 1), entry(10, day: 3)], itemsSince: [.shinyCharm: Self.day(1)])
+        XCTAssertEqual(earned.hatches[1].judged[.shiny]?.odds ?? 0, 1.0 / 64, accuracy: 1e-12)
     }
 
     /// A record's items: those of the species roll for the pool, those of the hatch for the shiny.

@@ -581,8 +581,6 @@ final class SaveTransferTests: XCTestCase {
                                      "eggTypeGuarantee", "eggFromTypeNullEgg", "eggFromLegendaryEgg", "pendingHatchID", "pendingForm", "active",
                                      // The draw items the waiting species was rolled with, kept with it.
                                      "pendingHatchItems",
-                                     // What the player says of their hatches from before the record.
-                                     "drawItemsSince",
                                      "representativeSpeciesID", "representativeForm", "dex",
                                      "collectedFinals", "inventory", "claimedAchievements",
                                      // The rule `active.usedAtStage` was earned under: it travels with that value.
