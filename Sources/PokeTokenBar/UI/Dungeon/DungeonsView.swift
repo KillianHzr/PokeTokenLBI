@@ -1,0 +1,196 @@
+import SwiftUI
+
+/// The Dungeons tab (Q29, maquette 1): the Legendary Keys, the expedition under way, then every dungeon with its tier,
+/// theme (R7), team, rules and length; locked, what is still missing; open, its bosses as met (Q17: a silhouette once
+/// reached, whole once beaten, nothing before) and the way to its team screen.
+@MainActor
+struct DungeonsView: View {
+    let store: CompanionStore
+    let nav: PopoverNavigation
+
+    var body: some View {
+        let l = store.l
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    SectionTitle(text: l.dungeonsTab, systemImage: "map.fill")
+                    Spacer(minLength: 4)
+                    ItemIconView(kind: .legendaryKey, size: 16)
+                    Text("\(l.itemName(.legendaryKey)) ×\(store.itemCount(.legendaryKey))")
+                        .font(.caption.weight(.semibold)).monospacedDigit().foregroundStyle(.secondary)
+                }
+                if let expedition = store.expedition {
+                    underway(expedition, l)
+                }
+                ForEach(shown, id: \.self) { id in
+                    DungeonCard(store: store, id: id) { nav.dungeonTeam = id }
+                }
+            }
+            .reservesScrollerLane()
+        }
+        .frame(height: 520)
+    }
+
+    /// The Ruins of Alph show only once a Treasure Map, or a visit, made them known.
+    private var shown: [DungeonID] {
+        DungeonID.allCases.filter { id in
+            id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0
+        }
+    }
+
+    private func underway(_ e: Expedition, _ l: L) -> some View {
+        HStack(spacing: 8) {
+            DungeonIcon(id: e.dungeon, size: 28)
+            Text(l.dungeonUnderway(l.dungeonName(e.dungeon), floor: min(e.floor, e.floors), floors: e.floors))
+                .font(.caption.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button { nav.tab = .home } label: {
+                HStack(spacing: 2) {
+                    Text(l.dungeonSee)
+                    Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold))
+                }
+                .font(.caption.weight(.semibold)).foregroundStyle(Design.actionColor)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .designSurface(cornerRadius: Design.cornerRadius)
+    }
+}
+
+/// One dungeon's card.
+@MainActor
+private struct DungeonCard: View {
+    let store: CompanionStore
+    let id: DungeonID
+    let onPrepare: () -> Void
+
+    var body: some View {
+        let l = store.l
+        let dungeon = DungeonCatalog.dungeon(id)
+        let (size, rules) = store.teamRules(id)
+        let unmet = store.unmetUnlocks(id)
+        let wins = store.dungeonProgress.wins(id)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 10) {
+                DungeonIcon(id: id, size: 32)
+                    .grayscale(unmet.isEmpty ? 0 : 1).opacity(unmet.isEmpty ? 1 : 0.5)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Badge("T\(dungeon.tier.rawValue)", tint: .secondary, style: .tinted)
+                        Text(l.dungeonName(id)).font(.callout.weight(.semibold))
+                        Spacer(minLength: 4)
+                        status(unmet: unmet, wins: wins, l)
+                    }
+                    Text(([l.dungeonTeamSize(size)] + rules.map(l.dungeonRule)
+                          + [TokenFormatter.compact(dungeon.tier.cost(difficulty: store.growthDifficulty))])
+                        .joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 3) {
+                        ForEach(dungeon.themeTypes, id: \.self) { type in
+                            Badge(l.typeName(type).uppercased(), tint: .type(type))
+                        }
+                    }
+                }
+            }
+            if unmet.isEmpty {
+                HStack(spacing: 6) {
+                    bosses(dungeon, l)
+                    Spacer(minLength: 4)
+                    entry(l)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(dungeon.unlocks.enumerated()), id: \.offset) { _, unlock in
+                        let met = store.isMet(unlock)
+                        Label(l.dungeonUnlock(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
+                            .font(.caption).foregroundStyle(met ? .primary : .secondary)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .designSurface(cornerRadius: Design.cornerRadius)
+    }
+
+    @ViewBuilder
+    private func status(unmet: [DungeonUnlock], wins: Int, _ l: L) -> some View {
+        if !unmet.isEmpty {
+            Label(l.dungeonLocked, systemImage: "lock.fill").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+        } else if wins > 0 {
+            Text(l.dungeonWins(wins)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+        } else {
+            Badge(l.dungeonNew.uppercased(), tint: .blue, style: .tinted)
+        }
+    }
+
+    /// Q17: the bosses beaten whole, those only reached as silhouettes, none before.
+    @ViewBuilder
+    private func bosses(_ dungeon: Dungeon, _ l: L) -> some View {
+        let progress = store.dungeonProgress
+        let met = dungeon.bosses.filter { progress.bossesReached.contains(DungeonProgress.bossKey(id, $0)) }
+        if met.isEmpty {
+            Text(l.dungeonBossUnknown).font(.caption).foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 2) {
+                ForEach(met, id: \.self) { species in
+                    let beaten = progress.bossesBeaten.contains(DungeonProgress.bossKey(id, species))
+                    SpriteView(speciesID: species, size: 28, isSilhouette: !beaten, sameScale: true)
+                        .speciesNameTooltip(species, language: store.language)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func entry(_ l: L) -> some View {
+        let keys = store.keysToEnter(id)
+        HStack(spacing: 6) {
+            if keys > 0 {
+                Text(l.dungeonEntryKeys(keys, key: l.itemName(.legendaryKey))).font(.caption2).foregroundStyle(.secondary)
+            } else if id == .ruinsOfAlph {
+                Text(l.dungeonEntryMap(l.itemName(.treasureMap))).font(.caption2).foregroundStyle(.secondary)
+            }
+            Button(store.dungeonProgress.wins(id) > 0 ? l.dungeonGoAgain : l.dungeonPrepare, action: onPrepare)
+                .buttonStyle(.borderedProminent).controlSize(.small)
+                .disabled(!store.canEnter(id))
+                .hoverTip(store.expedition != nil ? l.dungeonOneAtATime : nil)
+        }
+    }
+}
+
+/// A dungeon's icon (R15). Until its drawn diorama lands, a symbol on its theme's color.
+@MainActor
+struct DungeonIcon: View {
+    let id: DungeonID
+    var size: CGFloat = 32
+
+    var body: some View {
+        let dungeon = DungeonCatalog.dungeon(id)
+        let color = dungeon.themeTypes.first.map(\.color) ?? .gray
+        RoundedRectangle(cornerRadius: size * 0.25, style: .continuous)
+            .fill(color.opacity(0.85))
+            .frame(width: size, height: size)
+            .overlay {
+                Image(systemName: Self.symbol(id)).font(.system(size: size * 0.5, weight: .bold)).foregroundStyle(.white)
+            }
+            .accessibilityHidden(true)
+    }
+
+    static func symbol(_ id: DungeonID) -> String {
+        switch id {
+        case .viridianForest: "tree.fill"
+        case .diglettsCave, .mtMoon, .mtEmber, .mtCoronet: "mountain.2.fill"
+        case .victoryRoad: "flag.checkered"
+        case .pokemonTower: "building.columns.fill"
+        case .dragonsDen: "flame.fill"
+        case .powerPlant: "bolt.fill"
+        case .seafoamIslands: "snowflake"
+        case .ceruleanCave: "sparkles"
+        case .ruinsOfAlph: "questionmark.square.fill"
+        case .hallOfOrigin: "sun.max.fill"
+        }
+    }
+}

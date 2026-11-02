@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-enum PopoverTab { case home, shop, bag, collection, achievements }
+enum PopoverTab { case home, shop, bag, collection, achievements, dungeons }
 
 /// The popover's tab bar: five equal tabs, an icon over a short label, the selected one on a pill in the color of
 /// the Pokémon being raised. Achievements ready to claim show as a count on the trophy. Each label must fit its
@@ -20,7 +20,8 @@ struct PopoverTabPicker: View {
 
     func items() -> [(tab: PopoverTab, title: String, icon: String)] {
         [(.home, l.home, "house.fill"), (.shop, l.shop, "cart.fill"), (.bag, l.bag, "bag.fill"),
-         (.collection, l.collection, "books.vertical.fill"), (.achievements, l.achievements, "trophy.fill")]
+         (.collection, l.collection, "books.vertical.fill"), (.achievements, l.achievements, "trophy.fill"),
+         (.dungeons, l.dungeonsTab, "map.fill")]
     }
 
     var body: some View {
@@ -117,6 +118,10 @@ final class PopoverNavigation {
     var showingCalendar = false { didSet { if showingCalendar { dexDetailCollectionID = nil } } }
     /// Prof. Oak's details page (`OakAdviceScreen`) too.
     var showingOakDetails = false { didSet { if showingOakDetails { dexDetailCollectionID = nil } } }
+    /// The team screen of a dungeon (`DungeonTeamScreen`), over the popover.
+    var dungeonTeam: DungeonID?
+    /// A dungeon battle replayed (`BattleReplayScreen`): "Revoir, c'est rejouer".
+    var replayBattle: ExpeditionBattle?
     /// The changelog entries seen before it was opened: the others are marked new on it.
     var changelogSeenBefore: Set<String> = []
     /// The Collection tab's open Pokédex detail page (`DexSpecies.collectionID`); nil = grid or log.
@@ -170,6 +175,8 @@ final class PopoverNavigation {
         showingIdeas = false
         showingCalendar = false
         showingOakDetails = false
+        dungeonTeam = nil
+        replayBattle = nil
         tab = .home
     }
 
@@ -245,6 +252,13 @@ struct PopoverView: View {
                 EventCalendarScreen(store: companion) { nav.showingCalendar = false }
             } else if nav.showingOakDetails {
                 OakAdviceScreen(store: companion) { nav.showingOakDetails = false }
+            } else if let battle = nav.replayBattle {
+                BattleReplayScreen(store: companion, battle: battle) { nav.replayBattle = nil }
+            } else if let dungeon = nav.dungeonTeam {
+                DungeonTeamScreen(store: companion, dungeon: dungeon) { nav.dungeonTeam = nil } onDepart: {
+                    nav.dungeonTeam = nil
+                    nav.tab = .home
+                }
             } else {
                 mainContent
             }
@@ -559,7 +573,9 @@ struct PopoverView: View {
             newsStrip
             PopoverTabPicker(tab: $nav.tab, l: l, unclaimedAchievements: companion.unclaimedAchievementsCount)
 
-            if nav.tab == .collection {
+            if nav.tab == .dungeons {
+                DungeonsView(store: companion, nav: nav)
+            } else if nav.tab == .collection {
                 CollectionView(store: companion, navigation: nav)
             } else if nav.tab == .achievements {
                 AchievementsView(store: companion, nav: nav)
