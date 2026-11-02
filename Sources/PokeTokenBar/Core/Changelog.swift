@@ -67,6 +67,59 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-02", entries: [
+            .new("2026-11-02-dungeons") { l in
+                l.t("던전: 졸업한 포켓몬으로 팀을 꾸려 토큰으로 13개의 던전을 탐험하세요. 자동 전투와 전리품이 있고, 보스를 잡으면 그 알을 받아요.",
+                    "Dungeons: send a team of graduated Pokémon to explore 13 dungeons with your tokens. Automatic battles, loot, and a boss to catch for its egg.",
+                    "ダンジョン：卒業したポケモンでチームを組み、トークンで13のダンジョンを探検しよう。自動バトルと戦利品があり、ボスを捕まえるとそのタマゴがもらえます。",
+                    "Mazmorras: envía un equipo de Pokémon graduados a explorar 13 mazmorras con tus tokens. Combates automáticos, botín y un jefe que atrapar para conseguir su huevo.",
+                    "Donjons : envoie une équipe de Pokémon diplômés explorer 13 donjons avec tes tokens. Combats automatiques, butin, et un boss à capturer pour avoir son œuf.",
+                    "Masmorras: envie uma equipe de Pokémon formados para explorar 13 masmorras com seus tokens. Batalhas automáticas, espólios e um chefe para capturar e ganhar o ovo dele.",
+                    "Dungeons: Schicke ein Team verabschiedeter Pokémon mit deinen Tokens in 13 Dungeons. Automatische Kämpfe, Beute und ein Boss, den du für sein Ei fangen kannst.",
+                    "Подземелья: отправьте команду выпущенных покемонов исследовать 13 подземелий за ваши токены. Автоматические бои, добыча и босс, которого можно поймать ради его яйца.")
+            },
+            .new("2026-11-02-dungeon-moves") { l in
+                let capsule = l.dungeonTechnicalCapsule
+                return l.t("졸업한 포켓몬의 상세에서 던전에서 쓸 기술 4개를 고르세요. 위력 100 이상의 기술은 던전에서 얻는 \(capsule)로 풀려요.",
+                           "On a graduated Pokémon's page, choose the four moves it uses in the dungeons. Moves of 100 power or more unlock with a \(capsule) won in the dungeons.",
+                           "卒業したポケモンの詳細で、ダンジョンで使う4つのわざを選ぼう。威力100以上のわざは、ダンジョンで手に入る\(capsule)で使えるようになります。",
+                           "En la ficha de un Pokémon graduado, elige los cuatro movimientos que usa en las mazmorras. Los de 100 de potencia o más se desbloquean con una \(capsule) ganada en ellas.",
+                           "Sur la fiche d'un Pokémon diplômé, choisis les quatre attaques qu'il utilise en donjon. Celles de puissance 100 ou plus se débloquent avec une \(capsule) gagnée en donjon.",
+                           "Na ficha de um Pokémon formado, escolha os quatro golpes que ele usa nas masmorras. Os de poder 100 ou mais se desbloqueiam com uma \(capsule) ganha nelas.",
+                           "Wähle auf der Seite eines verabschiedeten Pokémon die vier Attacken, die es in Dungeons nutzt. Attacken ab 100 Stärke schaltet eine in Dungeons gewonnene \(capsule) frei.",
+                           "На странице выпущенного покемона выберите четыре приёма, которые он использует в подземельях. Приёмы мощностью от 100 открывает \"\(capsule)\", добытая в подземельях.")
+            },
+            .new("2026-11-02-dungeon-items") { l in
+                let great = l.itemName(.greatBall), ultra = l.itemName(.ultraBall), key = l.itemName(.legendaryKey)
+                return l.t("가방에 던전 아이템이 생겼어요: 나무열매, 기력의조각, 개체값을 31로 올리는 캡슐, \(key). \(great)과 \(ultra)은 상점에서도 팔아요.",
+                           "New dungeon items in the Bag: berries, Revives, Capsules that raise IVs to 31, the \(key). The \(great) and \(ultra) are also sold in the Shop.",
+                           "バッグにダンジョンの道具が加わりました：きのみ、げんきのかけら、個体値を31にするカプセル、\(key)。\(great)と\(ultra)はショップでも買えます。",
+                           "Nuevos objetos de mazmorra en la bolsa: bayas, Revivir, cápsulas que suben los IV a 31 y la \(key). La \(great) y la \(ultra) también se venden en la tienda.",
+                           "Nouveaux objets de donjon dans le Sac : baies, Rappels, Capsules qui montent les IV à 31, la \(key). La \(great) et l'\(ultra) sont aussi en vente à la Boutique.",
+                           "Novos itens de masmorra na bolsa: frutas, Revivers, cápsulas que elevam os IVs a 31 e a \(key). A \(great) e a \(ultra) também são vendidas na loja.",
+                           "Neue Dungeon-Items im Beutel: Beeren, Beleber, Kapseln, die DVs auf 31 heben, der \(key). \(great) und \(ultra) gibt es auch im Shop.",
+                           "Новые предметы подземелий в сумке: ягоды, оживители, капсулы, поднимающие IV до 31, и \"\(key)\". \"\(great)\" и \"\(ultra)\" продаются и в магазине.")
+            },
+            .new("2026-11-02-dungeon-medals") { l in
+                l.t("업적의 유물에 던전 메달 5개가 생겼어요: 던전을 처음 이길 때마다 보상, 등급의 던전을 모두 이기면 하나 더.",
+                    "Five dungeon medals join the Artifacts in Achievements: a reward for each dungeon won once, another for a whole tier.",
+                    "実績の「アーティファクト」にダンジョンのメダル5つが加わりました：ダンジョンに初めて勝つたびにごほうび、ランクの全ダンジョンでもう1つ。",
+                    "Cinco medallas de mazmorra se suman a los Artefactos en Logros: una recompensa por cada mazmorra ganada una vez y otra por un nivel entero.",
+                    "Cinq médailles de donjon rejoignent les Artefacts dans les Succès : une récompense par donjon gagné une fois, une autre pour tout un palier.",
+                    "Cinco medalhas de masmorra entram nos Artefatos em Conquistas: uma recompensa por masmorra vencida uma vez e outra por um nível inteiro.",
+                    "Fünf Dungeon-Medaillen kommen zu den Artefakten in den Erfolgen: eine Belohnung pro einmal gewonnenem Dungeon, eine weitere für eine ganze Stufe.",
+                    "Пять медалей подземелий добавлены к артефактам в успехах: награда за каждое подземелье, пройденное один раз, и ещё одна за целый уровень.")
+            },
+            .improved("2026-11-02-arceus-dungeon") { l in
+                let hall = l.dungeonName(.hallOfOrigin)
+                return l.t("아르세우스는 이제 어떤 알에서도 태어나지 않아요. \(hall) 던전의 보스로 잡으면 그 알을 받아요.",
+                           "Arceus no longer hatches from any egg: catch it as the boss of the \(hall) to get its egg.",
+                           "アルセウスはどのタマゴからも生まれなくなりました。\(hall)のボスとして捕まえると、そのタマゴがもらえます。",
+                           "Arceus ya no sale de ningún huevo: atrápalo como jefe de la \(hall) para conseguir su huevo.",
+                           "Arceus ne sort plus d'aucun œuf : capture-le en boss de la \(hall) pour avoir son œuf.",
+                           "Arceus não nasce mais de nenhum ovo: capture-o como chefe do \(hall) para ganhar o ovo dele.",
+                           "Arceus schlüpft aus keinem Ei mehr: Fange ihn als Boss im \(hall), um sein Ei zu bekommen.",
+                           "Арсеус больше не вылупляется ни из одного яйца: поймайте его как босса подземелья \"\(hall)\", чтобы получить его яйцо.")
+            },
             .improved("2026-11-02-candy-100m") { l in
                 let candy = l.itemName(.rareCandy)
                 return l.t("\(candy) 하나가 이제 75M 대신 100M 경험치를 줘요.",

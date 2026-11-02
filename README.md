@@ -278,6 +278,10 @@ Every badge has a **region per generation**: register every Pokémon of its type
 | **Dark Badge** | <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/59.png" width="28" height="28" alt="Dark Badge"> | Dark | Johto 6 · Hoenn 10 · Sinnoh 7 · Unova 16 · Kalos 5 · Alola 2 · Galar 10 · Paldea 13 | Psychic, Ghost |
 | **Fairy Badge** | <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/48.png" width="28" height="28" alt="Fairy Badge"> | Fairy | Kanto 5 · Johto 8 · Hoenn 5 · Sinnoh 2 · Unova 2 · Kalos 13 · Alola 12 · Galar 8 · Paldea 9 | Fighting, Dragon, Dark |
 
+## Dungeons
+
+Graduated Pokémon can head out again. Thirteen dungeons in five tiers each take a team under their own rules (one region, no legendaries, starters only, and more). Pick four moves for each Pokémon on its Pokédex page, then send the team in: the tokens you spend walk it down floor by floor while your companion's growth pauses. Battles play out on their own, with the games' types, stats and damage rules, and any of them can be watched again from the journal. A boss waits at the bottom: beat it, then throw balls to catch it and get its egg. Arceus hatches from no egg any more; it waits at the end of the last dungeon. The loot (berries, Revives, balls, Capsules that raise IVs to 31, Rare Candies, eggs) goes to the Bag, and the Dungeons medals among the Artifacts reward each dungeon won once. One expedition at a time; the menu bar shows its floor, and a "!" when it needs you.
+
 ## Also in the box
 
 - **Menu-bar shortcuts** — right-click or Control-click for today's summary, Refresh, Pokédex, Settings, floating-pet visibility, and Quit.
