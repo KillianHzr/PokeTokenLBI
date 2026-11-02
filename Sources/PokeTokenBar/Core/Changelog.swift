@@ -66,8 +66,8 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
-        ChangelogDay(date: "2026-10-30", entries: [
-            .fixed("2026-10-30-incubating-egg-name") { l in
+        ChangelogDay(date: "2026-11-02", entries: [
+            .fixed("2026-11-02-incubating-egg-name") { l in
                 let fossil = l.itemName(.fossilEgg)
                 return l.t("부화 중인 알이 이제 \"Token Egg\" 대신 제 이름(\(fossil) 등)으로 표시돼요.",
                            "An egg being incubated now shows its own name (\(fossil) and the others) instead of \"Token Egg\".",

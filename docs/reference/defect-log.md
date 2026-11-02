@@ -1326,7 +1326,8 @@ read_when:
   new kind of egg does not compile without a name. It names the egg as the Bag does (a stone's egg is a Pokémon Egg,
   its type on its badge). `IncubatingEggNameTests` uses every egg through the store's own `use…` functions. Sweep:
   no other egg name is written outside `L`, but the same literal named a raised Pokémon whose line was still loading
-  (launch, offline): it now reads "…", the placeholder the app shows for a name not loaded yet. The import test that
+  (launch, offline): it now reads "…", the placeholder the app shows for a name not loaded yet. The graduation
+  message announced "a new Token Egg" too, in every language: it now says a new egg arrived, its name on Home. The import test that
   asserted the name was not "Token Egg" now asserts the species' name, since "…" would pass it with no line loaded.
 
 - **The app draws its own tooltips (`HoverTip`), never the system's.** The owner saw no tooltip over the faded

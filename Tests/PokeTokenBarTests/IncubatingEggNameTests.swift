@@ -61,6 +61,13 @@ final class IncubatingEggNameTests: XCTestCase {
         XCTAssertEqual(try incubating(.fireStone) { $0.useStone(.fireStone) }, "Œuf Pokémon")
     }
 
+    /// The graduation message names no "Token Egg" either: the egg that arrives goes by its name on Home.
+    func testTheGraduationMessageNamesNoTokenEgg() {
+        for language in AppLanguage.allCases {
+            XCTAssertFalse(L(language).graduated("Pidgeot").contains("Token Egg"), language.rawValue)
+        }
+    }
+
     func testAnEventEggGoesByItsName() throws {
         for egg in EventEgg.allCases {
             let s = try store(inventory: [egg.item: 1])
