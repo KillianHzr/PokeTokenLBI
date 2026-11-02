@@ -2690,8 +2690,8 @@ final class CompanionStore {
         return count
     }
 
-    /// Items for a specific achievement section, sorted: claimable first, then in progress from the closest to done
-    /// (`achievementShare`) to the farthest, then claimed.
+    /// Items for a specific achievement section, sorted: claimable first, then in progress, then claimed; the first two
+    /// each from the closest to done (`achievementShare`) to the farthest.
     func achievementItems(in group: CollectorGroup) -> [ItemKind] {
         let registered = graduatedSpeciesIDs
         func rank(_ kind: ItemKind) -> Int {
@@ -2707,24 +2707,30 @@ final class CompanionStore {
         let items = ItemKind.allCases.filter { $0.collectorGroup == group }
         let ranks = Dictionary(uniqueKeysWithValues: items.map { ($0, rank($0)) })
         // Highest share first; the order of the catalogue on a tie.
-        let behind = Dictionary(uniqueKeysWithValues: items.filter { ranks[$0] == 1 }.map {
+        let behind = Dictionary(uniqueKeysWithValues: items.filter { ranks[$0]! < 2 }.map {
             ($0, -achievementShare($0, registered: registered))
         })
-        // The Excavation is not a stone: it closes the Stones tab whatever its state.
-        func last(_ kind: ItemKind) -> Int { kind == .excavation ? 1 : 0 }
+        // The Excavation is not a stone: it closes the Stones tab whatever its state, as the Legendary Egg, Type: Null's
+        // Egg and the two whole-Pokédex charms close the Artifacts, in that order.
+        func last(_ kind: ItemKind) -> Int { Self.closingAchievements.firstIndex(of: kind).map { $0 + 1 } ?? 0 }
         func key(_ item: (offset: Int, element: ItemKind)) -> (Int, Int, Double, Int) {
             (last(item.element), ranks[item.element]!, behind[item.element] ?? 0, item.offset)
         }
         return items.enumerated().sorted { key($0) < key($1) }.map(\.element)
     }
 
+    /// The achievements that close their tab whatever their state, in order.
+    static let closingAchievements: [ItemKind] = [.excavation, .legendaryEgg, .typeNullEgg, .ovalCharm, .glimmeringCharm]
+
     /// How much of an achievement is done, from 0 to 1, as its card counts it: its goal closest to met (any one is
-    /// enough), and for a regional one its open region closest to done, the next reward.
+    /// enough), and for a regional one (a badge) all its regions, each done one whole and the others by their share.
     func achievementShare(_ kind: ItemKind, registered: Set<Int>? = nil) -> Double {
         func share(_ count: Int, _ needed: Int) -> Double { Double(min(count, needed)) / Double(max(1, needed)) }
         if kind.isRegional {
-            return regionTiers(kind, registered: registered).filter { !$0.isDone }
-                .map { share($0.progress.count, $0.progress.goal.needed) }.max() ?? 0
+            let tiers = regionTiers(kind, registered: registered)
+            guard !tiers.isEmpty else { return 0 }
+            return tiers.reduce(0) { $0 + ($1.isDone ? 1 : share($1.progress.count, $1.progress.goal.needed)) }
+                / Double(tiers.count)
         }
         switch kind.unlock {
         case .species?:

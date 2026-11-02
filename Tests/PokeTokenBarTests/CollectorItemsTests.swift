@@ -333,8 +333,35 @@ final class CollectorItemsTests: XCTestCase {
                       inventory: [ItemKind.soulDew.rawValue: 1])
         let artifacts = s.collectorItems(in: .legendaryArtifacts)
         XCTAssertEqual(artifacts.first, .clearBell, "unlocked and not owned comes first")
-        XCTAssertEqual(artifacts.last, .soulDew, "owned passives sink to the bottom")
+        XCTAssertEqual(artifacts.dropLast(4).last, .soulDew, "owned passives sink to the bottom, above the four that close the tab")
         XCTAssertEqual(artifacts.count, 40)
+    }
+
+    /// Badges too go from the closest to done to the farthest, over all their regions, claimable or not: seven Kanto
+    /// Fire-type species put the Volcano Badge before the Cascade Badge's one Water-type, both before a badge with none.
+    func testBadgesGoFromTheClosestToDone() {
+        let s = store(dex: entries([4, 5, 6, 37, 38, 58, 59, 7]))
+        XCTAssertGreaterThan(s.achievementShare(.volcanoBadge), s.achievementShare(.cascadeBadge))
+        XCTAssertGreaterThan(s.achievementShare(.cascadeBadge), 0)
+        XCTAssertEqual(s.achievementShare(.fairyBadge), 0)
+        let badges = s.collectorItems(in: .gymBadges)
+        let order = [ItemKind.volcanoBadge, .cascadeBadge, .fairyBadge].map { badges.firstIndex(of: $0)! }
+        XCTAssertEqual(order, order.sorted(), "\(badges.map(\.rawValue))")
+        // A region claimed counts whole: one of the badge's regions done is that share of it.
+        let regions = PokemonTypeData.badgeGenerations(for: .fire)
+        let oneDone = store(claimed: [CompanionState.regionTierKey(.volcanoBadge, generation: regions[0])])
+        XCTAssertEqual(oneDone.achievementShare(.volcanoBadge), 1 / Double(regions.count), accuracy: 1e-9)
+    }
+
+    /// The Legendary Egg, Type: Null's Egg and the two whole-Pokédex charms close the Artifacts whatever their state:
+    /// claimable, claimed or untouched.
+    func testFourAchievementsCloseTheArtifactsWhateverTheirState() {
+        let closing: [ItemKind] = [.legendaryEgg, .typeNullEgg, .ovalCharm, .glimmeringCharm]
+        let fresh = store()
+        XCTAssertEqual(Array(fresh.collectorItems(in: .legendaryArtifacts).suffix(4)), closing)
+        let ovalOwned = store(inventory: [ItemKind.ovalCharm.rawValue: 1])
+        XCTAssertEqual(Array(ovalOwned.collectorItems(in: .legendaryArtifacts).suffix(4)), closing)
+        XCTAssertEqual(fresh.collectorItems(in: .evolutionStones).last, .excavation)
     }
 
     /// Achievements in progress go from the closest to done to the farthest: two titans of three, then Mewtwo without
