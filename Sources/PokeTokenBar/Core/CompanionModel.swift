@@ -1687,7 +1687,7 @@ struct CompanionState: Codable, Sendable, Equatable {
 
     /// Species of the Pokémon raised to the end: graduated entries, never released ones nor the Pokémon being raised.
     var graduatedSpeciesIDs: Set<Int> {
-        Set(dex.filter { !$0.isReleased }.flatMap(\.chainOrder))
+        Set(dex.lazy.filter { !$0.isReleased }.flatMap(\.chainOrder))
     }
 
     /// The line the Friendship Egg brings back: the first catch's, unless it was a Ditto (`CompanionStore.companionLineID`).
@@ -1720,10 +1720,8 @@ struct CompanionState: Codable, Sendable, Equatable {
     /// those sent off).
     func collectedForms(speciesID: Int, graduatedOnly: Bool = false) -> Set<PokemonForm> {
         guard PokemonForm.hasForms(speciesID: speciesID) else { return [] }
-        let entries = graduatedOnly ? dex.filter { !$0.isReleased } : dex
-        var forms = Set(entries.filter { $0.chainOrder.contains(speciesID) }.compactMap {
-            PokemonForm.resolved(speciesID: speciesID, form: $0.form)
-        })
+        var forms = Set(dex.lazy.filter { !(graduatedOnly && $0.isReleased) && $0.chainOrder.contains(speciesID) }
+            .compactMap { PokemonForm.resolved(speciesID: speciesID, form: $0.form) })
         if !graduatedOnly, let active, active.pathIDs.prefix(active.stageIndex + 1).contains(speciesID),
            let form = PokemonForm.resolved(speciesID: speciesID, form: active.form) {
             forms.insert(form)

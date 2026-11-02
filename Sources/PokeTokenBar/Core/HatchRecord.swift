@@ -13,6 +13,17 @@ enum HatchEgg: Codable, Sendable, Hashable {
     /// `key`: the claim it came from (`CompanionState.eggEventKey`).
     case event(EventEgg, key: String?)
 
+    /// The guarantees its pool keeps; nil for the eggs with a draw of their own.
+    var spec: CompanionStore.EggSpec? {
+        switch self {
+        case .tier(let tier): return .init(tier: tier)
+        case .stone(let type): return .init(type: type)
+        case .legendary: return .init(legendaryEgg: true)
+        case .event(let event, _): return .init(tier: event.tier, type: event.type, event: event)
+        case .typeNull, .birthday, .fossil: return nil
+        }
+    }
+
     /// The egg a Bag item gives when used; nil for an item that is no egg.
     init?(item: ItemKind) {
         switch item {

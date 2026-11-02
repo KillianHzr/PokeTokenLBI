@@ -178,10 +178,8 @@ struct HatchDraw: Sendable {
         case .birthday:
             let draw = birthdayDraw(index)
             return outcomes(draw.lines, types: [], event: nil, alwaysShiny: draw.shiny)
-        case .tier(let tier): return outcomes(EggSpec(tier: tier), index: index)
-        case .stone(let type): return outcomes(EggSpec(type: type), index: index)
-        case .legendary: return outcomes(EggSpec(legendaryEgg: true), index: index)
-        case .event(let event, _): return outcomes(EggSpec(tier: event.tier, type: event.type, event: event), index: index)
+        case .tier, .stone, .legendary, .event:
+            return egg.spec.map { outcomes($0, index: index) } ?? []
         }
     }
 
