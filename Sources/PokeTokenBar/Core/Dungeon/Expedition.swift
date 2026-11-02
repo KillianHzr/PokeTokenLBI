@@ -171,16 +171,16 @@ enum ExpeditionEngine {
         }
     }
 
-    /// The candies a tier's expedition holds, around its average (Q22). Balanced on 2026-11-02 on the odds of
-    /// winning (a Rare Candy is 100M EXP, the tokens walked are growth paused): the near-sure T1 gives back about its
-    /// cost, the T4 a strong team wins two times in five about its cost over the tries, before its rare extras.
+    /// The candies a tier's expedition holds, around its average (Q22). Rebalanced on 2026-11-02 at the owner's word
+    /// ("10-18, c'est énorme"): they give back about half the tokens walked (a Rare Candy is 100M EXP); a dungeon's
+    /// real prize is its boss's egg, its keys and items.
     static func candyRange(_ tier: DungeonTier) -> ClosedRange<Int> {
         switch tier {
-        case .t1: 0...2
-        case .t2: 1...4
-        case .t3: 3...7
-        case .t4: 10...18
-        case .t5: 16...28
+        case .t1: 0...1
+        case .t2: 0...2
+        case .t3: 1...3
+        case .t4: 2...5
+        case .t5: 4...8
         }
     }
 
@@ -467,11 +467,13 @@ enum ExpeditionEngine {
     /// The items a tier's chests hold (Q22 to Q24, without Mints).
     static func itemTable(_ tier: DungeonTier) -> [ItemKind] {
         switch tier {
+        // Drawn evenly: the Capsules, which raise IVs to 31 for good, one draw in eight or nine.
         case .t1: [.oranBerry, .oranBerry, .greatBall]
         case .t2: [.sitrusBerry, .revive, .ultraBall, .oranBerry]
-        case .t3: [.sitrusBerry, .revive, .escapeRope, .ultraBall, .silverCapsule]
-        case .t4: [.sitrusBerry, .maxRevive, .ultraBall, .revive, .goldCapsule]
-        case .t5: [.maxRevive, .ultraBall, .goldCapsule, .sitrusBerry]
+        case .t3: [.sitrusBerry, .sitrusBerry, .revive, .revive, .escapeRope, .ultraBall, .ultraBall, .silverCapsule]
+        case .t4: [.sitrusBerry, .sitrusBerry, .maxRevive, .revive, .revive, .ultraBall, .ultraBall, .silverCapsule,
+                   .goldCapsule]
+        case .t5: [.maxRevive, .maxRevive, .ultraBall, .ultraBall, .sitrusBerry, .sitrusBerry, .silverCapsule, .goldCapsule]
         }
     }
 
