@@ -17,6 +17,14 @@ struct HatchRules: Sendable, Equatable {
         case stoneEggDuplicates = "2026-10-26-stone-egg-duplicates"
         /// A fossil line hatches from Fossil Eggs only until it graduates.
         case fossilEggsOnly = "2026-10-27-fossil-pool"
+        /// The Legendary Egg.
+        case legendaryEgg = "2026-10-26-legendary-egg"
+        /// The Birthday Egg.
+        case birthdayEgg = "2026-10-26-birthday-gift"
+        /// The Fossil Egg, from the excavation.
+        case fossilEgg = "2026-10-27-excavation"
+        /// The event eggs.
+        case eventEggs = "2026-10-27-event-eggs"
 
         var day: Substring { rawValue.prefix(10) }
     }
@@ -43,6 +51,17 @@ struct HatchRules: Sendable, Equatable {
     }
 
     func has(_ change: Change) -> Bool { changes.contains(change) }
+
+    /// Whether the egg was there: the Shop's, the stones' and the Type: Null Egg always were.
+    func allows(_ egg: HatchEgg) -> Bool {
+        switch egg {
+        case .legendary: return has(.legendaryEgg)
+        case .birthday: return has(.birthdayEgg)
+        case .fossil: return has(.fossilEgg)
+        case .event: return has(.eventEggs)
+        case .tier, .stone, .typeNull: return true
+        }
+    }
 
     /// A line's weight in the roll, before its collection lowers it.
     func weight(_ e: BaseSpecies) -> Int {

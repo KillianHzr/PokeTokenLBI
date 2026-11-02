@@ -206,11 +206,14 @@ struct HatchLuck: Sendable {
         func measure(_ candidate: HatchEgg) -> EggOdds {
             odds(of: candidate, base: entry.baseID, roll: roll, hatch: hatch, index: index, bringsNew: bringsNew)
         }
-        // Those whose pool holds the line, a Ditto only from an egg it can hide in.
+        // Those there were that day whose pool holds the line, a Ditto only from an egg it can hide in.
         let possible = !asked ? [] : bagEggs.filter { candidate in
-            !(afterFossilEgg && candidate == .fossil) && (isDitto || mayHold(candidate, base: entry.baseID, roll: roll, index: index))
+            roll.rules.allows(candidate) && !(afterFossilEgg && candidate == .fossil)
+                && (isDitto || mayHold(candidate, base: entry.baseID, roll: roll, index: index))
         }.map { ($0, measure($0)) }.filter { isDitto ? $0.1.ditto > 0 : $0.1.line > 0 }
-        let all = egg.map { egg in [possible.first { $0.0 == egg }?.1 ?? measure(egg)] } ?? possible.map(\.1)
+        let sure = possible.count == 1 ? possible[0].0 : nil
+        let known = sure ?? egg
+        let all = known.map { egg in [possible.first { $0.0 == egg }?.1 ?? measure(egg)] } ?? possible.map(\.1)
         func range(_ value: (EggOdds) -> Double) -> OddsRange {
             let values = all.map(value)
             return OddsRange(low: values.min() ?? 0, high: values.max() ?? 0)
@@ -218,7 +221,7 @@ struct HatchLuck: Sendable {
         let rarityOdds = range { isDitto ? $0.ditto : $0.share[rarity] ?? 0 }
         var judged: [Criterion: Judgement] = [:]
         let shiny = hatch.alwaysShiny ? 1 : 1 / Double(hatch.shinyDenominator)
-        if egg != nil, let o = all.first {
+        if known != nil, let o = all.first {
             for (criterion, r) in [(Criterion.uncommon, Rarity.uncommon), (.rare, .rare), (.legendary, .legendary)] {
                 judged[criterion] = Judgement(odds: o.share[r] ?? 0, hit: !isDitto && rarity == r)
             }
@@ -228,11 +231,11 @@ struct HatchLuck: Sendable {
         } else {
             judged[.shiny] = Judgement(odds: shiny, hit: entry.isShiny)
         }
-        return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, rarity: rarity, egg: egg,
-                     eggChosenByPlayer: chosen,
-                     asksEgg: asked, possibleEggs: possible.map(\.0), rarityOdds: rarityOdds, bringsNew: new,
+        return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, rarity: rarity, egg: known,
+                     eggChosenByPlayer: chosen && sure == nil,
+                     asksEgg: asked && sure == nil, possibleEggs: possible.map(\.0), rarityOdds: rarityOdds, bringsNew: new,
                      newOdds: isDitto ? nil : range { new ? $0.new : 1 - $0.new },
-                     lineOdds: egg == nil ? nil : all.first.map { isDitto ? $0.ditto : $0.line }, judged: judged)
+                     lineOdds: known == nil ? nil : all.first.map { isDitto ? $0.ditto : $0.line }, judged: judged)
     }
 
     /// The three draws least likely, from eggs known.

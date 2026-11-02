@@ -86,6 +86,34 @@ final class HatchRulesTests: XCTestCase {
         XCTAssertTrue(before.lineFormDraw(baseID: 19, types: []).forms.isEmpty)
     }
 
+    /// An egg counts from the day of its entry; the Shop's, the stones' and the Type: Null Egg, which no entry brings,
+    /// always.
+    func testAnEggCountsFromItsEntrysDay() {
+        let always: [HatchEgg] = [.tier(nil), .tier(.rare), .stone(.fire), .typeNull]
+        let eggs = always + [.legendary, .birthday, .fossil, .event(.halloween, key: nil)]
+        XCTAssertEqual(eggs.filter(HatchRules(changes: []).allows), always)
+        XCTAssertEqual(eggs.filter(HatchRules.current.allows), eggs)
+        let arrivals: [(HatchRules.Change, HatchEgg)] = [(.legendaryEgg, .legendary), (.birthdayEgg, .birthday),
+                                                         (.fossilEgg, .fossil), (.eventEggs, .event(.halloween, key: nil))]
+        for (change, egg) in arrivals {
+            XCTAssertEqual(eggs.filter(HatchRules(changes: [change]).allows), always + [egg], change.rawValue)
+        }
+    }
+
+    /// The egg menu of a hatch only offers the eggs there were the day it was rolled: no Fossil Egg before the dig.
+    func testAnEggThatDidNotExistYetIsNotOffered() throws {
+        func at(_ day: String) -> Date { ISO8601DateFormatter().date(from: day + "T12:00:00Z")! }
+        let index = [BaseSpecies(id: 16, captureRate: 255), BaseSpecies(id: 140, captureRate: 45)]
+        let entries = [DexEntry(baseID: 16, finalID: 16, chainOrder: [16], rarity: .common, caughtAt: at("2026-10-21"),
+                                releasedAt: at("2026-10-21")),
+                       DexEntry(baseID: 140, finalID: 140, chainOrder: [140], rarity: .rare, caughtAt: at("2026-10-22"))]
+        let kabuto = try XCTUnwrap(HatchLuck(entries: entries, includesActive: false, today: CompanionState(), index: index,
+                                             now: at("2026-10-23")).hatches.last)
+        XCTAssertTrue(kabuto.asksEgg)
+        XCTAssertTrue(kabuto.possibleEggs.contains(.tier(nil)))
+        XCTAssertFalse(kabuto.possibleEggs.contains(.fossil))
+    }
+
     /// The Luck screen replays an egg with the rules of the day it was rolled: the day the Pokémon before it left, or
     /// its own for the first.
     func testAnEggIsReplayedWithTheRulesOfTheDayItWasRolled() throws {

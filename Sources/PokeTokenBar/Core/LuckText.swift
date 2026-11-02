@@ -139,15 +139,16 @@ extension L {
                  "Ovos desconhecidos: \(count). Uma eclosão de antes desta atualização que vem depois de uma soltura só conta para \(shiny).",
                  "Unbekannte Eier: \(count). Ein Schlupf von vor diesem Update nach einer Freilassung zählt nur für \(shiny).",
                  "Неизвестных яиц: \(count). Вылупление до этого обновления после отпускания учитывается только для \(shiny).")
-            + " " + luckPickEggs
     }
 
-    private var luckPickEggs: String {
-        let tab = luckTab(.hatches)
-        return t("\(tab) 탭에서 고를 수 있어요.", "You can pick them in the \(tab) tab.", "\(tab)タブで選べます。",
-                 "Puedes elegirlos en la pestaña \(tab).", "Tu peux les choisir dans l'onglet \(tab).",
-                 "Você pode escolhê-los na aba \(tab).", "Du kannst sie im Tab \(tab) wählen.",
-                 "Их можно выбрать на вкладке \(tab).")
+    var luckApproximate: String {
+        t("대략적인 운", "Approximate luck", "おおよその運", "Suerte aproximada", "Chance approximative", "Sorte aproximada",
+          "Ungefähres Glück", "Удача приблизительна")
+    }
+
+    var luckPickEggsAction: String {
+        t("알 알려 주기", "Pick the eggs", "タマゴを選ぶ", "Elegir los huevos", "Indiquer les œufs", "Escolher os ovos",
+          "Eier angeben", "Указать яйца")
     }
 
     var luckEggOfHatch: String {

@@ -85,6 +85,9 @@ struct LuckScreen: View {
         let score = Int(luck.score.rounded())
         let unknownEggs = luck.hatches.filter { $0.egg == nil }.count
         return VStack(alignment: .leading, spacing: 12) {
+            if unknownEggs > 0 {
+                unknownEggsBanner(unknownEggs, l, picks: true)
+            }
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(text: l.luckScoreTitle)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -130,10 +133,6 @@ struct LuckScreen: View {
                             .frame(width: 44, alignment: .trailing)
                     }
                 }
-                if unknownEggs > 0 {
-                    Text(l.luckUnknownEggs(unknownEggs)).font(.caption).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
             .designCard()
         }
@@ -168,7 +167,11 @@ struct LuckScreen: View {
         let newestFirst = Array(luck.hatches.reversed())
         let shown = showingAllHatches ? newestFirst : Array(newestFirst.prefix(Self.firstHatches))
         let drawItems = ItemKind.drawItems.filter { store.itemCount($0) > 0 }
+        let unknownEggs = luck.hatches.filter { $0.egg == nil }.count
         return VStack(alignment: .leading, spacing: 12) {
+            if unknownEggs > 0 {
+                unknownEggsBanner(unknownEggs, l, picks: false)
+            }
             if !drawItems.isEmpty, luck.hatches.contains(where: { $0.entry.hatch?.chosenByPlayer != false }) {
                 drawItemsCard(drawItems, l)
             }
@@ -296,13 +299,36 @@ struct LuckScreen: View {
                 }
             }
         } label: {
-            Text(l.hatchEggName(hatch.egg)).font(.caption)
+            if hatch.egg == nil {
+                Label(l.hatchEggName(nil), systemImage: "questionmark.circle.fill")
+                    .font(.caption).foregroundStyle(Color.readableOrange)
+            } else {
+                Text(l.hatchEggName(hatch.egg)).font(.caption)
+            }
         }
         .menuStyle(.button)
         .controlSize(.small)
         .fixedSize()
         .hoverTip(l.luckEggOfHatch)
         .accessibilityLabel(l.luckEggOfHatch)
+    }
+
+    /// Hatches whose egg is unknown only count for the shiny: the score leaves them out of the rest.
+    private func unknownEggsBanner(_ count: Int, _ l: L, picks: Bool) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.readableOrange)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(l.luckApproximate).font(.caption.weight(.semibold))
+                Text(l.luckUnknownEggs(count)).font(.caption).fixedSize(horizontal: false, vertical: true)
+                if picks {
+                    Button(l.luckPickEggsAction) { nav.luckTab = .hatches }
+                        .buttonStyle(.link).font(.caption.weight(.semibold))
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(8)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
     }
 
     /// Since when the player owns each draw item, for the hatches from before the record.

@@ -119,6 +119,21 @@ final class HatchLuckTests: XCTestCase {
     }
 
     /// The player may say the egg of a hatch after a release that the app did not note, and only of one.
+    /// The only egg that could have brought a Pokémon is known: it counts without asking, whatever was picked.
+    func testTheOnlyPossibleEggCountsWithoutAsking() throws {
+        let index = [BaseSpecies(id: 16, captureRate: 255), BaseSpecies(id: 140, captureRate: 45)]
+        let l = luck([entry(16, day: 1, released: true),
+                      entry(140, [140, 141], day: 2, record: HatchRecord(egg: .tier(.rare), chosenByPlayer: true))],
+                     index: index)
+        let kabuto = try XCTUnwrap(l.hatches.last)
+        XCTAssertEqual(kabuto.possibleEggs, [.fossil])
+        XCTAssertEqual(kabuto.egg, .fossil)
+        XCTAssertFalse(kabuto.asksEgg)
+        XCTAssertFalse(kabuto.eggChosenByPlayer)
+        XCTAssertEqual(kabuto.lineOdds, 1)
+        XCTAssertEqual(kabuto.judged[.new], .init(odds: 1, hit: true))
+    }
+
     func testWhichHatchesAskTheirEgg() {
         let noted = HatchRecord(egg: .tier(.rare))
         let l = luck([entry(16, day: 1, released: true), entry(147, day: 2), entry(10, day: 3, released: true),
