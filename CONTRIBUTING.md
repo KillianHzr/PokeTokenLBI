@@ -103,11 +103,11 @@ affiliated with Nintendo, Game Freak, Creatures Inc., or The Pokémon Company
 project safe to maintain and distribute, contributions **must** follow these
 rules:
 
-- **Do not commit or bundle any Pokémon (or other third-party) copyrighted
-  assets** — sprites, artwork, audio, fonts, or bulk name/data files. Pokémon
-  species data and sprites are fetched **at runtime** from the public
-  [PokéAPI](https://pokeapi.co) and cached locally on the user's device; keep it
-  that way.
+- **Keep the app free of bundled Pokémon assets.** Pokémon species data and
+  sprites are fetched **at runtime** from the public [PokéAPI](https://pokeapi.co)
+  and cached locally on the user's device; keep it that way. Screenshots and
+  renders of the app, Pokémon sprites included, are welcome in pull requests and
+  under `assets/`: this fork is a personal project among friends.
 - **Do not add features intended for commercial use**, or features that
   redistribute or export copyrighted assets.
 - **Do not commit secrets, credentials, or references to private/internal
