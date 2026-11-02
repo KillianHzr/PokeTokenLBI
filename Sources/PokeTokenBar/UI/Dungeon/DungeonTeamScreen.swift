@@ -172,18 +172,22 @@ struct DungeonTeamScreen: View {
 struct LoopEditor: View {
     let store: CompanionStore
     let entry: DexEntry
-    let dungeon: DungeonID
+    /// The dungeon whose theme the suggestion plays against; none on the Pokédex page.
+    let dungeon: DungeonID?
     @Binding var editingSlot: Int?
+    /// A card of its own, as the Pokédex page's sections, rather than a panel inside the team screen's.
+    var asCard = false
 
     var body: some View {
         let l = store.l
         let spec = store.dungeonSpec(entry, for: dungeon)
         let loop = spec?.moves ?? []
+        let frozen = store.isExploring(entry.id)
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 SectionTitle(text: l.dungeonLoopTitle)
                 Spacer()
-                if store.dungeonProgress.moveLoops[entry.id] != nil {
+                if store.dungeonProgress.moveLoops[entry.id] != nil, !frozen {
                     Button(l.dungeonSuggestLoop) { store.setMoveLoop([], for: entry.id) }
                         .buttonStyle(.borderless).font(.caption)
                 }
@@ -194,15 +198,17 @@ struct LoopEditor: View {
                             selected: editingSlot == index)
                 }
                 .buttonStyle(.plain)
+                .disabled(frozen)
             }
-            if let slot = editingSlot {
+            if frozen {
+                Label(l.dungeonLoopFrozen, systemImage: "lock.fill").font(.caption2).foregroundStyle(.secondary)
+            } else if let slot = editingSlot {
                 movePicker(slot: slot, loop: loop, spec: spec)
             } else {
                 Text(l.dungeonLoopHint).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(8)
-        .designSurface(cornerRadius: 10)
+        .modifier(LoopEditorFrame(asCard: asCard))
     }
 
     private func movePicker(slot: Int, loop: [String], spec: BattlerSpec?) -> some View {
@@ -231,6 +237,18 @@ struct LoopEditor: View {
             }
         }
         .frame(maxHeight: 120)
+    }
+}
+
+private struct LoopEditorFrame: ViewModifier {
+    let asCard: Bool
+
+    func body(content: Content) -> some View {
+        if asCard {
+            content.designCard()
+        } else {
+            content.padding(8).designSurface(cornerRadius: 10)
+        }
     }
 }
 

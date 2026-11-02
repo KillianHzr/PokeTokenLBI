@@ -66,17 +66,21 @@ extension CompanionStore {
         state.dex.filter { !$0.isReleased && SpeciesBattleTable.data(speciesID: $0.finalID, form: $0.form) != nil }
     }
 
-    /// A graduated Pokémon's battle self for a dungeon: its chosen loop, else the one suggested against the theme.
-    func dungeonSpec(_ entry: DexEntry, for id: DungeonID) -> BattlerSpec? {
+    /// A graduated Pokémon's battle self for a dungeon: its chosen loop, else the one suggested against the theme (none
+    /// outside a dungeon, as on its Pokédex page).
+    func dungeonSpec(_ entry: DexEntry, for id: DungeonID?) -> BattlerSpec? {
         DungeonTeamBuilder.spec(for: entry, loop: state.dungeons.moveLoops[entry.id], unlocked: state.dungeons.unlockedMoves,
-                                theme: DungeonCatalog.dungeon(id).themeTypes)
+                                theme: id.map { DungeonCatalog.dungeon($0).themeTypes } ?? [])
     }
+
+    /// Its loop is frozen while it explores (R4: set outside an expedition).
+    func isExploring(_ entryID: String) -> Bool { expedition?.team.contains { $0.entryID == entryID } == true }
 
     /// R4: the player's loop for a Pokémon, outside an expedition; an empty one goes back to the suggestion. Locked
     /// moves are refused.
     @discardableResult
     func setMoveLoop(_ moves: [String], for entryID: String) -> Bool {
-        guard expedition?.team.contains(where: { $0.entryID == entryID }) != true else { return false }
+        guard !isExploring(entryID) else { return false }
         let allowed = moves.filter { slug in
             guard let move = MoveTable.move(slug) else { return false }
             return !move.isLocked || state.dungeons.unlockedMoves.contains(slug)

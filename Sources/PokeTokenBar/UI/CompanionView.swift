@@ -2362,6 +2362,8 @@ struct PokemonDetailView: View {
     private let spriteStore: SpriteStore
     @State private var selectedInstanceID = ""
     @State private var selectedForm: PokemonForm?
+    /// The slot of the dungeon loop being changed (`LoopEditor`).
+    @State private var editingLoopSlot: Int?
     @State private var selectedShiny: Bool?
 
     /// Opens another page of the family (the target, then this page as it is shown, for Back).
@@ -2433,6 +2435,12 @@ struct PokemonDetailView: View {
                             individualSection(entry: individual, profile: profile, details: details)
                         } else {
                             baseStatsSection(details)
+                        }
+                        // R4: the moves it fights with in the dungeons, as on the team screen.
+                        if let individual, individual.finalID == species.id,
+                           store.dungeonCandidates.contains(where: { $0.id == individual.id }) {
+                            LoopEditor(store: store, entry: individual, dungeon: nil, editingSlot: $editingLoopSlot, asCard: true)
+                                .onChange(of: individual.id) { _, _ in editingLoopSlot = nil }
                         }
                         if let individual, let record = individual.raising {
                             RaisingRecordCard(record: record, entry: individual, store: store)

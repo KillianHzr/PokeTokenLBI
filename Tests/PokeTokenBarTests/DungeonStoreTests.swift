@@ -236,6 +236,13 @@ final class DungeonStoreTests: XCTestCase {
         let unlocked = try store(dex: strong) { $0.dungeons.unlockedMoves = ["fire-blast"] }
         XCTAssertTrue(unlocked.setMoveLoop(["fire-blast"], for: "e6"))
         XCTAssertEqual(s.dungeonSpec(graduated(6), for: .mtEmber)?.moves, ["flamethrower", "air-slash"])
+        // Frozen while it explores, free for the Pokémon left home.
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: ["e6", "e9", "e3"]))
+        XCTAssertTrue(s.isExploring("e6"))
+        XCTAssertFalse(s.setMoveLoop(["flamethrower"], for: "e6"))
+        XCTAssertEqual(s.dungeonProgress.moveLoops["e6"], ["flamethrower", "air-slash"])
+        XCTAssertFalse(s.isExploring("e25"))
+        XCTAssertTrue(s.setMoveLoop(["thunderbolt"], for: "e25"))
     }
 
     // MARK: Eggs

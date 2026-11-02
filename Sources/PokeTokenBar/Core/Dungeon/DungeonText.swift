@@ -191,6 +191,12 @@ extension L {
     }
     func dungeonCast(_ seconds: Double) -> String { String(format: "%.1f s", seconds) }
     var dungeonRemove: String { t("빼기", "Remove", "はずす", "Quitar", "Retirer", "Remover", "Entfernen", "Убрать") }
+    var dungeonLoopFrozen: String {
+        t("탐험 중에는 공격 순서를 바꿀 수 없어요.", "Its loop can't change while it explores.",
+          "たんけん中はわざの順番を変えられません。", "Su bucle no cambia mientras explora.",
+          "Sa boucle ne change pas pendant qu'il explore.", "O ciclo não muda enquanto explora.",
+          "Seine Schleife ändert sich nicht, solange es erkundet.", "Цикл не меняется, пока он в экспедиции.")
+    }
     var dungeonLoopTitle: String {
         t("공격 순서", "Move loop", "わざの順番", "Bucle de movimientos", "Boucle d'attaques", "Ciclo de golpes",
           "Attackenschleife", "Цикл атак")
