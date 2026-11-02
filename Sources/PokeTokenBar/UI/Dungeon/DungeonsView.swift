@@ -161,36 +161,21 @@ private struct DungeonCard: View {
     }
 }
 
-/// A dungeon's icon (R15). Until its drawn diorama lands, a symbol on its theme's color.
+/// A dungeon's icon (R15): its diorama, drawn in code.
 @MainActor
 struct DungeonIcon: View {
     let id: DungeonID
     var size: CGFloat = 32
 
     var body: some View {
-        let dungeon = DungeonCatalog.dungeon(id)
-        let color = dungeon.themeTypes.first.map(\.color) ?? .gray
-        RoundedRectangle(cornerRadius: size * 0.25, style: .continuous)
-            .fill(color.opacity(0.85))
-            .frame(width: size, height: size)
-            .overlay {
-                Image(systemName: Self.symbol(id)).font(.system(size: size * 0.5, weight: .bold)).foregroundStyle(.white)
+        Group {
+            if let image = DungeonSprites.image(id) {
+                Image(decorative: image, scale: 1).resizable().interpolation(size.truncatingRemainder(dividingBy: 32) == 0 ? .none : .high)
+            } else {
+                Color.clear
             }
-            .accessibilityHidden(true)
-    }
-
-    static func symbol(_ id: DungeonID) -> String {
-        switch id {
-        case .viridianForest: "tree.fill"
-        case .diglettsCave, .mtMoon, .mtEmber, .mtCoronet: "mountain.2.fill"
-        case .victoryRoad: "flag.checkered"
-        case .pokemonTower: "building.columns.fill"
-        case .dragonsDen: "flame.fill"
-        case .powerPlant: "bolt.fill"
-        case .seafoamIslands: "snowflake"
-        case .ceruleanCave: "sparkles"
-        case .ruinsOfAlph: "questionmark.square.fill"
-        case .hallOfOrigin: "sun.max.fill"
         }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
