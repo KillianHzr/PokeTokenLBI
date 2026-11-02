@@ -861,4 +861,14 @@ extension L {
         t("이 던전에서의 형태", "Form in the dungeons", "ダンジョンでのすがた", "Forma en las mazmorras", "Forme en donjon",
           "Forma nas masmorras", "Form in Dungeons", "Форма в подземельях")
     }
+
+    /// A Battle Forms Medal's step: how many forms it asks for, or all of them.
+    func battleFormsMedalStep(_ step: Int) -> String {
+        let n = BattleFormsMedal.steps[max(0, min(step, BattleFormsMedal.steps.count) - 1)]
+        if step >= BattleFormsMedal.steps.count {
+            return t("전부 (\(n))", "All of them (\(n))", "すべて（\(n)）", "Todas (\(n))", "Toutes (\(n))", "Todas (\(n))",
+                     "Alle (\(n))", "Все (\(n))")
+        }
+        return t("형태 \(n)개", "\(n) forms", "すがた\(n)", "\(n) formas", "\(n) formes", "\(n) formas", "\(n) Formen", "Форм: \(n)")
+    }
 }

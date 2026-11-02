@@ -254,6 +254,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     case silverCapsule, goldCapsule, treasureMap, explorerChest, legendaryKey
     /// The Dungeons achievements (Q32), one per tier: a dungeon won once, then the whole tier (`DungeonMedals`).
     case discoveryMedal, adventureMedal, expertMedal, legendsMedal, originMedal
+    /// The battle forms won, in steps (`BattleFormsMedal`, 2026-11-02).
+    case battleFormsMedal
 
     var badgeType: PokemonType? {
         switch self {
@@ -436,7 +438,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .treasureMap: return "🗺️"
         case .explorerChest: return "🧰"
         case .legendaryKey: return "🗝️"
-        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal: return "🏅"
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal: return "🏅"
         case .ovalCharm: return "🔶"
         case .glimmeringCharm: return "✨"
         case .boulderBadge, .cascadeBadge, .thunderBadge, .rainbowBadge,
@@ -486,7 +488,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone,
              .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .escapeRope,
              .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey,
-             .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
+             .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal:
             return false
         default:
             return true
@@ -514,6 +516,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         // A dungeon won; the whole tier's step gives its own (`DungeonMedals.rewards`).
         case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
             return DungeonMedals.rewards(dungeonTier ?? .t1, step: 1)
+        case .battleFormsMedal: return BattleFormsMedal.rewards(step: 1)
         default: return [(self, achievementRewardCount)]
         }
     }
@@ -564,7 +567,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         switch self {
         case .rareCandy, .mint, .shinyCharm, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .fossilEgg: return nil
         case .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return nil
-        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal:
             return regionGoals.map { .species($0.map(\.goal)) }
         case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .escapeRope,
              .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: return nil
@@ -647,7 +650,10 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     }
 
     /// Whether this item's achievement is claimed region by region: one tier per region in `regionGoals`.
-    var isRegional: Bool { badgeType != nil || self == .legendaryEgg || self == .excavation || dungeonTier != nil }
+    var isRegional: Bool { badgeType != nil || self == .legendaryEgg || self == .excavation || isPlayMedal }
+
+    /// A medal of the dungeons' play: its steps count dungeons won or battle forms won, not the Pokémon raised.
+    var isPlayMedal: Bool { dungeonTier != nil || self == .battleFormsMedal }
 
     /// The regions (generations, Kanto first) this item's achievement is claimed in, with the species each asks
     /// for: a gym badge's type in every region that has it, every species of the region for the Legendary Egg.
@@ -659,6 +665,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
             }
         }
         if let tier = dungeonTier { return DungeonMedals.goals(tier) }
+        if self == .battleFormsMedal { return BattleFormsMedal.goals }
         if self == .excavation {
             // Not regions but digs, numbered from 1: each asks `FossilDig.rockPerDig` more Rock-type species.
             return (1...FossilDig.digs).map { ($0, SpeciesGoal(FossilDig.rockSpecies, needed: FossilDig.rockPerDig * $0)) }

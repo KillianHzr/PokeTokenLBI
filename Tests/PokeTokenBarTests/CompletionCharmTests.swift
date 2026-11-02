@@ -70,6 +70,10 @@ final class CompletionCharmTests: XCTestCase {
 
     func testEveryFormUnlocksTheGlimmeringCharm() throws {
         let all = try store(dex: everyForm)
+        // Every form counts the battle forms the challenges give (the owner, 2026-11-02: a longer end of the game).
+        XCTAssertEqual(all.collectionProgress.forms, CompanionStore.collectableFormCount - BattleForms.all.count)
+        XCTAssertFalse(all.isUnlocked(.glimmeringCharm), "the battle forms are still to win")
+        all.changeDungeons { $0.battleForms = Set(BattleForms.all.map(\.key)) }
         XCTAssertEqual(all.collectionProgress.forms, CompanionStore.collectableFormCount)
         XCTAssertTrue(all.isUnlocked(.glimmeringCharm))
         let missingOne = everyForm.filter { !($0.finalID == 201 && $0.form == PokemonForm("question")) }

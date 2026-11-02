@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-02", entries: [
+            .new("2026-11-02-battle-forms") { l in
+                let daily = l.dungeonName(.daily), weekly = l.dungeonName(.weekly)
+                return l.t("전투 형태: 메가진화, 원시회귀, 거다이맥스를 \(daily)(하루 한 번)과 \(weekly)(주 한 번)에서 얻어요. 얻으면 도감에 오르고, 졸업한 포켓몬이 던전에서 그 형태로 싸워요.",
+                           "Battle forms: Mega Evolutions, Primal Reversions and Gigantamax forms are won in the \(daily) (one try a day) and the \(weekly) (one a week). Won, they join your Pokédex, and your graduated Pokémon can fight in them.",
+                           "バトルのすがた：メガシンカ、ゲンシカイキ、キョダイマックスを\(daily)（1日1回）と\(weekly)（週1回）で手に入れよう。手に入れると図鑑に載り、卒業したポケモンがダンジョンでそのすがたで戦えます。",
+                           "Formas de combate: las megaevoluciones, las regresiones primigenias y las formas Gigamax se ganan en la \(daily) (un intento al día) y la \(weekly) (uno por semana). Ganadas, entran en tu Pokédex y tus Pokémon graduados pueden luchar con ellas.",
+                           "Formes de combat : Méga-Évolutions, Primo-Résurgences et formes Gigamax se gagnent dans le \(daily) (une tentative par jour) et le \(weekly) (une par semaine). Gagnées, elles entrent dans ton Pokédex et tes Pokémon diplômés peuvent combattre sous ces formes.",
+                           "Formas de batalha: Megaevoluções, Regressões Primitivas e formas Gigantamax são ganhas na \(daily) (uma tentativa por dia) e na \(weekly) (uma por semana). Ganhas, entram na sua Pokédex e seus Pokémon formados podem lutar com elas.",
+                           "Kampfformen: Mega-Entwicklungen, Proto-Regressionen und Gigadynamax-Formen gewinnst du im \(daily) (ein Versuch pro Tag) und im \(weekly) (einer pro Woche). Gewonnen stehen sie in deinem Pokédex, und deine verabschiedeten Pokémon können in ihnen kämpfen.",
+                           "Боевые формы: мега-эволюции, первобытные формы и гигантамакс добываются в \"\(daily)\" (попытка в день) и \"\(weekly)\" (попытка в неделю). Полученные, они попадают в Покедекс, а выпускники могут сражаться в них.")
+            },
             .improved("2026-11-02-trainer-tab") { l in
                 let tab = l.trainerTab
                 return l.t("새 \(tab) 탭: 가방과 업적이 한곳에 있어요.",

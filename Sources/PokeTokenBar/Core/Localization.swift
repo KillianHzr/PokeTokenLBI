@@ -1879,6 +1879,9 @@ struct L {
         case .treasureMap: return t("보물지도", "Treasure Map", "たからのちず", "Mapa del Tesoro", "Carte au trésor", "Mapa do Tesouro", "Schatzkarte", "Карта сокровищ")
         case .explorerChest: return t("탐험가의 상자", "Explorer's Chest", "たんけんかのはこ", "Cofre del Explorador", "Coffre d'explorateur", "Baú do Explorador", "Forscherkiste", "Сундук исследователя")
         case .legendaryKey: return t("전설의 열쇠", "Legendary Key", "でんせつのカギ", "Llave Legendaria", "Clé Légendaire", "Chave Lendária", "Legendenschlüssel", "Легендарный ключ")
+        case .battleFormsMedal:
+            return t("전투 형태 메달", "Battle Forms Medal", "バトルのすがたメダル", "Medalla de Formas de combate",
+                     "Médaille des Formes de combat", "Medalha das Formas de batalha", "Kampfformen-Medaille", "Медаль боевых форм")
         case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
             let tier = dungeonTierName(kind.dungeonTier ?? .t1)
             return t("\(tier) 메달", "\(tier) Medal", "\(tier)のメダル", "Medalla \(tier)", "Médaille \(tier)", "Medalha \(tier)",
@@ -2462,6 +2465,15 @@ struct L {
                      "\(kit)のおたからをひとつランダムにくれます。", "Da uno de los tesoros del \(kit), al azar.",
                      "Donne un des trésors du \(kit), au hasard.", "Dá um dos tesouros do \(kit), ao acaso.",
                      "Gibt einen zufälligen Schatz des \(kit).", "Даёт одно из сокровищ предмета \"\(kit)\" наугад.")
+        case .battleFormsMedal:
+            return t("오늘의 던전과 이번 주 던전에서 전투 형태를 얻으세요: 5, 15, 30, 60, 100개와 전부에서 보상.",
+                     "Win battle forms in the daily and weekly dungeons: a reward at 5, 15, 30, 60, 100 and all of them.",
+                     "今日と今週のダンジョンでバトルのすがたを手に入れよう：5、15、30、60、100、全部でごほうび。",
+                     "Gana formas de combate en las mazmorras del día y de la semana: premio a las 5, 15, 30, 60, 100 y todas.",
+                     "Gagne des formes de combat dans les donjons du jour et de la semaine : une récompense à 5, 15, 30, 60, 100 et toutes.",
+                     "Ganhe formas de batalha nas masmorras do dia e da semana: prêmio com 5, 15, 30, 60, 100 e todas.",
+                     "Gewinne Kampfformen in den Tages- und Wochen-Dungeons: eine Belohnung bei 5, 15, 30, 60, 100 und allen.",
+                     "Получайте боевые формы в подземельях дня и недели: награда за 5, 15, 30, 60, 100 и все.")
         case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
             let tier = kind.dungeonTier ?? .t1
             let n = tier.rawValue

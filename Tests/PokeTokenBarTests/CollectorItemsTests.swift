@@ -63,14 +63,14 @@ final class CollectorItemsTests: XCTestCase {
     func testCollectorItemsAndAchievements() {
         let s = store()
         XCTAssertEqual(s.collectorItems(in: .evolutionStones).count, 11, "10 stones and the excavation")
-        XCTAssertEqual(s.collectorItems(in: .legendaryArtifacts).count, 45,
-                       "the Old Amber and the five Dungeons medals with the other artifacts")
+        XCTAssertEqual(s.collectorItems(in: .legendaryArtifacts).count, 46,
+                       "the Old Amber, the five Dungeons medals and the Battle Forms Medal with the other artifacts")
         XCTAssertEqual(s.collectorItems(in: .gymBadges).count, 18)
         XCTAssertEqual(s.collectorItems(in: .forms).count, 10)
         XCTAssertEqual(Set(CompanionStore.achievementItems), Set(ItemKind.allCases.filter { $0.collectorGroup != nil }))
-        XCTAssertEqual(s.totalAchievementsCount, 260,
+        XCTAssertEqual(s.totalAchievementsCount, 266,
                        "10 stones, 39 artifacts and the Legendary Egg's 9 regions, 161 badge regions, 10 forms, 15 digs, "
-                       + "16 Dungeons medal steps")
+                       + "16 Dungeons medal steps, 6 Battle Forms Medal steps")
         XCTAssertEqual(s.purchasableItems, [.rareCandy, .greatBall, .shinyCharm, .ultraBall],
                        "the Shop sells what main sells and the dungeons' two balls, the Mint retired")
 
@@ -343,7 +343,7 @@ final class CollectorItemsTests: XCTestCase {
         let artifacts = s.collectorItems(in: .legendaryArtifacts)
         XCTAssertEqual(artifacts.first, .clearBell, "unlocked and not owned comes first")
         XCTAssertEqual(artifacts.last, .soulDew, "owned passives sink to the very bottom, below the four still to earn")
-        XCTAssertEqual(artifacts.count, 45)
+        XCTAssertEqual(artifacts.count, 46)
     }
 
     /// Badges too go from the closest to done to the farthest, over all their regions, claimable or not: seven Kanto

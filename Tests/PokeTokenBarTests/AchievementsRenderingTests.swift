@@ -60,7 +60,7 @@ final class AchievementsRenderingTests: XCTestCase {
 
     /// Three segments with their counts used to be wider than the popover: SwiftUI centered the wider stack,
     /// so the whole tab slid off both edges. Checked in every language with the widest labels: every reward
-    /// ready, so the four segments carry counts up to three digits (10, 161, 45, 10).
+    /// ready, so the four segments carry counts up to three digits (10, 161, 46, 10).
     func testCategoryPickerFitsTheTabWidthInEveryLanguage() async throws {
         let categories = AchievementsView.AchievementCategory.allCases
         let labelWidth = PillPicker<AchievementsView.AchievementCategory>.labelWidth(count: categories.count,
@@ -79,7 +79,8 @@ final class AchievementsRenderingTests: XCTestCase {
             state.dex = Self.everySpeciesTwiceMewtwo
             try JSONEncoder().encode(state).write(to: file)
             let store = CompanionStore(provider: AchievementsStubProvider(), fileURL: file, defaults: defaults)
-            XCTAssertEqual(categories.map { AchievementsView.readyCount($0, store) }, [10, 161, 47, 10])
+            // Every species graduated no longer readies the Glimmering Charm: every form counts the battle forms too.
+            XCTAssertEqual(categories.map { AchievementsView.readyCount($0, store) }, [10, 161, 46, 10])
             for category in categories {
                 let title = AchievementsView.tabTitle(category, store)
                 let width = (title as NSString).size(withAttributes: [.font: font]).width

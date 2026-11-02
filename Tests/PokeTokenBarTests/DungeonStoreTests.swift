@@ -475,4 +475,16 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertTrue(s.challengePeriod(.weekly).contains("-W"))
         XCTAssertFalse(s.challengeTried(.daily), "the day's is apart")
     }
+
+    /// The Battle Forms Medal counts the forms won, in steps at 5, 15, 30, 60, 100 and all, each its reward.
+    func testTheBattleFormsMedalCountsTheFormsWon() throws {
+        XCTAssertEqual(BattleFormsMedal.steps, [5, 15, 30, 60, 100, BattleForms.all.count])
+        let five = Set(BattleForms.all.prefix(5).map(\.key))
+        let s = try store(dex: strong) { $0.dungeons.battleForms = five }
+        XCTAssertEqual(s.regionTiers(.battleFormsMedal).map(\.isReady), [true, false, false, false, false, false])
+        XCTAssertTrue(s.claimAchievement(.battleFormsMedal))
+        XCTAssertEqual(s.itemCount(.ultraBall), 2)
+        XCTAssertFalse(s.claimAchievement(.battleFormsMedal), "the next step asks for 15")
+        XCTAssertEqual(ItemKind.battleFormsMedal.collectorGroup, .legendaryArtifacts)
+    }
 }

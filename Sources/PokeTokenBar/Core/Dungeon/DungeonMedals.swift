@@ -63,3 +63,24 @@ extension ItemKind {
         }
     }
 }
+
+/// The Battle Forms Medal (2026-11-02): a step at 5, 15, 30, 60 and 100 battle forms won, then at every one, each a
+/// modest reward, the Master Ball last.
+enum BattleFormsMedal {
+    static let steps = [5, 15, 30, 60, 100, BattleForms.all.count]
+
+    static let goals: [(generation: Int, goal: SpeciesGoal)] = steps.enumerated().map {
+        ($0.offset + 1, SpeciesGoal(BattleForms.all.map(\.pokemonID), needed: $0.element))
+    }
+
+    static func rewards(step: Int) -> [(kind: ItemKind, count: Int)] {
+        switch step {
+        case 1: [(.ultraBall, 2)]
+        case 2: [(.silverCapsule, 1)]
+        case 3: [(.goldCapsule, 1)]
+        case 4: [(.rareEgg, 1)]
+        case 5: [(.legendaryEgg, 1)]
+        default: [(.masterBall, 1)]
+        }
+    }
+}

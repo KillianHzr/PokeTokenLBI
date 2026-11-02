@@ -257,3 +257,34 @@ struct BattleFormTitle: View {
             }
     }
 }
+
+/// The Battle Forms Medal's steps on its Achievements card: how many forms each asks for, what it gives, where it
+/// stands, by glyph and color.
+@MainActor
+struct BattleFormsMedalPanel: View {
+    let store: CompanionStore
+
+    var body: some View {
+        let l = store.l
+        let won = store.dungeonProgress.battleForms.count
+        VStack(alignment: .leading, spacing: 4) {
+            Text(l.battleFormsWon(won, of: BattleForms.all.count)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            ForEach(store.regionTiers(.battleFormsMedal), id: \.generation) { step in
+                HStack(spacing: 6) {
+                    Text(l.battleFormsMedalStep(step.generation)).font(.caption)
+                    Spacer(minLength: 4)
+                    ForEach(Array(BattleFormsMedal.rewards(step: step.generation).enumerated()), id: \.offset) { _, reward in
+                        HStack(spacing: 1) {
+                            ItemIconView(kind: reward.kind, size: 16)
+                            if reward.count > 1 { Text("×\(reward.count)").font(.caption2).monospacedDigit() }
+                        }
+                        .hoverTip(l.itemName(reward.kind))
+                    }
+                    Image(systemName: step.isDone ? "checkmark.circle.fill" : step.isReady ? "gift.fill" : "circle")
+                        .font(.caption)
+                        .foregroundStyle(step.isDone ? Design.actionColor : step.isReady ? Color.readableOrange : .secondary)
+                }
+            }
+        }
+    }
+}

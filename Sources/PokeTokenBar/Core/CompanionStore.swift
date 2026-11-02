@@ -843,7 +843,7 @@ final class CompanionStore {
                                     needed: progress.goal.needed))
         }
         // The Dungeons medals count dungeons won, not the Pokémon raised.
-        for kind in Self.achievementItems where kind.dungeonTier == nil {
+        for kind in Self.achievementItems where !kind.isPlayMedal {
             if kind == .excavation {
                 // The digs add up: only the next one counts, with the species that are Rock in this form.
                 let rock = branches.map { $0.filter { PokemonTypeData.types(forSpeciesID: $0, form: a.form).contains(.rock) } }
@@ -926,7 +926,7 @@ final class CompanionStore {
                 index[id, default: []].append(goal)
             }
         }
-        for kind in Self.achievementItems where kind != .excavation && kind.dungeonTier == nil {
+        for kind in Self.achievementItems where kind != .excavation && !kind.isPlayMedal {
             if kind.isRegional {
                 for tier in regionTiers(kind, registered: registered) where !tier.isDone {
                     add(kind, tier.generation, tier.progress)
@@ -2454,6 +2454,14 @@ final class CompanionStore {
         guard let goals = kind.regionGoals else { return [] }
         if kind == .excavation { return excavationTiers(goals) }
         if let tier = kind.dungeonTier { return medalTiers(tier, goals) }
+        if kind == .battleFormsMedal {
+            // Its goal's species are the battle forms' varieties: those won count.
+            let won = Set(state.dungeons.battleForms.compactMap { BattleForms.form(key: $0)?.pokemonID })
+            return goals.map { generation, goal in
+                RegionTier(generation: generation, progress: GoalProgress(goal: goal, registered: goal.species.filter(won.contains)),
+                           isClaimed: isRegionTierClaimed(kind, generation: generation))
+            }
+        }
         let registered = registered ?? graduatedSpeciesIDs
         return goals.map { generation, goal in
             RegionTier(generation: generation,
@@ -2688,6 +2696,7 @@ final class CompanionStore {
         let regions = ready.map { tier in
             if kind == .excavation { return "#\(tier.generation)" }
             if let dungeonTier = kind.dungeonTier { return l.medalStepName(dungeonTier, step: tier.generation) }
+            if kind == .battleFormsMedal { return l.battleFormsMedalStep(tier.generation) }
             return l.regionName(generation: tier.generation)
         }
         .joined(separator: ", ")
@@ -2742,7 +2751,8 @@ final class CompanionStore {
             state.inventory[kind.rawValue] = 1
         } else {
             // A Legendary Egg per region; a Fossil Egg per dig; a Dungeons medal's step its own.
-            let rewards = kind.dungeonTier.map { DungeonMedals.rewards($0, step: generation) } ?? kind.achievementRewards
+            let rewards = kind == .battleFormsMedal ? BattleFormsMedal.rewards(step: generation)
+                : kind.dungeonTier.map { DungeonMedals.rewards($0, step: generation) } ?? kind.achievementRewards
             for reward in rewards { state.inventory[reward.kind.rawValue, default: 0] += reward.count }
         }
         AppLog.write("achievement claimed: \(key)")
