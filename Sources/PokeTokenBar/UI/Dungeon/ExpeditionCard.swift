@@ -256,6 +256,7 @@ struct ExpeditionTeamGrid: View {
 }
 
 /// A thin bar: the HP left, the tokens toward the next floor.
+@MainActor
 struct ExpeditionBar: View {
     let value: Double
     let color: Color
@@ -368,7 +369,7 @@ struct ExpeditionLogRow: View {
             Image(systemName: battle.won ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .font(.caption2)
                 .foregroundStyle(battle.won ? Design.actionColor : Color.readableOrange)
-                .help(battle.won ? l.battleWon : l.battleLost)
+                .hoverTip(battle.won ? l.battleWon : l.battleLost)
             Spacer(minLength: 4)
             Button {
                 nav.replayStart = live ? since : 0

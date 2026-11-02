@@ -235,11 +235,13 @@ struct LoopEditor: View {
                     .disabled(locked)
                 }
             }
+            .reservesScrollerLane()
         }
         .frame(maxHeight: 120)
     }
 }
 
+@MainActor
 private struct LoopEditorFrame: ViewModifier {
     let asCard: Bool
 
