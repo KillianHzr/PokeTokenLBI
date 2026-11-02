@@ -59,6 +59,9 @@ final class HatchLuckTests: XCTestCase {
         let l = luck([entry(16, [16, 17, 18], day: 1), entry(147, day: 2), entry(10, day: 3)])
         XCTAssertEqual(l.hatches[1].lineOdds ?? 0, 40.0 / 255, accuracy: 1e-12, "no Pidgey right after one")
         XCTAssertEqual(l.hatches[2].lineOdds ?? 0, 212.0 / 321, accuracy: 1e-12, "Pidgey halved, no Dratini")
+        XCTAssertEqual(l.hatches[2].rarityOdds.low, 318.0 / 321 * (1 - 1.0 / 128), accuracy: 1e-12, "a common, no Ditto")
+        let released = luck([entry(16, [16, 17, 18], day: 1, released: true), entry(147, day: 2), entry(10, day: 3)])
+        XCTAssertEqual(released.hatches[2].lineOdds ?? 0, 212.0 / 427, accuracy: 1e-12, "a Pokémon sent off is not had")
         XCTAssertEqual(l.criteria.first { $0.criterion == .rare }?.sinceLast, 1)
         XCTAssertNil(l.criteria.first { $0.criterion == .legendary }?.sinceLast)
     }
@@ -103,6 +106,19 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertTrue(h.eggChosenByPlayer)
         XCTAssertEqual(Set(h.judged.keys), Set(HatchLuck.Criterion.allCases))
         XCTAssertEqual(h.judged[.rare], .init(odds: 40.0 / 43, hit: true))
+        let dated = luck([entry(16, day: 1, released: true), entry(147, day: 2, record: chosen)],
+                         itemsSince: [.shinyCharm: Self.day(0)])
+        XCTAssertEqual(dated.hatches[1].judged[.shiny]?.odds ?? 0, 1.0 / 48, accuracy: 1e-12, "its items from their dates")
+    }
+
+    /// A Fossil Egg is never used on a Fossil Egg's own Pokémon: the egg after it was not one.
+    func testNoFossilEggRightAfterOne() {
+        let index = self.index + [BaseSpecies(id: 138, captureRate: 45), BaseSpecies(id: 142, captureRate: 45)]
+        let fossil = HatchRecord(egg: .fossil, chosenByPlayer: true)
+        let l = luck([entry(16, day: 1, released: true), entry(138, day: 2, released: true, record: fossil), entry(142, day: 3)],
+                     index: index)
+        XCTAssertNil(l.hatches[2].egg)
+        XCTAssertFalse(l.hatches[2].possibleEggs.contains(.fossil))
     }
 
     /// Without a record, a draw item counts from the date the player gave for it, for the eggs started after.
@@ -124,7 +140,9 @@ final class HatchLuckTests: XCTestCase {
     }
 
     func testARevealedDittoIsJudgedAsADitto() throws {
-        let h = try XCTUnwrap(luck([entry(PokemonOdds.dittoSpeciesID, day: 1)]).hatches.first)
+        var ditto = entry(PokemonOdds.dittoSpeciesID, day: 1)
+        ditto.rarity = .rare
+        let h = try XCTUnwrap(luck([ditto]).hatches.first)
         XCTAssertTrue(h.isDitto)
         XCTAssertEqual(h.judged[.ditto]?.hit, true)
         XCTAssertEqual(h.rarityOdds.low, 424.0 / 467 / 128, accuracy: 1e-12)
@@ -132,6 +150,24 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertEqual(h.judged[.uncommon]?.hit, false)
         XCTAssertNil(h.judged[.new])
         XCTAssertNil(h.newOdds)
+    }
+
+    /// A Ditto hides in an evolving common from an egg that promises nothing: not in Luvdisc, not from a stone.
+    func testWhereADittoCanHide() throws {
+        let index = [BaseSpecies(id: 16, captureRate: 255), BaseSpecies(id: 370, captureRate: 225)]
+        let plain = try XCTUnwrap(luck([entry(370, day: 1)], index: index).hatches.first)
+        XCTAssertEqual(plain.judged[.ditto]?.odds ?? 0, 0.5 / 128, accuracy: 1e-12)
+        let stone = HatchRecord(egg: .stone(.normal))
+        XCTAssertEqual(luck([entry(16, day: 1, record: stone)], index: index).hatches.first?.judged[.ditto]?.odds, 0)
+    }
+
+    /// Shiny every time: with the Glimmering Charm, or from an event egg that promises it.
+    func testShinyEveryTime() {
+        let glimmering = HatchRecord(egg: .tier(nil), hatchItems: [.glimmeringCharm])
+        XCTAssertEqual(luck([entry(16, day: 1, record: glimmering)]).hatches.first?.judged[.shiny]?.odds, 1)
+        let valentine = HatchRecord(egg: .event(.valentine, key: nil))
+        let index = self.index + [BaseSpecies(id: 370, captureRate: 225)]
+        XCTAssertEqual(luck([entry(370, day: 1, record: valentine)], index: index).hatches.first?.judged[.shiny]?.odds, 1)
     }
 
     /// The score after each hatch is the mean of the six percentiles then; each hatch's effect is what it moved.

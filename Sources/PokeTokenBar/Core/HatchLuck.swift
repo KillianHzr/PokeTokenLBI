@@ -89,9 +89,7 @@ struct HatchLuck: Sendable {
                                       roll: HatchDraw(collection: collection, items: rollItems),
                                       hatch: HatchDraw(collection: collection, items: hatchItems),
                                       afterFossilEgg: previousEgg == .fossil, index: index, rarities: rarities))
-            if !entry.isReleased, !(includesActive && i == entries.count - 1) {
-                collection.collectedFinals.insert("\(entry.baseID):\(entry.finalID)")
-            }
+            if !entry.isReleased { collection.collectedFinals.insert("\(entry.baseID):\(entry.finalID)") }
             collection.dex.append(entry)
         }
         var runs = Criterion.allCases.map { _ in (odds: [Double](), hits: 0) }
@@ -187,13 +185,8 @@ struct HatchLuck: Sendable {
             guard let spec = egg.spec, let species = index.first(where: { $0.id == base }) else { return false }
             // A season's Deerling, first rolled apart from the pool.
             if base == EventEgg.deerlingID, spec.event?.seasonForm != nil { return true }
-            let keeps = roll.guaranteeCheck(spec)
-            guard keeps(species) else { return false }
-            // An event egg none of whose Pokémon keeps its guarantees hatches as a plain egg would.
-            guard let event = spec.event else { return true }
-            let companion = roll.collection.companionLineID
-            return event.admits(species, companionLine: companion)
-                || !index.contains { keeps($0) && event.admits($0, companionLine: companion) }
+            return roll.guaranteeCheck(spec)(species)
+                && (spec.event?.admits(species, companionLine: roll.collection.companionLineID) ?? true)
         }
     }
 
