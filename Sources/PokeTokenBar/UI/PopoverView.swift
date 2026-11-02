@@ -115,6 +115,8 @@ final class PopoverNavigation {
     var showingIdeas = false { didSet { if showingIdeas { dexDetailCollectionID = nil } } }
     /// The events' calendar (`EventCalendarScreen`) too.
     var showingCalendar = false { didSet { if showingCalendar { dexDetailCollectionID = nil } } }
+    /// Prof. Oak's details page (`OakAdviceScreen`) too.
+    var showingOakDetails = false { didSet { if showingOakDetails { dexDetailCollectionID = nil } } }
     /// The changelog entries seen before it was opened: the others are marked new on it.
     var changelogSeenBefore: Set<String> = []
     /// The Collection tab's open Pokédex detail page (`DexSpecies.collectionID`); nil = grid or log.
@@ -167,6 +169,7 @@ final class PopoverNavigation {
         showingChangelog = false
         showingIdeas = false
         showingCalendar = false
+        showingOakDetails = false
         tab = .home
     }
 
@@ -240,6 +243,8 @@ struct PopoverView: View {
                 IdeasScreen(l: l) { nav.showingIdeas = false }
             } else if nav.showingCalendar {
                 EventCalendarScreen(store: companion) { nav.showingCalendar = false }
+            } else if nav.showingOakDetails {
+                OakAdviceScreen(store: companion) { nav.showingOakDetails = false }
             } else {
                 mainContent
             }
@@ -561,7 +566,7 @@ struct PopoverView: View {
             } else if nav.tab == .bag {
                 BagView(store: companion, nav: nav)
             } else if nav.tab == .shop {
-                ShopView(store: companion)
+                ShopView(store: companion, nav: nav)
             } else {
                 // 고정 높이 — 상점/가방/컬렉션과 동일(팝오버가 화면을 넘어가는 것을 방지).
                 ScrollView {

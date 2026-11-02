@@ -215,6 +215,9 @@ actor SpriteStore {
         failedKeys.contains(Self.cacheKey(speciesID: speciesID, animated: animated, shiny: shiny, form: form))
     }
 
+    /// Prof. Oak's Pokémon Masters render, hosted by WikiDex: Showdown draws trainers in pixels only.
+    nonisolated static let oakPortrait = "oak-masters"
+
     /// 아이템 스프라이트(정적 PNG, 이름 기반). 포켓몬과 같은 메모리/디스크 캐시 사용(키 "item-<name>",
     /// 포켓몬 파일 "<id>-..." 과 안 겹침). 미제공(404)/오프라인이면 nil → 뷰가 이모지로 폴백.
     func data(itemName: String) async -> Data? {
@@ -227,6 +230,8 @@ actor SpriteStore {
         if itemName.hasPrefix("badge-") {
             let badgeNum = itemName.dropFirst(6)
             urlStr = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/\(badgeNum).png"
+        } else if itemName == Self.oakPortrait {
+            urlStr = "https://images.wikidexcdn.net/mwuploads/wikidex/b/b3/latest/20200210170142/Profesor_Oak_Masters.png"
         } else {
             urlStr = "\(itemBase)/\(itemName).png"
         }

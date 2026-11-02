@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-02", entries: [
+            .new("2026-11-02-prof-oak-advice") { l in
+                let candy = l.itemName(.rareCandy)
+                return l.t("상점에 오박사의 조언이 생겼어요. 키우는 포켓몬이 아직 도감에 새로운 걸 가져오는지, 중복이라면 알과 바꿔 놓아줄지 끝까지 키울지, 알을 몇 개 미리 사 두고 사탕에 얼마나 쓸지, 그리고 \(KoreanParticle.object.attach(to: candy)) 몇 번 쓸지 알려 줘요.",
+                           "New in the Shop: Prof. Oak's advice. He tells you whether the Pokémon you're raising still brings your Pokédex something new or is a Spare, whether to release a Spare for an egg or let it finish, how many eggs to buy ahead and how much to spend on candies, and how many times to use a \(candy).",
+                           "ショップにオーキド博士のアドバイスが登場。育てているポケモンが図鑑にまだ新しいものを加えるのかダブりなのか、ダブりならタマゴと引き換えに手放すか最後まで育てるか、タマゴを前もっていくつ買い、アメにどれだけ使うか、\(candy)を何回使うかを教えてくれます。",
+                           "Nuevo en la tienda: los consejos del Profesor Oak. Te dice si el Pokémon que crías aún aporta algo nuevo a tu Pokédex o está repetido, si soltar uno repetido por un huevo o dejar que termine, cuántos huevos comprar por adelantado y cuánto gastar en caramelos, y cuántas veces usar un \(candy).",
+                           "Nouveau dans la Boutique : les conseils du Prof. Chen. Il te dit si le Pokémon que tu fais grandir apporte encore du nouveau à ton Pokédex ou s'il est en trop, s'il faut relâcher un Pokémon en trop contre un œuf ou le laisser finir, combien d'œufs acheter d'avance et combien mettre en bonbons, et combien de fois utiliser un \(candy).",
+                           "Novo na loja: os conselhos do Prof. Carvalho. Ele diz se o Pokémon que você cria ainda traz algo novo para a sua Pokédex ou é repetido, se vale soltar um repetido por um ovo ou deixá-lo terminar, quantos ovos comprar com antecedência e quanto gastar em doces, e quantas vezes usar um \(candy).",
+                           "Neu im Laden: Tipps von Prof. Eich. Er sagt dir, ob dein Pokémon deinem Pokédex noch etwas Neues bringt oder doppelt ist, ob du ein doppeltes für ein Ei freilässt oder fertig werden lässt, wie viele Eier du im Voraus kaufst und wie viel in Bonbons geht, und wie oft du ein \(candy) verwendest.",
+                           "Новое в магазине: советы профессора Оука. Он подскажет, принесёт ли ваш покемон что-то новое в покедекс или это дубликат, отпустить ли дубликат ради яйца или дать ему дорасти, сколько яиц купить заранее и сколько потратить на конфеты, и сколько раз использовать \"\(candy)\".")
+            },
             .fixed("2026-11-02-incubating-egg-name") { l in
                 let fossil = l.itemName(.fossilEgg)
                 return l.t("부화 중인 알이 이제 \"Token Egg\" 대신 제 이름(\(fossil) 등)으로 표시돼요.",

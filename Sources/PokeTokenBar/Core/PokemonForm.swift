@@ -579,13 +579,18 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
 
     /// Chosen only after the species roll: uncollected forms weigh 2, collected forms weigh 1.
     static func roll(_ roll: UInt64, among forms: [PokemonForm], collected: Set<PokemonForm>) -> PokemonForm {
-        let weights = forms.map { CollectionWeight.adjusted(2, isCollected: collected.contains($0)) }
+        let weights = rollWeights(among: forms, collected: collected)
         var remaining = Int(roll % UInt64(weights.reduce(0, +)))
         for (form, weight) in zip(forms.dropLast(), weights) {
             remaining -= weight
             if remaining < 0 { return form }
         }
         return forms.last! // Any remaining roll belongs to the last form.
+    }
+
+    /// Each form's weight in `roll`.
+    static func rollWeights(among forms: [PokemonForm], collected: Set<PokemonForm>) -> [Int] {
+        forms.map { CollectionWeight.adjusted(2, isCollected: collected.contains($0)) }
     }
 
     // MARK: Sprites and names
