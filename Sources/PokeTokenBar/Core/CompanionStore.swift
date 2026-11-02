@@ -682,7 +682,7 @@ final class CompanionStore {
             },
             form: active.form,
             hasNewForm: active.hasNewForm
-        ).withRaising(active.raising)
+        ).withRecords(of: active)
     }
 
     /// 놓아준 개체의 영구 기록 — 알을 새로 사서 육성을 포기하는 순간 만든다.
@@ -712,7 +712,7 @@ final class CompanionStore {
                 Dictionary(uniqueKeysWithValues:
                     chain.compactMap { id in line.names[id].map { (id, $0) } })
             },
-            releasedAt: now, form: a.form, hasNewForm: a.hasNewForm).withRaising(a.raising)
+            releasedAt: now, form: a.form, hasNewForm: a.hasNewForm).withRecords(of: a)
     }
 
     var dexEntries: [DexEntry] {
@@ -1989,7 +1989,7 @@ final class CompanionStore {
                                   names: currentLine.map { line in   // 체인 각 종의 다국어 이름 저장(표시 즉시)
                                       Dictionary(uniqueKeysWithValues:
                                           a.pathIDs.compactMap { id in line.names[id].map { (id, $0) } })
-                                  }, form: a.form, hasNewForm: a.hasNewForm).withRaising(a.raising))
+                                  }, form: a.form, hasNewForm: a.hasNewForm).withRecords(of: a))
         // Not for a Common: one candy is a whole Common line's XP (`RareCandy.xp`), so each one graduated paid the next
         // and Commons graduated for free, one egg apart.
         if ownsReinsOfUnity, a.rarity != .common {
@@ -3426,7 +3426,9 @@ final class CompanionStore {
             return
         }
         let pendingForm = state.pendingHatchID == base ? state.pendingForm : eventForm(baseID: base, event: state.eggEvent)
-        await hatchCore(baseID: base, generation: generation, form: pendingForm, forceShiny: forceShiny)
+        let rollItems = state.pendingHatchID == base ? state.pendingHatchItems : nil
+        await hatchCore(baseID: base, generation: generation, form: pendingForm, forceShiny: forceShiny,
+                        rollItems: rollItems)
     }
 
     /// 부화가 폐기된 뒤 남은 개체(대개 방금 불러온 개체)의 진화 라인을 다시 로드한다.
@@ -3483,6 +3485,7 @@ final class CompanionStore {
             }
             let id = pick.id
             state.pendingHatchID = id
+            state.pendingHatchItems = hatchDraw.items
             state.pendingShiny = pick.shiny
             state.pendingForm = eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
             save()
@@ -3580,8 +3583,9 @@ final class CompanionStore {
     }
 
     /// 실제 부화 로직 — isHatching 락은 호출자(hatch / hatchIfNeeded)가 소유·해제한다.
+    /// `rollItems`: the draw items owned when the species was rolled before the hatch (`pendingHatchItems`).
     private func hatchCore(baseID: Int, generation: Int, form pendingForm: PokemonForm? = nil,
-                           forceShiny: Bool = false) async {
+                           forceShiny: Bool = false, rollItems: Set<ItemKind>? = nil) async {
         let line: EvoLine
         do {
             line = try await provider.line(baseSpeciesID: baseID)
@@ -3626,6 +3630,7 @@ final class CompanionStore {
         }
         state.pendingHatchID = nil
         state.pendingForm = nil
+        state.pendingHatchItems = nil
         // A later egg can roll the same species with another form and must warm its own sprite.
         prefetchedLineID = nil
         currentLine = line
@@ -3634,6 +3639,7 @@ final class CompanionStore {
         let overflow = max(0, state.eggUsage - eggHatchThreshold)
         state.eggUsage = 0
         let egg = incubatingEgg
+        let hatchEgg = state.incubatingHatchEgg
         let draw = hatchDraw
         let fromRarityEgg = state.eggTier != nil && state.eggEvent == nil
         state.eggTier = nil   // 보증은 이 부화로 소비된다(다음 알은 다시 무보증)
@@ -3698,6 +3704,7 @@ final class CompanionStore {
         state.active?.raising = RaisingRecord(hatchedAt: clock())
         state.active?.fromStoneEgg = typeGuarantee != nil && event == nil
         state.active?.fromRarityEgg = fromRarityEgg
+        state.active?.hatch = HatchRecord(egg: hatchEgg, rollItems: rollItems ?? draw.items, hatchItems: draw.items)
         // What the Old Amber kept, short of the first evolution: the amber alone never evolves it as it hatches.
         if state.amberCarry > 0, let mon = state.active {
             let given = min(state.amberCarry, max(0, stageThreshold(for: mon) - 1))

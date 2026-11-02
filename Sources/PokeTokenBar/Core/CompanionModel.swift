@@ -1183,6 +1183,8 @@ struct MonState: Codable, Sendable, Equatable {
     var fromRarityEgg = false
     /// Its raising record from its hatch on (`RaisingRecord`).
     var raising: RaisingRecord?
+    /// Its egg and the draw items its rolls met (`HatchRecord`), for a Pokémon hatched since the record is kept.
+    var hatch: HatchRecord?
     /// The costume this individual brought when it became a Pikachu: it wears that one rather than the equipped one.
     var pikachuCostume: PikachuCostume?
     // 메타몽 위장 — nil=일반. 값=정체 메타몽, 이 종으로 위장 중(위장 구간엔 baseID 와 동일, 리빌 후에도 원 위장체 보존).
@@ -1259,6 +1261,7 @@ struct MonState: Codable, Sendable, Equatable {
         fromStoneEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromStoneEgg)) ?? false
         fromRarityEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromRarityEgg)) ?? false
         raising = (try? c.decodeIfPresent(RaisingRecord.self, forKey: .raising)) ?? nil
+        hatch = (try? c.decodeIfPresent(HatchRecord.self, forKey: .hatch)) ?? nil
         // A costume this version doesn't know is dropped, not the whole individual.
         pikachuCostume = ((try? c.decodeIfPresent(String.self, forKey: .pikachuCostume)) ?? nil)
             .flatMap(PikachuCostume.init(rawValue:))
@@ -1303,9 +1306,13 @@ struct DexEntry: Codable, Sendable, Identifiable, Equatable {
     var hasNewForm = false
     /// What raised it (`RaisingRecord`), for a Pokémon hatched since the record is kept.
     var raising: RaisingRecord?
-    func withRaising(_ raising: RaisingRecord?) -> DexEntry {
+    /// How it hatched (`HatchRecord`), for a Pokémon hatched since the record is kept, or the egg its player chose.
+    var hatch: HatchRecord?
+    /// The records it carried while raised (`MonState.raising`, `MonState.hatch`).
+    func withRecords(of mon: MonState) -> DexEntry {
         var entry = self
-        entry.raising = raising
+        entry.raising = mon.raising
+        entry.hatch = mon.hatch
         return entry
     }
     /// 졸업이 아니라 놓아준 기록인가 — 포획 로그가 뱃지를 가르는 판정.
@@ -1355,6 +1362,7 @@ struct DexEntry: Codable, Sendable, Identifiable, Equatable {
         releasedAt = try c.decodeIfPresent(Date.self, forKey: .releasedAt)
         hasNewForm = (try? c.decodeIfPresent(Bool.self, forKey: .hasNewForm)) ?? false
         raising = (try? c.decodeIfPresent(RaisingRecord.self, forKey: .raising)) ?? nil
+        hatch = (try? c.decodeIfPresent(HatchRecord.self, forKey: .hatch)) ?? nil
         form = PokemonForm.resolved(baseID: baseID, form: PokemonForm.decoded(from: decoder, keys: "form", "unownForm"))
     }
 }
@@ -1511,6 +1519,8 @@ struct CompanionState: Codable, Sendable, Equatable {
     var pendingHatchID: Int?
     /// The form is chosen with the species so prefetch warms the exact sprite that will hatch.
     var pendingForm: PokemonForm?
+    /// The draw items owned when `pendingHatchID` was rolled (`HatchRecord.rollItems`); nil for an egg that rolls nothing.
+    var pendingHatchItems: Set<ItemKind>?
     /// 오늘 사용량 적립 기준값 — 프로바이더별로 독립 관리한다.
     ///
     /// `nil`은 aggregate `claimedTodayTokens`만 가지고 있던 구버전 세이브가 아직 첫 유효
@@ -1580,6 +1590,8 @@ struct CompanionState: Codable, Sendable, Equatable {
         pendingHatchID     = c.lenientOptional(Int.self, forKey: .pendingHatchID)
         pendingForm        = PokemonForm.resolved(baseID: pendingHatchID ?? 0,
             form: PokemonForm.decoded(from: decoder, keys: "pendingForm", "pendingUnownForm"))
+        pendingHatchItems = (try? c.decodeIfPresent([String].self, forKey: .pendingHatchItems))?
+            .map { Set($0.compactMap(ItemKind.init(rawValue:))) }
         if c.contains(.claimedTodayTokensByProvider) {
             claimedTodayTokensByProvider = c.lenient([String: Int].self,
                                                       forKey: .claimedTodayTokensByProvider,
