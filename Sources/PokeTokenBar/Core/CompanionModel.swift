@@ -1435,7 +1435,7 @@ struct SaveWriter: Codable, Equatable, Sendable {
 
 /// 배열 항목별 격리 디코딩 래퍼 — 손상된 한 항목이 배열 전체(및 상위 상태) 디코드를 실패시키지 않게.
 /// 각 항목을 `try?` 로 감싸므로 실패 항목은 `value == nil` 이 되고 배열 디코드 자체는 성공한다.
-private struct Lossy<T: Decodable>: Decodable {
+struct Lossy<T: Decodable>: Decodable {
     let value: T?
     init(from decoder: Decoder) throws {
         value = try? decoder.singleValueContainer().decode(T.self)
@@ -1464,7 +1464,7 @@ enum LenientDecoding {
     }
 }
 
-private extension KeyedDecodingContainer {
+extension KeyedDecodingContainer {
     /// 관대 디코드 — 키 없음/null/타입 불일치를 모두 기본값으로 흡수한다. 한 필드 손상이 상태 전체
     /// (도감·인벤토리)를 날리지 않게(부분 복원 > 전면 리셋). 최상위가 JSON 객체가 아닌 전면 손상은 여전히 throw.
     /// A value present but of another shape is a loss (`LenientDecoding`); a key absent or null is not.
@@ -1609,6 +1609,9 @@ struct CompanionState: Codable, Sendable, Equatable {
     /// The growth bonuses add up (they used to multiply). A save from before that has `false`, and its current
     /// stage is carried over once by `CompanionStore.migrateToAdditiveGrowthIfNeeded`.
     var additiveGrowthBonuses = true
+    /// The dungeons: the expedition under way, the victories, the bosses met, the move loops, the moves unlocked, the
+    /// eggs won (`DungeonProgress`).
+    var dungeons = DungeonProgress()
 
     init() {}
 
@@ -1683,6 +1686,7 @@ struct CompanionState: Codable, Sendable, Equatable {
         amberCarry = c.lenient(Int.self, forKey: .amberCarry, default: 0)
         graduationsTowardTreasure = c.lenient(Int.self, forKey: .graduationsTowardTreasure, default: 0)
         unseenTreasures = c.lenient([String: Int].self, forKey: .unseenTreasures, default: [:])
+        dungeons = c.lenient(DungeonProgress.self, forKey: .dungeons, default: DungeonProgress())
     }
 
     /// 졸업 기록 또는 현재 개체가 실제로 도달한 단계에 이 종이 포함되는가.

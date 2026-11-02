@@ -1706,11 +1706,7 @@ final class CompanionStore {
                     recordRaising(todayTokensByProvider)
                     if delta > 0 {
                         state.usedSinceInstall += delta
-                        if state.active == nil {
-                            state.eggUsage += delta
-                        } else {
-                            applyUsage(delta)
-                        }
+                        creditGrowth(delta)
                     }
                 } else {
                     var ledger = state.claimedTodayTokensByProvider ?? [:]
@@ -1745,11 +1741,7 @@ final class CompanionStore {
                     recordRaising(deltas)
                     if delta > 0 {
                         state.usedSinceInstall += delta
-                        if state.active == nil {
-                            state.eggUsage += delta   // 알 인큐베이션 누적
-                        } else {
-                            applyUsage(delta)
-                        }
+                        creditGrowth(delta)   // 알 인큐베이션 누적, or the Pokémon's growth, or a dungeon's walk
                     }
                 }
             }
@@ -2300,6 +2292,39 @@ final class CompanionStore {
         state.inventory[ItemKind.rareCandy.rawValue, default: 0] += count
         return count
     }
+
+    // MARK: The dungeons' access (`CompanionStore+Dungeons`: `state` is written in this file only)
+
+    /// The tokens' growth: a dungeon's walk while a team explores (Q1: growth pauses, the Shop and the candies go
+    /// on), else the egg's incubation or the Pokémon's growth.
+    private func creditGrowth(_ delta: Int) {
+        if feedExpedition(delta) { return }
+        if state.active == nil {
+            state.eggUsage += delta
+        } else {
+            applyUsage(delta)
+        }
+    }
+
+    func changeDungeons(_ change: (inout DungeonProgress) -> Void) { change(&state.dungeons) }
+
+    /// Tokens paid from the wallet, as a purchase pays them.
+    func spendTokens(_ amount: Int) { state.spentTokens += max(0, amount) }
+
+    /// Adds (or with a negative count takes) items in the Bag, never below none. Returns how many moved.
+    @discardableResult
+    func changeBag(_ kind: ItemKind, by count: Int) -> Int {
+        let held = itemCount(kind)
+        let moved = max(-held, count)
+        state.inventory[kind.rawValue] = held + moved
+        return moved
+    }
+
+    func grantRareCandies(_ count: Int) -> Int { addRareCandies(count) }
+    /// The store's clock (`clock`, injected by the tests).
+    var currentDate: Date { clock() }
+    func drawSeed() -> UInt64 { rng.next() }
+    func persist() { save() }
 
     // MARK: Collector items (unlocked by the Pokédex)
 
