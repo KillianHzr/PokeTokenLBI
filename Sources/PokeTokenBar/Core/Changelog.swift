@@ -67,6 +67,30 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-02", entries: [
+            .improved("2026-11-02-achievements-closest-first", { $0.t("진행 중인 업적이 이제 완료에 가까운 순서대로 놓여요.",
+                                                                  "Achievements in progress are now listed from the closest to done to the farthest.",
+                                                                  "進行中の実績が、達成に近い順に並ぶようになりました。",
+                                                                  "Los logros en curso ahora se ordenan del más cercano a completarse al más lejano.",
+                                                                  "Les succès en cours sont maintenant classés du plus proche d'être terminé au plus lointain.",
+                                                                  "As conquistas em andamento agora aparecem da mais próxima de ser concluída à mais distante.",
+                                                                  "Laufende Erfolge stehen jetzt vom am weitesten fortgeschrittenen bis zum fernsten.",
+                                                                  "Успехи в процессе теперь идут от самых близких к завершению до самых далёких.") }),
+            .improved("2026-11-02-oak-breathes", { $0.t("상점의 오박사가 이제 숨을 쉬며 움직여요. 말풍선에서는 포켓몬 이름 아래에 판정이 표시돼요.",
+                                                        "Prof. Oak now breathes in the Shop, and his bubble shows his verdict under the Pokémon's name.",
+                                                        "ショップのオーキド博士が息をするように動くようになりました。吹き出しでは、ポケモンの名前の下に判定が出ます。",
+                                                        "El Profesor Oak ahora respira en la tienda, y su bocadillo muestra su veredicto bajo el nombre del Pokémon.",
+                                                        "Le Prof. Chen respire maintenant dans la Boutique, et sa bulle affiche son verdict sous le nom du Pokémon.",
+                                                        "O Prof. Carvalho agora respira na loja, e o balão dele mostra o veredito abaixo do nome do Pokémon.",
+                                                        "Prof. Eich atmet jetzt im Laden, und seine Sprechblase zeigt sein Urteil unter dem Namen des Pokémon.",
+                                                        "Профессор Оук теперь дышит в магазине, а его вердикт стоит под именем покемона.") }),
+            .improved("2026-11-02-shop-balance", { $0.t("상점 맨 위에 쓸 수 있는 토큰이 다시 크게 보여요.",
+                                                        "Your spendable tokens are back at the top of the Shop, in large.",
+                                                        "ショップの一番上に、使えるトークンがまた大きく表示されます。",
+                                                        "Tus tokens disponibles vuelven a verse en grande arriba de la tienda.",
+                                                        "Tes tokens disponibles reviennent en grand en haut de la Boutique.",
+                                                        "Seus tokens disponíveis voltam a aparecer em destaque no topo da loja.",
+                                                        "Deine verfügbaren Tokens stehen wieder groß ganz oben im Laden.",
+                                                        "Доступные токены снова крупно видны вверху магазина.") }),
             .new("2026-11-02-prof-oak-advice") { l in
                 let candy = l.itemName(.rareCandy)
                 return l.t("상점에 오박사의 조언이 생겼어요. 키우는 포켓몬이 아직 도감에 새로운 걸 가져오는지, 중복이라면 알과 바꿔 놓아줄지 끝까지 키울지, 알을 몇 개 미리 사 두고 사탕에 얼마나 쓸지, 그리고 \(KoreanParticle.object.attach(to: candy)) 몇 번 쓸지 알려 줘요.",

@@ -2690,7 +2690,8 @@ final class CompanionStore {
         return count
     }
 
-    /// Items for a specific achievement section, sorted: claimable first, then in-progress, then claimed.
+    /// Items for a specific achievement section, sorted: claimable first, then in progress from the closest to done
+    /// (`achievementShare`) to the farthest, then claimed.
     func achievementItems(in group: CollectorGroup) -> [ItemKind] {
         let registered = graduatedSpeciesIDs
         func rank(_ kind: ItemKind) -> Int {
@@ -2705,11 +2706,46 @@ final class CompanionStore {
         }
         let items = ItemKind.allCases.filter { $0.collectorGroup == group }
         let ranks = Dictionary(uniqueKeysWithValues: items.map { ($0, rank($0)) })
+        // Highest share first; the order of the catalogue on a tie.
+        let behind = Dictionary(uniqueKeysWithValues: items.filter { ranks[$0] == 1 }.map {
+            ($0, -achievementShare($0, registered: registered))
+        })
         // The Excavation is not a stone: it closes the Stones tab whatever its state.
         func last(_ kind: ItemKind) -> Int { kind == .excavation ? 1 : 0 }
-        return items.enumerated()
-            .sorted { (last($0.element), ranks[$0.element]!, $0.offset) < (last($1.element), ranks[$1.element]!, $1.offset) }
-            .map(\.element)
+        func key(_ item: (offset: Int, element: ItemKind)) -> (Int, Int, Double, Int) {
+            (last(item.element), ranks[item.element]!, behind[item.element] ?? 0, item.offset)
+        }
+        return items.enumerated().sorted { key($0) < key($1) }.map(\.element)
+    }
+
+    /// How much of an achievement is done, from 0 to 1, as its card counts it: its goal closest to met (any one is
+    /// enough), and for a regional one its open region closest to done, the next reward.
+    func achievementShare(_ kind: ItemKind, registered: Set<Int>? = nil) -> Double {
+        func share(_ count: Int, _ needed: Int) -> Double { Double(min(count, needed)) / Double(max(1, needed)) }
+        if kind.isRegional {
+            return regionTiers(kind, registered: registered).filter { !$0.isDone }
+                .map { share($0.progress.count, $0.progress.goal.needed) }.max() ?? 0
+        }
+        switch kind.unlock {
+        case .species?:
+            return unlockProgress(of: kind, registered: registered).map { share($0.count, $0.goal.needed) }.max() ?? 0
+        case .duplicateLegendary?:
+            return share(graduatedLegendaryCopies, 2)
+        case .silvallyMemories?:
+            return share(state.graduatedSilvallyMemoryTypes.count, PokemonForm.memoryTypes.count)
+        case .allSpecies?:
+            let progress = graduatedCollectionProgress
+            return share(progress.species, progress.speciesTotal)
+        case .allForms?:
+            let progress = graduatedCollectionProgress
+            return share(progress.forms, progress.formsTotal)
+        case .allPikachuCostumes?:
+            return share(state.pikachuCostumes.count, PikachuCostume.allCases.count)
+        case .forms(let goal)?:
+            return share(formProgress(goal).count, goal.forms.count)
+        case nil:
+            return 0
+        }
     }
 
     /// Alias for backward compatibility with existing tests and collector group listings.

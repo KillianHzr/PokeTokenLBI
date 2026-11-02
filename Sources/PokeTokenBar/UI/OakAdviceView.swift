@@ -1,15 +1,14 @@
 import SwiftUI
 
-/// Prof. Oak's advice, at the top of the Shop in place of the balance card: one sentence in his bubble, then the steps
-/// in order, one line each, and the balance. His details page explains each step. Nothing runs from the card: a step
-/// done in another tab links to it.
+/// Prof. Oak's advice, at the top of the Shop under the balance card: one sentence in his bubble, then the steps in
+/// order, one line each. His details page explains each step. Nothing runs from the card: a step done in another tab
+/// links to it.
 @MainActor
 struct OakAdviceCard: View {
     let store: CompanionStore
     let nav: PopoverNavigation
-    @State private var oak = SpriteLoader.cachedItemImage(name: SpriteStore.oakPortrait)
 
-    private static let bustWidth: CGFloat = 84
+    static let bustWidth: CGFloat = 84
     /// Head and chest at least, beside a short bubble.
     private static let bustHeight: CGFloat = 90
     private static let tail: CGFloat = 6
@@ -23,10 +22,10 @@ struct OakAdviceCard: View {
                 .frame(minHeight: Self.bustHeight, alignment: .top)
                 .padding(.leading, Self.bustWidth + 4)
                 .background(alignment: .topLeading) {
-                    bust.frame(width: Self.bustWidth).frame(minHeight: 0, maxHeight: .infinity, alignment: .top).clipped()
+                    OakBust().frame(width: Self.bustWidth).frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+                        .clipped()
                 }
             stepList(l, words)
-            balance(l)
             Button { nav.showingOakDetails = true } label: {
                 HStack(spacing: 4) {
                     Text(l.recapDetails)
@@ -38,26 +37,6 @@ struct OakAdviceCard: View {
             .buttonStyle(.plain)
         }
         .heroCard(colors: store.themeColors)
-        .task {
-            guard oak == nil else { return }
-            oak = await SpriteLoader.itemImage(name: SpriteStore.oakPortrait)
-        }
-    }
-
-    /// Oak from the top, cut by the bottom of his bubble.
-    @ViewBuilder
-    private var bust: some View {
-        if let oak {
-            Image(nsImage: oak)
-                .resizable()
-                .frame(width: Self.bustWidth, height: Self.bustWidth * oak.size.height / max(1, oak.size.width))
-                .accessibilityHidden(true)
-        } else {
-            Image(systemName: "graduationcap.fill")
-                .font(.system(size: 26))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-        }
     }
 
     private func bubble(_ words: OakWords) -> some View {
@@ -110,14 +89,87 @@ struct OakAdviceCard: View {
         .buttonStyle(.plain)
     }
 
-    private func balance(_ l: L) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: "creditcard.fill").font(.system(size: 9, weight: .bold))
-            Text(l.spendableTokens)
-            Spacer(minLength: 4)
-            Text(TokenFormatter.compact(store.availableTokens)).fontWeight(.bold).monospacedDigit()
+}
+
+/// Oak from the top, cut by the bottom of his bubble, breathing as the Pokémon's sprites move (`OakIdle`). A view of
+/// its own: each frame redraws the portrait, not the advice. Still with Reduce Motion.
+@MainActor
+private struct OakBust: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var oak = SpriteLoader.cachedItemImage(name: SpriteStore.oakPortrait)
+    @State private var frames: [(image: NSImage, delay: TimeInterval)] = []
+    @State private var frameIndex = 0
+
+    var body: some View {
+        Group {
+            if let oak {
+                let width = OakAdviceCard.bustWidth
+                let image = frames.isEmpty ? oak : frames[frameIndex % frames.count].image
+                Image(nsImage: image)
+                    .resizable()
+                    .frame(width: width, height: width * image.size.height / max(1, image.size.width))
+            } else {
+                Image(systemName: "graduationcap.fill")
+                    .font(.system(size: 26))
+                    .foregroundStyle(.secondary)
+            }
         }
-        .font(.caption).foregroundStyle(.secondary)
+        .accessibilityHidden(true)
+        .task(id: reduceMotion) {
+            if oak == nil { oak = await SpriteLoader.itemImage(name: SpriteStore.oakPortrait) }
+            guard let oak, !reduceMotion else {
+                frames = []
+                return
+            }
+            frames = OakIdle.frames(oak, width: OakAdviceCard.bustWidth)
+            // Cancelled with the view (the Shop left, the popover closed), as `SpriteView.playFrames`.
+            while !Task.isCancelled, !frames.isEmpty {
+                try? await Task.sleep(for: .seconds(frames[frameIndex % frames.count].delay))
+                if Task.isCancelled { break }
+                frameIndex = (frameIndex + 1) % frames.count
+            }
+        }
+    }
+}
+
+/// Prof. Oak's idle loop, drawn from his still render as the eggs' are (`EggRenderer.idleFrames`): he breathes in and
+/// out, his figure stretched up a little from his feet, the chest a third as much in width. Made once per portrait.
+@MainActor
+enum OakIdle {
+    static let frameCount = 24
+    /// One breath every three seconds.
+    static let frameDelay: TimeInterval = 0.125
+    /// The height a breath adds, in parts of his figure: his head rises about 3 pt in the card.
+    static let breath: CGFloat = 0.015
+
+    private static var cache: (portrait: ObjectIdentifier, width: CGFloat, frames: [(image: NSImage, delay: TimeInterval)])?
+
+    /// The frames at `width` points, drawn at twice the pixels for a Retina screen, a breath taller than the portrait:
+    /// his hair touches its top. None for an empty image.
+    static func frames(_ portrait: NSImage, width: CGFloat) -> [(image: NSImage, delay: TimeInterval)] {
+        if let cache, cache.portrait == ObjectIdentifier(portrait), cache.width == width { return cache.frames }
+        guard portrait.size.width > 0, let source = portrait.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        else { return [] }
+        let figure = width * portrait.size.height / portrait.size.width
+        let size = CGSize(width: width, height: (figure * (1 + breath)).rounded(.up))
+        let pixels = (width: Int(size.width * 2), height: Int(size.height * 2))
+        let frames = (0..<frameCount).compactMap { i -> (image: NSImage, delay: TimeInterval)? in
+            // 0 breathed out, 1 breathed in, eased both ways.
+            let inhale = (1 - cos(2 * Double.pi * Double(i) / Double(frameCount))) / 2
+            let stretch = breath * CGFloat(inhale)
+            guard let context = CGContext(data: nil, width: pixels.width, height: pixels.height, bitsPerComponent: 8,
+                                          bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+            context.interpolationQuality = .high
+            // Anchored at his feet, the bottom middle of the image: the drawing grows up and a little sideways.
+            let w = CGFloat(pixels.width) * (1 + stretch / 3)
+            let h = figure * 2 * (1 + stretch)
+            context.draw(source, in: CGRect(x: (CGFloat(pixels.width) - w) / 2, y: 0, width: w, height: h))
+            guard let image = context.makeImage() else { return nil }
+            return (NSImage(cgImage: image, size: size), frameDelay)
+        }
+        cache = (ObjectIdentifier(portrait), width, frames)
+        return frames
     }
 }
 
@@ -329,7 +381,7 @@ private struct OakWords {
     }
 }
 
-/// The Pokémon raised and Oak's verdict on it, as a badge. Nothing for an egg.
+/// The Pokémon raised and Oak's verdict on it, as a badge under its name. Nothing for an egg.
 @MainActor
 private struct OakVerdictLabel: View {
     let store: CompanionStore
@@ -337,8 +389,10 @@ private struct OakVerdictLabel: View {
 
     var body: some View {
         if let verdict {
-            HStack(spacing: 6) {
+            // Stacked: side by side, a long name pushed the badge out of the bubble.
+            VStack(alignment: .leading, spacing: 3) {
                 Text(store.displayName).font(.caption.weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
                 Badge(store.l.oakVerdictLabel(verdict).uppercased(), tint: tint(verdict), style: .tinted)
                     .lineLimit(1).fixedSize()
             }
