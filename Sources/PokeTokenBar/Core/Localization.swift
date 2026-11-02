@@ -1176,14 +1176,14 @@ struct L {
           "Шайни: 1 из \(denominator)")
     }
     func graduated(_ name: String) -> String {
-        t("\(name) 졸업 → 도감에 보존. 새 Token Egg가 도착했어요!",
-          "\(name) graduated → saved to the dex. A new Token Egg has arrived!",
-          "\(name) 卒業 → 図鑑に保存。新しいToken Eggが届きました！",
-          "\(name) se graduó → guardado en la Pokédex. ¡Ha llegado un nuevo Token Egg!",
-          "\(name) a été diplômé → conservé dans le Pokédex. Un nouveau Token Egg est arrivé !",
-          "\(name) se formou → guardado na Pokédex. Chegou um novo Token Egg!",
-          "\(name) verabschiedet sich → im Pokédex gespeichert. Ein neues Token Egg ist da!",
-          "\(name) выпускается → запись в Покедексе. Появилось новое Token Egg!")
+        t("\(name) 졸업 → 도감에 보존. 새 알이 도착했어요!",
+          "\(name) graduated → saved to the dex. A new egg has arrived!",
+          "\(name) 卒業 → 図鑑に保存。新しいタマゴが届きました！",
+          "\(name) se graduó → guardado en la Pokédex. ¡Ha llegado un nuevo huevo!",
+          "\(name) a été diplômé → conservé dans le Pokédex. Un nouvel œuf est arrivé !",
+          "\(name) se formou → guardado na Pokédex. Chegou um novo ovo!",
+          "\(name) verabschiedet sich → im Pokédex gespeichert. Ein neues Ei ist da!",
+          "\(name) выпускается → запись в Покедексе. Появилось новое яйцо!")
     }
     var dexEmptyTitle: String { t("아직 잡은 포켓몬이 없어요!", "No Pokémon caught yet!", "まだ捕まえたポケモンがいません！", "¡Todavía no has capturado ningún Pokémon!", "Aucun Pokémon capturé pour l'instant !", "Você ainda não capturou nenhum Pokémon!", "Du hast noch kein Pokémon gefangen!", "Пока ни одного покемона!") }
     var dexEmptyHint: String { t("토큰을 써서 첫 포켓몬을 부화시켜 보세요.", "Spend tokens to hatch your first Pokémon.", "トークンを使って最初のポケモンを孵化させましょう。", "Usa tokens para eclosionar tu primer Pokémon.", "Dépense des tokens pour faire éclore ton premier Pokémon.", "Use tokens para chocar seu primeiro Pokémon.", "Verwende Tokens, damit dein erstes Pokémon schlüpft.", "Тратьте токены, чтобы вывести первого покемона.") }
