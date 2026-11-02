@@ -176,6 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         withObservationTracking {
             _ = companion.representativeSubject
             _ = companion.eggKind   // a guarantee bought redraws the egg
+            _ = companion.expedition?.dungeon   // a team setting off or back
             _ = store.animationQuality
             _ = store.menuSpriteMode
         } onChange: { [weak self] in
@@ -357,6 +358,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             needsSpriteLayout = true
         }
         let still = mode == .still
+        // Q30 C: while a team explores, its dungeon stands in for the Pokémon whose growth it pauses.
+        if let dungeon = companion.expedition?.dungeon, let diorama = DungeonSprites.trimmedImage(dungeon) {
+            let key = "dungeon-\(dungeon.rawValue)"
+            if key == menuSpriteKey, !menuFrames.isEmpty { return }
+            menuLoadTask?.cancel()
+            menuLoadTask = nil
+            menuSpriteKey = key
+            menuLoadGen += 1
+            setMenuFrames(Self.stillFrame(from: NSImage(cgImage: diorama, size: NSSize(width: diorama.width,
+                                                                                      height: diorama.height))))
+            return
+        }
         let subject = companion.representativeSubject
         let id = subject.speciesID
         let shiny = subject.isShiny

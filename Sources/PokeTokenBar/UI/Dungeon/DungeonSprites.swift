@@ -487,5 +487,28 @@ enum DungeonSprites {
     }
 
     @MainActor private static var cache: [DungeonID: CGImage] = [:]
+
+    /// The diorama cropped to what is drawn: the menu bar fits its 20 points to it, not to the empty sky above.
+    @MainActor
+    static func trimmedImage(_ id: DungeonID) -> CGImage? {
+        guard let image = image(id) else { return nil }
+        let width = image.width, height = image.height
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let data = context.data else { return image }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        // The bitmap's first row is the image's top, as `cropping(to:)` counts.
+        let pixels = data.bindMemory(to: UInt8.self, capacity: width * height * 4)
+        var minX = width, minY = height, maxX = -1, maxY = -1
+        for y in 0..<height {
+            for x in 0..<width where pixels[(y * width + x) * 4 + 3] > 0 {
+                minX = min(minX, x); maxX = max(maxX, x)
+                minY = min(minY, y); maxY = max(maxY, y)
+            }
+        }
+        guard maxX >= minX, maxY >= minY else { return image }
+        return image.cropping(to: CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1))
+    }
 }
 
