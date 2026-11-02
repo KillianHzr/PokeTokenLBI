@@ -2484,7 +2484,7 @@ struct L {
           "Fais grandir \(name)", "Crie \(name)", "Zieh \(name) groß", "Растите дальше: \(name)")
     }
     func oakGiveCandies(_ n: Int, to name: String) -> String {
-        t("\(name)에게 이상한사탕을 \(n)개 주세요", n == 1 ? "Give \(name) a Rare Candy" : "Give \(name) \(n) Rare Candies",
+        t("\(name)에게 이상한 사탕을 \(n)개 주세요", n == 1 ? "Give \(name) a Rare Candy" : "Give \(name) \(n) Rare Candies",
           "\(name)にふしぎなアメを\(n)個あげよう", n == 1 ? "Dale a \(name) un Caramelo Raro" : "Dale a \(name) \(n) Caramelos Raros",
           n == 1 ? "Donne un Super Bonbon à \(name)" : "Donne \(n) Super Bonbons à \(name)",
           n == 1 ? "Dê a \(name) um Doce Raro" : "Dê a \(name) \(n) Doces Raros",
@@ -2525,7 +2525,7 @@ struct L {
           "Остальные (\(n)) сохраните для следующего покемона.")
     }
     func oakKeepCandies(_ n: Int) -> String {
-        t("이상한사탕 \(n)개는 아껴 두세요", n == 1 ? "Keep your Rare Candy" : "Keep your \(n) Rare Candies",
+        t("이상한 사탕 \(n)개는 아껴 두세요", n == 1 ? "Keep your Rare Candy" : "Keep your \(n) Rare Candies",
           "ふしぎなアメ\(n)個はとっておこう", n == 1 ? "Guarda tu Caramelo Raro" : "Guarda tus \(n) Caramelos Raros",
           n == 1 ? "Garde ton Super Bonbon" : "Garde tes \(n) Super Bonbons",
           n == 1 ? "Guarde seu Doce Raro" : "Guarde seus \(n) Doces Raros",
@@ -2775,7 +2775,7 @@ struct L {
           "Пока не покупайте: после следующего покемона в этом яйце может не остаться ничего нового.")
     }
     func oakBuyAndGiveCandies(_ buy: Int, _ give: Int, to name: String) -> String {
-        t("이상한사탕을 \(buy)개 사서 \(name)에게 \(give)개 주세요",
+        t("이상한 사탕을 \(buy)개 사서 \(name)에게 \(give)개 주세요",
           buy == 1 ? "Buy a Rare Candy and give \(name) \(give)" : "Buy \(buy) Rare Candies and give \(name) \(give)",
           "ふしぎなアメを\(buy)個買って、\(name)に\(give)個あげよう",
           buy == 1 ? "Compra un Caramelo Raro y dale \(give) a \(name)" : "Compra \(buy) Caramelos Raros y dale \(give) a \(name)",
@@ -2787,7 +2787,7 @@ struct L {
           "Купите редкие конфеты (\(buy)) и дайте ему \(give)")
     }
     func oakBuyAndKeepCandies(_ n: Int) -> String {
-        t("이상한사탕을 \(n)개 사서 아껴 두세요",
+        t("이상한 사탕을 \(n)개 사서 아껴 두세요",
           n == 1 ? "Buy a Rare Candy and keep it" : "Buy \(n) Rare Candies and keep them",
           "ふしぎなアメを\(n)個買って、とっておこう",
           n == 1 ? "Compra un Caramelo Raro y guárdalo" : "Compra \(n) Caramelos Raros y guárdalos",
@@ -2828,7 +2828,7 @@ struct L {
           "Он не меняет ни виды, ни формы, но шайни будут попадаться чаще. Он стоит \(price).")
     }
     var oakWhyStock: String {
-        t("알은 몇 개나 미리? 알이 N번에 한 번 새로운 걸 가져온다면 평균 N개가 필요해요. 가방에 있는 그만큼 좋은 알을 포함해 그만큼(최대 3개) 갖춰 두세요. 다음에 무엇이 나오든 쓸모가 남는 알만 미리 사고, 아니면 그 값을 남겨 두세요. 나머지 토큰은 이상한사탕에 써요.",
+        t("알은 몇 개나 미리? 알이 N번에 한 번 새로운 걸 가져온다면 평균 N개가 필요해요. 가방에 있는 그만큼 좋은 알을 포함해 그만큼(최대 3개) 갖춰 두세요. 다음에 무엇이 나오든 쓸모가 남는 알만 미리 사고, 아니면 그 값을 남겨 두세요. 나머지 토큰은 이상한 사탕에 써요.",
           "How many eggs ahead? If an egg brings something new one time in N, it takes N on average: keep that many on hand, 3 at most, the Bag's as good included. Only buy ahead eggs that stay useful whatever comes next; otherwise set their price aside. The rest of the balance goes into Rare Candies.",
           "タマゴは前もって何個？新しいものを連れてくるのがN回に1回なら、平均N個必要です。バッグの同じくらい良いタマゴも含めて、その数（最大3個）をそろえておこう。次に何が来ても役に立ち続けるタマゴだけ前もって買い、そうでなければ代金をとっておこう。残りはふしぎなアメに。",
           "¿Cuántos huevos por adelantado? Si un huevo trae algo nuevo una vez de cada N, hacen falta N de media: ten esos a mano, 3 como máximo, incluidos los de tu Bolsa igual de buenos. Compra por adelantado solo huevos que sigan sirviendo pase lo que pase; si no, aparta su precio. El resto del saldo va a Caramelos Raros.",
@@ -2839,7 +2839,7 @@ struct L {
     }
     var oakWhyTitle: String { t("왜?", "Why", "なぜ？", "Por qué", "Pourquoi", "Por quê", "Warum", "Почему") }
     var oakWhyCandies: String {
-        t("이상한사탕은 키우는 포켓몬에게 줘요. 단, 곧 놓아줄 중복 포켓몬에게는 주지 마세요. 경험치가 함께 사라지니 다음 포켓몬을 위해 아껴 두세요. 남는 경험치는 진화하면 다음 단계로 넘어가지만, 졸업할 때는 사라져요. 남은 양보다 많이 주지 마세요. 단, 10% 이하만 사라지는 마지막 하나는 괜찮아요.",
+        t("이상한 사탕은 키우는 포켓몬에게 줘요. 단, 곧 놓아줄 중복 포켓몬에게는 주지 마세요. 경험치가 함께 사라지니 다음 포켓몬을 위해 아껴 두세요. 남는 경험치는 진화하면 다음 단계로 넘어가지만, 졸업할 때는 사라져요. 남은 양보다 많이 주지 마세요. 단, 10% 이하만 사라지는 마지막 하나는 괜찮아요.",
           "Rare Candies go to the Pokémon being raised, but not to a Spare you are going to release: its XP would go with it, so keep them for the next one. Extra XP carries over to the next stage when it evolves, but is lost at graduation: never give it more than it still needs, but for a last one that loses a tenth at most.",
           "ふしぎなアメは育てているポケモンに使います。ただし、これから逃がすダブりのポケモンには使わず、次のためにとっておきます。経験値も一緒に消えるからです。余った経験値は進化すると次の段階に持ち越されますが、卒業時には消えます。残りより多くは与えないこと。ただし、むだが1割以下の最後の1個はかまいません。",
           "Los Caramelos Raros van al Pokémon que crías, pero no a uno repetido que vas a soltar: su experiencia se iría con él, así que guárdalos para el siguiente. La experiencia sobrante pasa a la siguiente etapa cuando evoluciona, pero se pierde al graduarse: nunca le des más de lo que le falta, salvo un último que pierda como mucho una décima parte.",

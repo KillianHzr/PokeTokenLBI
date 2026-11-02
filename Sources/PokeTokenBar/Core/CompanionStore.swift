@@ -7,7 +7,7 @@ import UserNotifications
 @MainActor
 @Observable
 final class CompanionStore {
-    private(set) var state = CompanionState() { didSet { dexSpeciesCache = [:]; goalsBySpecies = nil } }
+    private(set) var state = CompanionState() { didSet { dexSpeciesCache = [:]; goalsBySpecies = nil; oakOddsCache = [:] } }
     private(set) var displayState: CompanionStateKind = .egg
     private(set) var currentLine: EvoLine? { didSet { dexSpeciesCache = [:] } }
     /// `collectedDexSpecies` by `groupForms`, until the state or the line changes: a form species' page read it some
@@ -15,6 +15,9 @@ final class CompanionStore {
     @ObservationIgnored private var dexSpeciesCache: [Bool: [DexSpecies]] = [:]
     /// `goals(counting:)` for every species, until the state changes.
     @ObservationIgnored private var goalsBySpecies: [Int: [ActiveGoal]]?
+    /// Each egg's odds of something new for Prof. Oak (`newOdds`), until the state or the hatch index changes: his card
+    /// reads them several times a draw, each over the egg's whole pool.
+    @ObservationIgnored var oakOddsCache: [ItemKind: Double?] = [:]
     /// How many times the Pokédex was folded: the tests check the cache with it.
     @ObservationIgnored private(set) var dexSpeciesFolds = 0
     /// Writes of the save file, for the tests of what writes it.
@@ -3941,7 +3944,7 @@ final class CompanionStore {
     }
 
     /// The base index the egg cards' odds read, loaded once (`loadHatchIndex`). The roll reads the index itself.
-    private(set) var hatchIndex: [BaseSpecies]?
+    private(set) var hatchIndex: [BaseSpecies]? { didSet { oakOddsCache = [:] } }
 
     func loadHatchIndex() async {
         guard hatchIndex == nil, let full = try? await provider.baseSpeciesIndex(), !full.isEmpty else { return }

@@ -373,11 +373,15 @@ extension CompanionStore {
                   shiny: ownsGlimmeringCharm ? 1 : 1 / Double(shinyDenominator))
     }
 
+    /// `index` is the hatch index and `news` the state's (`hatchNews`): the odds are kept until either changes.
     private func newOdds(_ item: ItemKind, index: [BaseSpecies], news: HatchNews) -> Double? {
-        guard let hatches = hatches(item, index: index) else { return nil }
-        let total = hatches.reduce(0) { $0 + $1.weight }
-        guard total > 0 else { return 0 }
-        return hatches.reduce(0) { $0 + $1.weight * news.odds($1) } / total
+        if let odds = oakOddsCache[item] { return odds }
+        let odds = hatches(item, index: index).map { hatches -> Double in
+            let total = hatches.reduce(0) { $0 + $1.weight }
+            return total > 0 ? hatches.reduce(0) { $0 + $1.weight * news.odds($1) } / total : 0
+        }
+        oakOddsCache.updateValue(odds, forKey: item)
+        return odds
     }
 
     /// The lines and forms that bring a species or a form new, else those that may bring a first shiny.

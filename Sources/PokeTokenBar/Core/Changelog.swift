@@ -66,8 +66,8 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
-        ChangelogDay(date: "2026-10-30", entries: [
-            .new("2026-10-30-prof-oak-advice") { l in
+        ChangelogDay(date: "2026-11-02", entries: [
+            .new("2026-11-02-prof-oak-advice") { l in
                 let candy = l.itemName(.rareCandy)
                 return l.t("상점에 오박사의 조언이 생겼어요. 키우는 포켓몬이 아직 도감에 새로운 걸 가져오는지, 중복이라면 알과 바꿔 놓아줄지 끝까지 키울지, 알을 몇 개 미리 사 두고 사탕에 얼마나 쓸지, 그리고 \(KoreanParticle.object.attach(to: candy)) 몇 번 쓸지 알려 줘요.",
                            "New in the Shop: Prof. Oak's advice. He tells you whether the Pokémon you're raising still brings your Pokédex something new or is a Spare, whether to release a Spare for an egg or let it finish, how many eggs to buy ahead and how much to spend on candies, and how many times to use a \(candy).",

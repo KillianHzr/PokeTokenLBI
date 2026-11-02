@@ -515,6 +515,20 @@ final class OakAdviceTests: XCTestCase {
         XCTAssertEqual(glimmering, 1)
     }
 
+    /// The odds are kept between two reads, until the save changes: the Shiny Charm bought, the Rare+ Egg's first
+    /// shinies come one time in 48.
+    func testTheOddsKeptFollowTheSave() async throws {
+        let (rare, _) = try prices()
+        let s = try store(active: mon([16]), dex: [graduated([4, 5, 6])], index: [BaseSpecies(id: 4, captureRate: 45)]) {
+            $0.usedSinceInstall = 3 * rare
+        }
+        await s.loadHatchIndex()
+        XCTAssertEqual(s.newOdds(item: .rareEgg), 1.0 / 64)
+        XCTAssertEqual(s.newOdds(item: .rareEgg), 1.0 / 64)
+        XCTAssertTrue(s.buy(.shinyCharm))
+        XCTAssertEqual(s.newOdds(item: .rareEgg), 1.0 / 48)
+    }
+
     /// Most event eggs hatch shiny every time (`EventEgg.alwaysShiny`), and so does a Birthday Egg once every legendary
     /// is graduated: the first shinies they may bring come for sure.
     func testAnAlwaysShinyEggBringsItsFirstShiniesForSure() async throws {
