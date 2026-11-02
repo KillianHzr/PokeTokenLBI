@@ -45,15 +45,16 @@ private struct QuietHomePokemon: PokeProviding {
 /// Optional PNG output is fixture data, isolated from the user's saves and credentials.
 @MainActor
 final class ZeroUsageHomeRenderingTests: XCTestCase {
-    /// The daily chart moved to the Stats page: there, with the history; on Home, never.
+    /// The daily chart moved to the Stats page: there, with the history; on Home, never. The Stats page is read in
+    /// English: on CI's CPU, Vision read its Korean caption "날짜별" as "날짜벌" in all ten candidates.
     func testQuietDayKeepsHistoricalGraphVisible() async throws {
         try await render(history: true)
-        try await render(history: true, stats: true)
+        try await render(history: true, language: .en, stats: true)
     }
 
     func testEmptyHistoryStillShowsZeroPeriodSummaries() async throws {
         try await render(history: false)
-        try await render(history: false, stats: true)
+        try await render(history: false, language: .en, stats: true)
     }
 
     func testRecapLabelKeepsPeriodCostsOnOneLine() async throws {
@@ -214,7 +215,7 @@ final class ZeroUsageHomeRenderingTests: XCTestCase {
             let directory = URL(fileURLWithPath: output)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let name = costs != nil ? "\(language.rawValue)-period-costs-\(costs == .source ? "known" : "unavailable").png"
-                : (stats ? "stats-" : "") + (history ? "ko-zero-today-with-history.png" : "ko-zero-all-periods.png")
+                : (stats ? "stats-" : "") + "\(language.rawValue)-zero-" + (history ? "today-with-history.png" : "all-periods.png")
             try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: directory.appendingPathComponent(name))
         }
     }

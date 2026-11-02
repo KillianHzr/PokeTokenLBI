@@ -2145,6 +2145,11 @@ read_when:
   "미번 달" with "이번 달" in none of its ten candidates; the GPU path of a local run tied or read it right. The
   test now reads on the CPU everywhere (`setComputeDevice`), which reproduced the CI reading on CI's own render, and
   the tile labels are 11 pt semibold: read at confidence 1.0 on the CPU.
+  The Stats page's caption failed the same way on 2026-11-02 (CI run `41407118849`), only on that day's render:
+  Vision on CI's CPU read "날짜별" as "날짜벌" in all ten candidates, and a local CPU read of CI's own PNG reproduced
+  it, the render itself being right. Both Stats renders now read in English ("DAY BY DAY", confidence 1.0 on the
+  CPU), Home staying in Korean; showing `EmptyView()` in place of `StatsChart` still fails the historical-chart
+  assertion. The other OCR harnesses read English, or check readability per language (`CollectionReadability`).
 
 - **Use unambiguous fixture words for exact OCR navigation assertions.**
   `DexBackNavigationTests.testBackFromDetailReturnsTheLogToWhereItWas` failed in CI run
