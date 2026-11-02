@@ -547,6 +547,43 @@ final class SaveTransferTests: XCTestCase {
         XCTAssertLessThanOrEqual(store.state.usedSinceInstall, SaveTransfer.maxTokenValue + 1_000)
     }
 
+    /// The dungeons travel with the save, and their counts are clamped there: a hand-edited floor, wins count or
+    /// token count trapped at its next use.
+    func testTheDungeonsTravelAndAreClamped() throws {
+        var state = oldMacState(today: "2026-08-03")
+        var spec = try XCTUnwrap(BattlerSpec.make(id: "e6", speciesID: 6, level: 100))
+        spec.stats.attack = Int.max
+        spec.hp = Int.max
+        var e = ExpeditionEngine.start(dungeon: DungeonCatalog.dungeon(.viridianForest),
+                                       team: [ExpeditionMember(entryID: "e6", spec: spec)], rules: [], teamSize: 1, seed: 1,
+                                       cost: 75_000_000, berries: [:], revives: [:],
+                                       context: ExpeditionContext(tier: .t1, shinyDenominator: 64, now: transferNow))
+        e.floor = -3
+        e.floorTokens = Int.max
+        e.loot.candies = Int.max
+        state.dungeons.expedition = e
+        state.dungeons.wins = ["viridianForest": Int.max]
+        state.dungeons.departures = -7
+        state.dungeons.moveLoops = ["e6": ["flamethrower"]]
+        state.dungeons.eggs = [DungeonEgg(id: "a", baseID: 147, form: nil, isShiny: true, sourceSpeciesID: 149)]
+
+        let data = try SaveTransfer.encode(state: state, appVersion: "2.5.0", deviceName: "Old Mac", now: transferNow)
+        let d = try SaveTransfer.decode(data).state.dungeons
+        XCTAssertEqual(d.moveLoops, ["e6": ["flamethrower"]])
+        XCTAssertEqual(d.eggs, state.dungeons.eggs)
+        let walked = try XCTUnwrap(d.expedition)
+        XCTAssertEqual(walked.floor, 1)
+        XCTAssertEqual(walked.floorTokens, SaveTransfer.maxTokenValue)
+        XCTAssertEqual(walked.loot.candies, SaveTransfer.maxItemCount)
+        XCTAssertEqual(walked.team[0].spec.stats.attack, 20_000)
+        XCTAssertEqual(walked.team[0].spec.hp, walked.team[0].spec.stats.hp)
+        XCTAssertEqual(d.wins["viridianForest"], SaveTransfer.maxItemCount)
+        XCTAssertEqual(d.departures, 0)
+        // The clamped walk goes on without trapping.
+        var next = walked
+        ExpeditionEngine.feed(&next, tokens: 1_000, context: ExpeditionContext(tier: .t1, shinyDenominator: 64, now: transferNow))
+    }
+
     /// [회귀·딥리뷰 H2 후속] 불러오기 경계만 막으면 **이미 디스크에 있는** 극단값은 남아, 매 기동마다
     /// 같은 값을 읽어 산술 트랩으로 죽는 상태를 벗어나지 못한다(디코드가 성공하므로 `.corrupt` 복구도
     /// 발동 안 함). 상태 파일을 읽는 경로에서도 같은 정규화가 걸려야 자가 복구된다.
@@ -603,7 +640,10 @@ final class SaveTransferTests: XCTestCase {
                                      // What the Old Amber kept for the egg incubating, the graduations toward the
                                      // Explorer Kit's next treasure and the treasures not seen yet: they follow the egg,
                                      // the count and the Bag they belong to.
-                                     "amberCarry", "graduationsTowardTreasure", "unseenTreasures"]
+                                     "amberCarry", "graduationsTowardTreasure", "unseenTreasures",
+                                     // The expedition under way, the dungeons' wins, loops and eggs, and the dungeon
+                                     // egg incubating: the team and the Bag they belong to follow the save.
+                                     "dungeons", "eggFromDungeon"]
         let deviceLedger: Set<String> = ["installBaselineSet", "claimedTodayTokensByProvider", "lastDate"]
         let accountLedger: Set<String> = ["candyGrantTier", "candyWindowEpoch", "candyWindowPlan", "candyFeatureSeeded",
                                           "candyGrantsAsYouGo"]
