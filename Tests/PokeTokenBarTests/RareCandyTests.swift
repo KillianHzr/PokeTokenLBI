@@ -446,19 +446,19 @@ final class RareCandyStoreTests: XCTestCase {
         s.applyUsage(100_000_000)
         giveCandies(s, 10)
         let before = s.state.usedSinceInstall
-        // 75M candies over 125M, 250M and 375M stages: four carry 100M past both evolutions.
+        // 100M candies over 125M, 250M and 375M stages: four carry 125M past both evolutions.
         let preview = try XCTUnwrap(s.planRareCandyUse(count: 4))
-        XCTAssertEqual(s.maxRareCandyUseCount, 9)
+        XCTAssertEqual(s.maxRareCandyUseCount, 7)
         XCTAssertEqual(preview.count, 4)
         XCTAssertTrue(preview.evolves)
         XCTAssertFalse(preview.graduates)
-        XCTAssertEqual(preview.carryoverXP, 25_000_000)
+        XCTAssertEqual(preview.carryoverXP, 125_000_000)
         XCTAssertEqual(preview.discardedXP, 0)
         XCTAssertEqual(s.useRareCandy(count: 4), .evolved)
         XCTAssertEqual(s.state.active?.stageIndex, 2)
         XCTAssertEqual(s.state.active?.usedAtStage, preview.carryoverXP)
         XCTAssertEqual(s.rareCandyCount, 6)
-        XCTAssertEqual(s.candyFeedbackAmount, 300_000_000)
+        XCTAssertEqual(s.candyFeedbackAmount, 400_000_000)
         XCTAssertEqual(s.state.usedSinceInstall, before)
     }
 
@@ -468,13 +468,13 @@ final class RareCandyStoreTests: XCTestCase {
             await s.hatch(baseID: 20)
             s.applyUsage(750_000_000 - remaining)
             giveCandies(s, 5)
-            XCTAssertEqual(s.maxRareCandyUseCount, 4)
+            XCTAssertEqual(s.maxRareCandyUseCount, 3)
             let preview = try XCTUnwrap(s.planRareCandyUse(count: 5))
-            XCTAssertEqual(preview.count, 4)
+            XCTAssertEqual(preview.count, 3)
             XCTAssertTrue(preview.graduates)
             XCTAssertEqual(preview.discardedXP, 300_000_000 - remaining)
             XCTAssertEqual(s.useRareCandy(count: 5), .graduated)
-            XCTAssertEqual(s.rareCandyCount, 1)
+            XCTAssertEqual(s.rareCandyCount, 2)
             XCTAssertEqual(s.state.eggUsage, 0)
             XCTAssertEqual(s.dexEntries.count, 1)
             XCTAssertEqual(s.maxRareCandyUseCount, 0)
@@ -683,18 +683,18 @@ final class RareCandyStoreTests: XCTestCase {
         XCTAssertEqual(s.ownedItems.first?.count, 3)
     }
 
-    /// The demo (three stages, usedAtStage 100M, 4 candies of 75M): evolves, grows twice, evolves, then none left.
+    /// The demo (three stages, usedAtStage 100M, 4 candies of 100M): evolves, grows, evolves, grows, then none left.
     func testSequentialCandyUseMatchesDemo() async {
         let s = store(rcLinear3)
         await s.hatch(baseID: 1)
         s.applyUsage(100_000_000)                      // before stage0 (125M)
         giveCandies(s, 4)
-        XCTAssertEqual(s.useRareCandy(), .evolved)     // 175M ≥125M: stage1, 50M carried
+        XCTAssertEqual(s.useRareCandy(), .evolved)     // 200M ≥125M: stage1, 75M carried
         XCTAssertEqual(s.state.active?.stageIndex, 1)
-        XCTAssertEqual(s.useRareCandy(), .progressed)  // 125M <250M
-        XCTAssertEqual(s.useRareCandy(), .progressed)  // 200M <250M
-        XCTAssertEqual(s.state.active?.stageIndex, 1)
-        XCTAssertEqual(s.useRareCandy(), .evolved)     // 275M ≥250M: stage2
+        XCTAssertEqual(s.useRareCandy(), .progressed)  // 175M <250M
+        XCTAssertEqual(s.useRareCandy(), .evolved)     // 275M ≥250M: stage2, 25M carried
+        XCTAssertEqual(s.state.active?.stageIndex, 2)
+        XCTAssertEqual(s.useRareCandy(), .progressed)  // 125M <375M
         XCTAssertEqual(s.state.active?.stageIndex, 2)
         XCTAssertEqual(s.rareCandyCount, 0)
     }

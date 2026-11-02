@@ -797,10 +797,9 @@ enum LegendCharm {
 
 /// 이상한 사탕 밸런스 상수.
 enum RareCandy {
-    /// The XP (in tokens) one candy gives the Pokémon being raised: the usage of a whole common line at the one
-    /// difficulty (`PokemonBalance.graduationTotal`), 75M at 10%. An uncommon line takes 2.5 candies, a rare one 4, a
-    /// legendary one 8.
-    static let xp = PokemonBalance.scaled(PokemonBalance.graduationTotal(.common))
+    /// The XP (in tokens) one candy gives the Pokémon being raised: 100M at 10% (2026-11-02, the owner: 75M, a whole
+    /// common line, was not enough). A common line takes one candy, an uncommon one 2, a rare one 3, a legendary one 6.
+    static let xp = PokemonBalance.scaled(1_000_000_000)
     /// Candies a whole week of a Pro plan pays; a whole 5-hour session pays one.
     static let weeklyGrant = 5
     /// The tokens a tool with no limit window pays a candy for (Cursor, Gemini CLI, OpenCode…): what Claude's windows
