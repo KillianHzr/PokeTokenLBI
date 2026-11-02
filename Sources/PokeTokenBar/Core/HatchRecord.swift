@@ -12,6 +12,21 @@ enum HatchEgg: Codable, Sendable, Hashable {
     case fossil
     /// `key`: the claim it came from (`CompanionState.eggEventKey`).
     case event(EventEgg, key: String?)
+
+    /// The egg a Bag item gives when used; nil for an item that is no egg.
+    init?(item: ItemKind) {
+        switch item {
+        case .typeNullEgg: self = .typeNull
+        case .fossilEgg: self = .fossil
+        case .birthdayEgg: self = .birthday
+        case .legendaryEgg: self = .legendary
+        default:
+            if item.isShopEgg { self = .tier(item.bagEggTier) }
+            else if let type = item.stoneType { self = .stone(type) }
+            else if let event = EventEgg(item: item) { self = .event(event, key: nil) }
+            else { return nil }
+        }
+    }
 }
 
 /// How a Pokémon hatched, kept with it from its hatch to its graduation or release, for the Luck screen to replay its

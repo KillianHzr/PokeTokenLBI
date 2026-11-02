@@ -154,4 +154,90 @@ struct HatchDraw: Sendable {
         let lines = CompanionStore.withoutLastHatched(pool, last: collection.lastHatchedBaseID)
         return (lines.map { ($0, byWeight ? hatchWeight(for: $0) : 1) }, byWeight)
     }
+
+    /// One way an egg can hatch: a line in a form, weighed among the egg's other draws.
+    struct Outcome: Equatable, Sendable {
+        let id: Int
+        let form: PokemonForm?
+        let weight: Double
+        let rarity: Rarity
+        /// It hatches shiny every time (`chooseBase`).
+        var alwaysShiny = false
+    }
+
+    /// The draws each egg makes (`chooseBase`): the Type: Null Egg's one line, the Fossil and Birthday Eggs' own, the
+    /// others' pool. Most event eggs, and a Birthday Egg once every legendary is graduated, hatch shiny every time.
+    func outcomes(_ egg: HatchEgg, index: [BaseSpecies]) -> [Outcome] {
+        switch egg {
+        case .typeNull:
+            let id = PokemonForm.typeNullSpeciesID
+            return [Outcome(id: id, form: PokemonForm.resolved(baseID: id, form: nil), weight: 1,
+                            rarity: index.first { $0.id == id }?.rarity ?? .legendary)]
+        case .fossil:
+            return outcomes(fossilDraw(index).map { ($0, 1) }, types: [], event: nil, alwaysShiny: false)
+        case .birthday:
+            let draw = birthdayDraw(index)
+            return outcomes(draw.lines, types: [], event: nil, alwaysShiny: draw.shiny)
+        case .tier(let tier): return outcomes(EggSpec(tier: tier), index: index)
+        case .stone(let type): return outcomes(EggSpec(type: type), index: index)
+        case .legendary: return outcomes(EggSpec(legendaryEgg: true), index: index)
+        case .event(let event, _): return outcomes(EggSpec(tier: event.tier, type: event.type, event: event), index: index)
+        }
+    }
+
+    /// A pool's draws, a season's Deerling first one time in `EventEgg.deerlingOdds`: whole weights, so that odds
+    /// without forms come out exact.
+    func outcomes(_ egg: EggSpec, index: [BaseSpecies]) -> [Outcome] {
+        let shines = egg.event?.alwaysShiny ?? false
+        let pool = outcomes(hatchPool(index, egg: egg), types: egg.formTypes, event: egg.event, alwaysShiny: shines)
+        guard let season = seasonDeerling(index, event: egg.event),
+              let base = index.first(where: { $0.id == EventEgg.deerlingID }) else { return pool }
+        let others = Double(EventEgg.deerlingOdds - 1)
+        let deerling = Outcome(id: base.id, form: PokemonForm.resolved(baseID: base.id, form: season),
+                               weight: pool.reduce(0) { $0 + $1.weight }, rarity: base.rarity, alwaysShiny: shines)
+        return pool.map {
+            Outcome(id: $0.id, form: $0.form, weight: $0.weight * others, rarity: $0.rarity, alwaysShiny: shines)
+        } + [deerling]
+    }
+
+    /// Lines drawn by weight, each rolling its form as `rollLineForm` does, or taking its event's.
+    private func outcomes(_ lines: [(base: BaseSpecies, weight: Int)], types: [PokemonType], event: EventEgg?,
+                          alwaysShiny: Bool) -> [Outcome] {
+        lines.flatMap { line -> [Outcome] in
+            let id = line.base.id
+            let weight = Double(line.weight)
+            let rarity = line.base.rarity
+            if let form = Self.eventForm(baseID: id, event: event) {
+                return [Outcome(id: id, form: form, weight: weight, rarity: rarity, alwaysShiny: alwaysShiny)]
+            }
+            let draw = lineFormDraw(baseID: id, types: types)
+            guard !draw.forms.isEmpty else {
+                return [Outcome(id: id, form: nil, weight: weight, rarity: rarity, alwaysShiny: alwaysShiny)]
+            }
+            let weights = PokemonForm.rollWeights(among: draw.forms, collected: draw.collected)
+            let total = Double(weights.reduce(0, +))
+            return zip(draw.forms, weights).map {
+                Outcome(id: id, form: $0, weight: weight * Double($1) / total, rarity: rarity, alwaysShiny: alwaysShiny)
+            }
+        }
+    }
+
+    /// The form an event egg fixes: Deerling in its season's.
+    static func eventForm(baseID: Int, event: EventEgg?) -> PokemonForm? {
+        guard baseID == EventEgg.deerlingID, let form = event?.seasonForm else { return nil }
+        return PokemonForm.resolved(baseID: baseID, form: form)
+    }
+
+    /// Whether a Pokémon hatched from `baseID` in `form` brings something new: a species of its line, on any branch, not
+    /// graduated in that form yet. Its shine aside. Made once for the many lines of an egg.
+    func bringsNew() -> (_ baseID: Int, _ form: PokemonForm?) -> Bool {
+        let held = Set(collection.dex.filter { !$0.isReleased }.flatMap { e in
+            e.chainOrder.map { CompanionStore.DexSpeciesKey(speciesID: $0, form: e.form) }
+        })
+        return { baseID, form in
+            CompanionStore.lineAhead([baseID], from: baseID, form: form).contains {
+                !held.contains(CompanionStore.DexSpeciesKey(speciesID: $0, form: form))
+            }
+        }
+    }
 }

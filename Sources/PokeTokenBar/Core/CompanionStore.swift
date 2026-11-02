@@ -762,12 +762,11 @@ final class CompanionStore {
     /// What `activeNews` asks of the Pokémon raised, for one an egg would hatch from `baseID` in `form`: whether it
     /// brings something new, its shine aside. Made once for the many lines of an egg.
     func hatchBringsNew() -> (_ baseID: Int, _ form: PokemonForm?) -> Bool {
-        let held = graduatedSpeciesForms
+        let new = hatchDraw.bringsNew()
         let costumeMissing = PikachuCostume.next(owned: state.pikachuCostumes, seed: 0) != nil
         return { baseID, form in
-            let line = Self.lineAhead([baseID], from: baseID, form: form)
-            return line.contains { !held.contains(DexSpeciesKey(speciesID: $0, form: form)) }
-                || costumeMissing && line.contains(PikachuCostume.speciesID)
+            new(baseID, form)
+                || costumeMissing && Self.lineAhead([baseID], from: baseID, form: form).contains(PikachuCostume.speciesID)
         }
     }
 
@@ -795,7 +794,7 @@ final class CompanionStore {
     }
 
     /// The species reached on `path` and those still ahead of `current` in `form`, every branch counted.
-    private static func lineAhead(_ path: [Int], from current: Int, form: PokemonForm?) -> [Int] {
+    nonisolated static func lineAhead(_ path: [Int], from current: Int, form: PokemonForm?) -> [Int] {
         var line = path
         var next = [current]
         while let id = next.popLast() {
@@ -3042,11 +3041,6 @@ final class CompanionStore {
 
     private var eggFormTypes: [PokemonType] { incubatingEgg.formTypes }
 
-    /// The form an event egg fixes: Deerling in its season's.
-    func eventForm(baseID: Int, event: EventEgg?) -> PokemonForm? {
-        guard baseID == EventEgg.deerlingID, let form = event?.seasonForm else { return nil }
-        return PokemonForm.resolved(baseID: baseID, form: form)
-    }
 
     // MARK: Birthday gift
 
@@ -3425,7 +3419,7 @@ final class CompanionStore {
             isHatchRetryDelayed = true
             return
         }
-        let pendingForm = state.pendingHatchID == base ? state.pendingForm : eventForm(baseID: base, event: state.eggEvent)
+        let pendingForm = state.pendingHatchID == base ? state.pendingForm : HatchDraw.eventForm(baseID: base, event: state.eggEvent)
         let rollItems = state.pendingHatchID == base ? state.pendingHatchItems : nil
         await hatchCore(baseID: base, generation: generation, form: pendingForm, forceShiny: forceShiny,
                         rollItems: rollItems)
@@ -3487,7 +3481,7 @@ final class CompanionStore {
             state.pendingHatchID = id
             state.pendingHatchItems = hatchDraw.items
             state.pendingShiny = pick.shiny
-            state.pendingForm = eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
+            state.pendingForm = HatchDraw.eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
             save()
         }
         guard let id = state.pendingHatchID else { return }
