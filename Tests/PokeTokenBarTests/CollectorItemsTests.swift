@@ -297,8 +297,8 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(s.unclaimedAchievementsCount, 0)
         XCTAssertEqual(s.claimedAchievementsCount, 1)
         let stones = s.collectorItems(in: .evolutionStones)
-        XCTAssertEqual(stones.last, .excavation, "the Excavation closes the tab")
-        XCTAssertEqual(stones.dropLast().last, .fireStone, "claimed stones sink to the bottom of the stones")
+        XCTAssertEqual(stones.last, .fireStone, "claimed stones sink to the very bottom")
+        XCTAssertEqual(stones.dropLast().last, .excavation, "the Excavation closes what is left to earn")
     }
 
     /// Badges and artifacts claimed before the ledger existed are only in the Bag: they stay claimed.
@@ -333,7 +333,7 @@ final class CollectorItemsTests: XCTestCase {
                       inventory: [ItemKind.soulDew.rawValue: 1])
         let artifacts = s.collectorItems(in: .legendaryArtifacts)
         XCTAssertEqual(artifacts.first, .clearBell, "unlocked and not owned comes first")
-        XCTAssertEqual(artifacts.dropLast(4).last, .soulDew, "owned passives sink to the bottom, above the four that close the tab")
+        XCTAssertEqual(artifacts.last, .soulDew, "owned passives sink to the very bottom, below the four still to earn")
         XCTAssertEqual(artifacts.count, 40)
     }
 
@@ -353,14 +353,21 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(oneDone.achievementShare(.volcanoBadge), 1 / Double(regions.count), accuracy: 1e-9)
     }
 
-    /// The Legendary Egg, Type: Null's Egg and the two whole-Pokédex charms close the Artifacts whatever their state:
-    /// claimable, claimed or untouched.
-    func testFourAchievementsCloseTheArtifactsWhateverTheirState() {
+    /// The Legendary Egg, Type: Null's Egg and the two whole-Pokédex charms close the Artifacts still to earn, never
+    /// below those claimed (the owner, 2026-11-02: under the artifacts already claimed, they read as forgotten). Once
+    /// claimed, one sinks with the others.
+    func testTheFourCloseWhatIsLeftNeverBelowWhatIsClaimed() {
         let closing: [ItemKind] = [.legendaryEgg, .typeNullEgg, .ovalCharm, .glimmeringCharm]
         let fresh = store()
         XCTAssertEqual(Array(fresh.collectorItems(in: .legendaryArtifacts).suffix(4)), closing)
+        let soulDewOwned = store(inventory: [ItemKind.soulDew.rawValue: 1])
+        let artifacts = soulDewOwned.collectorItems(in: .legendaryArtifacts)
+        XCTAssertEqual(artifacts.last, .soulDew, "claimed, below the four")
+        XCTAssertEqual(Array(artifacts.dropLast().suffix(4)), closing)
         let ovalOwned = store(inventory: [ItemKind.ovalCharm.rawValue: 1])
-        XCTAssertEqual(Array(ovalOwned.collectorItems(in: .legendaryArtifacts).suffix(4)), closing)
+        let withOval = ovalOwned.collectorItems(in: .legendaryArtifacts)
+        XCTAssertEqual(withOval.last, .ovalCharm, "claimed, it sinks with the claimed ones")
+        XCTAssertEqual(Array(withOval.dropLast().suffix(3)), [.legendaryEgg, .typeNullEgg, .glimmeringCharm])
         XCTAssertEqual(fresh.collectorItems(in: .evolutionStones).last, .excavation)
     }
 
