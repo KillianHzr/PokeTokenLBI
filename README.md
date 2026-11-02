@@ -91,7 +91,7 @@ Menu-bar items, refresh interval (1–15 min or manual), launch at login, a Keyc
 <tr>
 <td width="55%" valign="middle">
 <h3>🍬 Use your plan, earn Rare Candy</h3>
-Your usage limits pay <b>Rare Candy</b> as they fill, without waiting for the limit: a whole 5-hour session of a Pro plan is one candy, a whole Pro week five, and a bigger plan pays as many Pro plans as it holds (a Max 20x session pays one every 5%, its week one every 1%). Every plan earns them at the same pace for the same use; the plan is read from your login, a claude.ai session key included. A login or limit seen for the first time pays from then on. One candy is 75M EXP, a whole common line. Spend them from the <b>Bag</b> tab to grow your current Pokémon.
+Your usage limits pay <b>Rare Candy</b> as they fill, without waiting for the limit: a whole 5-hour session of a Pro plan is one candy, a whole Pro week five, and a bigger plan pays as many Pro plans as it holds (a Max 20x session pays one every 5%, its week one every 1%). Every plan earns them at the same pace for the same use; the plan is read from your login, a claude.ai session key included. A login or limit seen for the first time pays from then on. One candy is 100M EXP, more than a whole common line takes. Spend them from the <b>Bag</b> tab to grow your current Pokémon.
 </td>
 <td width="45%" align="center"><img src="assets/screenshot-bag.png" width="300" alt="Rare Candy and Mint in the Bag"></td>
 </tr>

@@ -397,21 +397,17 @@ private struct OakWords {
     }
 }
 
-/// The Pokémon raised and Oak's verdict on it, as a badge under its name. Nothing for an egg.
+/// Oak's verdict on the Pokémon raised, as a badge. Nothing for an egg.
 @MainActor
 private struct OakVerdictLabel: View {
     let store: CompanionStore
     let verdict: ActiveVerdict?
 
     var body: some View {
+        // The badge alone: the bubble names the Pokémon already.
         if let verdict {
-            // Stacked: side by side, a long name pushed the badge out of the bubble.
-            VStack(alignment: .leading, spacing: 3) {
-                Text(store.displayName).font(.caption.weight(.bold))
-                    .fixedSize(horizontal: false, vertical: true)
-                Badge(store.l.oakVerdictLabel(verdict).uppercased(), tint: tint(verdict), style: .tinted)
-                    .lineLimit(1).fixedSize()
-            }
+            Badge(store.l.oakVerdictLabel(verdict).uppercased(), tint: tint(verdict), style: .tinted)
+                .lineLimit(1).fixedSize()
         }
     }
 

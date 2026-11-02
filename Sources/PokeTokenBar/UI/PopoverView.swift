@@ -194,6 +194,16 @@ final class PopoverNavigation {
         dexDetailCollectionID = collectionID   // last: the didSets above clear it
     }
 
+    /// The achievement the Achievements tab opens on, scrolled to and lit, then cleared.
+    var achievementFocus: ItemKind?
+
+    /// Clicking a goal of the Pokémon being raised on Home opens its achievement, in its section.
+    func openAchievement(_ kind: ItemKind) {
+        showSettings = false
+        achievementFocus = kind
+        tab = .achievements
+    }
+
     /// 설정의 대표 포켓몬 행에서 기존 도감으로 이동한다. 별도 선택 화면을 만들지 않고
     /// 컬렉션 세그먼트를 도감으로 명시해, 직전에 포획 로그를 봤어도 선택 액션이 있는 화면을 연다.
     func openRepresentativeDex() {
@@ -588,7 +598,8 @@ struct PopoverView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Design.sectionSpacing) {
                         CompanionHeader(store: companion, onOpenDexEntry: { nav.openDexEntry(collectionID: $0) },
-                                        onOpenBonuses: { nav.showingBonuses = true })
+                                        onOpenBonuses: { nav.showingBonuses = true },
+                                        onOpenAchievement: { nav.openAchievement($0) })
                         header
                         providerStatusBanner   // 인시던트 있을 때만 — 한도 가용 여부와 무관(API 다운=한도 nil 케이스에도)
                         if selectedProviderHasLimits {
