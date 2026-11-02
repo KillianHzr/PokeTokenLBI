@@ -646,6 +646,14 @@ extension L {
           "Schillernd garantiert", "Гарантированно шайни")
     }
 
+    /// A Dungeons medal's step: its dungeon, or the whole tier.
+    func medalStepName(_ tier: DungeonTier, step: Int) -> String {
+        let dungeons = DungeonMedals.dungeons(tier)
+        if step <= dungeons.count { return dungeonName(dungeons[step - 1]) }
+        return t("T\(tier.rawValue) 전부", "All of T\(tier.rawValue)", "T\(tier.rawValue)すべて", "Todo T\(tier.rawValue)",
+                 "Tout T\(tier.rawValue)", "Todo T\(tier.rawValue)", "Ganz T\(tier.rawValue)", "Весь T\(tier.rawValue)")
+    }
+
     /// The places' official names (Q26).
     func dungeonName(_ id: DungeonID) -> String {
         switch id {

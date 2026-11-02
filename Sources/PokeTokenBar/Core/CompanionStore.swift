@@ -842,7 +842,8 @@ final class CompanionStore {
             goals.append(ActiveGoal(item: item, generation: generation, gain: gain, count: progress.count,
                                     needed: progress.goal.needed))
         }
-        for kind in Self.achievementItems {
+        // The Dungeons medals count dungeons won, not the Pokémon raised.
+        for kind in Self.achievementItems where kind.dungeonTier == nil {
             if kind == .excavation {
                 // The digs add up: only the next one counts, with the species that are Rock in this form.
                 let rock = branches.map { $0.filter { PokemonTypeData.types(forSpeciesID: $0, form: a.form).contains(.rock) } }
@@ -925,7 +926,7 @@ final class CompanionStore {
                 index[id, default: []].append(goal)
             }
         }
-        for kind in Self.achievementItems where kind != .excavation {
+        for kind in Self.achievementItems where kind != .excavation && kind.dungeonTier == nil {
             if kind.isRegional {
                 for tier in regionTiers(kind, registered: registered) where !tier.isDone {
                     add(kind, tier.generation, tier.progress)
@@ -2450,11 +2451,23 @@ final class CompanionStore {
     func regionTiers(_ kind: ItemKind, registered: Set<Int>? = nil) -> [RegionTier] {
         guard let goals = kind.regionGoals else { return [] }
         if kind == .excavation { return excavationTiers(goals) }
+        if let tier = kind.dungeonTier { return medalTiers(tier, goals) }
         let registered = registered ?? graduatedSpeciesIDs
         return goals.map { generation, goal in
             RegionTier(generation: generation,
                              progress: GoalProgress(goal: goal, registered: goal.species.filter(registered.contains)),
                        isClaimed: isRegionTierClaimed(kind, generation: generation))
+        }
+    }
+
+    /// A Dungeons medal's steps: a dungeon counts once it was won, the whole tier once each was. Its goal's species
+    /// are the bosses; a dungeon won counts its first one, as the goal reads it.
+    private func medalTiers(_ tier: DungeonTier, _ goals: [(generation: Int, goal: SpeciesGoal)]) -> [RegionTier] {
+        let won = DungeonMedals.dungeons(tier).filter { state.dungeons.wins($0) > 0 }
+            .compactMap { DungeonCatalog.dungeon($0).bosses.first }
+        return goals.map { generation, goal in
+            RegionTier(generation: generation, progress: GoalProgress(goal: goal, registered: goal.species.filter(won.contains)),
+                       isClaimed: isRegionTierClaimed(DungeonMedals.medal(tier), generation: generation))
         }
     }
 
@@ -2670,8 +2683,12 @@ final class CompanionStore {
         ready.forEach { grantRegionTier(kind, generation: $0.generation) }
         announceFormUnlocks(since: forms)
         save()
-        let regions = ready.map { kind == .excavation ? "#\($0.generation)" : l.regionName(generation: $0.generation) }
-            .joined(separator: ", ")
+        let regions = ready.map { tier in
+            if kind == .excavation { return "#\(tier.generation)" }
+            if let dungeonTier = kind.dungeonTier { return l.medalStepName(dungeonTier, step: tier.generation) }
+            return l.regionName(generation: tier.generation)
+        }
+        .joined(separator: ", ")
         notifyCompanionEvent(l.notifAchievementClaimedTitle,
                              l.notifAchievementClaimedBody("\(l.itemName(kind)) (\(regions))"))
         return ready.count
@@ -2722,8 +2739,9 @@ final class CompanionStore {
         if kind.isPassive {
             state.inventory[kind.rawValue] = 1
         } else {
-            // A Legendary Egg per region; a Fossil Egg per dig.
-            for reward in kind.achievementRewards { state.inventory[reward.kind.rawValue, default: 0] += reward.count }
+            // A Legendary Egg per region; a Fossil Egg per dig; a Dungeons medal's step its own.
+            let rewards = kind.dungeonTier.map { DungeonMedals.rewards($0, step: generation) } ?? kind.achievementRewards
+            for reward in rewards { state.inventory[reward.kind.rawValue, default: 0] += reward.count }
         }
         AppLog.write("achievement claimed: \(key)")
     }

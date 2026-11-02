@@ -315,5 +315,52 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t1), 10)
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t2), 20)
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t3), 35)
+        XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t4), 20)
+        XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t5), 15)
+        // About one T3 victory in ten gives a key after the first.
+        var keys = 0
+        for _ in 0..<2_000 {
+            keys += CompanionStore.victoryExtras(tier: .t3, firstT3Victory: false, random: &random)
+                .items[ItemKind.legendaryKey.rawValue] ?? 0
+        }
+        XCTAssertEqual(Double(keys) / 2_000, 0.10, accuracy: 0.02)
+    }
+
+    /// The Dungeons medals sit with the Artifacts: a step per dungeon won once, then the whole tier, each its reward
+    /// and never a Legendary Key; nothing without a victory, and the Ruins of Alph stay out.
+    func testTheMedalsCountTheDungeonsWon() throws {
+        XCTAssertEqual(ItemKind.discoveryMedal.collectorGroup, .legendaryArtifacts)
+        XCTAssertFalse(DungeonMedals.dungeons(.t4).contains(.ruinsOfAlph))
+        XCTAssertEqual(DungeonTier.allCases.map { DungeonMedals.goals($0).count }.reduce(0, +), 16)
+        for tier in DungeonTier.allCases {
+            for (step, _) in DungeonMedals.goals(tier) {
+                XCTAssertFalse(DungeonMedals.rewards(tier, step: step).contains { $0.kind == .legendaryKey }, "T\(tier.rawValue) #\(step)")
+            }
+        }
+
+        let none = try store(dex: strong)
+        XCTAssertEqual(none.regionTiers(.discoveryMedal).filter(\.isReady).count, 0)
+        XCTAssertFalse(none.claimAchievement(.discoveryMedal))
+
+        let one = try store(dex: strong) { $0.dungeons.wins[DungeonID.viridianForest.rawValue] = 1 }
+        XCTAssertEqual(one.regionTiers(.discoveryMedal).map(\.isReady), [true, false, false], "a dungeon, not the tier")
+        XCTAssertTrue(one.claimAchievement(.discoveryMedal))
+        XCTAssertEqual(one.itemCount(.greatBall), 1)
+        XCTAssertEqual(one.itemCount(.discoveryMedal), 0, "the medal gives, it is not kept")
+
+        let both = try store(dex: strong) {
+            $0.dungeons.wins[DungeonID.viridianForest.rawValue] = 3
+            $0.dungeons.wins[DungeonID.diglettsCave.rawValue] = 1
+        }
+        XCTAssertTrue(both.claimAchievement(.discoveryMedal))
+        XCTAssertEqual(both.itemCount(.greatBall), 2)
+        XCTAssertEqual(both.itemCount(.pokemonEgg), 1, "the whole T1")
+        XCTAssertTrue(both.isClaimed(.discoveryMedal))
+        XCTAssertFalse(both.claimAchievement(.discoveryMedal), "claimed once")
+
+        let origin = try store(dex: strong) { $0.dungeons.wins[DungeonID.hallOfOrigin.rawValue] = 1 }
+        XCTAssertEqual(origin.regionTiers(.originMedal).count, 1, "a single dungeon has no whole-tier step")
+        XCTAssertTrue(origin.claimAchievement(.originMedal))
+        XCTAssertEqual(origin.itemCount(.goldCapsule), 1)
     }
 }

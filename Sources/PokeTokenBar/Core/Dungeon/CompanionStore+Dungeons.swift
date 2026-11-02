@@ -293,7 +293,7 @@ extension CompanionStore {
     // MARK: The end
 
     /// The tier's extras on a victory (Q22, Q23, R10, R4): an egg sometimes, the very rare items, a Legendary Key
-    /// from T3 (sure at the first T3 victory), a Technical Capsule.
+    /// from T3 (sure at the first T3 victory, then one in ten: about ten T3 victories a key, a T5 asks three).
     static func victoryExtras(tier: DungeonTier, firstT3Victory: Bool, random: inout BattleRandom) -> ExpeditionLoot {
         var loot = ExpeditionLoot()
         func roll(_ percent: Double) -> Bool { Double(random.below(10_000)) < percent * 100 }
@@ -302,7 +302,7 @@ extension CompanionStore {
         case .t2: if roll(10) { loot.add(.uncommonEgg) }
         case .t3:
             if roll(10) { loot.add(.rareEgg) }
-            if firstT3Victory || roll(25) { loot.add(.legendaryKey) }
+            if firstT3Victory || roll(10) { loot.add(.legendaryKey) }
             if roll(5) { loot.add(.treasureMap) }
             if roll(0.5) { loot.add(.explorerChest) }
         case .t4:
@@ -317,13 +317,15 @@ extension CompanionStore {
         return loot
     }
 
-    /// R4 (validated 2026-10-30): a successful expedition unlocks a Technical Capsule 10%, 20%, 35% of the time in T1,
-    /// T2, T3; from T3 up, 35%.
+    /// R4 (validated 2026-10-30, T4 and T5 lowered 2026-11-02): a successful expedition unlocks a Technical Capsule
+    /// 10%, 20%, 35%, 20%, 15% of the time from T1 to T5; few locked moves are left by then.
     static func technicalCapsuleChance(_ tier: DungeonTier) -> Int {
         switch tier {
         case .t1: 10
         case .t2: 20
-        default: 35
+        case .t3: 35
+        case .t4: 20
+        case .t5: 15
         }
     }
 

@@ -179,3 +179,39 @@ struct CapsuleScreen: View {
         }
     }
 }
+
+/// A Dungeons medal's steps on its Achievements card: each dungeon of the tier, then the whole tier, with what it
+/// gives and where it stands (claimed, ready, still to win), by glyph and color.
+@MainActor
+struct DungeonMedalPanel: View {
+    let store: CompanionStore
+    let tier: DungeonTier
+
+    var body: some View {
+        let l = store.l
+        let dungeons = DungeonMedals.dungeons(tier)
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(store.regionTiers(DungeonMedals.medal(tier)), id: \.generation) { step in
+                HStack(spacing: 6) {
+                    if step.generation <= dungeons.count {
+                        DungeonIcon(id: dungeons[step.generation - 1], size: 20)
+                    } else {
+                        Image(systemName: "crown.fill").font(.caption).frame(width: 20)
+                    }
+                    Text(l.medalStepName(tier, step: step.generation)).font(.caption)
+                    Spacer(minLength: 4)
+                    ForEach(Array(DungeonMedals.rewards(tier, step: step.generation).enumerated()), id: \.offset) { _, reward in
+                        HStack(spacing: 1) {
+                            ItemIconView(kind: reward.kind, size: 16)
+                            if reward.count > 1 { Text("×\(reward.count)").font(.caption2).monospacedDigit() }
+                        }
+                        .hoverTip(l.itemName(reward.kind))
+                    }
+                    Image(systemName: step.isDone ? "checkmark.circle.fill" : step.isReady ? "gift.fill" : "circle")
+                        .font(.caption)
+                        .foregroundStyle(step.isDone ? Design.actionColor : step.isReady ? Color.readableOrange : .secondary)
+                }
+            }
+        }
+    }
+}

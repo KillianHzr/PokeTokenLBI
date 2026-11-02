@@ -1877,6 +1877,10 @@ struct L {
         case .treasureMap: return t("보물지도", "Treasure Map", "たからのちず", "Mapa del Tesoro", "Carte au trésor", "Mapa do Tesouro", "Schatzkarte", "Карта сокровищ")
         case .explorerChest: return t("탐험가의 상자", "Explorer's Chest", "たんけんかのはこ", "Cofre del Explorador", "Coffre d'explorateur", "Baú do Explorador", "Forscherkiste", "Сундук исследователя")
         case .legendaryKey: return t("전설의 열쇠", "Legendary Key", "でんせつのカギ", "Llave Legendaria", "Clé Légendaire", "Chave Lendária", "Legendenschlüssel", "Легендарный ключ")
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
+            let tier = dungeonTierName(kind.dungeonTier ?? .t1)
+            return t("\(tier) 메달", "\(tier) Medal", "\(tier)のメダル", "Medalla \(tier)", "Médaille \(tier)", "Medalha \(tier)",
+                     "\(tier)-Medaille", "Медаль: \(tier)")
         }
     }
     /// `rareCandyXP`: what a candy grants now, with the Soul Dew's +50% when owned (`CompanionStore.rareCandyXP`).
@@ -2456,6 +2460,25 @@ struct L {
                      "\(kit)のおたからをひとつランダムにくれます。", "Da uno de los tesoros del \(kit), al azar.",
                      "Donne un des trésors du \(kit), au hasard.", "Dá um dos tesouros do \(kit), ao acaso.",
                      "Gibt einen zufälligen Schatz des \(kit).", "Даёт одно из сокровищ предмета \"\(kit)\" наугад.")
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
+            let tier = kind.dungeonTier ?? .t1
+            let n = tier.rawValue
+            if DungeonMedals.dungeons(tier).count == 1 {
+                return t("T\(n) 던전을 한 번 이기면 보상을 받아요.", "Win the T\(n) dungeon once for a reward.",
+                         "T\(n)のダンジョンに一度勝つとごほうび。", "Gana una vez la mazmorra T\(n) para una recompensa.",
+                         "Gagne une fois le donjon T\(n) pour une récompense.",
+                         "Vença uma vez a masmorra T\(n) para uma recompensa.",
+                         "Gewinne den T\(n)-Dungeon einmal für eine Belohnung.",
+                         "Пройди подземелье T\(n) один раз, чтобы получить награду.")
+            }
+            return t("T\(n)의 던전을 각각 한 번씩 이기세요. 던전마다 보상, 전부 이기면 하나 더.",
+                     "Win each T\(n) dungeon once: a reward per dungeon, one more for them all.",
+                     "T\(n)の各ダンジョンに一度ずつ勝とう。ダンジョンごとにごほうび、全部でもう1つ。",
+                     "Gana una vez cada mazmorra T\(n): una recompensa por mazmorra y otra por todas.",
+                     "Gagne une fois chaque donjon T\(n) : une récompense par donjon, une de plus pour tous.",
+                     "Vença cada masmorra T\(n) uma vez: uma recompensa por masmorra e mais uma por todas.",
+                     "Gewinne jeden T\(n)-Dungeon einmal: eine Belohnung pro Dungeon, eine weitere für alle.",
+                     "Пройди каждое подземелье T\(n) один раз: награда за каждое и ещё одна за все.")
         case .legendaryKey:
             return t("T4 던전에 한 번 들어가요. 들어갈 때 사라지고, 져도 돌아오지 않아요.",
                      "Opens a T4 dungeon once: spent at the entry, kept by the dungeon even after a defeat.",

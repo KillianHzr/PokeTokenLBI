@@ -265,6 +265,8 @@ private struct AchievementCard: View {
 
             if kind == .excavation {
                 ExcavationPanel(store: store)
+            } else if let tier = kind.dungeonTier {
+                DungeonMedalPanel(store: store, tier: tier)
             } else if kind.isRegional {
                 RegionGrid(store: store, kind: kind)
             } else {

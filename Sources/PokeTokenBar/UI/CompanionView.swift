@@ -38,7 +38,10 @@ struct ItemIconView: View {
         case .fossilEgg: .fossil
         default: EventEgg(item: kind).map { .event($0) }
         }
-        _img = State(initialValue: drawnEgg.map(EggRenderer.still)
+        // A Dungeons medal: its tier's first dungeon, drawn.
+        let medal = kind.dungeonTier.flatMap { DungeonMedals.dungeons($0).first }.flatMap(DungeonSprites.trimmedImage)
+            .map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
+        _img = State(initialValue: medal ?? drawnEgg.map(EggRenderer.still)
                      ?? kind.spriteName.flatMap { SpriteLoader.cachedItemImage(name: $0) })
     }
 
