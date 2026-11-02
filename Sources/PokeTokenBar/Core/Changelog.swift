@@ -78,6 +78,17 @@ enum Changelog {
                            "Neu im Laden: Tipps von Prof. Eich. Er sagt dir, ob dein Pokémon deinem Pokédex noch etwas Neues bringt oder doppelt ist, ob du ein doppeltes für ein Ei freilässt oder fertig werden lässt, wie viele Eier du im Voraus kaufst und wie viel in Bonbons geht, und wie oft du ein \(candy) verwendest.",
                            "Новое в магазине: советы профессора Оука. Он подскажет, принесёт ли ваш покемон что-то новое в покедекс или это дубликат, отпустить ли дубликат ради яйца или дать ему дорасти, сколько яиц купить заранее и сколько потратить на конфеты, и сколько раз использовать \"\(candy)\".")
             },
+            .fixed("2026-11-02-incubating-egg-name") { l in
+                let fossil = l.itemName(.fossilEgg)
+                return l.t("부화 중인 알이 이제 \"Token Egg\" 대신 제 이름(\(fossil) 등)으로 표시돼요.",
+                           "An egg being incubated now shows its own name (\(fossil) and the others) instead of \"Token Egg\".",
+                           "孵化中のタマゴが「Token Egg」ではなく、本来の名前（\(fossil)など）で表示されるようになりました。",
+                           "Un huevo en incubación ahora muestra su propio nombre (\(fossil) y los demás) en lugar de \"Token Egg\".",
+                           "Un œuf en incubation affiche maintenant son propre nom (\(fossil) et les autres) au lieu de \"Token Egg\".",
+                           "Um ovo em incubação agora mostra o próprio nome (\(fossil) e os outros) em vez de \"Token Egg\".",
+                           "Ein Ei, das ausgebrütet wird, zeigt jetzt seinen eigenen Namen (\(fossil) und die anderen) statt \"Token Egg\".",
+                           "Яйцо в инкубации теперь показывает своё название (\(fossil) и другие) вместо \"Token Egg\".")
+            },
         ]),
         ChangelogDay(date: "2026-10-29", entries: [
             .improved("2026-10-29-dex-lines", { $0.t("도감에 몇 개의 진화 계열을 모았는지도 보여 줘요(전체 중 몇 개).",
