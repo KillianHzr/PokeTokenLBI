@@ -80,6 +80,10 @@ extension L {
         case .graduated(let n): t("졸업한 포켓몬 \(n)마리", "\(n) graduated Pokémon", "卒業したポケモン\(n)ひき",
                                   "\(n) Pokémon graduados", "\(n) Pokémon diplômés", "\(n) Pokémon formados",
                                   "\(n) verabschiedete Pokémon", "Выпускников: \(n)")
+        case .wonTier(let tier):
+            t("T\(tier.rawValue) 던전 하나 클리어", "Finish a T\(tier.rawValue) dungeon", "T\(tier.rawValue)のダンジョンをひとつクリア",
+              "Superar una mazmorra T\(tier.rawValue)", "Finir un donjon T\(tier.rawValue)", "Concluir uma masmorra T\(tier.rawValue)",
+              "Einen T\(tier.rawValue)-Dungeon abschließen", "Пройти подземелье T\(tier.rawValue)")
         case .won(let id): t("\(dungeonName(id)) 클리어", "Finish \(dungeonName(id))", "\(dungeonName(id))をクリア",
                              "Superar \(dungeonName(id))", "Finir \(dungeonName(id))", "Concluir \(dungeonName(id))",
                              "\(dungeonName(id)) abschließen", "Пройти: \(dungeonName(id))")
@@ -633,6 +637,10 @@ extension L {
     /// The places' official names (Q26).
     func dungeonName(_ id: DungeonID) -> String {
         switch id {
+        case .daily: t("오늘의 던전", "Daily dungeon", "今日のダンジョン", "Mazmorra del día", "Donjon du jour", "Masmorra do dia",
+                       "Tages-Dungeon", "Подземелье дня")
+        case .weekly: t("이번 주 던전", "Weekly dungeon", "今週のダンジョン", "Mazmorra de la semana", "Donjon de la semaine",
+                        "Masmorra da semana", "Wochen-Dungeon", "Подземелье недели")
         case .viridianForest: t("상록숲", "Viridian Forest", "トキワのもり", "Bosque Verde", "Forêt de Jade",
                                 "Floresta de Viridian", "Vertania-Wald", "Виридиан-лес")
         case .diglettsCave: t("디그다굴", "Diglett's Cave", "ディグダのあな", "Cueva Diglett", "Grotte Taupiqueur",
@@ -746,5 +754,111 @@ extension L {
     func dungeonCost(_ tokens: String) -> String {
         t("토큰 \(tokens)", "\(tokens) tokens", "\(tokens)トークン", "\(tokens) de tokens", "\(tokens) de tokens", "\(tokens) de tokens",
           "\(tokens) Tokens", "\(tokens) токенов")
+    }
+
+    // MARK: Battle forms
+
+    /// " X", " Y", " Z" for the Megas that come in two or three.
+    private func megaSuffix(_ form: BattleForm) -> String {
+        for letter in ["x", "y", "z"] where form.form.rawValue.hasSuffix("mega-\(letter)") { return " " + letter.uppercased() }
+        return ""
+    }
+
+    /// A battle form alone, in a picker beside the species' other forms ("Mega X", "Gigantamax").
+    func battleFormLabel(_ form: BattleForm) -> String {
+        let x = megaSuffix(form)
+        switch form.kind {
+        case .mega: return t("메가\(x)", "Mega\(x)", "メガ\(x)", "Mega\(x)", "Méga\(x)", "Mega\(x)", "Mega\(x)", "Мега\(x)")
+        case .gigantamax:
+            return t("거다이맥스", "Gigantamax", "キョダイマックス", "Gigamax", "Gigamax", "Gigantamax", "Gigadynamax", "Гигантамакс")
+        case .primal: return t("원시회귀", "Primal", "ゲンシカイキ", "Primigenio", "Primo", "Primitivo", "Proto", "Первобытный")
+        }
+    }
+
+    /// A battle form's own name, the species' in it ("Mega Charizard X", "Gigantamax Pikachu", "Primal Kyogre").
+    func battleFormName(_ form: BattleForm, species: String) -> String {
+        let x = megaSuffix(form), tight = x.replacingOccurrences(of: " ", with: "")
+        switch form.kind {
+        case .mega:
+            return t("메가\(species)\(tight)", "Mega \(species)\(x)", "メガ\(species)\(tight)", "Mega-\(species)\(x)",
+                     "Méga-\(species)\(x)", "Mega \(species)\(x)", "Mega-\(species)\(x)", "Мега-\(species)\(x)")
+        case .gigantamax:
+            return t("거다이맥스 \(species)", "Gigantamax \(species)", "キョダイマックス\(species)", "\(species) Gigamax",
+                     "\(species) Gigamax", "\(species) Gigantamax", "Gigadynamax-\(species)", "Гигантамакс \(species)")
+        case .primal:
+            return t("원시\(species)", "Primal \(species)", "ゲンシ\(species)", "\(species) Primigenio", "Primo-\(species)",
+                     "\(species) Primitivo", "Proto-\(species)", "Первобытный \(species)")
+        }
+    }
+
+    // MARK: The daily and weekly dungeons
+
+    func dungeonFloors(_ n: Int) -> String {
+        t("\(n)층", "\(n) floors", "\(n)階", "\(n) pisos", "\(n) étages", "\(n) andares", "\(n) Ebenen", "Этажей: \(n)")
+    }
+    var challengeOneTryADay: String {
+        t("하루 한 번", "one try a day", "1日1回", "un intento al día", "une tentative par jour", "uma tentativa por dia",
+          "ein Versuch pro Tag", "одна попытка в день")
+    }
+    var challengeOneTryAWeek: String {
+        t("주 한 번", "one try a week", "1週間に1回", "un intento por semana", "une tentative par semaine",
+          "uma tentativa por semana", "ein Versuch pro Woche", "одна попытка в неделю")
+    }
+    func challengeReward(_ form: String) -> String {
+        t("보스를 쓰러뜨리면: \(form)", "Beat the boss to win: \(form)", "ボスを倒すと：\(form)", "Vence al jefe y gana: \(form)",
+          "Bats le boss pour gagner : \(form)", "Vença o chefe e ganhe: \(form)", "Besiege den Boss und gewinne: \(form)",
+          "Победите босса и получите: \(form)")
+    }
+    var challengeAllWon: String {
+        t("졸업한 포켓몬의 형태를 모두 얻었어요. 새로 졸업하면 더 생겨요.",
+          "Every form your graduated Pokémon can take is won. New graduations bring more.",
+          "卒業したポケモンのすがたはすべて手に入れました。新しく卒業させると増えます。",
+          "Ya tienes todas las formas de tus Pokémon graduados. Graduar más trae otras.",
+          "Toutes les formes de tes Pokémon diplômés sont gagnées. De nouveaux diplômés en apportent d'autres.",
+          "Você já tem todas as formas dos seus Pokémon formados. Novos formados trazem outras.",
+          "Alle Formen deiner verabschiedeten Pokémon sind gewonnen. Neue Abschlüsse bringen weitere.",
+          "Все формы ваших выпускников получены. Новые выпускники принесут ещё.")
+    }
+    var challengeTriedToday: String {
+        t("오늘은 이미 도전했어요. 내일 새 보스가 나와요.", "Tried today: a new boss tomorrow.", "今日は挑戦済み。明日は新しいボス。",
+          "Ya lo intentaste hoy: mañana, un jefe nuevo.", "Déjà tenté aujourd'hui : nouveau boss demain.",
+          "Já tentou hoje: amanhã, um chefe novo.", "Heute schon versucht: morgen ein neuer Boss.",
+          "Сегодня уже была попытка: завтра новый босс.")
+    }
+    var challengeTriedThisWeek: String {
+        t("이번 주는 이미 도전했어요. 다음 주에 새 보스가 나와요.", "Tried this week: a new boss next week.",
+          "今週は挑戦済み。来週は新しいボス。", "Ya lo intentaste esta semana: la próxima, un jefe nuevo.",
+          "Déjà tenté cette semaine : nouveau boss la semaine prochaine.", "Já tentou nesta semana: na próxima, um chefe novo.",
+          "Diese Woche schon versucht: nächste Woche ein neuer Boss.", "На этой неделе уже была попытка: новый босс на следующей.")
+    }
+    var challengeHard: String {
+        t("어려워요: 한 번뿐이니 최강의 팀으로.", "Hard: one try only, send your best team.", "手ごわい：1回だけなので最強のチームで。",
+          "Difícil: un solo intento, envía tu mejor equipo.", "Difficile : une seule tentative, envoie ta meilleure équipe.",
+          "Difícil: uma só tentativa, envie sua melhor equipe.", "Schwer: nur ein Versuch, schick dein bestes Team.",
+          "Сложно: одна попытка, отправьте лучшую команду.")
+    }
+    func challengeFormWon(_ form: String) -> String {
+        t("새 형태: \(form)", "New form: \(form)", "新しいすがた：\(form)", "Nueva forma: \(form)", "Nouvelle forme : \(form)",
+          "Nova forma: \(form)", "Neue Form: \(form)", "Новая форма: \(form)")
+    }
+    var battleFormsTitle: String {
+        t("전투 형태", "Battle forms", "バトルのすがた", "Formas de combate", "Formes de combat", "Formas de batalha",
+          "Kampfformen", "Боевые формы")
+    }
+    func battleFormsWon(_ won: Int, of total: Int) -> String {
+        t("\(battleFormsTitle) \(won)/\(total)", "\(battleFormsTitle) \(won)/\(total)", "\(battleFormsTitle) \(won)/\(total)",
+          "\(battleFormsTitle) \(won)/\(total)", "\(battleFormsTitle) \(won)/\(total)", "\(battleFormsTitle) \(won)/\(total)",
+          "\(battleFormsTitle) \(won)/\(total)", "\(battleFormsTitle) \(won)/\(total)")
+    }
+    /// Where a missing battle form is won.
+    func battleFormSource(_ form: BattleForm) -> String {
+        dungeonName(BattleForms.daily.contains(form) ? .daily : .weekly)
+    }
+    var battleFormUsual: String {
+        t("기본", "Usual", "ふだん", "Habitual", "Habituelle", "Habitual", "Normal", "Обычная")
+    }
+    var battleFormPickTitle: String {
+        t("이 던전에서의 형태", "Form in the dungeons", "ダンジョンでのすがた", "Forma en las mazmorras", "Forme en donjon",
+          "Forma nas masmorras", "Form in Dungeons", "Форма в подземельях")
     }
 }

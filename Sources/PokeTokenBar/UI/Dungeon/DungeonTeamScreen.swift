@@ -32,6 +32,9 @@ struct DungeonTeamScreen: View {
             rulesBox(size: size, rules: rules, team: candidates, l)
             teamRow(picked, size: size)
             if let focus, let entry = picked.first(where: { $0.id == focus }) {
+                if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
+                    BattleFormChooser(store: store, entry: entry)
+                }
                 LoopEditor(store: store, entry: entry, dungeon: dungeon, editingSlot: $editingSlot)
             } else {
                 // What to do next, said where it is done.
@@ -310,5 +313,36 @@ struct BattleReplayScreen: View {
 
     var body: some View {
         BattleReplayView(store: store, battle: battle, startAt: startAt, onBack: onBack)
+    }
+}
+
+/// The form a team member fights in: its usual one or a battle form its species won, never used up (2026-11-02).
+@MainActor
+struct BattleFormChooser: View {
+    let store: CompanionStore
+    let entry: DexEntry
+
+    var body: some View {
+        let l = store.l
+        let chosen = store.battleFormChoice(for: entry)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(l.battleFormPickTitle).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                option(l.battleFormUsual, selected: chosen == nil) { store.setBattleForm(nil, for: entry.id) }
+                ForEach(store.wonBattleForms(speciesID: entry.finalID), id: \.key) { form in
+                    option(l.battleFormLabel(form), selected: chosen == form) { store.setBattleForm(form, for: entry.id) }
+                }
+            }
+        }
+    }
+
+    private func option(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: selected ? "checkmark.circle.fill" : "circle")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(selected ? AnyShapeStyle(Design.actionColor) : AnyShapeStyle(.secondary))
+        }
+        .buttonStyle(.plain)
+        .disabled(store.isExploring(entry.id))
     }
 }

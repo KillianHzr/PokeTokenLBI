@@ -134,7 +134,7 @@ struct Expedition: Codable, Sendable, Equatable {
     var phase: ExpeditionPhase = .exploring
     var battles = 0
 
-    var floors: Int { dungeon == .hallOfOrigin ? DungeonTier.t5.floors : DungeonCatalog.dungeon(dungeon).floors }
+    var floors: Int { DungeonCatalog.dungeon(dungeon).floors }
     var floorCost: Int { max(1, cost / floors) }
     /// The team's HP left, out of its maximum.
     var hpShare: Double {
@@ -187,13 +187,17 @@ enum ExpeditionEngine {
     // MARK: Entry
 
     static func start(dungeon: Dungeon, team: [ExpeditionMember], rules: [DungeonRule], teamSize: Int, seed: UInt64,
-                      cost: Int, berries: [BattleBerry: Int], revives: [String: Int], context: ExpeditionContext) -> Expedition {
+                      cost: Int, berries: [BattleBerry: Int], revives: [String: Int], context: ExpeditionContext,
+                      boss chosen: ExpeditionBoss? = nil) -> Expedition {
         var random = BattleRandom(seed: seed)
-        let bossID = dungeon.bosses[random.below(dungeon.bosses.count)]
-        let shiny = random.below(max(1, context.shinyDenominator)) == 0
+        // A challenge's boss is the battle form drawn for the day or the week, never shiny.
+        let boss = chosen ?? {
+            let bossID = dungeon.bosses[random.below(dungeon.bosses.count)]
+            return ExpeditionBoss(speciesID: bossID, form: nil, isShiny: random.below(max(1, context.shinyDenominator)) == 0)
+        }()
         let range = candyRange(dungeon.tier)
         return Expedition(dungeon: dungeon.id, teamSize: teamSize, rules: rules, startedAt: context.now, seed: seed,
-                          cost: cost, team: team, boss: ExpeditionBoss(speciesID: bossID, form: nil, isShiny: shiny),
+                          cost: cost, team: team, boss: boss,
                           candiesLeft: random.between(range.lowerBound, range.upperBound), berries: berries,
                           revives: revives)
     }
@@ -435,7 +439,8 @@ enum ExpeditionEngine {
             e.loot.candies += e.candiesLeft
             e.candiesLeft = 0
             append(&e, .victory, rare: true, context: context)
-            e.phase = .capture(throwsLeft: 3)
+            // A challenge's battle form is won as the boss falls: no throws (one try a day, the owner).
+            if e.dungeon.isChallenge { finish(&e, won: true, context: context) } else { e.phase = .capture(throwsLeft: 3) }
         } else {
             finish(&e, won: false, context: context)
         }

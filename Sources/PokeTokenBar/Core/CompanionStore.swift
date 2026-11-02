@@ -2384,10 +2384,11 @@ final class CompanionStore {
     /// Every evolution line of the 1,025 species: one per species that evolves from none.
     static let evolutionLineCount = PokemonAssets.animatedSpeciesIDs.filter { PokemonEvolutionData.root(of: $0) == $0 }.count
 
-    /// Every appearance that can be collected: 1,025 species and their other forms.
+    /// Every appearance that can be collected: 1,025 species and their other forms, and the battle forms the daily and
+    /// weekly dungeons give (the owner, 2026-11-02: they lengthen the end of the game).
     static let collectableFormCount = PokemonAssets.animatedSpeciesIDs.reduce(0) {
         $0 + max(1, PokemonForm.forms(speciesID: $1).count)
-    }
+    } + BattleForms.all.count
 
     var collectionProgress: CollectionProgress { collectionProgress(graduatedOnly: false) }
 
@@ -2401,8 +2402,9 @@ final class CompanionStore {
             let collected = state.collectedForms(speciesID: $1, graduatedOnly: graduatedOnly)
             return $0 + (PokemonForm.hasForms(speciesID: $1) ? max(1, collected.count) : 1)
         }
+        // A battle form is won by a graduated Pokémon's team, so it counts for both.
         return CollectionProgress(species: species.count, speciesTotal: PokemonAssets.animatedSpeciesIDs.count,
-                                  forms: forms, formsTotal: Self.collectableFormCount,
+                                  forms: forms + state.dungeons.battleForms.count, formsTotal: Self.collectableFormCount,
                                   lines: Set(species.map(PokemonEvolutionData.root)).count,
                                   linesTotal: Self.evolutionLineCount)
     }

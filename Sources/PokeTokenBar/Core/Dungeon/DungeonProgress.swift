@@ -20,6 +20,8 @@ struct ExpeditionResult: Codable, Sendable, Equatable {
     var unlocked: [DungeonID]
     /// The move a Technical Capsule unlocked (R4), if one dropped.
     var unlockedMove: String?
+    /// The battle form a challenge won (`BattleForm.key`).
+    var battleForm: String? = nil
     var log: [ExpeditionLogEntry]
 }
 
@@ -41,6 +43,13 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var lastResult: ExpeditionResult?
     /// Expeditions set off, which seeds each one and the Ruins of Alph's rules.
     var departures = 0
+    /// Battle forms won (`BattleForm.key`), never used up: in the Pokédex, and for any graduated Pokémon of the species.
+    var battleForms: Set<String> = []
+    /// The battle form each graduated Pokémon fights in, by Pokédex entry; none for its usual form.
+    var battleFormChoice: [String: String] = [:]
+    /// The day (`yyyy-MM-dd`) and the week (`yyyy-Www`) whose challenge was tried: one try each.
+    var dailyTried: String?
+    var weeklyTried: String?
 
     init() {}
 
@@ -55,6 +64,11 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         eggs = c.lenient([Lossy<DungeonEgg>].self, forKey: .eggs, default: []).compactMap(\.value)
         lastResult = c.lenientOptional(ExpeditionResult.self, forKey: .lastResult)
         departures = c.lenient(Int.self, forKey: .departures, default: 0)
+        // Only the forms this build knows: one a later build added waits, unread, for that build.
+        battleForms = c.lenient(Set<String>.self, forKey: .battleForms, default: []).filter { BattleForms.form(key: $0) != nil }
+        battleFormChoice = c.lenient([String: String].self, forKey: .battleFormChoice, default: [:])
+        dailyTried = c.lenientOptional(String.self, forKey: .dailyTried)
+        weeklyTried = c.lenientOptional(String.self, forKey: .weeklyTried)
     }
 
     func wins(_ id: DungeonID) -> Int { wins[id.rawValue] ?? 0 }

@@ -1224,7 +1224,11 @@ enum PokemonTypeData {
 
     /// Types of one individual: its form's own types when they differ, otherwise its species'.
     static func types(forSpeciesID id: Int, form: PokemonForm?) -> [PokemonType] {
-        PokemonForm.formID(speciesID: id, form: form).flatMap { formTypes[$0] } ?? types(forSpeciesID: id)
+        // A battle form's types are its variety's (a Mega Charizard X is Fire and Dragon).
+        if let battle = BattleForms.form(speciesID: id, form: form), let data = SpeciesBattleTable.all[battle.pokemonID] {
+            return data.types
+        }
+        return PokemonForm.formID(speciesID: id, form: form).flatMap { formTypes[$0] } ?? types(forSpeciesID: id)
     }
 
     /// The type names to show for one individual. PokéAPI's species data is the default form's (a Kanto Vulpix

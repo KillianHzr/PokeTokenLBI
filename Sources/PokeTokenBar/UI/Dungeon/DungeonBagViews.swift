@@ -232,3 +232,28 @@ struct DungeonMedalPanel: View {
         }
     }
 }
+
+/// A battle form's name in the player's language ("Mega Charizard X"), its species' name loaded as `PokemonNameLabel`
+/// loads it, "…" until then; `wrap` sets it in a sentence.
+@MainActor
+struct BattleFormTitle: View {
+    let form: BattleForm
+    let language: AppLanguage
+    var wrap: (String) -> String = { $0 }
+    var displayStore = PokemonNameDisplayStore.shared
+
+    static func text(_ form: BattleForm, language: AppLanguage,
+                     names: PokemonNameDisplayStore.Names = PokemonNameDisplayStore.shared.names) -> String {
+        let item = PokemonNameItem(resource: PokemonNameResource(kind: .pokemonSpecies, name: String(form.speciesID)))
+        let species = PokemonNameText(items: [item], language: language, names: names).text
+        return PokemonForm.displayName(species, speciesID: form.speciesID, form: form.form, language: language)
+    }
+
+    var body: some View {
+        let resource = PokemonNameResource(kind: .pokemonSpecies, name: String(form.speciesID))
+        Text(wrap(Self.text(form, language: language, names: displayStore.names)))
+            .task(id: resource) {
+                if displayStore.names[resource] == nil { _ = await displayStore.load(resource, provider: PokemonNameClient.shared) }
+            }
+    }
+}

@@ -25,6 +25,10 @@ struct DungeonsView: View {
                     Text(l.dungeonsIntro).font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // The daily and weekly dungeons first: what they give changes with the day and the week.
+                ForEach([DungeonID.daily, .weekly], id: \.self) { id in
+                    ChallengeCard(store: store, id: id) { nav.dungeonTeam = id }
+                }
                 ForEach(shown, id: \.self) { id in
                     DungeonCard(store: store, id: id) { nav.dungeonTeam = id }
                 }
@@ -37,7 +41,7 @@ struct DungeonsView: View {
     /// The Ruins of Alph show only once a Treasure Map, or a visit, made them known.
     private var shown: [DungeonID] {
         DungeonID.allCases.filter { id in
-            id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0
+            !id.isChallenge && (id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0)
         }
     }
 
@@ -161,6 +165,75 @@ private struct DungeonCard: View {
                 .disabled(!store.canEnter(id))
                 .hoverTip(store.expedition != nil ? l.dungeonOneAtATime : nil)
         }
+    }
+}
+
+/// The daily or weekly dungeon (2026-11-02): the battle form its boss is and gives, its one try, its length.
+@MainActor
+private struct ChallengeCard: View {
+    let store: CompanionStore
+    let id: DungeonID
+    let onPrepare: () -> Void
+
+    var body: some View {
+        let l = store.l
+        let dungeon = DungeonCatalog.dungeon(id)
+        let unmet = store.unmetUnlocks(id)
+        let boss = store.challengeBoss(id)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Group {
+                    if let boss {
+                        SpriteView(speciesID: boss.speciesID, size: 40, form: boss.form, sameScale: true)
+                            .speciesNameTooltip(boss.speciesID, form: boss.form, language: store.language)
+                    } else {
+                        Image(systemName: id == .daily ? "sun.max.fill" : "calendar").font(.title2).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .grayscale(unmet.isEmpty ? 0 : 1).opacity(unmet.isEmpty ? 1 : 0.5)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(l.dungeonName(id)).font(.callout.weight(.semibold))
+                        Spacer(minLength: 4)
+                        if !unmet.isEmpty {
+                            Label(l.dungeonLocked, systemImage: "lock.fill").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        }
+                    }
+                    Text([l.dungeonFloors(dungeon.floors), l.dungeonCost(TokenFormatter.compact(dungeon.cost(difficulty: store.growthDifficulty))),
+                          id == .daily ? l.challengeOneTryADay : l.challengeOneTryAWeek].joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let boss {
+                        BattleFormTitle(form: boss, language: store.language, wrap: l.challengeReward)
+                            .font(.caption.weight(.semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            if !unmet.isEmpty {
+                ForEach(Array(unmet.enumerated()), id: \.offset) { _, unlock in
+                    Label(l.dungeonUnlock(unlock), systemImage: "circle").font(.caption).foregroundStyle(.secondary)
+                }
+            } else if boss == nil {
+                Label(l.challengeAllWon, systemImage: "checkmark.seal.fill").font(.caption).foregroundStyle(.secondary)
+            } else if store.challengeTried(id) {
+                Label(id == .daily ? l.challengeTriedToday : l.challengeTriedThisWeek, systemImage: "hourglass")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                HStack {
+                    Text(l.challengeHard).font(.caption2).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    Button(l.dungeonPrepare, action: onPrepare)
+                        .buttonStyle(.pill(prominent: true))
+                        .disabled(!store.canEnter(id))
+                        .hoverTip(store.expedition != nil ? l.dungeonOneAtATime : nil)
+                }
+            }
+        }
+        .padding(12)
+        .designSurface(cornerRadius: Design.cornerRadius)
     }
 }
 

@@ -387,4 +387,92 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertTrue(origin.claimAchievement(.originMedal))
         XCTAssertEqual(origin.itemCount(.goldCapsule), 1)
     }
+
+    // MARK: Battle forms (2026-11-02)
+
+    /// PokéAPI's Megas, Primals and Gigantamax forms with a sprite: Mega Zygarde has none and stays out. The daily
+    /// dungeon gives the Megas of non-legendary species, the weekly one the rest.
+    func testTheBattleFormsTable() {
+        XCTAssertEqual(BattleForms.all.count, 132)
+        XCTAssertEqual(Set(BattleForms.all.map(\.key)).count, 132, "one key each")
+        let charizardX = try? XCTUnwrap(BattleForms.form(speciesID: 6, form: PokemonForm("mega-x")))
+        XCTAssertEqual(charizardX?.pokemonID, 10034)
+        XCTAssertEqual(BattleForms.form(speciesID: 25, form: PokemonForm("gmax"))?.kind, .gigantamax)
+        XCTAssertEqual(BattleForms.form(speciesID: 382, form: PokemonForm("primal"))?.kind, .primal)
+        XCTAssertNil(BattleForms.forms(speciesID: 718).first { $0.form.rawValue == "mega" }, "no sprite, left out")
+        XCTAssertTrue(BattleForms.daily.allSatisfy { $0.kind == .mega && !$0.isLegendary })
+        XCTAssertTrue(BattleForms.weekly.contains { $0.speciesID == 150 }, "Mewtwo's Megas are the week's")
+        XCTAssertEqual(BattleForms.daily.count + BattleForms.weekly.count, BattleForms.all.count)
+    }
+
+    /// A battle form takes its variety's stats, types, ability and sprites, and no egg ever hatches it.
+    func testABattleFormIsItsVariety() throws {
+        let x = PokemonForm("mega-x")
+        XCTAssertEqual(PokemonForm.resolved(speciesID: 6, form: x), x)
+        XCTAssertEqual(PokemonForm.detailsID(speciesID: 6, form: x), 10034)
+        XCTAssertEqual(PokemonForm.staticAssetName(speciesID: 6, form: x), "10034")
+        XCTAssertEqual(PokemonTypeData.types(forSpeciesID: 6, form: x), [.fire, .dragon])
+        let mega = try XCTUnwrap(BattlerSpec.make(id: "x", speciesID: 6, form: x, level: 100))
+        let usual = try XCTUnwrap(BattlerSpec.make(id: "u", speciesID: 6, level: 100))
+        XCTAssertGreaterThan(mega.stats.attack, usual.stats.attack)
+        XCTAssertEqual(mega.ability, "tough-claws")
+        XCTAssertFalse(PokemonForm.lineForms(baseID: 4).contains(x), "never rolled by an egg")
+        XCTAssertFalse(PokemonForm.lineForms(baseID: 79).contains { $0.rawValue.contains("mega") })
+        // Every form the app can count: the catalog's and the battle forms.
+        let catalog = PokemonAssets.animatedSpeciesIDs.reduce(0) { $0 + max(1, PokemonForm.forms(speciesID: $1).count) }
+        XCTAssertEqual(CompanionStore.collectableFormCount, catalog + BattleForms.all.count)
+    }
+
+    /// The daily dungeon opens with a first T3 victory, costs no key, draws a Mega of a graduated species, and gives
+    /// it when its boss falls: one try a day, the form never used up, in the Pokédex's count, chosen for a member.
+    func testTheDailyDungeonGivesAMega() throws {
+        let charizard = graduated(6)
+        let team = [charizard] + [9, 3, 25, 143, 130].map { graduated($0) }
+        let s = try store(dex: team) { $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1 }
+        XCTAssertTrue(s.isDungeonOpen(.daily))
+        XCTAssertFalse(s.isDungeonOpen(.weekly), "a T4 victory opens the week's")
+        XCTAssertEqual(s.keysToEnter(.daily), 0)
+        let boss = try XCTUnwrap(s.challengeBoss(.daily))
+        XCTAssertTrue(team.map(\.finalID).contains(boss.speciesID))
+        XCTAssertEqual(s.challengeBoss(.daily), boss, "the same all day")
+        let formsBefore = s.graduatedCollectionProgress.forms
+        XCTAssertTrue(s.startExpedition(.daily, team: team.map(\.id)))
+        XCTAssertEqual(s.expedition?.boss.form, boss.form)
+        XCTAssertEqual(s.expedition?.floors, 8)
+        XCTAssertTrue(s.challengeTried(.daily))
+        s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
+        s.endCapture()
+        XCTAssertEqual(s.dungeonProgress.lastResult?.battleForm, boss.key)
+        XCTAssertTrue(s.dungeonProgress.battleForms.contains(boss.key))
+        XCTAssertEqual(s.graduatedCollectionProgress.forms, formsBefore + 1)
+        XCTAssertFalse(s.canEnter(.daily), "one try a day")
+        XCTAssertNotEqual(s.challengeBoss(.daily), boss, "won: no longer drawn")
+        // The owner of the species takes it in a dungeon, never using it up.
+        let owner = try XCTUnwrap(s.state.dex.first { $0.finalID == boss.speciesID })
+        XCTAssertTrue(s.setBattleForm(boss, for: owner.id))
+        XCTAssertEqual(s.dungeonCandidates.first { $0.id == owner.id }?.form, boss.form)
+        XCTAssertTrue(s.dungeonProgress.battleForms.contains(boss.key))
+        XCTAssertTrue(s.setBattleForm(nil, for: owner.id))
+        XCTAssertNil(s.dungeonCandidates.first { $0.id == owner.id }?.form)
+        // The save keeps it, and a form this build does not know is not read.
+        var progress = s.dungeonProgress
+        progress.battleForms.insert("6-mega-w")
+        let back = try JSONDecoder().decode(DungeonProgress.self, from: JSONEncoder().encode(progress))
+        XCTAssertEqual(back.battleForms, s.dungeonProgress.battleForms)
+        XCTAssertEqual(back.dailyTried, s.dungeonProgress.dailyTried)
+    }
+
+    /// A defeat spends the one try too; the week's has its own, by ISO week.
+    func testAChallengeTryIsSpentWhateverTheEnd() throws {
+        let team = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        let s = try store(dex: team) { $0.dungeons.wins[DungeonID.seafoamIslands.rawValue] = 1 }
+        XCTAssertTrue(s.isDungeonOpen(.weekly))
+        XCTAssertTrue(s.startExpedition(.weekly, team: team.map(\.id)))
+        s.abandonExpedition()
+        XCTAssertTrue(s.dungeonProgress.battleForms.isEmpty)
+        XCTAssertTrue(s.challengeTried(.weekly))
+        XCTAssertFalse(s.canEnter(.weekly))
+        XCTAssertTrue(s.challengePeriod(.weekly).contains("-W"))
+        XCTAssertFalse(s.challengeTried(.daily), "the day's is apart")
+    }
 }

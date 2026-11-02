@@ -10,8 +10,10 @@ enum DungeonTeamBuilder {
         let ivs = entry.profile.map { p in
             [p.ivs.hp, p.ivs.attack, p.ivs.defense, p.ivs.specialAttack, p.ivs.specialDefense, p.ivs.speed]
         } ?? Array(repeating: 15, count: 6)
+        // A battle form has its own ability (a Mega Charizard X's Tough Claws), not the Pokémon's usual one.
+        let ability = BattleForms.form(speciesID: entry.finalID, form: entry.form) == nil ? entry.profile?.abilityName : nil
         guard var spec = BattlerSpec.make(id: entry.id, speciesID: entry.finalID, form: entry.form, level: 100, ivs: ivs,
-                                          nature: entry.nature, ability: entry.profile?.abilityName, isShiny: entry.isShiny),
+                                          nature: entry.nature, ability: ability, isShiny: entry.isShiny),
               let data = SpeciesBattleTable.data(speciesID: entry.finalID, form: entry.form) else { return nil }
         let chosen = (loop ?? []).filter { MoveTable.move($0) != nil }
         spec.moves = chosen.isEmpty

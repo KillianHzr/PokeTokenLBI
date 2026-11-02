@@ -31,6 +31,8 @@ extension CompanionStore {
         switch unlock {
         case .graduated(let count): return graduated.count >= count
         case .won(let id): return state.dungeons.wins(id) > 0
+        case .wonTier(let tier):
+            return DungeonCatalog.all.contains { $0.tier == tier && !$0.id.isChallenge && state.dungeons.wins($0.id) > 0 }
         case .linesGraduated(let count): return graduatedCollectionProgress.lines >= count
         case .legendariesGraduated(let count):
             return Set(graduated.filter { $0.rarity == .legendary }.map(\.finalID)).count >= count
@@ -42,11 +44,73 @@ extension CompanionStore {
     func isDungeonOpen(_ id: DungeonID) -> Bool { unmetUnlocks(id).isEmpty }
 
     /// The Legendary Keys an entry spends (R10, R11): the Ruins of Alph take their Treasure Map instead.
-    func keysToEnter(_ id: DungeonID) -> Int { id == .ruinsOfAlph ? 0 : DungeonCatalog.dungeon(id).tier.keys }
+    func keysToEnter(_ id: DungeonID) -> Int {
+        id == .ruinsOfAlph || id.isChallenge ? 0 : DungeonCatalog.dungeon(id).tier.keys
+    }
 
     /// Whether a team may set off for it now: open, its keys in the Bag, no other expedition under way.
     func canEnter(_ id: DungeonID) -> Bool {
-        expedition == nil && isDungeonOpen(id) && itemCount(.legendaryKey) >= keysToEnter(id)
+        guard expedition == nil, isDungeonOpen(id), itemCount(.legendaryKey) >= keysToEnter(id) else { return false }
+        return !id.isChallenge || (challengeBoss(id) != nil && !challengeTried(id))
+    }
+
+    // MARK: The daily and weekly dungeons (2026-11-02)
+
+    /// The day (`yyyy-MM-dd`) or the ISO week (`yyyy-Www`) a challenge's one try belongs to.
+    func challengePeriod(_ id: DungeonID) -> String {
+        let calendar = Calendar(identifier: .iso8601)
+        let c = calendar.dateComponents([.year, .month, .day, .yearForWeekOfYear, .weekOfYear], from: currentDate)
+        if id == .weekly { return String(format: "%04d-W%02d", c.yearForWeekOfYear ?? 0, c.weekOfYear ?? 0) }
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// Whether this day's (or week's) one try was spent.
+    func challengeTried(_ id: DungeonID) -> Bool {
+        (id == .weekly ? state.dungeons.weeklyTried : state.dungeons.dailyTried) == challengePeriod(id)
+    }
+
+    /// The battle forms a challenge may still give: those of the species the player graduated and has not won yet.
+    func challengeCandidates(_ id: DungeonID) -> [BattleForm] {
+        let graduated = graduatedSpeciesIDs, won = state.dungeons.battleForms
+        return (id == .weekly ? BattleForms.weekly : BattleForms.daily)
+            .filter { graduated.contains($0.speciesID) && !won.contains($0.key) }
+    }
+
+    /// The day's (or the week's) boss: one of the forms left, drawn from the period alone, so it stays all day. Nil
+    /// once every form a challenge can give is won.
+    func challengeBoss(_ id: DungeonID) -> BattleForm? {
+        guard id.isChallenge else { return nil }
+        let candidates = challengeCandidates(id)
+        guard !candidates.isEmpty else { return nil }
+        // FNV-1a: `hashValue` changes from launch to launch.
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in (id.rawValue + challengePeriod(id)).utf8 { hash = (hash ^ UInt64(byte)) &* 0x100_0000_01b3 }
+        return candidates[Int(hash % UInt64(candidates.count))]
+    }
+
+    /// The battle form a graduated Pokémon fights in: one of its species' won forms, chosen on the team screen.
+    func battleFormChoice(for entry: DexEntry) -> BattleForm? {
+        guard let raw = state.dungeons.battleFormChoice[entry.id],
+              let form = BattleForms.form(speciesID: entry.finalID, form: PokemonForm(raw)),
+              state.dungeons.battleForms.contains(form.key) else { return nil }
+        return form
+    }
+
+    /// The battle forms won for this species, for its Pokédex page and the team screen.
+    func wonBattleForms(speciesID: Int) -> [BattleForm] {
+        BattleForms.forms(speciesID: speciesID).filter { state.dungeons.battleForms.contains($0.key) }
+    }
+
+    /// Never used up: a Pokémon takes a won form, or goes back to its usual one with nil; not while it explores.
+    @discardableResult
+    func setBattleForm(_ form: BattleForm?, for entryID: String) -> Bool {
+        guard !isExploring(entryID), let entry = state.dex.first(where: { $0.id == entryID }) else { return false }
+        if let form {
+            guard form.speciesID == entry.finalID, state.dungeons.battleForms.contains(form.key) else { return false }
+        }
+        changeDungeons { $0.battleFormChoice[entryID] = form?.form.rawValue }
+        persist()
+        return true
     }
 
     // MARK: The team (Q5 to Q8, R4)
@@ -64,6 +128,13 @@ extension CompanionStore {
     /// The graduated Pokémon a team is formed from (Q6: not sent off), those the battle table knows.
     var dungeonCandidates: [DexEntry] {
         state.dex.filter { !$0.isReleased && SpeciesBattleTable.data(speciesID: $0.finalID, form: $0.form) != nil }
+            .map { entry in
+                // In the battle form chosen for it: the team, its rules and its battles see its Mega.
+                guard let form = battleFormChoice(for: entry) else { return entry }
+                var shown = entry
+                shown.form = form.form
+                return shown
+            }
     }
 
     /// A graduated Pokémon's battle self for a dungeon: its chosen loop, else the one suggested against the theme (none
@@ -138,13 +209,18 @@ extension CompanionStore {
         changeBag(.maxRevive, by: -(revives[ItemKind.maxRevive.rawValue] ?? 0))
         let context = ExpeditionContext(tier: dungeon.tier, shinyDenominator: Int(shinyDenominator), now: currentDate)
         let seed = drawSeed() ^ UInt64(state.dungeons.departures + 1)
+        let challenge = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
         let started = ExpeditionEngine.start(dungeon: dungeon, team: members, rules: rules, teamSize: size, seed: seed,
-                                             cost: dungeon.tier.cost(difficulty: growthDifficulty), berries: berries,
-                                             revives: revives, context: context)
+                                             cost: dungeon.cost(difficulty: growthDifficulty), berries: berries,
+                                             revives: revives, context: context, boss: challenge)
+        let period = challengePeriod(id)
         changeDungeons {
             $0.expedition = started
             $0.lastResult = nil
             $0.departures += 1
+            // The one try is spent at the departure, whatever the end.
+            if id == .daily { $0.dailyTried = period }
+            if id == .weekly { $0.weeklyTried = period }
         }
         AppLog.write("dungeon: \(id.rawValue) set off, team \(ids.joined(separator: ","))")
         persist()
@@ -334,11 +410,13 @@ extension CompanionStore {
         let dungeon = DungeonCatalog.dungeon(e.dungeon)
         var random = BattleRandom(seed: e.seed ^ 0xFEED_F00D)
         let openBefore = Set(DungeonID.allCases.filter(isDungeonOpen))
-        let firstVictory = won && state.dungeons.wins(e.dungeon) == 0
+        let firstVictory = won && state.dungeons.wins(e.dungeon) == 0 && !e.dungeon.isChallenge
         let t3Victories = DungeonCatalog.all.filter { $0.tier == .t3 }.reduce(0) { $0 + state.dungeons.wins($1.id) }
         var loot = won || roped ? e.loot : ExpeditionLoot()
         var unlockedMove: String?
-        if won {
+        // A challenge gives its battle form, and its floors' loot: no first-victory doubling, no extras.
+        let battleForm = won && e.dungeon.isChallenge ? BattleForms.form(speciesID: e.boss.speciesID, form: e.boss.form) : nil
+        if won, !e.dungeon.isChallenge {
             if firstVictory {
                 // Q22: a first victory doubles the loot and adds a dungeon item.
                 loot.candies *= 2
@@ -364,6 +442,7 @@ extension CompanionStore {
         let caught = e.log.contains { if case .capture(_, _, true) = $0.kind { return true }; return false }
         changeDungeons { progress in
             progress.eggs += loot.eggs
+            if let battleForm { progress.battleForms.insert(battleForm.key) }
             if let unlockedMove { progress.unlockedMoves.insert(unlockedMove) }
             if won {
                 progress.wins[e.dungeon.rawValue, default: 0] += 1
@@ -377,7 +456,8 @@ extension CompanionStore {
             $0.lastResult = ExpeditionResult(dungeon: e.dungeon, won: won, roped: roped, startedAt: e.startedAt,
                                              endedAt: currentDate, tokens: e.tokensIn, battles: e.battles, boss: e.boss,
                                              caught: caught, loot: loot, firstVictory: firstVictory,
-                                             unlocked: unlocked, unlockedMove: unlockedMove, log: e.log)
+                                             unlocked: unlocked, unlockedMove: unlockedMove, battleForm: battleForm?.key,
+                                             log: e.log)
         }
         AppLog.write("dungeon: \(e.dungeon.rawValue) over, won=\(won) roped=\(roped) caught=\(caught) candies=\(loot.candies)")
         persist()

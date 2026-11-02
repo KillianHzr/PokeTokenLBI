@@ -472,6 +472,9 @@ enum DungeonSprites {
         case .mtCoronet: mtCoronet
         case .ruinsOfAlph: ruinsOfAlph
         case .hallOfOrigin: hallOfOrigin
+        // The challenges borrow a place until they have their own: on their cards their boss shows instead.
+        case .daily: mtCoronet
+        case .weekly: hallOfOrigin
         }
     }
 

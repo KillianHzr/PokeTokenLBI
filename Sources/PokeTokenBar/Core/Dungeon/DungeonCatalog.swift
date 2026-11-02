@@ -93,6 +93,8 @@ enum DungeonUnlock: Codable, Sendable, Hashable {
     case graduated(Int)
     /// A dungeon won once.
     case won(DungeonID)
+    /// A dungeon of this tier won, any of them (the daily and weekly dungeons, 2026-11-02).
+    case wonTier(DungeonTier)
     /// Evolution lines with a graduated Pokémon.
     case linesGraduated(Int)
     /// Legendary Pokémon graduated.
@@ -107,6 +109,11 @@ enum DungeonUnlock: Codable, Sendable, Hashable {
 enum DungeonID: String, Codable, Sendable, CaseIterable {
     case viridianForest, diglettsCave, mtMoon, mtEmber, victoryRoad, pokemonTower, dragonsDen, powerPlant
     case seafoamIslands, ceruleanCave, mtCoronet, ruinsOfAlph, hallOfOrigin
+    /// The daily and weekly dungeons (2026-11-02): their boss is a battle form the player lacks, won if it falls, one
+    /// try a day and one a week.
+    case daily, weekly
+
+    var isChallenge: Bool { self == .daily || self == .weekly }
 }
 
 /// One dungeon: its tier, team, rules, theme (always shown, R7), wild Pokémon, bosses (never shown, Q17) and what
@@ -124,7 +131,24 @@ struct Dungeon: Sendable, Equatable {
     let bosses: [Int]
     let unlocks: [DungeonUnlock]
 
-    var floors: Int { tier.floors }
+    /// The daily dungeon's eight floors and the weekly one's twelve, else the tier's.
+    var floors: Int {
+        switch id {
+        case .daily: 8
+        case .weekly: 12
+        default: tier.floors
+        }
+    }
+
+    /// Q2: the tier's cost; the daily dungeon 200M (the owner, 2026-11-02: friends spend 500M to 1.2B a day) and the
+    /// weekly one a T4's, at today's difficulty, both scaled as every cost.
+    func cost(difficulty: Double) -> Int {
+        switch id {
+        case .daily: DungeonTier.t3.cost(difficulty: difficulty) * 2 / 3
+        case .weekly: DungeonTier.t4.cost(difficulty: difficulty)
+        default: tier.cost(difficulty: difficulty)
+        }
+    }
 }
 
 enum DungeonCatalog {
@@ -189,7 +213,23 @@ enum DungeonCatalog {
                                return data.baseStats.reduce(0, +) >= 530
                            }.sorted(),
                            bosses: [arceusID], unlocks: [.beatBosses([483, 484, 487])])
+        case .daily:
+            // Hard on purpose (the owner): a T4's foes, the strongest finals, a Mega at the end (`challengeBoss`).
+            return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [], themeTypes: [], wild: strongFinals(530),
+                           bosses: [], unlocks: [.wonTier(.t3)])
+        case .weekly:
+            return Dungeon(id: id, tier: .t5, teamSize: 6, rules: [], themeTypes: [], wild: strongFinals(560),
+                           bosses: [], unlocks: [.wonTier(.t4)])
         }
+    }
+
+    /// Final species, never legendary, of at least this base stat total: the challenges' wild Pokémon.
+    static func strongFinals(_ total: Int) -> [Int] {
+        SpeciesInfo.all.keys.filter { id in
+            guard id <= 1025, let data = SpeciesBattleTable.all[id], let info = SpeciesInfo.all[id], !info.isLegendary,
+                  SpeciesInfo.isFinal(id) else { return false }
+            return data.baseStats.reduce(0, +) >= total
+        }.sorted()
     }
 
     static let arceusID = 493

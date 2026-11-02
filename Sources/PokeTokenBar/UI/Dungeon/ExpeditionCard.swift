@@ -491,6 +491,13 @@ struct ExpeditionResultCard: View {
                 Label(l.dungeonUnlocked(r.unlocked.map(l.dungeonName).joined(separator: ", ")), systemImage: "lock.open.fill")
                     .font(.caption.weight(.semibold))
             }
+            if let key = r.battleForm, let form = BattleForms.form(key: key) {
+                HStack(spacing: 6) {
+                    SpriteView(speciesID: form.speciesID, size: 28, form: form.form, sameScale: true)
+                    BattleFormTitle(form: form, language: store.language, wrap: l.challengeFormWon)
+                        .font(.callout.weight(.semibold))
+                }
+            }
             if let move = r.unlockedMove {
                 HStack(spacing: 4) {
                     Image(systemName: "opticaldisc.fill").font(.caption)

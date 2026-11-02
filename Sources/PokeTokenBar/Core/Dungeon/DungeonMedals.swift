@@ -15,7 +15,7 @@ enum DungeonMedals {
 
     /// The tier's dungeons a medal asks for, in the tab's order.
     static func dungeons(_ tier: DungeonTier) -> [DungeonID] {
-        DungeonCatalog.all.filter { $0.tier == tier && $0.id != .ruinsOfAlph }.map(\.id)
+        DungeonCatalog.all.filter { $0.tier == tier && $0.id != .ruinsOfAlph && !$0.id.isChallenge }.map(\.id)
     }
 
     /// Whether this step is the whole tier rather than one dungeon.

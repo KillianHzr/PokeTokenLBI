@@ -17,9 +17,13 @@ final class DungeonTests: XCTestCase {
     // MARK: Catalog
 
     func testThirteenDungeonsOverFiveTiers() {
-        XCTAssertEqual(DungeonCatalog.all.count, 13)
+        XCTAssertEqual(DungeonCatalog.all.filter { !$0.id.isChallenge }.count, 13)
         XCTAssertEqual(DungeonTier.allCases.map(\.floors), [5, 8, 10, 12, 15])
         let difficulty = 0.1
+        // The daily dungeon at 200M (the owner, 2026-11-02), eight floors; the weekly one a T4's, twelve.
+        XCTAssertEqual(DungeonCatalog.dungeon(.daily).cost(difficulty: difficulty), 200_000_000)
+        XCTAssertEqual(DungeonCatalog.dungeon(.weekly).cost(difficulty: difficulty), 600_000_000)
+        XCTAssertEqual([DungeonCatalog.dungeon(.daily).floors, DungeonCatalog.dungeon(.weekly).floors], [8, 12])
         XCTAssertEqual(DungeonTier.t1.cost(difficulty: difficulty), 75_000_000)
         XCTAssertEqual(DungeonTier.t2.cost(difficulty: difficulty), 187_500_000)
         XCTAssertEqual(DungeonTier.t3.cost(difficulty: difficulty), 300_000_000)
@@ -35,7 +39,8 @@ final class DungeonTests: XCTestCase {
         for dungeon in DungeonCatalog.all {
             XCTAssertFalse(dungeon.wild.isEmpty, dungeon.id.rawValue)
             XCTAssertFalse(dungeon.wild.contains { SpeciesInfo.all[$0]?.isLegendary == true }, dungeon.id.rawValue)
-            XCTAssertFalse(dungeon.bosses.isEmpty, dungeon.id.rawValue)
+            // A challenge's boss is drawn among the battle forms the player lacks (`challengeBoss`).
+            XCTAssertEqual(dungeon.bosses.isEmpty, dungeon.id.isChallenge, dungeon.id.rawValue)
             XCTAssertTrue(dungeon.bosses.allSatisfy { SpeciesBattleTable.data(speciesID: $0) != nil }, dungeon.id.rawValue)
             if dungeon.id != .hallOfOrigin { XCTAssertFalse(dungeon.bosses.contains(DungeonCatalog.arceusID), dungeon.id.rawValue) }
         }
