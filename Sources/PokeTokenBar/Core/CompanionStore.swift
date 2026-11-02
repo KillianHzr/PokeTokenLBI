@@ -2314,9 +2314,7 @@ final class CompanionStore {
 
     /// Species of the Pokémon raised to the end: graduated entries, never released ones nor the Pokémon being raised.
     /// What achievements count, so that a Pokémon cannot earn one while raised and then be sent off.
-    var graduatedSpeciesIDs: Set<Int> {
-        Set(state.dex.filter { !$0.isReleased }.flatMap(\.chainOrder))
-    }
+    var graduatedSpeciesIDs: Set<Int> { state.graduatedSpeciesIDs }
 
     /// How much of the Pokédex is collected: species, and appearances (every form of every species, one for a
     /// species without forms), out of everything that can hatch.
@@ -2935,11 +2933,7 @@ final class CompanionStore {
     /// The line the Friendship Egg brings back: the first catch's, unless it was a Ditto, which no egg hatches (its
     /// record carries Ditto's number once revealed, left out of every egg's pool): then the next catch's. A Ditto
     /// first kept the egg waiting for a candidate forever, and with no Pokémon raised nothing else could be used.
-    var companionLineID: Int? {
-        state.dex.filter { $0.baseID != PokemonOdds.dittoSpeciesID }
-            .compactMap { e in e.caughtAt.map { (date: $0, baseID: e.baseID) } }
-            .min { $0.date < $1.date }?.baseID
-    }
+    var companionLineID: Int? { state.companionLineID }
 
     /// The event eggs waiting now, earliest event first (`EventEgg.claimable`).
     var eventEggs: [(egg: EventEgg, year: Int)] {
@@ -3046,10 +3040,7 @@ final class CompanionStore {
         }
     }
 
-    /// The types the egg's Pokémon must have, which its form roll keeps to: a stone's, else a season's.
-    private var eggFormTypes: [PokemonType] {
-        state.eggTypeGuarantee.map { [$0] } ?? state.eggEvent?.seasonTypes ?? []
-    }
+    private var eggFormTypes: [PokemonType] { incubatingEgg.formTypes }
 
     /// The form an event egg fixes: Deerling in its season's.
     func eventForm(baseID: Int, event: EventEgg?) -> PokemonForm? {
@@ -3530,24 +3521,9 @@ final class CompanionStore {
 
     /// Draws only for lines with forms, so other species keep their random sequence.
     private func rollLineForm(baseID: Int, types: [PokemonType] = []) -> PokemonForm? {
-        let draw = lineFormDraw(baseID: baseID, types: types)
+        let draw = hatchDraw.lineFormDraw(baseID: baseID, types: types)
         guard !draw.forms.isEmpty else { return nil }
         return PokemonForm.roll(rng.next(), among: draw.forms, collected: draw.collected)
-    }
-
-    /// The forms an egg of this line rolls among, and those the line graduated in (`PokemonForm.roll`). No forms for a
-    /// line without any.
-    func lineFormDraw(baseID: Int, types: [PokemonType]) -> (forms: [PokemonForm], collected: Set<PokemonForm>) {
-        // The same forms the Oval Charm's species filter reads (`CompanionState.lineMissesForms`).
-        var forms = CompanionState.eggForms(baseID: baseID, types: types)
-        guard !forms.isEmpty else { return ([], []) }
-        let collected = state.graduatedLineForms(baseID: baseID)
-        // The Oval Charm hatches a form still missing when the line has one.
-        if ownsOvalCharm {
-            let missing = forms.filter { !collected.contains($0) }
-            if !missing.isEmpty { forms = missing }
-        }
-        return (forms, collected)
     }
 
     /// Warms the localized names the hatch, evolution and graduation messages of this line show.
@@ -3596,9 +3572,7 @@ final class CompanionStore {
     }
 
     /// 지금 부화하면 적용될 이로치 분모.
-    var shinyDenominator: UInt64 {
-        Self.shinyDenominator(charmOwned: ownsShinyCharm, revealGlassOwned: ownsRevealGlass)
-    }
+    var shinyDenominator: UInt64 { hatchDraw.shinyDenominator }
 
     /// 이로치 부화 판정(순수) — 미리 뽑은 roll 값 % 분모==0. (부수효과 없이 xctest)
     nonisolated static func rollsShiny(roll: UInt64, charmOwned: Bool, revealGlassOwned: Bool = false) -> Bool {
@@ -3659,6 +3633,8 @@ final class CompanionStore {
         // 부화 임계 초과분은 부화체 성장에 이월(낭비 없음).
         let overflow = max(0, state.eggUsage - eggHatchThreshold)
         state.eggUsage = 0
+        let egg = incubatingEgg
+        let draw = hatchDraw
         let fromRarityEgg = state.eggTier != nil && state.eggEvent == nil
         state.eggTier = nil   // 보증은 이 부화로 소비된다(다음 알은 다시 무보증)
         let typeGuarantee = state.eggTypeGuarantee
@@ -3678,23 +3654,20 @@ final class CompanionStore {
         state.pendingShiny = false
         // 개체 롤: shiny(1/64, 부적 1/48, Reveal Glass halves it)·성격(25종)은 부화 순간 확정, 진화해도 유지.
         // 알림 문구는 이 판정과 같은 분모를 보여준다.
-        let shinyOdds = shinyDenominator
+        let shinyOdds = draw.shinyDenominator
         // The Glimmering Charm, reward for every form, makes every hatch shiny; the roll is still drawn so the
         // rolls after it stay the same.
-        let rolledShiny = Self.rollsShiny(roll: rng.next(), charmOwned: ownsShinyCharm, revealGlassOwned: ownsRevealGlass)
+        let rolledShiny = draw.rollsShiny(roll: rng.next())
         // A Birthday Egg once every legendary and mythical graduated is shiny too.
-        let isShiny = rolledShiny || ownsGlimmeringCharm || forceShiny
+        let isShiny = rolledShiny || draw.alwaysShiny || forceShiny
         let nature = PokemonNature.allCases[Int(rng.next() % UInt64(PokemonNature.allCases.count))]
         // 메타몽 위장 롤 — common·≥2형태에 한해 1/128. .app 게이트(&& 단락 → 비앱에선 rng 미소비로
         // 기존 테스트 RNG 시퀀스 무영향). 위장/리빌 로직은 상태 기반으로 별도 테스트한다.
         var dittoDisguise: Int?
-        // An egg that promises a type (a Stone's), an event's Pokémon or a form still missing (the Oval Charm) never
-        // hides a Ditto, which has none of them. The roll is still drawn, so the rolls after it stay the same.
-        let keepsAPromise = typeGuarantee != nil || event != nil || fromFossilEgg
-            || (ownsOvalCharm && state.lineMissesForms(baseID: line.baseID, types: formTypes))
+        // The roll is still drawn where no Ditto may hide, so the rolls after it stay the same.
         if dittoDisguiseRollingEnabled,
            Self.dittoDisguiseHit(rarity: line.rarity, totalForms: line.totalForms, roll: rng.next()),
-           !keepsAPromise {
+           draw.letsDittoHide(baseID: line.baseID, egg: egg, fromFossilEgg: fromFossilEgg) {
             dittoDisguise = line.baseID
         }
         var evolutionPlan = makeEvolutionPlan(from: line.tree, baseID: line.baseID, form: pendingForm)
@@ -3834,27 +3807,6 @@ final class CompanionStore {
         }
     }
 
-    /// Roll weight of one base species: its hatch weight (halved once its line is collected), then the
-    /// Azure Flute. Split out of `chooseBase` so the boost can be tested without a roll. The flute reads the
-    /// hatch weight, not the capture rate: Mew, Celebi, Rayquaza and Shaymin have a capture rate of 45 but
-    /// roll like Mewtwo. It is the only item that reweights the roll; the Oval Charm only narrows it to lines with
-    /// a form missing (`chooseBase`), and the others only add growth bonuses.
-    /// A stone's egg (`type`) judges a line by what it can hatch (`isLineComplete(baseID:type:)`) and lowers a
-    /// collected one to a quarter rather than a half: a stone is spent on that egg.
-    func hatchWeight(for e: BaseSpecies, type: PokemonType? = nil) -> Int {
-        var w: Int
-        if let type {
-            w = state.isLineComplete(baseID: e.id, type: type) ? max(1, e.hatchWeight / 4) : max(1, e.hatchWeight)
-        } else {
-            w = CollectionWeight.adjusted(e.hatchWeight, isCollected: state.isLineComplete(baseID: e.id))
-        }
-        // The legendary rarity: every legendary and mythical, never Beldum (capture rate 3).
-        if ownsLegendCharm && e.rarity == .legendary {
-            w *= LegendCharm.weightMultiplier
-        }
-        return w
-    }
-
     /// 부화 종 선정 — 하드코딩 풀 없이 PokéAPI 의 base 전체(1~9세대)에서 가중 선택.
     ///   ① base 인덱스(id + capture_rate)를 GraphQL 1쿼리로 취득(30일 디스크 캐시 → 보통 0콜)
     ///   ② 가중치 = 등급별 한 값(`PokemonOdds.hatchWeight`: 일반 212 · 고급 90 · 희귀 40 · 전설 3). capture_rate 는
@@ -3868,12 +3820,13 @@ final class CompanionStore {
         if let full = try? await provider.baseSpeciesIndex(), !full.isEmpty {
             if state.eggFromBirthdayEgg { return chooseBirthdayBase(full) }
             if state.eggFromFossilEgg { return chooseFossilBase(full) }
+            let draw = hatchDraw
             let event = state.eggEvent
-            if let event, seasonDeerling(full, event: event) != nil, rng.next() % EventEgg.deerlingOdds == 0 {
+            if let event, draw.seasonDeerling(full, event: event) != nil, rng.next() % EventEgg.deerlingOdds == 0 {
                 AppLog.write("hatch roll: \(event.rawValue) egg base=\(EventEgg.deerlingID)")
                 return (EventEgg.deerlingID, event.alwaysShiny)
             }
-            let pool = hatchPool(full, egg: incubatingEgg, logging: true)
+            let pool = draw.hatchPool(full, egg: incubatingEgg, logging: true)
             guard !pool.isEmpty else {
                 AppLog.write("hatch: no candidate for guaranteed tier=\(tier?.rawValue ?? "none") type=\(typeGuarantee?.rawValue ?? "none") legendary=\(state.eggFromLegendaryEgg), egg kept; retry next tick")
                 return nil
@@ -3936,54 +3889,19 @@ final class CompanionStore {
             else if item == .legendaryEgg { self.init(legendaryEgg: true) }
             else { return nil }
         }
+
+        /// The types the egg's Pokémon must have, which its form roll keeps to: a stone's, else a season's.
+        var formTypes: [PokemonType] { type.map { [$0] } ?? event?.seasonTypes ?? [] }
+    }
+
+    /// The roll's rules against this Pokédex and the draw items owned now.
+    var hatchDraw: HatchDraw {
+        HatchDraw(collection: state, items: Set(ItemKind.drawItems.filter { itemCount($0) > 0 }))
     }
 
     var incubatingEgg: EggSpec {
         EggSpec(tier: state.eggTier, type: state.eggTypeGuarantee, legendaryEgg: state.eggFromLegendaryEgg,
                 event: state.eggEvent)
-    }
-
-    /// The species an egg draws from, each with its weight: what `chooseBase` rolls and what an egg card shows
-    /// (`hatchOdds`), from one function so the odds shown are the roll's. Empty when no species keeps the egg's
-    /// guarantees. Not the Birthday, Fossil and season's Deerling rolls, which have their own.
-    func hatchPool(_ full: [BaseSpecies], egg: EggSpec, logging: Bool = false) -> [(base: BaseSpecies, weight: Int)] {
-        // 등급 보증 알은 후보를 먼저 좁힌다 — capture_rate 상한이 곧 등급 하한이고, 전설은 플래그로
-        // 늘 들어간다(`Rarity.admits`: capture_rate 255 인 Necrozma·Eternatus·Terapagos 도 "희귀 이상").
-        // 좁힌 결과가 비면 보증을 못 지키므로 전체 풀로 폴백하지 말고 알을 유지한다(다음 틱 재시도).
-        // A fossil line hatches from Fossil Eggs only until it graduates (`FossilDig`), then from any egg like
-        // every other species: shiny, twice, with another nature.
-        let graduated = graduatedSpeciesIDs
-        // The Friendship Egg keeps its promise even then: the line is the player's own first Pokémon.
-        let friendship = egg.event == .companion ? companionLineID : nil
-        let admitted = full.filter { !FossilDig.isFossilLine($0.id) || graduated.contains($0.id) || $0.id == friendship }
-        var index = egg.tier.map { t in admitted.filter(t.admits) } ?? admitted
-        // A Legendary Egg hatches a legendary or mythical Pokémon, any of them.
-        if egg.legendaryEgg { index = index.filter(\.isLegendary) }
-        if let targetType = egg.type {
-            index = index.filter { PokemonTypeData.canHatch(baseID: $0.id, as: targetType) }
-        }
-        // An event egg hatches the event's Pokémon (`EventEgg.admits`). None of them in the pool (a first catch
-        // the index leaves out), it hatches as a plain egg would rather than wait forever: no other egg can be
-        // used while it incubates.
-        if let event = egg.event {
-            let companionLine = companionLineID
-            let eventIndex = index.filter { event.admits($0, companionLine: companionLine) }
-            if eventIndex.isEmpty {
-                if logging { AppLog.write("hatch: no \(event.rawValue) Pokémon in the pool, hatched as a plain egg") }
-            } else {
-                index = eventIndex
-            }
-        }
-        guard !index.isEmpty else { return [] }
-        // The Oval Charm, reward for every species: eggs only bring lines with a form still missing, while
-        // some are left within the egg's guarantees.
-        if ownsOvalCharm {
-            let formTypes = egg.type.map { [$0] } ?? egg.event?.seasonTypes ?? []
-            let missing = index.filter { state.lineMissesForms(baseID: $0.id, types: formTypes) }
-            if !missing.isEmpty { index = missing }
-        }
-        index = Self.withoutLastHatched(index, last: state.lastHatchedBaseID)
-        return index.map { ($0, hatchWeight(for: $0, type: egg.type)) }
     }
 
     /// The base index the egg cards' odds read, loaded once (`loadHatchIndex`). The roll reads the index itself.
@@ -4009,7 +3927,7 @@ final class CompanionStore {
 
     func hatchOdds(for egg: EggSpec) -> HatchOdds? {
         guard let index = hatchIndex else { return nil }
-        let pool = hatchPool(index, egg: egg)
+        let pool = hatchDraw.hatchPool(index, egg: egg)
         let total = pool.reduce(0) { $0 + $1.weight }
         guard total > 0 else { return nil }
         let graduated = graduatedSpeciesIDs
@@ -4038,37 +3956,15 @@ final class CompanionStore {
 
     /// The candidates without the line hatched last, so no egg brings the same line twice in a row; all of them
     /// when it is the only one.
-    static func withoutLastHatched(_ index: [BaseSpecies], last: Int?) -> [BaseSpecies] {
+    nonisolated static func withoutLastHatched(_ index: [BaseSpecies], last: Int?) -> [BaseSpecies] {
         guard let last else { return index }
         let others = index.filter { $0.id != last }
         return others.isEmpty ? index : others
     }
 
-    /// The fossil lines a Fossil Egg can hatch: those not graduated yet, every one once all are.
-    private var fossilCandidates: Set<Int> {
-        let missing = FossilDig.lines.filter { !graduatedSpeciesIDs.contains($0) }
-        return Set(missing.isEmpty ? FossilDig.lines : missing)
-    }
-
-    /// The lines a Fossil Egg draws from, each as likely: its candidates, not the line hatched last while another is left.
-    func fossilDraw(_ index: [BaseSpecies]) -> [BaseSpecies] {
-        let candidates = fossilCandidates
-        return Self.withoutLastHatched(index.filter { candidates.contains($0.id) }, last: state.lastHatchedBaseID)
-    }
-
-    /// The season's form a season's egg first rolls Deerling in, one time in `EventEgg.deerlingOdds`, under the rules
-    /// every egg keeps: not the line hatched last, and with the Oval Charm, not a form already collected. Nil when it
-    /// cannot.
-    func seasonDeerling(_ index: [BaseSpecies], event: EventEgg?) -> PokemonForm? {
-        guard let seasonForm = event?.seasonForm, index.contains(where: { $0.id == EventEgg.deerlingID }),
-              state.lastHatchedBaseID != EventEgg.deerlingID,
-              !ownsOvalCharm || !state.graduatedLineForms(baseID: EventEgg.deerlingID).contains(seasonForm) else { return nil }
-        return seasonForm
-    }
-
     /// A Fossil Egg's roll: one of `fossilDraw`'s lines.
     private func chooseFossilBase(_ index: [BaseSpecies]) -> (id: Int, shiny: Bool)? {
-        let lines = fossilDraw(index)
+        let lines = hatchDraw.fossilDraw(index)
         guard !lines.isEmpty else {
             AppLog.write("hatch: no fossil line for the fossil egg, egg kept; retry next tick")
             return nil
@@ -4078,18 +3974,9 @@ final class CompanionStore {
         return (pick.id, false)
     }
 
-    /// The lines a Birthday Egg draws from (`BirthdayGift.pool`), not the line hatched last while another is left, each
-    /// with its weight: a mythical line not graduated yet, else a legendary one, each as likely; once every one
-    /// graduated, any of them by its hatch weight, shiny.
-    func birthdayDraw(_ index: [BaseSpecies]) -> (lines: [(base: BaseSpecies, weight: Int)], shiny: Bool) {
-        let (pool, byWeight) = BirthdayGift.pool(index, graduated: graduatedSpeciesIDs)
-        let lines = Self.withoutLastHatched(pool, last: state.lastHatchedBaseID)
-        return (lines.map { ($0, byWeight ? hatchWeight(for: $0) : 1) }, byWeight)
-    }
-
     /// A Birthday Egg's roll among `birthdayDraw`'s lines.
     private func chooseBirthdayBase(_ index: [BaseSpecies]) -> (id: Int, shiny: Bool)? {
-        let (lines, byWeight) = birthdayDraw(index)
+        let (lines, byWeight) = hatchDraw.birthdayDraw(index)
         guard !lines.isEmpty else {
             AppLog.write("hatch: no legendary or mythical line for the birthday egg, egg kept; retry next tick")
             return nil
@@ -4114,7 +4001,7 @@ final class CompanionStore {
     private func chooseBaseViaREST() async -> Int? {
         // A Fossil Egg asks for its candidates themselves: 32 random numbers seldom meet one of 15 lines, one in 1,025
         // even less. So does an event egg of a few lines, the Friendship Egg's one above all.
-        if state.eggFromFossilEgg { return await chooseListedBaseViaREST(fossilCandidates, charm: false) }
+        if state.eggFromFossilEgg { return await chooseListedBaseViaREST(hatchDraw.fossilCandidates, charm: false) }
         if let lines = state.eggEvent?.lines(companionLine: companionLineID) {
             return await chooseListedBaseViaREST(lines, charm: ownsOvalCharm)
         }
@@ -4132,7 +4019,7 @@ final class CompanionStore {
                     // GraphQL 인덱스 장애 때 보증이 조용히 깨진다. 못 찾으면 알 유지(구매 소멸 금지).
                     if let tier, !tier.admits(bs) { continue }
                     if state.eggFromLegendaryEgg || state.eggFromBirthdayEgg, !bs.isLegendary { continue }
-                    if state.eggFromFossilEgg, !fossilCandidates.contains(bs.id) { continue }
+                    if state.eggFromFossilEgg, !hatchDraw.fossilCandidates.contains(bs.id) { continue }
                     if !state.eggFromFossilEgg, FossilDig.isFossilLine(bs.id), !graduatedSpeciesIDs.contains(bs.id) {
                         continue
                     }

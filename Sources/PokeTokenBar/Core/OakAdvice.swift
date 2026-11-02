@@ -402,9 +402,9 @@ extension CompanionStore {
             return [Hatch(id: id, form: PokemonForm.resolved(baseID: id, form: nil), weight: 1,
                           rarity: index.first { $0.id == id }?.rarity ?? .legendary)]
         case .fossilEgg:
-            return hatches(fossilDraw(index).map { ($0, 1) }, types: [], event: nil, alwaysShiny: false)
+            return hatches(hatchDraw.fossilDraw(index).map { ($0, 1) }, types: [], event: nil, alwaysShiny: false)
         case .birthdayEgg:
-            let draw = birthdayDraw(index)
+            let draw = hatchDraw.birthdayDraw(index)
             return hatches(draw.lines, types: [], event: nil, alwaysShiny: draw.shiny)
         default:
             let event = EventEgg(item: item)
@@ -419,8 +419,8 @@ extension CompanionStore {
     private func hatches(_ egg: EggSpec, index: [BaseSpecies]) -> [Hatch] {
         let types = egg.type.map { [$0] } ?? egg.event?.seasonTypes ?? []
         let shines = egg.event?.alwaysShiny ?? false
-        let pool = hatches(hatchPool(index, egg: egg), types: types, event: egg.event, alwaysShiny: shines)
-        guard let season = seasonDeerling(index, event: egg.event),
+        let pool = hatches(hatchDraw.hatchPool(index, egg: egg), types: types, event: egg.event, alwaysShiny: shines)
+        guard let season = hatchDraw.seasonDeerling(index, event: egg.event),
               let base = index.first(where: { $0.id == EventEgg.deerlingID }) else { return pool }
         let others = Double(EventEgg.deerlingOdds - 1)
         let deerling = Hatch(id: base.id, form: PokemonForm.resolved(baseID: base.id, form: season),
@@ -440,7 +440,7 @@ extension CompanionStore {
             if let form = eventForm(baseID: id, event: event) {
                 return [Hatch(id: id, form: form, weight: weight, rarity: rarity, alwaysShiny: alwaysShiny)]
             }
-            let draw = lineFormDraw(baseID: id, types: types)
+            let draw = hatchDraw.lineFormDraw(baseID: id, types: types)
             guard !draw.forms.isEmpty else {
                 return [Hatch(id: id, form: nil, weight: weight, rarity: rarity, alwaysShiny: alwaysShiny)]
             }

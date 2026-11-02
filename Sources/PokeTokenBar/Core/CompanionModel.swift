@@ -1673,6 +1673,18 @@ struct CompanionState: Codable, Sendable, Equatable {
         }
     }
 
+    /// Species of the Pokémon raised to the end: graduated entries, never released ones nor the Pokémon being raised.
+    var graduatedSpeciesIDs: Set<Int> {
+        Set(dex.filter { !$0.isReleased }.flatMap(\.chainOrder))
+    }
+
+    /// The line the Friendship Egg brings back: the first catch's, unless it was a Ditto (`CompanionStore.companionLineID`).
+    var companionLineID: Int? {
+        dex.filter { $0.baseID != PokemonOdds.dittoSpeciesID }
+            .compactMap { e in e.caughtAt.map { (date: $0, baseID: e.baseID) } }
+            .min { $0.date < $1.date }?.baseID
+    }
+
     func hasCollectedFinal(forBaseID baseID: Int) -> Bool {
         collectedFinals.contains { $0.hasPrefix("\(baseID):") }
     }
