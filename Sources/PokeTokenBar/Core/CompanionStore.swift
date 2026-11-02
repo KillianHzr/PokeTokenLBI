@@ -2777,16 +2777,17 @@ final class CompanionStore {
         let behind = Dictionary(uniqueKeysWithValues: items.filter { ranks[$0]! < 2 }.map {
             ($0, -achievementShare($0, registered: registered))
         })
-        // The Excavation is not a stone: it closes the Stones tab whatever its state, as the Legendary Egg, Type: Null's
-        // Egg and the two whole-Pokédex charms close the Artifacts, in that order.
+        // The Excavation is not a stone: it closes the Stones tab, as the Legendary Egg, Type: Null's Egg and the two
+        // whole-Pokédex charms close the Artifacts, in that order; each closes its own state, never below what is
+        // claimed. Closing the tab whatever their state put them under the artifacts already claimed.
         func last(_ kind: ItemKind) -> Int { Self.closingAchievements.firstIndex(of: kind).map { $0 + 1 } ?? 0 }
         func key(_ item: (offset: Int, element: ItemKind)) -> (Int, Int, Double, Int) {
-            (last(item.element), ranks[item.element]!, behind[item.element] ?? 0, item.offset)
+            (ranks[item.element]!, last(item.element), behind[item.element] ?? 0, item.offset)
         }
         return items.enumerated().sorted { key($0) < key($1) }.map(\.element)
     }
 
-    /// The achievements that close their tab whatever their state, in order.
+    /// The achievements that close their state's place in their tab (ready, in progress, claimed), in order.
     static let closingAchievements: [ItemKind] = [.excavation, .legendaryEgg, .typeNullEgg, .ovalCharm, .glimmeringCharm]
 
     /// How much of an achievement is done, from 0 to 1, as its card counts it: its goal closest to met (any one is

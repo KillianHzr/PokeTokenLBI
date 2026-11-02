@@ -131,6 +131,14 @@ enum Changelog {
                            "Arceus schlüpft aus keinem Ei mehr: Fange ihn als Boss im \(hall), um sein Ei zu bekommen.",
                            "Арсеус больше не вылупляется ни из одного яйца: поймайте его как босса подземелья \"\(hall)\", чтобы получить его яйцо.")
             },
+            .fixed("2026-11-02-achievements-claimed-last", { $0.t("이미 받은 업적은 이제 목록 맨 아래로 내려가요.",
+                                                                  "Achievements you already claimed now sit at the very bottom of their list.",
+                                                                  "受け取り済みの実績は、リストのいちばん下に並ぶようになりました。",
+                                                                  "Los logros ya reclamados ahora quedan al final de su lista.",
+                                                                  "Les succès déjà obtenus passent maintenant tout en bas de leur liste.",
+                                                                  "As conquistas já resgatadas agora ficam no fim da lista.",
+                                                                  "Bereits eingelöste Erfolge stehen jetzt ganz unten in ihrer Liste.",
+                                                                  "Уже полученные успехи теперь стоят в самом конце списка.") }),
             .improved("2026-11-02-candy-100m") { l in
                 let candy = l.itemName(.rareCandy)
                 return l.t("\(candy) 하나가 이제 75M 대신 100M 경험치를 줘요.",
