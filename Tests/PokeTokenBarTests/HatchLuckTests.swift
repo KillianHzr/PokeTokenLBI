@@ -155,4 +155,24 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertEqual(l.improbable.map(\.number), [1, 5, 2], "not the third, whose egg is unknown")
         XCTAssertEqual(l.hatchesPerWeek ?? 0, 5 / (29.0 / 7), accuracy: 1e-9)
     }
+
+    /// The eggs an unknown hatch may have come from are exactly those whose draw holds its line: the quick check that
+    /// spares the others' odds leaves none out.
+    func testPossibleEggsAreThoseWhoseDrawHoldsTheLine() {
+        let index = RosterProvider.entries
+        var seen = Set<HatchEgg>()
+        let bagEggs = ItemKind.allCases.compactMap(HatchEgg.init(item:)).filter { seen.insert($0).inserted }
+        let before = [entry(52, [52, 53], day: 1), entry(138, [138, 139], day: 2), entry(16, day: 3, released: true)]
+        var collection = CompanionState()
+        collection.dex = before
+        collection.collectedFinals = ["52:53", "138:139"]
+        collection.lastHatchedBaseID = 16
+        let draw = HatchDraw(collection: collection, items: [.ovalCharm])
+        for species in index where species.id != 16 {
+            let l = HatchLuck(entries: before + [entry(species.id, day: 4)], includesActive: false, today: CompanionState(),
+                              index: index, itemsSince: [.ovalCharm: Self.day(0)], now: Self.day(5))
+            let expected = bagEggs.filter { egg in draw.outcomes(egg, index: index).contains { $0.id == species.id } }
+            XCTAssertEqual(l.hatches[3].possibleEggs, expected, "#\(species.id)")
+        }
+    }
 }

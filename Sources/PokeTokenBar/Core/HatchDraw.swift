@@ -17,6 +17,14 @@ struct HatchDraw: Sendable {
     let collection: CompanionState
     /// The draw items owned, among `ItemKind.drawItems`.
     let items: Set<ItemKind>
+    /// The collection's graduated forms, read once for the many lines of a roll.
+    private let graduated: GraduatedForms
+
+    init(collection: CompanionState, items: Set<ItemKind>) {
+        self.collection = collection
+        self.items = items
+        graduated = GraduatedForms(collection.dex)
+    }
 
     private var ownsOvalCharm: Bool { items.contains(.ovalCharm) }
 
@@ -39,7 +47,7 @@ struct HatchDraw: Sendable {
     /// Ditto has none of.
     func letsDittoHide(baseID: Int, egg: EggSpec, fromFossilEgg: Bool) -> Bool {
         let keepsAPromise = egg.type != nil || egg.event != nil || fromFossilEgg
-            || (ownsOvalCharm && collection.lineMissesForms(baseID: baseID, types: egg.formTypes))
+            || (ownsOvalCharm && collection.lineMissesForms(baseID: baseID, types: egg.formTypes, graduated: graduated))
         return !keepsAPromise
     }
 
@@ -53,9 +61,9 @@ struct HatchDraw: Sendable {
     func hatchWeight(for e: BaseSpecies, type: PokemonType? = nil) -> Int {
         var w: Int
         if let type {
-            w = collection.isLineComplete(baseID: e.id, type: type) ? max(1, e.hatchWeight / 4) : max(1, e.hatchWeight)
+            w = collection.isLineComplete(baseID: e.id, type: type, graduated: graduated) ? max(1, e.hatchWeight / 4) : max(1, e.hatchWeight)
         } else {
-            w = CollectionWeight.adjusted(e.hatchWeight, isCollected: collection.isLineComplete(baseID: e.id))
+            w = CollectionWeight.adjusted(e.hatchWeight, isCollected: collection.isLineComplete(baseID: e.id, graduated: graduated))
         }
         // The legendary rarity: every legendary and mythical, never Beldum (capture rate 3).
         if items.contains(.legendCharm) && e.rarity == .legendary {
@@ -73,16 +81,8 @@ struct HatchDraw: Sendable {
         // 좁힌 결과가 비면 보증을 못 지키므로 전체 풀로 폴백하지 말고 알을 유지한다(다음 틱 재시도).
         // A fossil line hatches from Fossil Eggs only until it graduates (`FossilDig`), then from any egg like
         // every other species: shiny, twice, with another nature.
-        let graduated = collection.graduatedSpeciesIDs
-        // The Friendship Egg keeps its promise even then: the line is the player's own first Pokémon.
-        let friendship = egg.event == .companion ? collection.companionLineID : nil
-        let admitted = full.filter { !FossilDig.isFossilLine($0.id) || graduated.contains($0.id) || $0.id == friendship }
-        var index = egg.tier.map { t in admitted.filter(t.admits) } ?? admitted
-        // A Legendary Egg hatches a legendary or mythical Pokémon, any of them.
-        if egg.legendaryEgg { index = index.filter(\.isLegendary) }
-        if let targetType = egg.type {
-            index = index.filter { PokemonTypeData.canHatch(baseID: $0.id, as: targetType) }
-        }
+        let guarantees = guaranteeCheck(egg)
+        var index = full.filter(guarantees)
         // An event egg hatches the event's Pokémon (`EventEgg.admits`). None of them in the pool (a first catch
         // the index leaves out), it hatches as a plain egg would rather than wait forever: no other egg can be
         // used while it incubates.
@@ -99,11 +99,26 @@ struct HatchDraw: Sendable {
         // The Oval Charm, reward for every species: eggs only bring lines with a form still missing, while
         // some are left within the egg's guarantees.
         if ownsOvalCharm {
-            let missing = index.filter { collection.lineMissesForms(baseID: $0.id, types: egg.formTypes) }
+            let missing = index.filter { collection.lineMissesForms(baseID: $0.id, types: egg.formTypes, graduated: graduated) }
             if !missing.isEmpty { index = missing }
         }
         index = CompanionStore.withoutLastHatched(index, last: collection.lastHatchedBaseID)
         return index.map { ($0, hatchWeight(for: $0, type: egg.type)) }
+    }
+
+    /// Whether a species keeps an egg's guarantees: its rarity or better, its type, a legendary, and a fossil line only
+    /// once graduated. What `hatchPool` narrows to before an event's Pokémon, the Oval Charm and the line hatched last.
+    func guaranteeCheck(_ egg: EggSpec) -> (BaseSpecies) -> Bool {
+        let graduatedSpecies = collection.graduatedSpeciesIDs
+        // The Friendship Egg keeps its promise even then: the line is the player's own first Pokémon.
+        let friendship = egg.event == .companion ? collection.companionLineID : nil
+        return { base in
+            (!FossilDig.isFossilLine(base.id) || graduatedSpecies.contains(base.id) || base.id == friendship)
+                && (egg.tier?.admits(base) ?? true)
+                // A Legendary Egg hatches a legendary or mythical Pokémon, any of them.
+                && (!egg.legendaryEgg || base.isLegendary)
+                && (egg.type.map { PokemonTypeData.canHatch(baseID: base.id, as: $0) } ?? true)
+        }
     }
 
     /// The forms an egg of this line rolls among, and those the line graduated in (`PokemonForm.roll`). No forms for a
@@ -112,7 +127,7 @@ struct HatchDraw: Sendable {
         // The same forms the Oval Charm's species filter reads (`CompanionState.lineMissesForms`).
         var forms = CompanionState.eggForms(baseID: baseID, types: types)
         guard !forms.isEmpty else { return ([], []) }
-        let collected = collection.graduatedLineForms(baseID: baseID)
+        let collected = collection.graduatedLineForms(baseID: baseID, graduated: graduated)
         // The Oval Charm hatches a form still missing when the line has one.
         if ownsOvalCharm {
             let missing = forms.filter { !collected.contains($0) }
@@ -123,8 +138,8 @@ struct HatchDraw: Sendable {
 
     /// The fossil lines a Fossil Egg can hatch: those not graduated yet, every one once all are.
     var fossilCandidates: Set<Int> {
-        let graduated = collection.graduatedSpeciesIDs
-        let missing = FossilDig.lines.filter { !graduated.contains($0) }
+        let graduatedSpecies = collection.graduatedSpeciesIDs
+        let missing = FossilDig.lines.filter { !graduatedSpecies.contains($0) }
         return Set(missing.isEmpty ? FossilDig.lines : missing)
     }
 
@@ -141,7 +156,7 @@ struct HatchDraw: Sendable {
     func seasonDeerling(_ index: [BaseSpecies], event: EventEgg?) -> PokemonForm? {
         guard let seasonForm = event?.seasonForm, index.contains(where: { $0.id == EventEgg.deerlingID }),
               collection.lastHatchedBaseID != EventEgg.deerlingID,
-              !ownsOvalCharm || !collection.graduatedLineForms(baseID: EventEgg.deerlingID).contains(seasonForm)
+              !ownsOvalCharm || !collection.graduatedLineForms(baseID: EventEgg.deerlingID, graduated: graduated).contains(seasonForm)
         else { return nil }
         return seasonForm
     }

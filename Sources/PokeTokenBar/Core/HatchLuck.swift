@@ -184,8 +184,16 @@ struct HatchLuck: Sendable {
         case .fossil: return roll.fossilDraw(index).contains { $0.id == base }
         case .birthday: return roll.birthdayDraw(index).lines.contains { $0.base.id == base }
         case .tier, .stone, .legendary, .event:
-            guard let spec = egg.spec else { return false }
-            return base == EventEgg.deerlingID || roll.hatchPool(index, egg: spec).contains { $0.base.id == base }
+            guard let spec = egg.spec, let species = index.first(where: { $0.id == base }) else { return false }
+            // A season's Deerling, first rolled apart from the pool.
+            if base == EventEgg.deerlingID, spec.event?.seasonForm != nil { return true }
+            let keeps = roll.guaranteeCheck(spec)
+            guard keeps(species) else { return false }
+            // An event egg none of whose Pokémon keeps its guarantees hatches as a plain egg would.
+            guard let event = spec.event else { return true }
+            let companion = roll.collection.companionLineID
+            return event.admits(species, companionLine: companion)
+                || !index.contains { keeps($0) && event.admits($0, companionLine: companion) }
         }
     }
 
