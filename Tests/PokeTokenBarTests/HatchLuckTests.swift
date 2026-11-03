@@ -213,6 +213,10 @@ final class HatchLuckTests: XCTestCase {
         let valentine = HatchRecord(egg: .event(.valentine, key: nil))
         let index = self.index + [BaseSpecies(id: 370, captureRate: 225)]
         XCTAssertEqual(luck([entry(370, day: 1, record: valentine)], index: index).hatches.first?.judged[.shiny]?.odds, 1)
+        let unknown = luck([entry(16, day: 1, released: true), entry(147, day: 2)],
+                           itemsSince: [.glimmeringCharm: Self.day(0)]).hatches[1]
+        XCTAssertNil(unknown.egg)
+        XCTAssertEqual(unknown.judged[.shiny]?.odds, 1, "whatever its egg was")
     }
 
     /// The score after each hatch is the mean of the six percentiles then; each hatch's effect is what it moved.
