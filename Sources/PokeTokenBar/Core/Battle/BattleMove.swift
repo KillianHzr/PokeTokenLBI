@@ -70,6 +70,10 @@ struct BattleMove: Sendable, Equatable {
     var isBallistic: Bool { flags.contains("ballistic") }
     var isPowder: Bool { flags.contains("powder") }
     var isSlicing: Bool { flags.contains("slicing") }
+    /// Protect stops it: PokéAPI's flag, or no flag at all, as its newest moves come (2026-11-03).
+    var isBlockedByProtect: Bool { flags.isEmpty || flags.contains("protect") }
+    /// Sound moves and those PokéAPI marks "authentic" go through a substitute.
+    var bypassesSubstitute: Bool { isSound || flags.contains("authentic") }
     var hasSecondaryEffect: Bool {
         effectChance > 0 && (ailmentChance > 0 || flinchChance > 0 || statChance > 0)
     }

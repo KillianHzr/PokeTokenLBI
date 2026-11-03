@@ -395,4 +395,134 @@ final class BattleMovesTests: XCTestCase {
             }
         }
     }
+
+    // MARK: Protections and Substitute
+
+    private func has(_ outcome: BattleOutcome, _ event: BattleEvent) -> Bool {
+        outcome.events.contains { $0.event == event }
+    }
+
+    /// Substitute costs a quarter of the HP and takes the hits until it breaks; a status move does nothing against it
+    /// and is skipped, a sound move goes through.
+    func testSubstituteTakesTheHits() throws {
+        let lax = try mon("lax", 143, moves: ["substitute", "growl"], ability: "thick-fat")
+        let outcome = battle([lax], [try mon("champ", 68, level: 60, moves: ["tackle", "toxic", "growl"])])
+        let quarter = lax.stats.hp / 4
+        XCTAssertTrue(has(outcome, .hurt(battler: "lax", amount: quarter, hp: lax.stats.hp - quarter, cause: .substitute)))
+        XCTAssertTrue(has(outcome, .substitute(battler: "lax", hp: quarter)))
+        var standing = false
+        var absorbed = 0
+        for timed in outcome.events {
+            switch timed.event {
+            case .substitute("lax", let hp):
+                if hp < quarter { absorbed += 1 }
+                standing = hp > 0
+            case .hit(_, "lax", _, _, _, _, _):
+                XCTAssertFalse(standing, "no hit reaches Snorlax behind its substitute (\(timed.time))")
+            case .status("lax", _):
+                XCTAssertFalse(standing, "Toxic lands nothing behind the substitute (\(timed.time))")
+            case .cast("champ", "toxic", _, _):
+                XCTAssertFalse(standing, "Toxic is skipped while the substitute stands (\(timed.time))")
+            default:
+                break
+            }
+        }
+        XCTAssertGreaterThan(absorbed, 0)
+        XCTAssertTrue(outcome.events.contains {
+            if case .stat("lax", .attack, -1) = $0.event { return true }
+            return false
+        }, "Growl, a sound move, goes through")
+    }
+
+    /// Endure keeps its user at 1 HP for its time; protections in a row succeed a third as often each.
+    func testEndureAndProtectionsInARow() throws {
+        let outcome = battle([try mon("rat", 19, level: 30, moves: ["endure"])], [try mon("champ", 68, moves: ["cross-chop"])])
+        XCTAssertTrue(outcome.events.contains { $0.event == .endured(battler: "rat") })
+        XCTAssertGreaterThan(fails(outcome, "rat", "endure"), 0, "Endure after Endure fails two times in three")
+        var protects = 0, failed = 0
+        for seed: UInt64 in 1...4 {
+            let alone = battle([try mon("lax", 143, moves: ["protect"])], [try mon("champ", 68, moves: ["tackle"])], seed: seed)
+            failed += fails(alone, "lax", "protect")
+            protects += alone.events.filter {
+                if case .cast("lax", "protect", _, _) = $0.event { return true }
+                return false
+            }.count
+        }
+        XCTAssertGreaterThan(failed, protects / 2, "most Protects in a row fail")
+    }
+
+    /// King's Shield stops damage only, and lowers a contact attacker's Attack; Spiky Shield hurts it, Baneful Bunker
+    /// poisons it.
+    func testShieldsPunishContact() throws {
+        let king = battle([try mon("aegis", 681, moves: ["kings-shield"])],
+                          [try mon("champ", 68, moves: ["tackle", "leer"])])
+        XCTAssertTrue(king.events.contains {
+            if case .stat("champ", .attack, -1) = $0.event { return true }
+            return false
+        })
+        XCTAssertTrue(king.events.contains {
+            if case .stat("aegis", .defense, -1) = $0.event { return true }
+            return false
+        }, "Leer, a status move, goes through King's Shield")
+        let spiky = battle([try mon("chester", 652, moves: ["spiky-shield"])], [try mon("champ", 68, moves: ["tackle"])])
+        XCTAssertTrue(spiky.events.contains {
+            if case .hurt("champ", _, _, .protection) = $0.event { return true }
+            return false
+        })
+        let bunker = battle([try mon("pareint", 748, moves: ["baneful-bunker"])], [try mon("champ", 68, moves: ["tackle"])])
+        XCTAssertTrue(has(bunker, .status(battler: "champ", ailment: .poison)))
+    }
+
+    /// Wide Guard stops spread moves for the side, Quick Guard priority moves, Crafty Shield status moves; Mat Block
+    /// works on its user's first cast only.
+    func testSideGuards() throws {
+        let wide = battle([try mon("hitmon", 107, moves: ["wide-guard"]), try mon("lax", 143, moves: ["growl"])],
+                          [try mon("chomp", 445, moves: ["earthquake", "dragon-claw"]), try mon("lapras", 131, moves: ["growl"])],
+                          active: 2)
+        XCTAssertTrue(has(wide, .fail(battler: "chomp", move: "earthquake", reason: .protected)))
+        XCTAssertTrue(hits(wide).contains { $0.move == "dragon-claw" }, "a single-target move goes through")
+        let quick = battle([try mon("hitmon", 107, moves: ["quick-guard"])], [try mon("rat", 20, moves: ["quick-attack"])])
+        XCTAssertTrue(has(quick, .fail(battler: "rat", move: "quick-attack", reason: .protected)))
+        let crafty = battle([try mon("florges", 671, moves: ["crafty-shield", "moonblast"])],
+                            [try mon("gengar", 94, moves: ["toxic"])])
+        XCTAssertTrue(has(crafty, .fail(battler: "gengar", move: "toxic", reason: .protected)))
+        let mat = battle([try mon("greninja", 658, moves: ["mat-block", "water-shuriken"])],
+                         [try mon("lax", 143, moves: ["body-slam"])])
+        let mats = mat.events.filter {
+            if case .cast("greninja", "mat-block", _, _) = $0.event { return true }
+            return false
+        }
+        XCTAssertEqual(mats.map(\.time), [0], "Mat Block on the first cast, then skipped")
+    }
+
+    /// Magic Coat and Magic Bounce send a status move back; Snatch takes a move its user aims at itself.
+    func testMagicCoatAndSnatch() throws {
+        let coat = battle([try mon("xatu", 178, moves: ["magic-coat"])], [try mon("lax", 143, moves: ["toxic"], ability: "thick-fat")])
+        XCTAssertTrue(has(coat, .reflect(battler: "xatu", move: "toxic")))
+        XCTAssertTrue(has(coat, .status(battler: "lax", ailment: .badPoison)))
+        let bounce = battle([try mon("espeon", 196, moves: ["psychic"], ability: "magic-bounce")],
+                            [try mon("lax", 143, moves: ["growl"])])
+        XCTAssertTrue(bounce.events.contains {
+            if case .stat("lax", .attack, -1) = $0.event { return true }
+            return false
+        })
+        XCTAssertFalse(bounce.events.contains {
+            if case .stat("espeon", .attack, _) = $0.event { return true }
+            return false
+        })
+        let snatch = battle([try mon("absol", 359, moves: ["snatch", "night-slash"])],
+                            [try mon("scizor", 212, moves: ["swords-dance", "bullet-punch"])])
+        XCTAssertTrue(has(snatch, .reflect(battler: "absol", move: "swords-dance")))
+        XCTAssertTrue(snatch.events.contains {
+            if case .stat("absol", .attack, 2) = $0.event { return true }
+            return false
+        })
+    }
+
+    /// Feint goes through Protect and lifts it.
+    func testFeintGoesThroughProtect() throws {
+        let outcome = battle([try mon("weavile", 461, moves: ["feint"])], [try mon("lax", 143, moves: ["protect"])])
+        XCTAssertTrue(hits(outcome).contains { $0.move == "feint" })
+        XCTAssertFalse(has(outcome, .fail(battler: "weavile", move: "feint", reason: .protected)))
+    }
 }

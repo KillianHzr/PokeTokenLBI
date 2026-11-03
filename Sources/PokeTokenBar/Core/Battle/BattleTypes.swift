@@ -122,6 +122,8 @@ enum BattleTerrain: String, Codable, Sendable {
 /// Why a Pokémon lost HP outside a hit.
 enum BattleHurtCause: String, Codable, Sendable {
     case burn, poison, weather, recoil, trap, leechSeed, confusion, ability, belly, destinyBond, sun, painSplit
+    /// Substitute's cost, and Spiky Shield's thorns.
+    case substitute, protection
 }
 
 /// Why a Pokémon regained HP.
@@ -132,6 +134,8 @@ enum BattleHealCause: String, Codable, Sendable {
 /// Why a cast did nothing.
 enum BattleFailReason: String, Codable, Sendable {
     case paralysis, confusion, noTarget, protected, truant, immune, failed
+    /// A status move against a Pokémon behind its substitute.
+    case substitute
 }
 
 /// Everything that happens, timed in milliseconds from the start: a replay replays these, a live view plays them at
@@ -160,6 +164,12 @@ enum BattleEvent: Codable, Sendable, Equatable {
     case transform(battler: String, into: String)
     /// Mimic or Sketch put `move` in the loop for the rest of the battle.
     case learn(battler: String, move: String)
+    /// The battler's substitute, `hp` left (0: it broke).
+    case substitute(battler: String, hp: Int)
+    /// Endure kept the battler at 1 HP.
+    case endured(battler: String)
+    /// Magic Coat or Magic Bounce sent `move` back; Snatch took it.
+    case reflect(battler: String, move: String)
     case end(winner: Int)
 }
 

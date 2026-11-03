@@ -54,6 +54,15 @@ struct BattleSimulation {
         var transformed = false
         /// Me First's 1.5x on the move it takes.
         var powerBoost = 1.0
+        /// The protection standing (`protectedUntil`), and how many protections succeeded in a row.
+        var protection: String?
+        var protectStreak = 0
+        var enduringUntil = 0
+        var substituteHP = 0
+        var magicCoatUntil = 0
+        var snatchUntil = 0
+        /// Casts completed since it entered: Mat Block only works on the first.
+        var castsSinceEntry = 0
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -87,6 +96,8 @@ struct BattleSimulation {
     private var winner: Int?
     /// The last move anyone used: Copycat's.
     private var lastMoveUsed: String?
+    /// Each side's Wide Guard, Quick Guard, Mat Block and Crafty Shield, to when they hold.
+    private var sideGuards: [[String: Int]] = [[:], [:]]
 
     init(_ setup: BattleSetup) {
         self.setup = setup
@@ -397,6 +408,7 @@ struct BattleSimulation {
             log(.cure(battler: battlers[index].spec.id, ailment: .confusion))
         }
         if let move = MoveTable.move(slug) { use(move, by: index) }
+        battlers[index].castsSinceEntry += 1
         if !battlers[index].isFainted, battlers[index].slot != nil { advance(index, after: slug) }
     }
 
@@ -435,7 +447,14 @@ struct BattleSimulation {
         case "protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker", "obstruct", "silk-trap",
              "burning-bulwark":
             return !foes.isEmpty
-        case "destiny-bond": return !foes.isEmpty
+        case "destiny-bond", "endure": return !foes.isEmpty
+        case "mat-block": return !foes.isEmpty && b.castsSinceEntry == 0
+        case "wide-guard": return foes.contains { foeKnows($0) { $0.isDamaging && $0.hitsAllOpponents } }
+        case "quick-guard": return foes.contains { foeKnows($0) { $0.priority > 0 } }
+        case "crafty-shield": return foes.contains { foeKnows($0) { !$0.isDamaging && !$0.targetsOwnSide } }
+        case "magic-coat": return foes.contains { foeKnows($0) { $0.flags.contains("reflectable") } }
+        case "snatch": return foes.contains { foeKnows($0) { $0.flags.contains("snatch") } }
+        case "substitute": return b.substituteHP == 0 && b.hp > b.maxHP / 4
         case "pain-split": return pickTarget(for: move, by: index).map { battlers[$0].hp > b.hp } ?? false
         case "transform":
             return !b.transformed && pickTarget(for: move, by: index).map { !battlers[$0].transformed } ?? false
@@ -473,13 +492,21 @@ struct BattleSimulation {
                     return raised > 0 ? b.stage(change.stat) < 6 : b.stage(change.stat) > -6
                 }
             }
-            return foes.contains { foe in move.statChanges.contains { battlers[foe].stage($0.stat) > -6 } }
+            // Nothing lands behind a substitute: the move is skipped.
+            return foes.contains { foe in
+                !isScreened(foe, from: move, by: index) && move.statChanges.contains { battlers[foe].stage($0.stat) > -6 }
+            }
         case .ailment, .swagger:
             guard let ailment = move.ailment else { return false }
-            return foes.contains { canInflict(ailment, on: $0, move: move) }
+            return foes.contains { canInflict(ailment, on: $0, move: move) && !isScreened($0, from: move, by: index) }
         default:
             return false
         }
+    }
+
+    /// Whether a foe's loop holds a move that `matches`: what a guard waits for.
+    private func foeKnows(_ foe: Int, _ matches: (BattleMove) -> Bool) -> Bool {
+        battlers[foe].spec.moves.contains { MoveTable.move($0).map(matches) ?? false }
     }
 
     private func pickTarget(for move: BattleMove, by index: Int) -> Int? {
@@ -499,8 +526,17 @@ struct BattleSimulation {
             call(move, by: index)
             return
         }
+        let previousMove = battlers[index].lastMove
         battlers[index].lastMove = move.slug
         lastMoveUsed = move.slug
+        // A foe waiting with Snatch takes a move its user aims at itself.
+        if move.flags.contains("snatch"), move.targetsOwnSide,
+           let thief = foes(of: index).first(where: { battlers[$0].snatchUntil > now }) {
+            battlers[thief].snatchUntil = 0
+            log(.reflect(battler: battlers[thief].spec.id, move: move.slug))
+            use(move, by: thief)
+            return
+        }
         // Field and self moves first: they need no foe in front.
         if let weatherKind = Self.weatherMoves[move.slug] {
             setWeather(weatherKind, by: nil)
@@ -512,8 +548,40 @@ struct BattleSimulation {
         }
         switch move.slug {
         case "protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker", "obstruct", "silk-trap",
-             "burning-bulwark":
-            battlers[index].protectedUntil = now + 1500
+             "burning-bulwark", "endure", "wide-guard", "quick-guard", "mat-block":
+            // One in a row after another protection succeeds a third as often, then a ninth...
+            let streak = Self.protectionMoves.contains(previousMove ?? "") ? battlers[index].protectStreak + 1 : 0
+            guard random.below(Int(pow(3, Double(min(streak, 6))))) == 0 else {
+                battlers[index].protectStreak = 0
+                log(.fail(battler: id, move: move.slug, reason: .failed))
+                return
+            }
+            battlers[index].protectStreak = streak
+            switch move.slug {
+            case "endure": battlers[index].enduringUntil = now + 1500
+            case "wide-guard", "quick-guard", "mat-block": sideGuards[battlers[index].side][move.slug] = now + 1500
+            default:
+                battlers[index].protectedUntil = now + 1500
+                battlers[index].protection = move.slug
+            }
+            return
+        case "crafty-shield":
+            sideGuards[battlers[index].side][move.slug] = now + 1500
+            return
+        case "magic-coat":
+            battlers[index].magicCoatUntil = now + 1500
+            return
+        case "snatch":
+            battlers[index].snatchUntil = now + 1500
+            return
+        case "substitute":
+            guard battlers[index].substituteHP == 0, battlers[index].hp > battlers[index].maxHP / 4 else {
+                log(.fail(battler: id, move: move.slug, reason: .failed))
+                return
+            }
+            hurt(index, battlers[index].maxHP / 4, .substitute)
+            battlers[index].substituteHP = battlers[index].maxHP / 4
+            log(.substitute(battler: id, hp: battlers[index].substituteHP))
             return
         case "destiny-bond":
             battlers[index].destinyBond = true
@@ -630,10 +698,13 @@ struct BattleSimulation {
     private mutating func strike(_ move: BattleMove, by index: Int, on target: Int, spread: Bool) -> Int {
         let attackerID = battlers[index].spec.id
         let targetID = battlers[target].spec.id
-        if battlers[target].protectedUntil > now {
+        if Self.protectionBreakers.contains(move.slug) { liftProtections(target) }
+        if isProtected(target, from: move) {
             log(.fail(battler: attackerID, move: move.slug, reason: .protected))
+            if move.isContact, battlers[target].protectedUntil > now { punishContact(index, on: target) }
             return 0
         }
+        let screened = isScreened(target, from: move, by: index)
         if Self.ohkoMoves.contains(move.slug) {
             let a = battlers[index], d = battlers[target]
             if d.spec.isBoss || d.ability == "sturdy" || d.spec.level > a.spec.level
@@ -644,6 +715,12 @@ struct BattleSimulation {
             guard random.below(100) < 30 + a.spec.level - d.spec.level else {
                 log(.miss(attacker: attackerID, target: targetID, move: move.slug))
                 return 0
+            }
+            if screened {
+                let taken = battlers[target].substituteHP
+                battlers[target].substituteHP = 0
+                log(.substitute(battler: targetID, hp: 0))
+                return taken
             }
             let damage = battlers[target].hp
             dealDamage(damage, to: target, by: index, move: move, effectiveness: 1, critical: false)
@@ -673,14 +750,72 @@ struct BattleSimulation {
         for _ in 0..<count where !battlers[target].isFainted {
             let critical = rollsCritical(move, by: index, on: target)
             let damage = damageFor(move, by: index, on: target, spread: spread, critical: critical, typeFactor: typeFactor)
+            // The substitute takes the hits while it stands; the hits after it breaks reach the Pokémon.
+            if screened, battlers[target].substituteHP > 0 {
+                let taken = min(damage, battlers[target].substituteHP)
+                battlers[target].substituteHP -= taken
+                dealt += taken
+                log(.substitute(battler: targetID, hp: battlers[target].substituteHP))
+                continue
+            }
             dealt += min(damage, battlers[target].hp)
             dealDamage(damage, to: target, by: index, move: move, effectiveness: typeFactor, critical: critical)
             if battlers[target].isFainted { break }
             contactEffects(move, attacker: index, target: target)
             if battlers[index].isFainted { return dealt }
         }
-        if !battlers[target].isFainted { secondaryEffects(move, by: index, on: target) }
+        if !battlers[target].isFainted, !screened { secondaryEffects(move, by: index, on: target) }
         return dealt
+    }
+
+    /// Whether a protection stops `move` against `target`: its own (Protect and kin; King's Shield, Obstruct, Silk
+    /// Trap and Burning Bulwark only against damage), or its side's guard for the moves it guards against.
+    private func isProtected(_ target: Int, from move: BattleMove) -> Bool {
+        guard move.isBlockedByProtect, !Self.protectionBreakers.contains(move.slug) else { return false }
+        let t = battlers[target]
+        if t.protectedUntil > now, move.isDamaging || !Self.damageOnlyShields.contains(t.protection ?? "") { return true }
+        let guards = sideGuards[t.side]
+        func holds(_ guardMove: String) -> Bool { (guards[guardMove] ?? 0) > now }
+        return holds("wide-guard") && move.hitsAllOpponents || holds("quick-guard") && move.priority > 0
+            || holds("mat-block") && move.isDamaging || holds("crafty-shield") && !move.isDamaging
+    }
+
+    /// Feint, Shadow Force, Phantom Force and Hyperspace Hole go through protections and lift them.
+    private mutating func liftProtections(_ target: Int) {
+        battlers[target].protectedUntil = 0
+        battlers[target].protection = nil
+        for guardMove in ["wide-guard", "quick-guard", "mat-block", "crafty-shield"] {
+            sideGuards[battlers[target].side][guardMove] = nil
+        }
+    }
+
+    /// A contact move stopped by a shield: King's Shield lowers the attacker's Attack, Spiky Shield hurts it, Baneful
+    /// Bunker poisons it, Obstruct lowers its Defense, Silk Trap its Speed, Burning Bulwark burns it.
+    private mutating func punishContact(_ index: Int, on target: Int) {
+        switch battlers[target].protection {
+        case "kings-shield": changeStage(index, .attack, by: -1, fromFoe: true)
+        case "spiky-shield":
+            if battlers[index].ability != "magic-guard" { hurt(index, max(1, battlers[index].maxHP / 8), .protection) }
+        case "baneful-bunker": inflict(.poison, on: index, by: target)
+        case "obstruct": changeStage(index, .defense, by: -2, fromFoe: true)
+        case "silk-trap": changeStage(index, .speed, by: -1, fromFoe: true)
+        case "burning-bulwark": inflict(.burn, on: index, by: target)
+        default: break
+        }
+    }
+
+    /// Whether `target`'s substitute takes `move`: sound moves, those that ignore it and an Infiltrator go through.
+    private func isScreened(_ target: Int, from move: BattleMove, by index: Int) -> Bool {
+        battlers[target].substituteHP > 0 && !move.bypassesSubstitute && battlers[index].ability != "infiltrator"
+            && battlers[target].side != battlers[index].side
+    }
+
+    /// Magic Coat (for its time) and Magic Bounce send a reflectable status move back, unless a Mold Breaker uses it.
+    private func reflects(_ target: Int, _ move: BattleMove, by index: Int) -> Bool {
+        guard move.flags.contains("reflectable"), battlers[target].side != battlers[index].side else { return false }
+        let bounce = battlers[target].ability == "magic-bounce"
+            && !["mold-breaker", "teravolt", "turboblaze"].contains(battlers[index].ability)
+        return battlers[target].magicCoatUntil > now || bounce
     }
 
     private mutating func useStatus(_ move: BattleMove, by index: Int) {
@@ -700,40 +835,58 @@ struct BattleSimulation {
                 for change in move.statChanges { changeStage(index, change.stat, by: change.change, fromFoe: false) }
             } else {
                 for target in statusTargets(move, by: index) {
-                    guard hits(move, by: index, on: target) else {
-                        log(.miss(attacker: id, target: battlers[target].spec.id, move: move.slug))
+                    guard let (victim, source) = statusLands(move, by: index, on: target) else { continue }
+                    guard hits(move, by: source, on: victim) else {
+                        log(.miss(attacker: battlers[source].spec.id, target: battlers[victim].spec.id, move: move.slug))
                         continue
                     }
-                    for change in move.statChanges { changeStage(target, change.stat, by: change.change, fromFoe: true) }
+                    for change in move.statChanges { changeStage(victim, change.stat, by: change.change, fromFoe: true) }
                 }
             }
         case .ailment, .swagger:
             guard let ailment = move.ailment else { return }
             for target in statusTargets(move, by: index) {
-                if battlers[target].protectedUntil > now {
-                    log(.fail(battler: id, move: move.slug, reason: .protected))
-                    continue
-                }
+                guard let (target, source) = statusLands(move, by: index, on: target) else { continue }
+                let sourceID = battlers[source].spec.id
                 if move.isPowder, battlers[target].types.contains(.grass) || battlers[target].ability == "overcoat" {
-                    log(.noEffect(attacker: id, target: battlers[target].spec.id, move: move.slug))
+                    log(.noEffect(attacker: sourceID, target: battlers[target].spec.id, move: move.slug))
                     continue
                 }
                 if move.type == .electric, ailment == .paralysis, battlers[target].types.contains(.ground) {
-                    log(.noEffect(attacker: id, target: battlers[target].spec.id, move: move.slug))
+                    log(.noEffect(attacker: sourceID, target: battlers[target].spec.id, move: move.slug))
                     continue
                 }
-                guard hits(move, by: index, on: target) else {
-                    log(.miss(attacker: id, target: battlers[target].spec.id, move: move.slug))
+                guard hits(move, by: source, on: target) else {
+                    log(.miss(attacker: sourceID, target: battlers[target].spec.id, move: move.slug))
                     continue
                 }
                 if move.category == .swagger {
                     for change in move.statChanges { changeStage(target, change.stat, by: change.change, fromFoe: true) }
                 }
-                inflict(ailment, on: target, by: index, move: move)
+                inflict(ailment, on: target, by: source, move: move)
             }
         default:
             log(.fail(battler: id, move: move.slug, reason: .failed))
         }
+    }
+
+    /// Where a status move aimed at `target` lands, and from whom: nowhere behind a protection or a substitute,
+    /// back on its user off a Magic Coat.
+    private mutating func statusLands(_ move: BattleMove, by index: Int, on target: Int) -> (victim: Int, source: Int)? {
+        let id = battlers[index].spec.id
+        if isProtected(target, from: move) {
+            log(.fail(battler: id, move: move.slug, reason: .protected))
+            return nil
+        }
+        if reflects(target, move, by: index) {
+            log(.reflect(battler: battlers[target].spec.id, move: move.slug))
+            return (index, target)
+        }
+        if isScreened(target, from: move, by: index) {
+            log(.fail(battler: id, move: move.slug, reason: .substitute))
+            return nil
+        }
+        return (target, index)
     }
 
     private func statusTargets(_ move: BattleMove, by index: Int) -> [Int] {
@@ -752,8 +905,12 @@ struct BattleSimulation {
             log(.fail(battler: id, move: move.slug, reason: .noTarget))
             return
         }
-        if battlers[target].protectedUntil > now {
+        if isProtected(target, from: move) {
             log(.fail(battler: id, move: move.slug, reason: .protected))
+            return
+        }
+        if isScreened(target, from: move, by: index) {
+            log(.fail(battler: id, move: move.slug, reason: .substitute))
             return
         }
         let mine = battlers[index].hp, theirs = battlers[target].hp
@@ -1230,6 +1387,10 @@ struct BattleSimulation {
             amount = battlers[target].hp - 1
             log(.ability(battler: battlers[target].spec.id, ability: "sturdy"))
         }
+        if battlers[target].enduringUntil > now, amount >= battlers[target].hp {
+            amount = battlers[target].hp - 1
+            log(.endured(battler: battlers[target].spec.id))
+        }
         battlers[target].hp -= amount
         if amount > 0, battlers[index].side != battlers[target].side { remember(amount, on: target, by: index, move: move) }
         log(.hit(attacker: battlers[index].spec.id, target: battlers[target].spec.id, move: move.slug, damage: amount,
@@ -1582,6 +1743,14 @@ struct BattleSimulation {
         "electric-terrain": .electric, "grassy-terrain": .grassy, "misty-terrain": .misty, "psychic-terrain": .psychic,
     ]
     static let ohkoMoves: Set<String> = ["fissure", "guillotine", "horn-drill", "sheer-cold"]
+    /// The moves whose success falls when one follows another.
+    static let protectionMoves: Set<String> = ["protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker",
+        "obstruct", "silk-trap", "burning-bulwark", "endure", "wide-guard", "quick-guard", "mat-block"]
+    /// The shields that stop damaging moves only.
+    static let damageOnlyShields: Set<String> = ["kings-shield", "obstruct", "silk-trap", "burning-bulwark"]
+    static let protectionBreakers: Set<String> = ["feint", "shadow-force", "phantom-force", "hyperspace-hole",
+                                                  "hyperspace-fury"]
+
     /// The moves that use another in their place (`call`).
     static let callers: Set<String> = ["metronome", "assist", "sleep-talk", "copycat", "mirror-move", "me-first",
                                        "nature-power"]
@@ -1617,7 +1786,8 @@ struct BattleSimulation {
     /// The moves the engine plays, the others doing nothing here: the Pokémon sheet says so (`BattleMove.hasEffect`).
     static let handledStatusMoves = Set(["protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker",
         "obstruct", "silk-trap", "burning-bulwark", "destiny-bond", "wish", "rest", "belly-drum", "pain-split",
-        "transform", "mimic", "sketch", "instruct"])
+        "transform", "mimic", "sketch", "instruct", "endure", "substitute", "wide-guard", "quick-guard", "crafty-shield",
+        "mat-block", "magic-coat", "snatch"])
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }
