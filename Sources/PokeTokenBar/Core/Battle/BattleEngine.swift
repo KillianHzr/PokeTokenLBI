@@ -113,6 +113,19 @@ struct BattleSimulation {
         var streak = 0
         var lastLanded = false
         var defenseCurl = false
+        /// When its cast started, when it last acted, last took damage, last had a stat lowered, and when each foe
+        /// last hit it: what Payback, Avalanche, Assurance, Focus Punch, Bolt Beak and Lash Out read.
+        var castStartedAt = 0
+        var lastActionAt = -1
+        var lastDamagedAt = -1
+        var loweredAt = -1
+        var hitBy: [Int: Int] = [:]
+        /// The moves it used since it entered (Last Resort), its Stockpile count, whether Smack Down grounded it.
+        var usedSinceEntry: Set<String> = []
+        var stockpile = 0
+        var smackedDown = false
+        /// Magnitude's, Present's or Beat Up's power for the hit being dealt.
+        var rolledPower: Double?
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -488,6 +501,7 @@ struct BattleSimulation {
         }
         battlers[index].castMove = slug
         battlers[index].castTarget = target
+        battlers[index].castStartedAt = now
         battlers[index].castEnds = now + castDuration(slug, by: index)
         battlers[index].semiInvulnerable = Self.semiInvulnerableMoves.contains(slug) ? slug : nil
         // Skull Bash, Meteor Beam and Electro Shot raise a stat as they start to charge.
@@ -549,6 +563,8 @@ struct BattleSimulation {
             return
         }
         if let move = MoveTable.move(slug) { use(move, by: index) }
+        battlers[index].lastActionAt = now
+        battlers[index].usedSinceEntry.insert(slug)
         if Self.lockingMoves[slug] != nil, !battlers[index].isFainted { lockStep(index, slug) }
         battlers[index].electrified = false
         battlers[index].helped = false
@@ -584,6 +600,12 @@ struct BattleSimulation {
             if foes.isEmpty { return false }
             if slug == "dream-eater" { return foes.contains { battlers[$0].status == .sleep } }
             if slug == "belch" { return b.consumedBerry != nil }
+            if slug == "fake-out" || slug == "first-impression" { return b.castsSinceEntry == 0 }
+            if slug == "spit-up" { return b.stockpile > 0 }
+            if slug == "last-resort" { return lastResortReady(index) }
+            if slug == "sucker-punch" || slug == "thunderclap" {
+                return target(of: move, by: index).flatMap { battlers[$0].castMove.flatMap(MoveTable.move) }?.isDamaging == true
+            }
             if slug == "natural-gift" || slug == "fling" { return slug == "natural-gift" && heldBerry(index) != nil }
             if slug == "future-sight" || slug == "doom-desire" {
                 // One foreseen attack on a slot at a time.
@@ -692,6 +714,8 @@ struct BattleSimulation {
         case "octolock": return target(of: move, by: index).map { battlers[$0].octolockedBy == nil } ?? false
         case "tar-shot": return target(of: move, by: index).map { !battlers[$0].tarred || battlers[$0].stage(.speed) > -6 } ?? false
         case "no-retreat": return !b.noRetreat
+        case "stockpile": return b.stockpile < 3
+        case "swallow": return b.stockpile > 0 && b.hp < b.maxHP
         case "trick", "switcheroo":
             return heldBerry(index) == nil && target(of: move, by: index).map { heldBerry($0) != nil } ?? false
         case "bestow", "fling": return false
@@ -1111,6 +1135,20 @@ struct BattleSimulation {
                 log(.volatile(battler: battlers[other].spec.id, effect: move.slug))
             }
             return
+        case "stockpile":
+            guard battlers[index].stockpile < 3 else { return failed(move, by: index) }
+            battlers[index].stockpile += 1
+            changeStage(index, .defense, by: 1, fromFoe: false)
+            changeStage(index, .specialDefense, by: 1, fromFoe: false)
+            log(.volatile(battler: id, effect: move.slug))
+            return
+        case "swallow":
+            // A quarter, half or all of the HP back by the Stockpile, which is then spent.
+            let stored = battlers[index].stockpile
+            guard stored > 0 else { return failed(move, by: index) }
+            heal(index, battlers[index].maxHP * [0, 1, 2, 4][stored] / 4, .move)
+            releaseStockpile(index)
+            return
         case "no-retreat":
             guard !battlers[index].noRetreat else { return failed(move, by: index) }
             battlers[index].noRetreat = true
@@ -1179,6 +1217,53 @@ struct BattleSimulation {
             log(.volatile(battler: battlers[target].spec.id, effect: move.slug))
             return
         }
+        switch move.slug {
+        case "fake-out", "first-impression":
+            // Only as the first move after entering.
+            if battlers[index].castsSinceEntry > 0 { return failed(move, by: index) }
+        case "sucker-punch", "thunderclap":
+            // Only against a foe about to attack.
+            if let target = targets.first, battlers[target].castMove.flatMap(MoveTable.move)?.isDamaging != true {
+                return failed(move, by: index)
+            }
+        case "focus-punch":
+            // Hit while it gathered its focus, it loses it.
+            if battlers[index].lastDamagedAt >= battlers[index].castStartedAt {
+                return failed(move, by: index)
+            }
+        case "last-resort":
+            if !lastResortReady(index) { return failed(move, by: index) }
+        case "spit-up":
+            if battlers[index].stockpile == 0 { return failed(move, by: index) }
+        case "magnitude":
+            // Magnitude 4 to 10: 5, 10, 20, 30, 20, 10, 5 in 100.
+            let roll = random.below(100)
+            let steps: [(Int, Double)] = [(5, 10), (15, 30), (35, 50), (65, 70), (85, 90), (95, 110), (100, 150)]
+            battlers[index].rolledPower = steps.first { roll < $0.0 }?.1 ?? 70
+        case "present":
+            // 40, 80 or 120 power, or a quarter of the target's HP healed (40, 30, 10, 20 in 100).
+            let roll = random.below(100)
+            if roll >= 80 {
+                if let target = targets.first { heal(target, battlers[target].maxHP / 4, .move) }
+                return
+            }
+            battlers[index].rolledPower = roll < 40 ? 40 : roll < 70 ? 80 : 120
+        case "beat-up":
+            // One hit for each Pokémon of the side standing without a status, by its base Attack.
+            guard let target = targets.first else { return }
+            let side = battlers[index].side
+            for member in battlers.indices where battlers[member].side == side && !battlers[member].isFainted
+                && battlers[member].status == nil && !battlers[target].isFainted {
+                let base = SpeciesBattleTable.data(speciesID: battlers[member].spec.speciesID)?.baseStats[1] ?? 50
+                battlers[index].rolledPower = 5 + Double(base) / 10
+                _ = strike(move, by: index, on: target, spread: false)
+            }
+            battlers[index].rolledPower = nil
+            return
+        default:
+            break
+        }
+        defer { battlers[index].rolledPower = nil }
         // Fury Cutter and Echoed Voice grow with each one that landed just before.
         battlers[index].streak = previousMove == move.slug && battlers[index].lastLanded ? battlers[index].streak + 1 : 0
         if move.slug == "endeavor", let target = targets.first, battlers[target].hp <= battlers[index].hp {
@@ -1210,6 +1295,15 @@ struct BattleSimulation {
             }
         }
         if move.slug == "rapid-spin" || move.slug == "mortal-spin" { spinAway(index) }
+        if move.slug == "spit-up" { releaseStockpile(index) }
+        if move.slug == "smack-down" || move.slug == "thousand-arrows" {
+            for target in targets where !battlers[target].isFainted && !isGrounded(target) {
+                battlers[target].smackedDown = true
+                battlers[target].magnetRiseUntil = 0
+                battlers[target].telekinesisUntil = 0
+                log(.volatile(battler: battlers[target].spec.id, effect: "smack-down"))
+            }
+        }
         if move.slug == "mortal-spin" {
             for target in targets where !battlers[target].isFainted { inflict(.poison, on: target, by: index, move: move) }
         }
@@ -1271,7 +1365,8 @@ struct BattleSimulation {
             for screen in ["reflect", "light-screen", "aurora-veil"] { endSideCondition(battlers[target].side, screen) }
         }
         var count = 1
-        if move.maxHits > 1 {
+        // Beat Up's hits are its side's members, one strike each (PokéAPI gives it six).
+        if move.maxHits > 1, move.slug != "beat-up" {
             if battlers[index].ability == "skill-link" || move.minHits == move.maxHits {
                 count = move.maxHits
             } else if move.minHits == 2, move.maxHits == 5 {
@@ -1553,6 +1648,20 @@ struct BattleSimulation {
         guard let hidden = battlers[index].semiInvulnerable, battlers[index].castMove == hidden else { return nil }
         let charge = 2000 * 300 / (100 + Double(effectiveSpeed(index))) / Double(BattleRules.speedUp)
         return Double(now) >= Double(battlers[index].castEnds) - charge ? hidden : nil
+    }
+
+    /// Spit Up and Swallow spend the Stockpile, and the Defenses it raised fall back.
+    private mutating func releaseStockpile(_ index: Int) {
+        let stored = battlers[index].stockpile
+        battlers[index].stockpile = 0
+        changeStage(index, .defense, by: -stored, fromFoe: false)
+        changeStage(index, .specialDefense, by: -stored, fromFoe: false)
+    }
+
+    /// Last Resort: once every other move of the loop was used since it entered.
+    private func lastResortReady(_ index: Int) -> Bool {
+        let others = Set(battlers[index].spec.moves).subtracting(["last-resort"])
+        return !others.isEmpty && others.isSubset(of: battlers[index].usedSinceEntry)
     }
 
     // MARK: Locked moves
@@ -2063,6 +2172,15 @@ struct BattleSimulation {
         if move.type == .normal, fieldHas("ion-deluge") { return .electric }
         if battlers[index].electrified { return .electric }
         if move.slug == "natural-gift", let berry = battlers[index].throwing { return berry == .oran ? .poison : .psychic }
+        if move.slug == "terrain-pulse", isGrounded(index) {
+            switch terrain {
+            case .electric?: return .electric
+            case .grassy?: return .grass
+            case .misty?: return .fairy
+            case .psychic?: return .psychic
+            case nil: break
+            }
+        }
         return move.type
     }
 
@@ -2070,7 +2188,7 @@ struct BattleSimulation {
         let type = moveType(move, by: index)
         let d = battlers[target]
         let breaksMold = ["mold-breaker", "teravolt", "turboblaze"].contains(battlers[index].ability)
-        let grounded = fieldHas("gravity") || d.ingrained
+        let grounded = fieldHas("gravity") || d.ingrained || d.smackedDown || move.slug == "thousand-arrows"
         if type == .ground, d.ability == "levitate", !breaksMold, !grounded { return 0 }
         if type == .ground, d.magnetRiseUntil > now || d.telekinesisUntil > now, !grounded { return 0 }
         var factor = d.types.reduce(1.0) { result, defending in
@@ -2141,7 +2259,7 @@ struct BattleSimulation {
 
     private func isGrounded(_ index: Int) -> Bool {
         let b = battlers[index]
-        if fieldHas("gravity") || b.ingrained { return true }
+        if fieldHas("gravity") || b.ingrained || b.smackedDown { return true }
         if b.magnetRiseUntil > now || b.telekinesisUntil > now { return false }
         return !b.types.contains(.flying) && b.ability != "levitate"
     }
@@ -2181,7 +2299,29 @@ struct BattleSimulation {
         case "hex", "infernal-parade", "bitter-malice": if d.status != nil { power *= 2 }
         case "venoshock", "barb-barrage": if d.status == .poison || d.status == .badPoison { power *= 2 }
         case "brine": if d.hp * 2 <= d.maxHP { power *= 2 }
-        case "acrobatics": power *= 2
+        case "acrobatics": if heldBerry(index) == nil { power *= 2 }
+        case "payback": if d.lastActionAt >= a.castStartedAt { power *= 2 }
+        case "avalanche", "revenge": if (a.hitBy[target] ?? -1) >= a.castStartedAt { power *= 2 }
+        case "assurance": if d.lastDamagedAt >= a.castStartedAt { power *= 2 }
+        case "bolt-beak", "fishious-rend": if d.lastActionAt < a.castStartedAt { power *= 2 }
+        case "lash-out": if a.loweredAt >= a.castStartedAt { power *= 2 }
+        case "punishment": power = min(200, 60 + 20 * Double(d.stages.values.filter { $0 > 0 }.reduce(0, +)))
+        case "return", "pika-papow", "veevee-volley": power = 102
+        case "frustration": power = 1
+        case "trump-card": power = 40
+        case "spit-up": power = 100 * Double(a.stockpile)
+        case "magnitude", "present", "beat-up": power = a.rolledPower ?? 0
+        case "crush-grip", "wring-out": power = max(1, 120 * Double(d.hp) / Double(d.maxHP))
+        case "hard-press": power = max(1, 100 * Double(d.hp) / Double(d.maxHP))
+        case "round":
+            if allies(of: index).contains(where: { $0 != index && battlers[$0].lastMove == "round"
+                && battlers[$0].lastActionAt >= now - BattleRules.turn }) { power *= 2 }
+        case "fusion-flare": if lastMoveUsed == "fusion-bolt" { power *= 2 }
+        case "fusion-bolt": if lastMoveUsed == "fusion-flare" { power *= 2 }
+        case "terrain-pulse": if terrain != nil, isGrounded(index) { power *= 2 }
+        case "expanding-force": if terrain == .psychic, isGrounded(index) { power *= 1.5 }
+        case "rising-voltage": if terrain == .electric, isGrounded(target) { power *= 2 }
+        case "grav-apple": if fieldHas("gravity") { power *= 1.5 }
         case "stored-power", "power-trip":
             power = 20 + 20 * Double(a.stages.values.filter { $0 > 0 }.reduce(0, +))
         case "weather-ball": if weather != nil { power = 100 }
@@ -2198,7 +2338,7 @@ struct BattleSimulation {
         case "echoed-voice": power = min(200, power * Double(1 + a.streak))
         case "natural-gift": power = a.throwing == nil ? 0 : 80
         case "fling": power = a.throwing == nil ? 0 : 10
-        case "punishment", "return", "frustration": power = 80
+
         default: break
         }
         let type = moveType(move, by: index)
@@ -2398,6 +2538,7 @@ struct BattleSimulation {
             log(.endured(battler: battlers[target].spec.id))
         }
         battlers[target].hp -= amount
+        if amount > 0 { battlers[target].lastDamagedAt = now }
         if amount > 0, battlers[index].side != battlers[target].side { remember(amount, on: target, by: index, move: move) }
         log(.hit(attacker: battlers[index].spec.id, target: battlers[target].spec.id, move: move.slug, damage: amount,
                  hp: battlers[target].hp, effectiveness: effectiveness, critical: critical))
@@ -2411,6 +2552,7 @@ struct BattleSimulation {
 
     /// Keeps the hit for the moves that answer one: the hits of one multi-hit move add up.
     private mutating func remember(_ amount: Int, on target: Int, by index: Int, move: BattleMove) {
+        battlers[target].hitBy[index] = now
         if battlers[target].castMove == "bide" {
             battlers[target].bideTaken += amount
             battlers[target].bideAttacker = index
@@ -2641,6 +2783,7 @@ struct BattleSimulation {
 
     private mutating func hurt(_ index: Int, _ amount: Int, _ cause: BattleHurtCause) {
         guard !battlers[index].isFainted, amount > 0 else { return }
+        battlers[index].lastDamagedAt = now
         let taken = min(amount, battlers[index].hp)
         battlers[index].hp -= taken
         log(.hurt(battler: battlers[index].spec.id, amount: taken, hp: battlers[index].hp, cause: cause))
@@ -2791,6 +2934,7 @@ struct BattleSimulation {
         }
         let current = battlers[index].stage(stat)
         let next = max(-6, min(6, current + amount))
+        if next < current { battlers[index].loweredAt = now }
         guard next != current else { return }
         battlers[index].stages[stat] = next
         log(.stat(battler: battlers[index].spec.id, stat: stat, change: next - current))
@@ -2917,7 +3061,7 @@ struct BattleSimulation {
         "camouflage", "forests-curse", "trick-or-treat", "electrify", "simple-beam", "worry-seed", "entrainment",
         "role-play", "skill-swap", "gastro-acid", "baton-pass", "shed-tail", "teleport", "roar", "whirlwind",
         "ally-switch", "follow-me", "rage-powder", "spotlight", "after-you", "quash", "helping-hand", "parting-shot",
-        "trick", "switcheroo", "bestow", "recycle", "stuff-cheeks", "teatime", "corrosive-gas"])
+        "trick", "switcheroo", "bestow", "recycle", "stuff-cheeks", "teatime", "corrosive-gas", "stockpile", "swallow"])
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

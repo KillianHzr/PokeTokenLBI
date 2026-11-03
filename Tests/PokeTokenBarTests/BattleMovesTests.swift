@@ -1369,4 +1369,90 @@ final class BattleMovesTests: XCTestCase {
         let wetCast = try XCTUnwrap(castWindows(wet, "zap", "electro-shot").first)
         XCTAssertLessThan(wetCast.end - wetCast.start, dryCast.end - dryCast.start)
     }
+
+    // MARK: Powers, accuracies and priorities by the situation
+
+    /// Acrobatics doubles without a berry held; Punishment grows with the target's boosts; Return hits at 102 and
+    /// Frustration at 1 for a Pokémon its trainer raised; Crush Grip falls with the target's HP.
+    func testPowersByTheSituation() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let bare = battle([try mon("bird", 18, moves: ["acrobatics"])], [try mon("lax", 143, moves: fillers)])
+        let holding = battle([try mon("bird", 18, moves: ["acrobatics"])], [try mon("lax", 143, moves: fillers)], berries: [.sitrus: 1])
+        XCTAssertEqual(meanDamage(bare, "acrobatics") / meanDamage(holding, "acrobatics"), 2, accuracy: 0.25)
+        let punish = battle([try mon("absol", 359, level: 50, moves: ["punishment"])],
+                            [try mon("scizor", 212, moves: ["swords-dance", "agility", "rain-dance"])])
+        let blows = hits(punish).filter { $0.move == "punishment" && $0.hp > 0 }.map(\.damage)
+        XCTAssertGreaterThan(Double(try XCTUnwrap(blows.last)) / Double(try XCTUnwrap(blows.first)), 1.5, "\(blows)")
+        let loved = battle([try mon("lax", 143, moves: ["return"])], [try mon("bliss", 242, moves: fillers)])
+        let spite = battle([try mon("lax", 143, moves: ["frustration"])], [try mon("bliss", 242, moves: fillers)])
+        XCTAssertGreaterThan(meanDamage(loved, "return"), 10 * meanDamage(spite, "frustration"))
+        let grip = battle([try mon("champ", 68, level: 50, moves: ["crush-grip"])], [try mon("bliss", 242, moves: fillers)])
+        let grips = hits(grip).filter { $0.move == "crush-grip" && $0.hp > 0 }.map(\.damage)
+        XCTAssertGreaterThan(Double(try XCTUnwrap(grips.first)) / Double(try XCTUnwrap(grips.last)), 1.5, "\(grips)")
+    }
+
+    /// Stockpile stores up to three; Spit Up strikes at 100 a stock, Swallow heals by them; both spend them, and the
+    /// Defenses they raised fall back.
+    func testStockpileSpitUpSwallow() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let spit = battle([try mon("swalot", 317, moves: ["stockpile", "stockpile", "spit-up"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertEqual(spit.events.filter { $0.event == .volatile(battler: "swalot", effect: "stockpile") }.count >= 2, true)
+        XCTAssertTrue(hits(spit).contains { $0.move == "spit-up" })
+        XCTAssertTrue(spit.events.contains {
+            if case .stat("swalot", .defense, let change) = $0.event { return change <= -2 }
+            return false
+        })
+        let swallow = battle([try mon("swalot", 317, moves: ["stockpile", "swallow"], hp: 100)], [try mon("lax", 143, moves: fillers)])
+        XCTAssertTrue(swallow.events.contains {
+            if case .heal("swalot", _, _, .move) = $0.event { return true }
+            return false
+        })
+    }
+
+    /// Magnitude rolls its power, Present sometimes heals the target, Beat Up hits once per Pokémon standing on the side.
+    func testRolledPowersAndBeatUp() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let quake = battle([try mon("dug", 51, level: 50, moves: ["magnitude"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertGreaterThanOrEqual(Set(hits(quake).filter { $0.move == "magnitude" }.map(\.damage)).count, 4)
+        var healed = false
+        for seed: UInt64 in 1...4 {
+            let gift = battle([try mon("deli", 225, moves: ["present"])], [try mon("lax", 143, moves: fillers, hp: 300)], seed: seed)
+            if gift.events.contains(where: {
+                if case .heal("lax", _, _, .move) = $0.event { return true }
+                return false
+            }) { healed = true }
+        }
+        XCTAssertTrue(healed)
+        let beat = battle([try mon("absol", 359, moves: ["beat-up"]), try mon("b1", 143, moves: fillers), try mon("b2", 6, moves: fillers)],
+                          [try mon("bliss", 242, moves: fillers)])
+        let first = try XCTUnwrap(hits(beat).first { $0.move == "beat-up" })
+        XCTAssertEqual(hits(beat).filter { $0.move == "beat-up" && $0.time == first.time }.count, 3)
+    }
+
+    /// Fake Out and First Impression work on the first cast only; Sucker Punch only against a foe about to attack;
+    /// Focus Punch fails when hit while it gathers; Last Resort waits for every other move to be used.
+    func testMovesThatNeedTheirMoment() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let fake = battle([try mon("cat", 53, moves: ["fake-out", "slash"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertEqual(castWindows(fake, "cat", "fake-out").map(\.start), [0])
+        let calm = battle([try mon("absol", 359, moves: ["sucker-punch", "night-slash"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertFalse(hits(calm).contains { $0.move == "sucker-punch" }, "Snorlax never attacks")
+        let angry = battle([try mon("absol", 359, moves: ["sucker-punch", "night-slash"])], [try mon("lax", 143, moves: ["giga-impact"])])
+        XCTAssertTrue(hits(angry).contains { $0.move == "sucker-punch" })
+        let focus = battle([try mon("champ", 68, moves: ["focus-punch"])], [try mon("jolt", 135, level: 60, moves: ["quick-attack"])])
+        XCTAssertGreaterThan(fails(focus, "champ", "focus-punch"), 0)
+        let resort = battle([try mon("eevee", 133, moves: ["last-resort", "tackle", "growl"])], [try mon("bliss", 242, moves: fillers)])
+        let first = try XCTUnwrap(castWindows(resort, "eevee", "last-resort").first)
+        XCTAssertFalse(castWindows(resort, "eevee", "tackle").isEmpty)
+        XCTAssertTrue(castWindows(resort, "eevee", "tackle").contains { $0.start < first.start })
+        XCTAssertTrue(castWindows(resort, "eevee", "growl").contains { $0.start < first.start })
+    }
+
+    /// Smack Down grounds a flying target: Earthquake reaches it after.
+    func testSmackDownGrounds() throws {
+        let outcome = battle([try mon("tyranitar", 248, level: 50, moves: ["smack-down", "earthquake"])],
+                             [try mon("skarm", 227, moves: ["rain-dance", "sunny-day"])])
+        let grounded = try XCTUnwrap(volatileAt(outcome, "skarm", "smack-down"))
+        XCTAssertTrue(hits(outcome).contains { $0.move == "earthquake" && $0.time > grounded })
+    }
 }
