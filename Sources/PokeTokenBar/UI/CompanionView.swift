@@ -615,18 +615,18 @@ struct EvoLineView: View {
                                 Group {
                                     if item.isCollected {
                                         // Faded when it is a coming evolution (Home); a Pokédex page's family is caught.
-                                        SpriteView(speciesID: item.speciesID, size: thumb, shiny: shiny, form: item.form ?? form,
+                                        SpriteView(speciesID: item.speciesID, size: thumb, shiny: shiny, form: form,
                                                    sameScale: true, bottomAligned: bottomAligned)
                                             .opacity(node.state == .future ? 0.4 : 1)
                                             .saturation(node.state == .future ? 0.6 : 1)
                                     } else {
                                         // Silhouette noire (ombre) pour les évolutions non encore obtenues
-                                        SpriteView(speciesID: item.speciesID, size: thumb, shiny: false, form: item.form ?? form,
+                                        SpriteView(speciesID: item.speciesID, size: thumb, shiny: false, form: form,
                                                    isSilhouette: true, sameScale: true, bottomAligned: bottomAligned)
                                     }
                                 }
                                 if let names {
-                                    Text(item.isCollected ? PokemonForm.displayName(names[item.speciesID] ?? "…", speciesID: item.speciesID, form: item.form ?? form, label: nil) : "???")
+                                    Text(item.isCollected ? PokemonForm.displayName(names[item.speciesID] ?? "…", speciesID: item.speciesID, form: form, label: nil) : "???")
                                         .font(.system(size: nameFontSize))
                                         .foregroundStyle(item.isCollected ? .secondary : .tertiary)
                                         .lineLimit(nameLineLimit)
@@ -821,7 +821,7 @@ struct EvolutionTrackView: View {
 
     private func candidate(_ item: BranchEvolutionItem, size: CGFloat) -> some View {
         SpriteView(speciesID: item.speciesID, size: size, shiny: item.isCollected && shiny,
-                   form: item.form ?? form, isSilhouette: !item.isCollected)
+                   form: form, isSilhouette: !item.isCollected)
             .opacity(item.isCollected ? 0.8 : 0.55)
             .frame(width: size, height: size)
             .modifier(DexEntryLink(target: item.isCollected ? dexLinks[item.speciesID] : nil, hint: l.dexOpenEntryHint,
@@ -998,7 +998,7 @@ struct CompanionHeader: View {
     private var growthBadge: some View {
         let total = store.currentGrowthTotal
         if total > 1.0001 {
-            let isRepeat = store.state.active?.hasGrowthBoost == true
+            let isRepeat = store.activeIsRepeat
             let badge = Badge(isRepeat ? store.l.repeatGrowthBoost(total) : store.l.growthBoost(total),
                               tint: isRepeat ? .orange : .blue, style: .tinted).fixedSize()
             let breakdown = store.currentGrowthFactors.map(store.growthFactorLine).joined(separator: " · ")

@@ -80,7 +80,7 @@ struct BonusScreen: View {
         let factors = store.currentGrowthFactors
         let total = store.currentGrowthTotal
         // Orange for a repeat, blue for bonuses alone, as on Home.
-        let tint: Color = store.state.active?.hasGrowthBoost == true ? .orange : .blue
+        let tint: Color = store.activeIsRepeat ? .orange : .blue
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 // The name needs the loaded line; until then the section keeps its generic title.
