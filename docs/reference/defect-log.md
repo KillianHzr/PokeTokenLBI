@@ -1789,6 +1789,14 @@ read_when:
 - **The evolution track shows what this individual can reach.** A form is rolled with the species, but the track offered every
   form of a coming stage: a silhouette of an Alolan Marowak above a Kanto Cubone that Home called a duplicate. Screens that
   judge an individual and screens that preview its future must read the same `form`.
+- **A luck criterion is judged only where its outcome could be seen.** A hidden Ditto shows at its first evolution, but the
+  replay counted Ditto odds for every hatch, Pokémon sent off or still raised before it included: their chance stayed in the
+  expectation while a hit was impossible, and no test released a Pokémon on this criterion. `HatchLuckSimulationTests` now plays
+  groups of players who send off what brings them nothing. It compares hits with expectation, because a percentile that splits
+  ties averages close to 50% and hides such a drift.
+- **A hit and its odds read the same predicate, and a better result never lowers a score.** "Exactly this rarity" made a
+  Legendary a miss for Rare. Both now count that rarity or better. A draw at odds of one is no luck either: it leaves the counts,
+  and a miss at those odds, possible when a date only approximates an item, no longer sinks the percentile.
 
 ## 에너지 (상시 표시 애니메이션)
 

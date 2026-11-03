@@ -66,6 +66,32 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-04", entries: [
+            .fixed("2026-11-04-luck-ditto", { $0.t("부화 운: 첫 진화 전에 떠나보냈거나 아직 키우는 포켓몬은 메타몽 항목에 세지 않아요. 메타몽인지 드러날 수 없었으니까요.",
+                                                   "Hatch luck: a Pokémon sent off or still raised before its first evolution no longer counts for Ditto, since nothing could have shown one.",
+                                                   "孵化の運: 最初の進化の前に手放した、またはまだ育てているポケモンはメタモンの項目に数えません。メタモンだと分かることがなかったからです。",
+                                                   "Suerte al eclosionar: un Pokémon liberado o aún en crianza antes de su primera evolución ya no cuenta para Ditto, porque nada podía revelarlo.",
+                                                   "Chance au tirage : un Pokémon relâché ou encore en cours avant sa première évolution ne compte plus pour Métamorph, rien n'ayant pu le révéler.",
+                                                   "Sorte nas eclosões: um Pokémon solto ou ainda em criação antes da primeira evolução não conta mais para Ditto, pois nada poderia revelá-lo.",
+                                                   "Schlüpfglück: Ein Pokémon, das vor seiner ersten Entwicklung freigelassen wurde oder noch aufwächst, zählt nicht mehr für Ditto, weil es sich nicht zeigen konnte.",
+                                                   "Удача при вылуплении: покемон, отпущенный или ещё растущий до первой эволюции, больше не считается для Дитто, ведь ничто не могло его раскрыть.") }),
+            .improved("2026-11-04-luck-or-better", { $0.t("부화 운: 항목이 \"고급 이상\", \"희귀 이상\"으로 바뀌었어요. 더 희귀한 포켓몬이 항목을 낮추지 않아요.",
+                                                          "Hatch luck: the criteria are now \"Uncommon or better\" and \"Rare or better\", so a rarer Pokémon no longer lowers one.",
+                                                          "孵化の運: 項目が「アンコモン以上」「レア以上」になりました。よりレアなポケモンで項目が下がることはありません。",
+                                                          "Suerte al eclosionar: los criterios ahora son \"Poco comunes o más\" y \"Raros o más\", así que un Pokémon más raro ya no baja ninguno.",
+                                                          "Chance au tirage : les critères deviennent \"Peu communs ou mieux\" et \"Rares ou mieux\", un Pokémon plus rare n'en fait plus baisser aucun.",
+                                                          "Sorte nas eclosões: os critérios agora são \"Incomuns ou melhor\" e \"Raros ou melhor\", então um Pokémon mais raro não baixa mais nenhum.",
+                                                          "Schlüpfglück: Die Kriterien heißen jetzt \"Ungewöhnliche oder besser\" und \"Seltene oder besser\", ein selteneres Pokémon senkt keines mehr.",
+                                                          "Удача при вылуплении: теперь критерии \"Необычные и выше\" и \"Редкие и выше\", так что более редкий покемон их больше не снижает.") }),
+            .improved("2026-11-04-luck-guaranteed", { $0.t("부화 운: 확정된 결과는 이제 숫자에 세지 않아요.",
+                                                           "Hatch luck: a guaranteed draw no longer counts in the numbers.",
+                                                           "孵化の運: 確定した結果は数に入らなくなりました。",
+                                                           "Suerte al eclosionar: un resultado garantizado ya no cuenta en las cifras.",
+                                                           "Chance au tirage : un tirage garanti ne compte plus dans les nombres.",
+                                                           "Sorte nas eclosões: um resultado garantido não conta mais nos números.",
+                                                           "Schlüpfglück: Ein garantiertes Ergebnis zählt nicht mehr in den Zahlen.",
+                                                           "Удача при вылуплении: гарантированный результат больше не входит в подсчёт.") }),
+        ]),
         ChangelogDay(date: "2026-11-03", entries: [
             .fixed("2026-11-03-oak-one-way", { $0.t("오박사가 이제 분기 계열을 제대로 세요. 한 마리는 한 갈래만 가므로 종 수를 \"최대\"로 말해 줘요.",
                                                   "Prof. Oak now counts a branching line right: one Pokémon takes one branch, so he says \"up to\" that many species.",

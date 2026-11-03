@@ -93,6 +93,7 @@ final class LuckTextTests: XCTestCase {
     /// The shiny criterion uses the app's own word in each language.
     func testShinyIsTheAppsWord() {
         XCTAssertEqual(fr.luckCriterion(.shiny), "Chromatiques")
+        XCTAssertEqual(fr.luckCriterion(.rare), "Rares ou mieux")
         for language in AppLanguage.allCases {
             XCTAssertEqual(L(language).luckCriterion(.shiny), L(language).bonusThemeTitle(.shiny), "\(language)")
         }

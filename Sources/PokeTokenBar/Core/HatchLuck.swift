@@ -183,6 +183,8 @@ struct HatchLuck: Sendable {
 
     struct EggOdds {
         var share: [Rarity: Double] = [:]
+        /// Of that rarity or better.
+        var atLeast: [Rarity: Double] = [:]
         var line = 0.0
         var new = 0.0
         var ditto = 0.0
@@ -199,6 +201,9 @@ struct HatchLuck: Sendable {
             let w = outcome.weight
             odds.total += w
             odds.share[outcome.rarity, default: 0] += w
+            for floor in [Rarity.uncommon, .rare, .legendary] where outcome.rarity.sortRank >= floor.sortRank {
+                odds.atLeast[floor, default: 0] += w
+            }
             if outcome.id == base { odds.line += w }
             if bringsNew(outcome.id, outcome.form) { odds.new += w }
             odds.shiny += w * (outcome.alwaysShiny ? 1 : shiny)
@@ -210,6 +215,7 @@ struct HatchLuck: Sendable {
         }
         guard odds.total > 0 else { return odds }
         for key in odds.share.keys { odds.share[key]! /= odds.total }
+        for key in odds.atLeast.keys { odds.atLeast[key]! /= odds.total }
         odds.line /= odds.total
         odds.new /= odds.total
         odds.ditto /= odds.total
@@ -266,15 +272,17 @@ struct HatchLuck: Sendable {
         let rarityOdds = range { isDitto ? $0.ditto : $0.share[rarity] ?? 0 }
         var judged: [Criterion: Judgement] = [:]
         if known != nil, let o = all.first {
-            for (criterion, r) in [(Criterion.uncommon, Rarity.uncommon), (.rare, .rare), (.legendary, .legendary)] {
-                judged[criterion] = Judgement(odds: o.share[r] ?? 0, hit: !isDitto && rarity == r)
+            for (criterion, floor) in [(Criterion.uncommon, Rarity.uncommon), (.rare, .rare), (.legendary, .legendary)] {
+                judged[criterion] = Judgement(odds: o.atLeast[floor] ?? 0, hit: !isDitto && rarity.sortRank >= floor.sortRank)
             }
             judged[.shiny] = Judgement(odds: o.shiny, hit: entry.isShiny)
-            judged[.ditto] = Judgement(odds: o.ditto, hit: isDitto)
+            let couldShowADitto = isDitto || entry.chainOrder.count >= 2 || !(entry.isReleased || isActive)
+            if couldShowADitto { judged[.ditto] = Judgement(odds: o.ditto, hit: isDitto) }
             if !isDitto { judged[.new] = Judgement(odds: o.new, hit: new) }
         } else {
             judged[.shiny] = Judgement(odds: hatch.shinyChance, hit: entry.isShiny)
         }
+        judged = judged.filter { $0.value.odds < 1 }
         return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, rarity: rarity, egg: known,
                      eggChosenByPlayer: source == .player && known != nil && !slot.isSure,
                      eggDeduced: source == .deduced && known != nil && !slot.isSure,
