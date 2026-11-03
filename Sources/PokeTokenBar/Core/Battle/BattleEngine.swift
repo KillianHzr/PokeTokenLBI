@@ -39,11 +39,27 @@ struct BattleSimulation {
         var loafing = false
         var ateBerry = false
         var slowStartUntil = 0
+        /// The last physical and special hits it took from a foe, a multi-hit move summed: what Counter, Mirror Coat,
+        /// Metal Burst and Comeuppance send back.
+        var lastPhysicalHit: ReceivedHit?
+        var lastSpecialHit: ReceivedHit?
+        /// What Bide stores during its cast, and the foe that hit last.
+        var bideTaken = 0
+        var bideAttacker: Int?
+        /// The damage the reactive move being used sends back.
+        var answering: Int?
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
         var ability: String { spec.ability ?? "" }
         func stage(_ stat: BattleStat) -> Int { stages[stat] ?? 0 }
+    }
+
+    struct ReceivedHit {
+        let time: Int
+        var amount: Int
+        let attacker: Int
+        let move: String
     }
 
     private let setup: BattleSetup
@@ -305,16 +321,25 @@ struct BattleSimulation {
         let slug = chosen ?? "struggle"
         let move = MoveTable.move(slug)
         let target = move.flatMap { pickTarget(for: $0, by: index) }
-        let base = move?.castBase ?? 1200
-        var duration = Double(base) * 300 / (100 + Double(effectiveSpeed(index))) / Double(BattleRules.speedUp)
-        if slug == "solar-beam" || slug == "solar-blade", weather == .sun {
-            duration -= 2000 * 300 / (100 + Double(effectiveSpeed(index))) / Double(BattleRules.speedUp)
+        if slug == "bide" {
+            battlers[index].bideTaken = 0
+            battlers[index].bideAttacker = nil
         }
         battlers[index].castMove = slug
         battlers[index].castTarget = target
-        battlers[index].castEnds = now + max(100, Int(duration.rounded()))
+        battlers[index].castEnds = now + castDuration(slug, by: index)
         log(.cast(battler: battlers[index].spec.id, move: slug, target: target.map { battlers[$0].spec.id },
                   ends: battlers[index].castEnds))
+    }
+
+    /// How long a cast of `slug` lasts from now: its base by the caster's speed, a third (R1). Bide waits two turns
+    /// whatever its speed; Solar Beam in the sun skips its charge.
+    private func castDuration(_ slug: String, by index: Int) -> Int {
+        if slug == "bide" { return 2 * BattleRules.turn }
+        let scale = 300 / (100 + Double(effectiveSpeed(index))) / Double(BattleRules.speedUp)
+        var duration = Double(MoveTable.move(slug)?.castBase ?? 1200) * scale
+        if slug == "solar-beam" || slug == "solar-blade", weather == .sun { duration -= 2000 * scale }
+        return max(100, Int(duration.rounded()))
     }
 
     private mutating func completeCast(_ index: Int) {
@@ -375,6 +400,7 @@ struct BattleSimulation {
              "burning-bulwark":
             return !foes.isEmpty
         case "destiny-bond": return !foes.isEmpty
+        case "pain-split": return pickTarget(for: move, by: index).map { battlers[$0].hp > b.hp } ?? false
         case "wish": return b.hp < b.maxHP && !wishes.contains { $0.side == b.side && $0.slot == b.slot }
         case "rest": return b.hp < b.maxHP && b.ability != "insomnia" && b.ability != "vital-spirit"
         case "belly-drum": return b.hp * 2 > b.maxHP && b.stage(.attack) < 6
@@ -455,6 +481,9 @@ struct BattleSimulation {
             hurt(index, battlers[index].maxHP / 2, .belly)
             if !battlers[index].isFainted { changeStage(index, .attack, by: 12, fromFoe: false) }
             return
+        case "pain-split":
+            painSplit(move, by: index)
+            return
         default:
             break
         }
@@ -463,7 +492,19 @@ struct BattleSimulation {
             return
         }
         let targets: [Int]
-        if move.hitsAllOpponents {
+        if Self.reactiveMoves[move.slug] != nil {
+            // Counter and its kin answer the foe that hit last, whoever stands in front; nothing taken, nothing sent.
+            guard let answer = reactiveStrike(move, by: index) else {
+                log(.fail(battler: id, move: move.slug, reason: .failed))
+                return
+            }
+            // A hit is answered once, whether the answer lands or not; Bide answers every hit it stored.
+            if answer.physical != false { battlers[index].lastPhysicalHit = nil }
+            if answer.physical != true { battlers[index].lastSpecialHit = nil }
+            if answer.physical == nil { battlers[index].bideTaken = 0 }
+            battlers[index].answering = answer.damage
+            targets = [answer.target]
+        } else if move.hitsAllOpponents {
             targets = foes(of: index)
         } else if let target = battlers[index].castTarget, !battlers[target].isFainted, battlers[target].slot != nil {
             targets = [target]
@@ -473,12 +514,18 @@ struct BattleSimulation {
             log(.fail(battler: id, move: move.slug, reason: .noTarget))
             return
         }
+        if move.slug == "endeavor", let target = targets.first, battlers[target].hp <= battlers[index].hp {
+            log(.fail(battler: id, move: move.slug, reason: .failed))
+            return
+        }
         let spread = targets.count > 1
         var dealtTotal = 0
         for target in targets where !battlers[target].isFainted && !battlers[index].isFainted {
             dealtTotal += strike(move, by: index, on: target, spread: spread)
         }
-        if ["explosion", "self-destruct", "misty-explosion"].contains(move.slug) {
+        battlers[index].answering = nil
+        if ["explosion", "self-destruct", "misty-explosion"].contains(move.slug)
+            || move.slug == "final-gambit" && dealtTotal > 0 {
             hurt(index, battlers[index].hp, .recoil)
             return
         }
@@ -611,6 +658,26 @@ struct BattleSimulation {
             return [target]
         }
         return pickTarget(for: move, by: index).map { [$0] } ?? []
+    }
+
+    /// Pain Split shares the user's and the target's HP evenly; a boss loses at most an eighth of its HP to it, the user
+    /// still gets the average.
+    private mutating func painSplit(_ move: BattleMove, by index: Int) {
+        let id = battlers[index].spec.id
+        guard let target = statusTargets(move, by: index).first else {
+            log(.fail(battler: id, move: move.slug, reason: .noTarget))
+            return
+        }
+        if battlers[target].protectedUntil > now {
+            log(.fail(battler: id, move: move.slug, reason: .protected))
+            return
+        }
+        let mine = battlers[index].hp, theirs = battlers[target].hp
+        let average = (mine + theirs) / 2
+        var loss = theirs - average
+        if battlers[target].spec.isBoss { loss = min(loss, battlers[target].maxHP / 8) }
+        if loss > 0 { hurt(target, loss, .painSplit) } else { heal(target, -loss, .painSplit) }
+        if average > mine { heal(index, average - mine, .painSplit) } else { hurt(index, mine - average, .painSplit) }
     }
 
     /// Moonlight, Synthesis and Morning Sun heal two thirds in the sun and a quarter in other weather.
@@ -916,9 +983,43 @@ struct BattleSimulation {
             // A boss loses at most an eighth of its HP to these, or they would halve any boss twice.
             let half = max(1, d.hp / 2)
             return d.spec.isBoss ? min(half, d.maxHP / 8) : half
-        case "final-gambit": return a.hp
-        default: return nil
+        case "final-gambit":
+            // A boss takes at most a quarter of its HP from the user's sacrifice.
+            return d.spec.isBoss ? min(a.hp, d.maxHP / 4) : a.hp
+        case "endeavor":
+            // The target's HP fall to the user's (`use` fails it otherwise); a boss loses at most an eighth.
+            let gap = max(1, d.hp - a.hp)
+            return d.spec.isBoss ? min(gap, d.maxHP / 8) : gap
+        default:
+            return Self.reactiveMoves[move.slug] != nil ? a.answering ?? 1 : nil
         }
+    }
+
+    /// Counter and its kin: the foe that dealt the hit they answer, what they send back, and whether that hit was
+    /// physical (nil for Bide's store). Counter (physical), Mirror Coat (special), Metal Burst and Comeuppance (either)
+    /// answer a hit taken within the last turn and not answered yet; Bide what it stored during its two turns. A boss
+    /// takes at most a quarter of its HP from one.
+    private func reactiveStrike(_ move: BattleMove, by index: Int) -> (target: Int, damage: Int, physical: Bool?)? {
+        guard let factor = Self.reactiveMoves[move.slug] else { return nil }
+        let b = battlers[index]
+        let answered: (attacker: Int, amount: Int, physical: Bool?)?
+        if move.slug == "bide" {
+            answered = b.bideAttacker.flatMap { b.bideTaken > 0 ? ($0, b.bideTaken, nil) : nil }
+        } else {
+            let hits: [(hit: ReceivedHit?, physical: Bool)] = switch move.slug {
+            case "counter": [(b.lastPhysicalHit, true)]
+            case "mirror-coat": [(b.lastSpecialHit, false)]
+            default: [(b.lastPhysicalHit, true), (b.lastSpecialHit, false)]
+            }
+            answered = hits.compactMap { pair in pair.hit.map { ($0, pair.physical) } }
+                .filter { now - $0.0.time <= BattleRules.turn }
+                .max { $0.0.time < $1.0.time }.map { ($0.0.attacker, $0.0.amount, $0.1) }
+        }
+        guard let answered, !battlers[answered.attacker].isFainted, battlers[answered.attacker].slot != nil,
+              battlers[answered.attacker].side != b.side else { return nil }
+        let d = battlers[answered.attacker]
+        let damage = max(1, Int(Double(answered.amount) * factor))
+        return (answered.attacker, d.spec.isBoss ? min(damage, d.maxHP / 4) : damage, answered.physical)
     }
 
     private func confusionDamage(_ index: Int) -> Int {
@@ -939,6 +1040,7 @@ struct BattleSimulation {
             log(.ability(battler: battlers[target].spec.id, ability: "sturdy"))
         }
         battlers[target].hp -= amount
+        if amount > 0, battlers[index].side != battlers[target].side { remember(amount, on: target, by: index, move: move) }
         log(.hit(attacker: battlers[index].spec.id, target: battlers[target].spec.id, move: move.slug, damage: amount,
                  hp: battlers[target].hp, effectiveness: effectiveness, critical: critical))
         if battlers[target].isFainted {
@@ -947,6 +1049,22 @@ struct BattleSimulation {
             afterHit(target, by: index, move: move)
             eatBerryIfLow(target)
         }
+    }
+
+    /// Keeps the hit for the moves that answer one: the hits of one multi-hit move add up.
+    private mutating func remember(_ amount: Int, on target: Int, by index: Int, move: BattleMove) {
+        if battlers[target].castMove == "bide" {
+            battlers[target].bideTaken += amount
+            battlers[target].bideAttacker = index
+        }
+        let physical = move.moveClass == .physical
+        var hit = physical ? battlers[target].lastPhysicalHit : battlers[target].lastSpecialHit
+        if let previous = hit, previous.time == now, previous.attacker == index, previous.move == move.slug {
+            hit?.amount += amount
+        } else {
+            hit = ReceivedHit(time: now, amount: amount, attacker: index, move: move.slug)
+        }
+        if physical { battlers[target].lastPhysicalHit = hit } else { battlers[target].lastSpecialHit = hit }
     }
 
     private mutating func afterHit(_ target: Int, by index: Int, move: BattleMove) {
@@ -994,9 +1112,7 @@ struct BattleSimulation {
         }
         if move.flinchChance > 0, random.chance(serene(index, move.flinchChance)),
            battlers[target].ability != "inner-focus", let slug = battlers[target].castMove {
-            let base = MoveTable.move(slug)?.castBase ?? 1200
-            let duration = Double(base) * 300 / (100 + Double(effectiveSpeed(target))) / Double(BattleRules.speedUp)
-            battlers[target].castEnds = now + max(100, Int(duration.rounded()))
+            battlers[target].castEnds = now + castDuration(slug, by: target)
             log(.flinch(battler: battlers[target].spec.id))
             if battlers[target].ability == "steadfast" { changeStage(target, .speed, by: 1, fromFoe: false) }
         }
@@ -1275,6 +1391,9 @@ struct BattleSimulation {
         "electric-terrain": .electric, "grassy-terrain": .grassy, "misty-terrain": .misty, "psychic-terrain": .psychic,
     ]
     static let ohkoMoves: Set<String> = ["fissure", "guillotine", "horn-drill", "sheer-cold"]
+    /// The moves that send back the damage taken, and by how much.
+    static let reactiveMoves: [String: Double] = ["counter": 2, "mirror-coat": 2, "bide": 2, "metal-burst": 1.5,
+                                                  "comeuppance": 1.5]
 
     /// What a status move does, as the engine reads it: a move PokéAPI files as unique but that only changes stats
     /// (Shell Smash) counts as a stat move.
@@ -1285,6 +1404,6 @@ struct BattleSimulation {
 
     /// The moves the engine plays, the others doing nothing here: the Pokémon sheet says so (`BattleMove.hasEffect`).
     static let handledStatusMoves = Set(["protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker",
-        "obstruct", "silk-trap", "burning-bulwark", "destiny-bond", "wish", "rest", "belly-drum"])
+        "obstruct", "silk-trap", "burning-bulwark", "destiny-bond", "wish", "rest", "belly-drum", "pain-split"])
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

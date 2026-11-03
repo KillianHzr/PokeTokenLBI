@@ -5,6 +5,8 @@ enum BattleRules {
     static let version = 1
     /// Every cast lasts a third of its time (R1: battles three times faster).
     static let speedUp = 3
+    /// One turn of the games in battle time (the owner, 2026-11-03): Bide waits two, Counter answers a hit of the last one.
+    static let turn = 4000
     /// Burn, poison, weather, traps and Leech Seed act every four seconds.
     static let residualTick = 4000
     /// A frozen Pokémon may thaw every two seconds, one time in five.
@@ -78,7 +80,8 @@ struct BattlerSpec: Codable, Sendable, Equatable {
     /// The loop, one to four moves, cast in order then again.
     var moves: [String]
     var isShiny = false
-    /// A boss never falls to a one-hit knock-out move.
+    /// A boss never falls to a one-hit knock-out move, and loses only a share of its HP to the moves that do not
+    /// read the damage formula (the owner, 2026-11-03: "on doit jamais pouvoir one shot des boss").
     var isBoss = false
 }
 
@@ -118,12 +121,12 @@ enum BattleTerrain: String, Codable, Sendable {
 
 /// Why a Pokémon lost HP outside a hit.
 enum BattleHurtCause: String, Codable, Sendable {
-    case burn, poison, weather, recoil, trap, leechSeed, confusion, ability, belly, destinyBond, sun
+    case burn, poison, weather, recoil, trap, leechSeed, confusion, ability, belly, destinyBond, sun, painSplit
 }
 
 /// Why a Pokémon regained HP.
 enum BattleHealCause: String, Codable, Sendable {
-    case move, drain, berry, ability, weather, leechSeed, wish, terrain
+    case move, drain, berry, ability, weather, leechSeed, wish, terrain, painSplit
 }
 
 /// Why a cast did nothing.
