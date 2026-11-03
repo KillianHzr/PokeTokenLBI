@@ -185,7 +185,11 @@ private struct ChallengeCard: View {
         let l = store.l
         let dungeon = DungeonCatalog.dungeon(id)
         let unmet = store.unmetUnlocks(id)
-        let boss = store.challengeBoss(id)
+        // A run under way keeps its own boss past midnight (or the week's turn): the card shows it, not the next one.
+        let running = store.expedition.flatMap { e in
+            e.dungeon == id ? BattleForms.form(speciesID: e.boss.speciesID, form: e.boss.form) : nil
+        }
+        let boss = running ?? store.challengeBoss(id)
         let tried = store.challengeTried(id)
         let details = [l.dungeonFloors(dungeon.floors),
                        l.dungeonCost(TokenFormatter.compact(dungeon.cost(difficulty: store.growthDifficulty))),
@@ -213,7 +217,9 @@ private struct ChallengeCard: View {
             }
             Spacer(minLength: 0)
             Group {
-                if let unlock = unmet.first {
+                if running != nil {
+                    Label(l.challengeUnderway, systemImage: "figure.walk")
+                } else if let unlock = unmet.first {
                     Label(l.dungeonUnlock(unlock), systemImage: "lock.fill")
                 } else if boss == nil {
                     Label(l.challengeAllWonShort, systemImage: "checkmark.seal.fill")

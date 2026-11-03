@@ -879,4 +879,8 @@ extension L {
     var challengeAllWonShort: String {
         t("모두 획득", "All won", "すべて入手", "Todo ganado", "Tout gagné", "Tudo ganho", "Alle gewonnen", "Всё получено")
     }
+
+    var challengeUnderway: String {
+        t("진행 중", "Under way", "探検中", "En curso", "En cours", "Em andamento", "Läuft", "Идёт")
+    }
 }

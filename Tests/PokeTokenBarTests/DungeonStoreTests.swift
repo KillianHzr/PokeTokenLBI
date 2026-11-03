@@ -566,4 +566,61 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertNotNil(s.expedition, "still at the throws")
         XCTAssertEqual(s.itemCount(.escapeRope), 1, "no rope spent")
     }
+
+    // MARK: Past midnight and the week's turn (the owner, 2026-11-03)
+
+    private final class Clock: @unchecked Sendable { var date: Date; init(_ date: Date) { self.date = date } }
+
+    private func store(dex: [DexEntry], clock: Clock, prepare: (inout CompanionState) -> Void) throws -> CompanionStore {
+        var st = CompanionState()
+        st.installBaselineSet = true
+        st.lastDate = "d"
+        st.claimedTodayTokensByProvider = ["test": 0]
+        st.dex = dex
+        st.active = MonState(baseID: 16, pathIDs: [16, 17, 18], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 3)
+        prepare(&st)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dungeon-clock-\(UUID().uuidString).json")
+        try JSONEncoder().encode(st).write(to: url)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return CompanionStore(provider: StubProvider(value: EvoLine(baseID: 16, tree: EvoNode(speciesID: 16, children: []),
+                                                                    rarity: .common, names: [:])),
+                              clock: { clock.date }, fileURL: url, rng: SeededRNG(seed: 3), difficulty: 0.1)
+    }
+
+    /// A challenge set off before midnight (or before the week turns) goes on unchanged: its boss, its floors and the
+    /// form it gives are the departure's, whatever the day's draw has become; the next try is the new period's.
+    func testAChallengeGoesOnPastMidnightAndTheWeeksTurn() throws {
+        let calendar = Calendar(identifier: .iso8601)
+        // Sunday 23:50, local time: the day and the ISO week both turn at the next midnight.
+        var parts = DateComponents(year: 2026, month: 11, day: 8, hour: 23, minute: 50)
+        parts.timeZone = .current
+        let clock = Clock(try XCTUnwrap(calendar.date(from: parts)))
+        let team = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        for id in [DungeonID.daily, .weekly] {
+            let s = try store(dex: team, clock: clock) {
+                $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1
+                $0.dungeons.wins[DungeonID.seafoamIslands.rawValue] = 1
+            }
+            clock.date = try XCTUnwrap(calendar.date(from: parts))
+            let boss = try XCTUnwrap(s.challengeBoss(id))
+            let period = s.challengePeriod(id)
+            XCTAssertTrue(s.startExpedition(id, team: team.map(\.id)), id.rawValue)
+            let floors = try XCTUnwrap(s.expedition?.floors)
+            // Past midnight, into Monday: a new day, a new ISO week.
+            clock.date = clock.date.addingTimeInterval(20 * 60)
+            XCTAssertNotEqual(s.challengePeriod(id), period, "\(id.rawValue): the period turned")
+            XCTAssertEqual(s.expedition?.boss.form, boss.form, "\(id.rawValue): the same boss")
+            XCTAssertEqual(s.expedition?.floors, floors)
+            XCTAssertFalse(s.canEnter(id), "\(id.rawValue): one run at a time")
+            // The run ends the next day, won: the form is the departure's boss.
+            s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
+            s.endCapture()
+            XCTAssertEqual(s.dungeonProgress.lastResult?.battleForm, boss.key, id.rawValue)
+            XCTAssertTrue(s.dungeonProgress.battleForms.contains(boss.key))
+            // The new period's try is untouched; its boss is another form, the one won is out of the draw.
+            XCTAssertFalse(s.challengeTried(id), "\(id.rawValue): the new period's try is still there")
+            XCTAssertTrue(s.canEnter(id))
+            XCTAssertNotEqual(s.challengeBoss(id), boss)
+        }
+    }
 }
