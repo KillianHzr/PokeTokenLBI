@@ -80,8 +80,9 @@ enum BirthdayGift {
     /// What a Birthday Egg can hatch, among the index's legendary and mythical lines: the mythical lines not graduated
     /// yet, else the legendary ones, every missing line as likely; once all of them graduated, any of them by its
     /// hatch weight, shiny.
-    static func pool(_ index: [BaseSpecies], graduated: Set<Int>) -> (lines: [BaseSpecies], byWeight: Bool) {
-        let legends = index.filter { $0.isLegendary && !PokemonOdds.dungeonOnly.contains($0.id) }
+    static func pool(_ index: [BaseSpecies], graduated: Set<Int>,
+                     without excluded: Set<Int> = PokemonOdds.dungeonOnly) -> (lines: [BaseSpecies], byWeight: Bool) {
+        let legends = index.filter { $0.isLegendary && !excluded.contains($0.id) }
         let missing = legends.filter { !graduated.contains($0.id) }
         let mythicals = missing.filter { SpeciesGoal.mythicals.contains($0.id) }
         if !mythicals.isEmpty { return (mythicals, false) }

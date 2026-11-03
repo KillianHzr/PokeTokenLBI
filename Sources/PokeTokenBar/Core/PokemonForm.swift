@@ -476,9 +476,10 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
     static func hasForms(speciesID: Int) -> Bool { catalog[speciesID] != nil }
 
     /// Species of the line that change appearance with the individual's form, in line order.
-    static func formSpecies(baseID: Int) -> [Int] {
-        catalog.keys.filter { (lineBaseIDs[$0] ?? $0) == baseID }.sorted()
-    }
+    static func formSpecies(baseID: Int) -> [Int] { formSpeciesByLine[baseID] ?? [] }
+
+    private static let formSpeciesByLine: [Int: [Int]] =
+        Dictionary(grouping: catalog.keys) { lineBaseIDs[$0] ?? $0 }.mapValues { $0.sorted() }
 
     /// Lines whose species name their forms differently: one rolled form sets each species' own form, as in
     /// the games (a counterfeit Poltchageist becomes an unremarkable Sinistcha, only a white-striped Basculin

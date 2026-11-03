@@ -421,17 +421,17 @@ final class CollectorItemsTests: XCTestCase {
                       BaseSpecies(id: 19, captureRate: 255), BaseSpecies(id: 489, captureRate: 30)]
         let plain = store()
         let flute = store(inventory: [ItemKind.legendCharm.rawValue: 1])
-        XCTAssertEqual(flute.hatchWeight(for: mewtwo), plain.hatchWeight(for: mewtwo) * LegendCharm.weightMultiplier)
-        XCTAssertEqual(plain.hatchWeight(for: mew), PokemonOdds.hatchWeight(.legendary))
-        XCTAssertEqual(flute.hatchWeight(for: mew), plain.hatchWeight(for: mew) * LegendCharm.weightMultiplier,
+        XCTAssertEqual(flute.hatchDraw.hatchWeight(for: mewtwo), plain.hatchDraw.hatchWeight(for: mewtwo) * LegendCharm.weightMultiplier)
+        XCTAssertEqual(plain.hatchDraw.hatchWeight(for: mew), PokemonOdds.hatchWeight(.legendary))
+        XCTAssertEqual(flute.hatchDraw.hatchWeight(for: mew), plain.hatchDraw.hatchWeight(for: mew) * LegendCharm.weightMultiplier,
                        "Mew rolls like Mewtwo, so the flute boosts it")
         let passives = ItemKind.allCases.filter { $0.isPassive && $0 != .legendCharm }
         let everything = store(inventory: Dictionary(uniqueKeysWithValues: passives.map { ($0.rawValue, 1) }))
         for e in others + [mewtwo, mew] {
-            XCTAssertEqual(everything.hatchWeight(for: e), plain.hatchWeight(for: e), "#\(e.id)")
+            XCTAssertEqual(everything.hatchDraw.hatchWeight(for: e), plain.hatchDraw.hatchWeight(for: e), "#\(e.id)")
         }
         for e in others + [beldum] {
-            XCTAssertEqual(flute.hatchWeight(for: e), plain.hatchWeight(for: e), "#\(e.id)")
+            XCTAssertEqual(flute.hatchDraw.hatchWeight(for: e), plain.hatchDraw.hatchWeight(for: e), "#\(e.id)")
         }
     }
 
