@@ -48,6 +48,13 @@ struct BattleFrame: Equatable, Sendable {
             switch timed.event {
             case .enter(_, _, let id):
                 if let i = index[id] { units[i].onField = true }
+            case .leave(let id):
+                if let i = index[id] {
+                    units[i].onField = false
+                    units[i].castMove = nil
+                    units[i].speciesID = setup.sides[units[i].side].battlers.first { $0.id == id }?.speciesID ?? units[i].speciesID
+                    units[i].form = setup.sides[units[i].side].battlers.first { $0.id == id }?.form
+                }
             case .cast(let id, let move, _, let ends):
                 if let i = index[id] {
                     units[i].castMove = move

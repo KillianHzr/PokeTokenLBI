@@ -149,6 +149,8 @@ enum BattleFailReason: String, Codable, Sendable {
 /// their time.
 enum BattleEvent: Codable, Sendable, Equatable {
     case enter(side: Int, slot: Int, battler: String)
+    /// U-turn, Baton Pass, Roar... took the battler off the field, back to its bench.
+    case leave(battler: String)
     case cast(battler: String, move: String, target: String?, ends: Int)
     case hit(attacker: String, target: String, move: String, damage: Int, hp: Int, effectiveness: Double, critical: Bool)
     case miss(attacker: String, target: String, move: String)

@@ -92,8 +92,14 @@ struct BattleSimulation {
         var octolockedBy: Int?
         /// Lock-On and Mind Reader: the next move at this target never misses.
         var lockOn: (target: Int, until: Int)?
-        /// Electrify: its next move is Electric.
+        /// Electrify: its next move is Electric. Helping Hand: its next move has 1.5x the power.
         var electrified = false
+        var helped = false
+        /// Follow Me, Rage Powder, Spotlight: the foes' single-target moves come at it meanwhile.
+        var centerUntil = 0
+        var ragePowder = false
+        /// What it entered the battle as: leaving the field gives it back.
+        var originalSpec: BattlerSpec?
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -142,7 +148,8 @@ struct BattleSimulation {
         berries = setup.sides.map(\.berries)
         for (side, spec) in setup.sides.enumerated() {
             for battler in spec.battlers {
-                battlers.append(Battler(spec: battler, side: side, hp: min(battler.hp, battler.stats.hp), types: battler.types))
+                battlers.append(Battler(spec: battler, side: side, hp: min(battler.hp, battler.stats.hp), types: battler.types,
+                                        originalSpec: battler))
             }
             field.append(Array(repeating: nil, count: max(1, spec.active)))
         }
@@ -506,6 +513,7 @@ struct BattleSimulation {
         }
         if let move = MoveTable.move(slug) { use(move, by: index) }
         battlers[index].electrified = false
+        battlers[index].helped = false
         battlers[index].castsSinceEntry += 1
         if !battlers[index].isFainted, battlers[index].slot != nil { advance(index, after: slug) }
     }
@@ -639,6 +647,22 @@ struct BattleSimulation {
         case "octolock": return target(of: move, by: index).map { battlers[$0].octolockedBy == nil } ?? false
         case "tar-shot": return target(of: move, by: index).map { !battlers[$0].tarred || battlers[$0].stage(.speed) > -6 } ?? false
         case "no-retreat": return !b.noRetreat
+        case "baton-pass":
+            return !bench(b.side).isEmpty && (b.stages.values.reduce(0, +) > 0 || b.substituteHP > 0)
+        case "shed-tail": return !bench(b.side).isEmpty && b.hp * 2 > b.maxHP + 1 && b.substituteHP == 0
+        case "teleport":
+            // Only for a bench member that fares better against the foe in front.
+            guard let foe = facingFoe(index) else { return false }
+            let mine = BattleMatchup.score(b.spec, against: battlers[foe].spec)
+            return bench(b.side).contains { BattleMatchup.score(battlers[$0].spec, against: battlers[foe].spec) > mine }
+        case "roar", "whirlwind":
+            return target(of: move, by: index).map { t in
+                !bench(battlers[t].side).isEmpty && (battlers[t].stages.values.reduce(0, +) > 0 || battlers[t].substituteHP > 0)
+            } ?? false
+        case "ally-switch", "follow-me", "rage-powder", "helping-hand": return allies(of: index).count > 1 && !foes.isEmpty
+        case "spotlight": return foes.count > 1
+        case "after-you": return allies(of: index).contains { $0 != index && battlers[$0].castMove != nil }
+        case "quash": return target(of: move, by: index).map { battlers[$0].castMove != nil } ?? false
         case "power-swap", "guard-swap", "heart-swap", "psych-up":
             let stats: [BattleStat] = switch slug {
             case "power-swap": [.attack, .specialAttack]
@@ -761,6 +785,14 @@ struct BattleSimulation {
         case .psychic?: .psychic
         case nil: .normal
         }
+    }
+
+    /// The foe standing in front, or the first one standing.
+    private func facingFoe(_ index: Int) -> Int? {
+        guard let slot = battlers[index].slot else { return foes(of: index).first }
+        let opposite = field[1 - battlers[index].side]
+        if slot < opposite.count, let facing = opposite[slot], !battlers[facing].isFainted { return facing }
+        return foes(of: index).first
     }
 
     /// The foe a move cast now would aim at.
@@ -926,6 +958,70 @@ struct BattleSimulation {
         case "power-trick", "power-shift", "acupressure", "conversion", "camouflage":
             selfSwap(move, by: index)
             return
+        case "baton-pass", "teleport":
+            if !switchOut(index, baton: move.slug == "baton-pass") { failed(move, by: index) }
+            return
+        case "shed-tail":
+            // Half its HP for a substitute a quarter strong, left to the Pokémon that comes in.
+            let cost = (battlers[index].maxHP + 1) / 2
+            guard battlers[index].hp > cost, !bench(battlers[index].side).isEmpty else { return failed(move, by: index) }
+            hurt(index, cost, .substitute)
+            if !battlers[index].isFainted { _ = switchOut(index, substitute: battlers[index].maxHP / 4) }
+            return
+        case "parting-shot":
+            let lands = statusTargets(move, by: index).first.map {
+                !isProtected($0, from: move) && !isScreened($0, from: move, by: index) && !reflects($0, move, by: index)
+            } ?? false
+            useStatus(move, by: index)
+            if lands, !battlers[index].isFainted { _ = switchOut(index) }
+            return
+        case "roar", "whirlwind":
+            guard let target = statusTargets(move, by: index).first,
+                  let (victim, _) = statusLands(move, by: index, on: target) else { return }
+            if !forceOut(victim) { failed(move, by: index) }
+            return
+        case "ally-switch":
+            guard let slot = battlers[index].slot,
+                  let partner = allies(of: index).first(where: { $0 != index }), let other = battlers[partner].slot else {
+                return failed(move, by: index)
+            }
+            let side = battlers[index].side
+            field[side][slot] = partner
+            field[side][other] = index
+            battlers[index].slot = other
+            battlers[partner].slot = slot
+            log(.volatile(battler: id, effect: move.slug))
+            return
+        case "follow-me", "rage-powder":
+            battlers[index].centerUntil = now + 1500
+            battlers[index].ragePowder = move.slug == "rage-powder"
+            log(.volatile(battler: id, effect: move.slug))
+            return
+        case "spotlight", "after-you", "quash", "helping-hand":
+            // Helping Hand and After You go to the ally beside, After You to one that is casting.
+            let aimed: Int? = switch move.slug {
+            case "helping-hand": allies(of: index).first { $0 != index }
+            case "after-you": allies(of: index).first { $0 != index && battlers[$0].castMove != nil }
+            default: statusTargets(move, by: index).first
+            }
+            guard let target = aimed else { return failed(move, by: index, .noTarget) }
+            switch move.slug {
+            case "spotlight":
+                battlers[target].centerUntil = now + 1500
+                battlers[target].ragePowder = false
+            case "after-you":
+                // It acts at once: its cast ends now.
+                guard battlers[target].castMove != nil else { return failed(move, by: index) }
+                battlers[target].castEnds = now
+            case "quash":
+                // It acts last: its cast starts again.
+                guard let slug = battlers[target].castMove else { return failed(move, by: index) }
+                battlers[target].castEnds = now + castDuration(slug, by: target)
+            default:
+                battlers[target].helped = true
+            }
+            log(.volatile(battler: battlers[target].spec.id, effect: move.slug))
+            return
         case "perish-song":
             for other in active where perishes(other) {
                 battlers[other].perishAt = now + 3 * BattleRules.turn
@@ -975,9 +1071,9 @@ struct BattleSimulation {
         } else if move.hitsAllOpponents {
             targets = foes(of: index)
         } else if let target = battlers[index].castTarget, !battlers[target].isFainted, battlers[target].slot != nil {
-            targets = [target]
+            targets = [redirected(target, move, by: index)]
         } else if let target = pickTarget(for: move, by: index) {
-            targets = [target]
+            targets = [redirected(target, move, by: index)]
         } else {
             log(.fail(battler: id, move: move.slug, reason: .noTarget))
             return
@@ -998,6 +1094,15 @@ struct BattleSimulation {
             return
         }
         guard !battlers[index].isFainted, dealtTotal > 0 else { return }
+        defer {
+            // U-turn, Volt Switch and Flip Turn take their user out after the hit; Dragon Tail and Circle Throw the
+            // target, if it stands and nothing screened it.
+            if ["u-turn", "volt-switch", "flip-turn"].contains(move.slug), !battlers[index].isFainted { _ = switchOut(index) }
+            if ["dragon-tail", "circle-throw"].contains(move.slug), let target = targets.first, !battlers[target].isFainted,
+               battlers[target].slot != nil {
+                _ = forceOut(target)
+            }
+        }
         if move.slug == "rapid-spin" || move.slug == "mortal-spin" { spinAway(index) }
         if move.slug == "mortal-spin" {
             for target in targets where !battlers[target].isFainted { inflict(.poison, on: target, by: index, move: move) }
@@ -1215,9 +1320,20 @@ struct BattleSimulation {
     private func statusTargets(_ move: BattleMove, by index: Int) -> [Int] {
         if move.hitsAllOpponents { return foes(of: index) }
         if let target = battlers[index].castTarget, !battlers[target].isFainted, battlers[target].slot != nil {
-            return [target]
+            return [redirected(target, move, by: index)]
         }
-        return pickTarget(for: move, by: index).map { [$0] } ?? []
+        return pickTarget(for: move, by: index).map { [redirected($0, move, by: index)] } ?? []
+    }
+
+    /// A single-target move at a foe goes to the foe drawing attention: Follow Me, Rage Powder (not for a Grass type
+    /// or an Overcoat), Spotlight. Stalwart and Propeller Tail aim where they meant to.
+    private func redirected(_ target: Int, _ move: BattleMove, by index: Int) -> Int {
+        guard battlers[target].side != battlers[index].side, !move.hitsAllOpponents, !move.targetsOwnSide,
+              !["stalwart", "propeller-tail"].contains(battlers[index].ability) else { return target }
+        let immuneToPowder = battlers[index].types.contains(.grass) || battlers[index].ability == "overcoat"
+        return allies(of: target).first {
+            battlers[$0].centerUntil > now && !(battlers[$0].ragePowder && immuneToPowder)
+        } ?? target
     }
 
     /// Pain Split shares the user's and the target's HP evenly; a boss loses at most an eighth of its HP to it, the user
@@ -1321,6 +1437,83 @@ struct BattleSimulation {
             }
             battlers[target] = t
             log(.volatile(battler: t.spec.id, effect: move.slug))
+        }
+    }
+
+    // MARK: Switching
+
+    /// The user leaves for the best of its bench, which steps in at once; Baton Pass hands over its stages, substitute,
+    /// confusion, Leech Seed, Ingrain, Aqua Ring, Curse, Perish Song and Magnet Rise. False without a bench.
+    private mutating func switchOut(_ index: Int, baton: Bool = false, substitute: Int? = nil) -> Bool {
+        let side = battlers[index].side
+        guard let slot = battlers[index].slot, let next = bestEntrant(side: side, slot: slot, ordered: side == 1) else {
+            return false
+        }
+        let passed = battlers[index]
+        leaveField(index)
+        place(next, side: side, slot: slot)
+        if baton {
+            for (stat, stage) in passed.stages.sorted(by: { $0.key.rawValue < $1.key.rawValue }) where stage != 0 {
+                log(.stat(battler: battlers[next].spec.id, stat: stat, change: stage))
+            }
+            battlers[next].stages = passed.stages
+            battlers[next].substituteHP = passed.substituteHP
+            battlers[next].confusedUntil = passed.confusedUntil
+            battlers[next].seededBy = passed.seededBy
+            battlers[next].ingrained = passed.ingrained
+            battlers[next].aquaRing = passed.aquaRing
+            battlers[next].cursed = passed.cursed
+            battlers[next].perishAt = passed.perishAt
+            battlers[next].magnetRiseUntil = passed.magnetRiseUntil
+        }
+        if let substitute {
+            battlers[next].substituteHP = substitute
+            log(.substitute(battler: battlers[next].spec.id, hp: substitute))
+        }
+        enterAfterSwitch(next)
+        return true
+    }
+
+    /// Roar, Whirlwind, Dragon Tail, Circle Throw: the target leaves for one of its bench at random. Not when its side
+    /// has no bench, nor when it is rooted or holds on with Suction Cups.
+    private mutating func forceOut(_ target: Int) -> Bool {
+        let side = battlers[target].side
+        let others = bench(side)
+        guard let slot = battlers[target].slot, !others.isEmpty, !battlers[target].ingrained,
+              battlers[target].ability != "suction-cups" else { return false }
+        let next = others[random.below(others.count)]
+        leaveField(target)
+        place(next, side: side, slot: slot)
+        enterAfterSwitch(next)
+        return true
+    }
+
+    private mutating func enterAfterSwitch(_ index: Int) {
+        stepOnHazards(index)
+        guard !battlers[index].isFainted else { return }
+        entryAbility(index)
+        startCast(index)
+    }
+
+    /// Leaving the field by a move, a Pokémon keeps its HP, status and the moves Grudge took; the rest of what the
+    /// battle did to it goes, and what it held on others ends.
+    private mutating func leaveField(_ index: Int) {
+        guard let slot = battlers[index].slot else { return }
+        let side = battlers[index].side
+        let old = battlers[index]
+        let spec = old.originalSpec ?? old.spec
+        var fresh = Battler(spec: spec, side: side, hp: old.hp, types: spec.types, originalSpec: old.originalSpec)
+        fresh.status = old.status
+        fresh.wakeAt = old.wakeAt
+        fresh.ateBerry = old.ateBerry
+        fresh.lostMoves = old.lostMoves
+        fresh.moveIndex = old.moveIndex
+        battlers[index] = fresh
+        field[side][slot] = nil
+        log(.leave(battler: old.spec.id))
+        for other in battlers.indices {
+            if battlers[other].trappedBy == index { battlers[other].trappedBy = nil }
+            if battlers[other].octolockedBy == index { battlers[other].octolockedBy = nil }
         }
     }
 
@@ -1886,7 +2079,7 @@ struct BattleSimulation {
         }
         if terrain == .misty, type == .dragon, isGrounded(target) { power *= 0.5 }
         if type == .electric && fieldHas("mud-sport") || type == .fire && fieldHas("water-sport") { power /= 3 }
-        return power * a.powerBoost
+        return power * a.powerBoost * (a.helped ? 1.5 : 1)
     }
 
     private mutating func damageFor(_ move: BattleMove, by index: Int, on target: Int, spread: Bool, critical: Bool,
@@ -2487,7 +2680,8 @@ struct BattleSimulation {
         "power-swap", "guard-swap", "heart-swap", "speed-swap", "power-split", "guard-split", "power-trick", "power-shift",
         "psych-up", "topsy-turvy", "acupressure", "soak", "magic-powder", "conversion", "conversion-2", "reflect-type",
         "camouflage", "forests-curse", "trick-or-treat", "electrify", "simple-beam", "worry-seed", "entrainment",
-        "role-play", "skill-swap", "gastro-acid"])
+        "role-play", "skill-swap", "gastro-acid", "baton-pass", "shed-tail", "teleport", "roar", "whirlwind",
+        "ally-switch", "follow-me", "rage-powder", "spotlight", "after-you", "quash", "helping-hand", "parting-shot"])
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

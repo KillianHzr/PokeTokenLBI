@@ -1066,4 +1066,100 @@ final class BattleMovesTests: XCTestCase {
             return false
         }, "Swords Dance raises Attack by four")
     }
+
+    // MARK: Switching
+
+    /// U-turn takes its user out after the hit, the next of its bench stepping in at once; it may come back later.
+    /// The replay shows it off the field. (The users stand on the foes' side, which keeps its order.)
+    func testUTurnSwitchesItsUserOut() throws {
+        let outcome = battle([try mon("champ", 68, moves: ["rain-dance", "sunny-day"])],
+                             [try mon("scizor", 212, moves: ["u-turn"]), try mon("lax", 143, moves: ["body-slam"])])
+        let turn = try XCTUnwrap(hits(outcome).first { $0.move == "u-turn" })
+        XCTAssertTrue(outcome.events.contains { $0.event == .leave(battler: "scizor") && $0.time == turn.time })
+        XCTAssertTrue(outcome.events.contains {
+            if case .enter(1, 0, "lax") = $0.event { return $0.time == turn.time }
+            return false
+        })
+        let frame = BattleFrame.at(turn.time, setup: outcome.setup, events: outcome.events)
+        XCTAssertEqual(frame.units.first { $0.id == "scizor" }?.onField, false)
+        let alone = battle([try mon("champ", 68, moves: ["rain-dance", "sunny-day"])], [try mon("scizor", 212, moves: ["u-turn"])])
+        XCTAssertFalse(alone.events.contains { $0.event == .leave(battler: "scizor") }, "without a bench it stays")
+    }
+
+    /// Baton Pass hands its stages to the one that comes in; Shed Tail leaves it a substitute for half the HP; Parting
+    /// Shot lowers the foe's attacks on the way out.
+    func testBatonPassShedTailPartingShot() throws {
+        let foe = try mon("champ", 68, level: 60, moves: ["rain-dance", "sunny-day"])
+        let sturdy = try mon("champ", 68, moves: ["rain-dance", "sunny-day"])
+        let baton = battle([sturdy], [try mon("ninjask", 291, moves: ["swords-dance", "baton-pass"]), try mon("lax", 143, moves: ["body-slam"])])
+        let passed = try XCTUnwrap(baton.events.firstIndex { $0.event == .leave(battler: "ninjask") })
+        XCTAssertTrue(baton.events[passed...].contains {
+            if case .stat("lax", .attack, let change) = $0.event { return change >= 2 }
+            return false
+        })
+        // The Attack it got is real: its Body Slams hit about twice as hard as after a passed Agility.
+        let control = battle([sturdy], [try mon("ninjask", 291, moves: ["agility", "baton-pass"]), try mon("lax", 143, moves: ["body-slam"])])
+        XCTAssertGreaterThan(meanDamage(baton, "body-slam") / meanDamage(control, "body-slam"), 1.6)
+        let shed = try mon("cyclizar", 967, moves: ["shed-tail"])
+        let tail = battle([foe], [shed, try mon("lax", 143, moves: ["body-slam"])])
+        XCTAssertTrue(has(tail, .hurt(battler: "cyclizar", amount: (shed.stats.hp + 1) / 2, hp: shed.stats.hp - (shed.stats.hp + 1) / 2,
+                                      cause: .substitute)))
+        XCTAssertTrue(has(tail, .substitute(battler: "lax", hp: shed.stats.hp / 4)), "a quarter of Cyclizar's HP")
+        let shot = battle([foe], [try mon("panda", 675, moves: ["parting-shot"]), try mon("lax", 143, moves: ["body-slam"])])
+        XCTAssertTrue(shot.events.contains {
+            if case .stat("champ", .specialAttack, -1) = $0.event { return true }
+            return false
+        })
+        XCTAssertTrue(shot.events.contains { $0.event == .leave(battler: "panda") })
+    }
+
+    /// Roar sends out a foe holding boosts, one of its bench coming in at random; Dragon Tail does it after the hit.
+    func testRoarAndDragonTailForceTheFoeOut() throws {
+        let roar = battle([try mon("lax", 143, moves: ["roar", "body-slam"])],
+                          [try mon("scizor", 212, level: 60, moves: ["swords-dance", "bullet-punch"]), try mon("next", 130, level: 50, moves: ["splash"])])
+        XCTAssertTrue(roar.events.contains { $0.event == .leave(battler: "scizor") })
+        XCTAssertTrue(roar.events.contains {
+            if case .enter(1, 0, "next") = $0.event { return true }
+            return false
+        })
+        let tail = battle([try mon("chomp", 445, moves: ["dragon-tail"])],
+                          [try mon("lax", 143, moves: ["growl"]), try mon("next", 130, level: 50, moves: ["splash"])])
+        let hit = try XCTUnwrap(hits(tail).first { $0.move == "dragon-tail" && $0.hp > 0 })
+        XCTAssertTrue(tail.events.contains { $0.event == .leave(battler: hit.target) && $0.time == hit.time })
+    }
+
+    /// Follow Me draws the foes' single-target moves; Helping Hand gives the ally's next move 1.5x; After You makes the
+    /// ally act at once.
+    func testFollowMeHelpingHandAfterYou() throws {
+        let follow = battle([try mon("clef", 36, moves: ["follow-me", "moonblast"]), try mon("zard", 6, moves: ["flamethrower"])],
+                            [try mon("champ", 68, level: 60, moves: ["karate-chop"]), try mon("lapras", 131, level: 60, moves: ["ice-shard"])],
+                            active: 2)
+        let drawn = try XCTUnwrap(volatileAt(follow, "clef", "follow-me"))
+        let during = hits(follow).filter { $0.attacker != "clef" && $0.attacker != "zard" && $0.time > drawn && $0.time < drawn + 1500 }
+        XCTAssertFalse(during.isEmpty)
+        XCTAssertTrue(during.allSatisfy { $0.target == "clef" }, "\(during.map(\.target))")
+        let fillers = ["rain-dance", "sunny-day"]
+        let foes = [try mon("lax", 143, moves: fillers), try mon("bliss", 242, moves: fillers)]
+        let helped = battle([try mon("helper", 35, moves: ["helping-hand"]), try mon("champ", 68, moves: ["strength"])], foes, active: 2)
+        let alone = battle([try mon("helper", 35, moves: fillers), try mon("champ", 68, moves: ["strength"])], foes, active: 2)
+        var boosted: [Int] = []
+        var pending = false
+        for timed in helped.events {
+            if case .volatile("champ", "helping-hand") = timed.event { pending = true }
+            if case .hit("champ", "lax", "strength", let damage, let hp, _, false) = timed.event, hp > 0 {
+                if pending { boosted.append(damage) }
+                pending = false
+            }
+        }
+        XCTAssertFalse(boosted.isEmpty)
+        let plain = alone.events.compactMap { timed -> Int? in
+            if case .hit("champ", "lax", "strength", let damage, let hp, _, false) = timed.event, hp > 0 { return damage }
+            return nil
+        }
+        let ratio = Double(boosted.reduce(0, +)) / Double(boosted.count) / (Double(plain.reduce(0, +)) / Double(max(1, plain.count)))
+        XCTAssertEqual(ratio, 1.5, accuracy: 0.15)
+        let after = battle([try mon("clef", 36, moves: ["after-you"]), try mon("snorlax", 143, moves: ["giga-impact"])], foes, active: 2)
+        let at = try XCTUnwrap(volatileAt(after, "snorlax", "after-you"))
+        XCTAssertTrue(hits(after).contains { $0.attacker == "snorlax" && $0.time == at }, "Snorlax's long cast lands at once")
+    }
 }
