@@ -41,6 +41,25 @@ final class ActiveNewsTests: XCTestCase {
         return m
     }
 
+    /// [Regression] The growth badge said "Repeat" on an Eevee with seven evolutions to find: the boost comes from the
+    /// line, the word says it brings nothing.
+    func testARepeatBringsNothingOfWhateverItsBoost() throws {
+        var eevee = mon([133])
+        eevee.hasGrowthBoost = true
+        XCTAssertFalse(try store(active: eevee, dex: [graduated([133, 470])]).activeIsRepeat)
+        let everyEvolution = (PokemonEvolutionData.children[133] ?? []).map { graduated([133, $0]) }
+        XCTAssertTrue(try store(active: eevee, dex: everyEvolution).activeIsRepeat)
+        XCTAssertFalse(try store(active: mon([133]), dex: everyEvolution).activeIsRepeat, "no boost to explain")
+    }
+
+    /// One way of the line, so its names can only be promised once the way is taken.
+    func testTheHintPromisesOnlyTheWayTaken() throws {
+        let applin = try store(active: mon([840]), dex: [])
+        XCTAssertEqual(applin.activeNewsHint, applin.l.activeNewHint(applin.activeNewsNames, certain: false))
+        let dipplin = try store(active: mon([840, 1011], stage: 1), dex: [])
+        XCTAssertEqual(dipplin.activeNewsHint, dipplin.l.activeNewHint(dipplin.activeNewsNames, certain: true))
+    }
+
     /// A Pichu becomes a Pikachu, which brings a costume while one is missing: sending it off loses that costume, so
     /// it is no duplicate, on Home or in the catch log (review of #72). Once Pikachu, it brought its own.
     func testAPichuThatWillBringACostumeIsNotADuplicate() throws {

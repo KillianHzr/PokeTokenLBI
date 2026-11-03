@@ -1028,16 +1028,13 @@ struct EvoNode: Codable, Sendable {
 }
 
 struct BranchEvolutionItem: Equatable, Sendable, Identifiable {
-    var id: String { form.map { "\(speciesID)-\($0.rawValue)" } ?? String(speciesID) }
+    var id: Int { speciesID }
     let speciesID: Int
     let isCollected: Bool
-    /// Set when the branch is one species in its forms (Dudunsparce's two- and three-segment forms).
-    let form: PokemonForm?
 
-    init(speciesID: Int, isCollected: Bool, form: PokemonForm? = nil) {
+    init(speciesID: Int, isCollected: Bool) {
         self.speciesID = speciesID
         self.isCollected = isCollected
-        self.form = form
     }
 }
 

@@ -3,7 +3,7 @@ import Foundation
 /// What Prof. Oak makes of the Pokémon being raised, for the Form Pokédex.
 enum ActiveVerdict: Equatable, Sendable {
     /// Species of its line no graduated Pokémon holds, in any form.
-    case lineToComplete(newSpecies: Int)
+    case lineToComplete(newSpecies: ClosedRange<Int>)
     /// Every species of its line graduated, not all in its form: the first it brings in it.
     case newForm(speciesID: Int)
     /// A Pikachu still ahead in its line brings a costume missing (`ActiveNews.costume`).
@@ -98,8 +98,11 @@ extension CompanionStore {
     /// Nil for an egg.
     var activeVerdict: ActiveVerdict? {
         guard let news = activeNews else { return nil }
-        let unseen = news.newSpecies.filter { !graduatedSpeciesIDs.contains($0) }
-        if !unseen.isEmpty { return .lineToComplete(newSpecies: unseen.count) }
+        let unseen = Set(news.newSpecies.filter { !graduatedSpeciesIDs.contains($0) })
+        if !unseen.isEmpty {
+            let counts = activeWays.map { unseen.intersection($0).count }
+            return .lineToComplete(newSpecies: (counts.min() ?? 0)...(counts.max() ?? 0))
+        }
         if let first = news.newSpecies.first { return .newForm(speciesID: first) }
         if news.costume { return .costume }
         if news.firstShiny { return .shinyToKeep }

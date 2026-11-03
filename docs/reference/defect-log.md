@@ -1778,6 +1778,18 @@ read_when:
   in the footer, which left the refresh time some 70 points: "Mis à jour 3 s" broke in two, seen on the PR's renders.
   The icons sit 6 points apart and the time keeps one line (French, German and Russian rendered).
 
+- **A line's branches answer "is it a duplicate", never "what will it bring".** `ActiveNews.newSpecies` unites every way the
+  Pokémon raised can still take, on purpose: it says whether sending it off loses anything without giving its route away.
+  Prof. Oak's bubble and the badge's hint read the union as this individual's gain: an Applin "would bring 5 species" when it
+  brings 2 or 3. `activeGoals` had already met this on Eevee and fixed it locally, and the verdict's tests only used linear
+  lines. A sentence about one individual counts through `activeWays`, one way at a time.
+- **A word says what the player can act on, not which factor applies.** `hasGrowthBoost` means the line already graduated in
+  this form, which is why it pays; the badge's "Repeat" read it, next to "New" and "Line to complete" on an Eevee with seven
+  evolutions to find. The word and its tint read `activeIsRepeat`; the boost itself does not change.
+- **The evolution track shows what this individual can reach.** A form is rolled with the species, but the track offered every
+  form of a coming stage: a silhouette of an Alolan Marowak above a Kanto Cubone that Home called a duplicate. Screens that
+  judge an individual and screens that preview its future must read the same `form`.
+
 ## 에너지 (상시 표시 애니메이션)
 
 - **절전용 정지 상태는 짝 알림 하나에만 복구를 맡기지 마라.** `screensDidSleep` 이 폴링 타이머를 끄고

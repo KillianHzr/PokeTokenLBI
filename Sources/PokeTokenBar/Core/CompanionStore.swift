@@ -577,7 +577,7 @@ final class CompanionStore {
 
             let branches = Self.openChildren(node, form: a.form)
             if branches.count > 1 {
-                out += guaranteedPrefix.map { futureLineItem($0.speciesID, active: a) }
+                out += guaranteedPrefix.map { EvoLineItem(.species($0.speciesID), .future) }
                 let branchItems = branches.map { ch in
                     BranchEvolutionItem(
                         speciesID: ch.speciesID,
@@ -586,7 +586,7 @@ final class CompanionStore {
                 }
                 out.append(EvoLineItem(.branch(branchItems), .future))
             } else {
-                out += guaranteedPrefix.map { futureLineItem($0.speciesID, active: a) }
+                out += guaranteedPrefix.map { EvoLineItem(.species($0.speciesID), .future) }
             }
         }
         return out
@@ -599,8 +599,7 @@ final class CompanionStore {
         /// A stage it will reach: the line goes on with one species. `isCaught`: graduated already.
         case coming(Int, isCaught: Bool)
         /// Where the line goes several ways: every path from there to a final stage (Wurmple into Silcoon then
-        /// Beautifly, or Cascoon then Dustox). A coming stage that brings forms (Dunsparce into a two- or
-        /// three-segment Dudunsparce) reads the same way, one path per form.
+        /// Beautifly, or Cascoon then Dustox).
         case branch([[BranchEvolutionItem]])
         /// The end of the line: the final stage graduates.
         case graduation
@@ -630,30 +629,10 @@ final class CompanionStore {
                 return stops
             }
             guard let child = open.first else { break }
-            if case .branch(let forms) = futureLineItem(child.speciesID, active: a).content {
-                stops.append(.branch(forms.map { [$0] }))
-                return stops
-            }
             stops.append(.coming(child.speciesID, isCaught: caught(child.speciesID)))
             node = child
         }
         return stops + [.graduation]
-    }
-
-    /// A coming stage. When it brings forms the current stage doesn't show (Dunsparce into a two- or
-    /// three-segment Dudunsparce, Pichu into Alolan Raichu), its forms read like a branch: owned forms
-    /// faded, the others as silhouettes, without telling which one this individual will take.
-    private func futureLineItem(_ speciesID: Int, active a: MonState) -> EvoLineItem {
-        let forms = PokemonForm.forms(speciesID: speciesID)
-        // A species whose forms come from items arrives in its default form: nothing to guess.
-        guard forms.count > 1, !PokemonForm.hasForms(speciesID: a.currentID),
-              PokemonForm.unlockSource(speciesID: speciesID) == nil else {
-            return EvoLineItem(.species(speciesID), .future)
-        }
-        let owned = state.collectedForms(speciesID: speciesID, graduatedOnly: true)
-        return EvoLineItem(.branch(forms.map {
-            BranchEvolutionItem(speciesID: speciesID, isCollected: owned.contains($0), form: $0)
-        }), .future)
     }
 
     static func realizedLineItems(pathIDs: [Int], stageIndex: Int) -> [EvoLineItem] {
@@ -742,6 +721,9 @@ final class CompanionStore {
         var isDuplicate: Bool { newSpecies.isEmpty && !firstShiny && !costume }
     }
 
+    /// Its growth boost is that of a repeat: the boost comes from its line, and it brings nothing new.
+    var activeIsRepeat: Bool { state.active?.hasGrowthBoost == true && activeNews?.isDuplicate == true }
+
     /// Nil for an egg.
     var activeNews: ActiveNews? {
         guard let a = state.active else { return nil }
@@ -816,6 +798,19 @@ final class CompanionStore {
         let needed: Int
     }
 
+    /// Every way to the end of its line the Pokémon raised can still take, with the stages it reached.
+    var activeWays: [[Int]] {
+        guard let a = state.active else { return [] }
+        var ways: [[Int]] = []
+        func walk(_ id: Int, _ path: [Int]) {
+            let children = PokemonEvolutionData.children(of: id, form: a.form).filter { !path.contains($0) }
+            if children.isEmpty { ways.append(path) }
+            for child in children { walk(child, path + [child]) }
+        }
+        walk(a.currentID, Array(a.pathIDs.prefix(a.stageIndex + 1)))
+        return ways
+    }
+
     /// The goals not claimed yet that graduating the Pokémon raised would advance, the ones it advances most first: a
     /// gym badge's or the Legendary Egg's region, the next dig (its Rock species in this form), a stone or an artifact
     /// still locked, a species' forms. Empty when it brings nothing new. Helps to choose whether to keep it.
@@ -824,13 +819,7 @@ final class CompanionStore {
         let new = Set(news.newSpecies)
         // Graduated, it keeps one branch of its line: an Eevee counted Vaporeon, Jolteon and Flareon at once (+4 for
         // Kanto, where it brings 2). A goal counts the branch that advances it most.
-        var branches: [Set<Int>] = []
-        func walk(_ id: Int, _ path: [Int]) {
-            let children = PokemonEvolutionData.children(of: id, form: a.form).filter { !path.contains($0) }
-            if children.isEmpty { branches.append(Set(path).intersection(new)) }
-            for child in children { walk(child, path + [child]) }
-        }
-        walk(a.currentID, Array(a.pathIDs.prefix(a.stageIndex + 1)))
+        let branches = activeWays.map { Set($0).intersection(new) }
         let registered = graduatedSpeciesIDs
         var goals: [ActiveGoal] = []
         func consider(_ item: ItemKind, _ generation: Int?, _ progress: GoalProgress, counted: [Set<Int>]) {
@@ -940,7 +929,7 @@ final class CompanionStore {
     var activeNewsHint: String {
         guard let news = activeNews else { return "" }
         let names = activeNewsNames
-        return ([names.isEmpty ? nil : l.activeNewHint(names), news.costume ? l.activeCostumeHint : nil] as [String?])
+        return ([names.isEmpty ? nil : l.activeNewHint(names, certain: activeWays.count == 1), news.costume ? l.activeCostumeHint : nil] as [String?])
             .compactMap { $0 }.joined(separator: " ")
     }
 

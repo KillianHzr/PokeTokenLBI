@@ -73,6 +73,17 @@ final class EvolutionTrackTests: XCTestCase {
 
     private func item(_ id: Int, _ caught: Bool) -> BranchEvolutionItem { BranchEvolutionItem(speciesID: id, isCollected: caught) }
 
+    /// [Regression] A form is rolled with the species: a Kanto Cubone will never be an Alolan Marowak, yet the track
+    /// showed one while Home called it a duplicate.
+    func testAComingStageIsTheFormTheIndividualRolled() async throws {
+        let normal = PokemonForm("normal"), alola = PokemonForm("alola")
+        let kanto = try await store([104, 105], stage: 0, caught: [[104, 105]], form: normal, caughtForm: normal)
+        XCTAssertEqual(kanto.evolutionTrack, [.reached(104, isCurrent: true), .coming(105, isCaught: true), .graduation])
+        let alolan = try await store([104, 105], stage: 0, caught: [[104, 105]], form: alola, caughtForm: normal)
+        XCTAssertEqual(alolan.evolutionTrack, [.reached(104, isCurrent: true), .coming(105, isCaught: false), .graduation])
+        XCTAssertEqual(alolan.evolutionTrackForm, alola)
+    }
+
     func testALinearLineHeadsForTheGraduationThroughItsComingStages() async throws {
         let charmander = try await store([4, 5, 6], stage: 0, caught: [[4, 5]])
         XCTAssertEqual(charmander.evolutionTrack, [.reached(4, isCurrent: true), .coming(5, isCaught: true),
@@ -153,13 +164,10 @@ final class EvolutionTrackTests: XCTestCase {
                                                     names: names, l: l), "\(l.toNextEvolution("425M")) · 32%")
     }
 
-    /// Vivillon's twenty patterns stood on one line wider than the card and pushed the popover off its edges. The ways
-    /// get the width the stops leave and wrap within it.
+    /// Twenty ways stood on one line wider than the card and pushed the popover off its edges. The ways get the width
+    /// the stops leave and wrap within it.
     func testAWideBranchWrapsWithinTheTrack() async throws {
-        let patterns = PokemonForm.forms(speciesID: 666).map {
-            [BranchEvolutionItem(speciesID: 666, isCollected: false, form: $0)]
-        }
-        XCTAssertGreaterThan(patterns.count, 15)
+        let patterns = (1...20).map { [BranchEvolutionItem(speciesID: $0, isCollected: false)] }
         let stops: [CompanionStore.EvolutionTrackStop] = [.reached(664, isCurrent: true), .coming(665, isCaught: false),
                                                           .branch(patterns)]
         let measured = MeasuredSize()
@@ -196,13 +204,13 @@ final class EvolutionTrackTests: XCTestCase {
         XCTAssertLessThan(measured.size.height, EvolutionTrackView.stopSize + 30, "one line for Eevee's eight")
     }
 
-    /// A branch of two ways (Raichu, Alolan Raichu) took the eight ways' width and left it empty: the track stopped
+    /// A branch of two ways (Slowbro, Slowking) took the eight ways' width and left it empty: the track stopped
     /// short of the card's edge. It reaches it, the stretches taking the rest.
     func testANarrowBranchLetsTheTrackReachItsEdge() async throws {
         let width: CGFloat = 300
         let stops: [CompanionStore.EvolutionTrackStop] = [
-            .reached(172, isCurrent: false), .reached(25, isCurrent: true),
-            .branch([[item(26, false)], [BranchEvolutionItem(speciesID: 26, isCollected: false, form: PokemonForm("alola"))]]),
+            .reached(79, isCurrent: true),
+            .branch([[item(80, false)], [item(199, false)]]),
         ]
         let view = EvolutionTrackView(stops: stops, progress: 0.5, tint: .gray, remaining: "1M", amount: "1M", detail: "",
                                       l: L(.en))
