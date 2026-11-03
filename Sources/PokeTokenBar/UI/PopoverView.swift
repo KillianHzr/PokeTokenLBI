@@ -128,6 +128,10 @@ final class PopoverNavigation {
     var showingExpeditionLog = false
     /// A Capsule being used from the Bag (`CapsuleScreen`).
     var capsule: ItemKind?
+    /// The Luck screen (`LuckScreen`) too, on one of its tabs; it reopens on its summary.
+    var showingLuck = false { didSet { if showingLuck { dexDetailCollectionID = nil } } }
+    enum LuckTab: Hashable, CaseIterable { case summary, curves, hatches }
+    var luckTab: LuckTab = .summary
     /// The changelog entries seen before it was opened: the others are marked new on it.
     var changelogSeenBefore: Set<String> = []
     /// The Collection tab's open Pokédex detail page (`DexSpecies.collectionID`); nil = grid or log.
@@ -186,6 +190,8 @@ final class PopoverNavigation {
         replayStart = 0
         showingExpeditionLog = false
         capsule = nil
+        showingLuck = false
+        luckTab = .summary
         tab = .home
     }
 
@@ -285,6 +291,8 @@ struct PopoverView: View {
                     nav.dungeonTeam = nil
                     nav.tab = .home
                 }
+            } else if nav.showingLuck {
+                LuckScreen(store: companion, nav: nav) { nav.showingLuck = false }
             } else {
                 mainContent
             }
@@ -655,9 +663,11 @@ struct PopoverView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 SectionTitle(text: l.todayTokens, systemImage: "bolt.fill")
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer()
                 CircleIconButton(systemImage: "wand.and.stars", help: l.bonusOpen) { nav.showingBonuses = true }
                 CircleIconButton(systemImage: "chart.bar.xaxis", help: l.statsTitle) { nav.showingRecap = true }
+                CircleIconButton(systemImage: "suit.club.fill", help: l.luckTitle) { nav.showingLuck = true }
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(TokenFormatter.compact(store.todayTotalTokens))

@@ -3,7 +3,7 @@ import Foundation
 /// What Prof. Oak makes of the Pokémon being raised, for the Form Pokédex.
 enum ActiveVerdict: Equatable, Sendable {
     /// Species of its line no graduated Pokémon holds, in any form.
-    case lineToComplete(newSpecies: Int)
+    case lineToComplete(newSpecies: ClosedRange<Int>)
     /// Every species of its line graduated, not all in its form: the first it brings in it.
     case newForm(speciesID: Int)
     /// A Pikachu still ahead in its line brings a costume missing (`ActiveNews.costume`).
@@ -98,8 +98,11 @@ extension CompanionStore {
     /// Nil for an egg.
     var activeVerdict: ActiveVerdict? {
         guard let news = activeNews else { return nil }
-        let unseen = news.newSpecies.filter { !graduatedSpeciesIDs.contains($0) }
-        if !unseen.isEmpty { return .lineToComplete(newSpecies: unseen.count) }
+        let unseen = Set(news.newSpecies.filter { !graduatedSpeciesIDs.contains($0) })
+        if !unseen.isEmpty {
+            let counts = activeWays.map { unseen.intersection($0).count }
+            return .lineToComplete(newSpecies: (counts.min() ?? 0)...(counts.max() ?? 0))
+        }
         if let first = news.newSpecies.first { return .newForm(speciesID: first) }
         if news.costume { return .costume }
         if news.firstShiny { return .shinyToKeep }
@@ -351,14 +354,7 @@ extension CompanionStore {
     }
 
     /// A line hatched in a form, weighed among the egg's other draws.
-    private struct Hatch {
-        let id: Int
-        let form: PokemonForm?
-        let weight: Double
-        let rarity: Rarity
-        /// It hatches shiny every time (`chooseBase`).
-        var alwaysShiny = false
-    }
+    private typealias Hatch = HatchDraw.Outcome
 
     /// What a hatch brings the Form Pokédex: a species or a form new, else a first shiny when it shines.
     private struct HatchNews {
@@ -396,64 +392,13 @@ extension CompanionStore {
         return Set(keys.map { DexSpeciesKey(speciesID: $0.id, form: $0.form) })
     }
 
-    /// The draws each egg makes (`chooseBase`): the Type: Null Egg's one line, the Fossil and Birthday Eggs' own, the
-    /// others' pool. Most event eggs, and a Birthday Egg once every legendary is graduated, hatch shiny every time. Nil
-    /// for an item that is no egg.
+    /// The draws each egg makes (`HatchDraw.outcomes`); nil for an item that is no egg.
     private func hatches(_ item: ItemKind, index: [BaseSpecies]) -> [Hatch]? {
-        switch item {
-        case .typeNullEgg:
-            let id = PokemonForm.typeNullSpeciesID
-            return [Hatch(id: id, form: PokemonForm.resolved(baseID: id, form: nil), weight: 1,
-                          rarity: index.first { $0.id == id }?.rarity ?? .legendary)]
-        case .fossilEgg:
-            return hatches(fossilDraw(index).map { ($0, 1) }, types: [], event: nil, alwaysShiny: false)
-        case .birthdayEgg:
-            let draw = birthdayDraw(index)
-            return hatches(draw.lines, types: [], event: nil, alwaysShiny: draw.shiny)
-        default:
-            let event = EventEgg(item: item)
-            guard let egg = EggSpec(item: item) ?? event.map({ EggSpec(tier: $0.tier, type: $0.type, event: $0) })
-            else { return nil }
-            return hatches(egg, index: index)
-        }
+        HatchEgg(item: item).map { hatchDraw.outcomes($0, index: index) }
     }
 
-    /// A pool's draws, a season's Deerling first one time in `EventEgg.deerlingOdds`: whole weights, so that odds
-    /// without forms come out exact.
     private func hatches(_ egg: EggSpec, index: [BaseSpecies]) -> [Hatch] {
-        let types = egg.type.map { [$0] } ?? egg.event?.seasonTypes ?? []
-        let shines = egg.event?.alwaysShiny ?? false
-        let pool = hatches(hatchPool(index, egg: egg), types: types, event: egg.event, alwaysShiny: shines)
-        guard let season = seasonDeerling(index, event: egg.event),
-              let base = index.first(where: { $0.id == EventEgg.deerlingID }) else { return pool }
-        let others = Double(EventEgg.deerlingOdds - 1)
-        let deerling = Hatch(id: base.id, form: PokemonForm.resolved(baseID: base.id, form: season),
-                             weight: pool.reduce(0) { $0 + $1.weight }, rarity: base.rarity, alwaysShiny: shines)
-        return pool.map {
-            Hatch(id: $0.id, form: $0.form, weight: $0.weight * others, rarity: $0.rarity, alwaysShiny: shines)
-        } + [deerling]
-    }
-
-    /// Lines drawn by weight, each rolling its form as `rollLineForm` does, or taking its event's.
-    private func hatches(_ lines: [(base: BaseSpecies, weight: Int)], types: [PokemonType], event: EventEgg?,
-                         alwaysShiny: Bool) -> [Hatch] {
-        lines.flatMap { line -> [Hatch] in
-            let id = line.base.id
-            let weight = Double(line.weight)
-            let rarity = line.base.rarity
-            if let form = eventForm(baseID: id, event: event) {
-                return [Hatch(id: id, form: form, weight: weight, rarity: rarity, alwaysShiny: alwaysShiny)]
-            }
-            let draw = lineFormDraw(baseID: id, types: types)
-            guard !draw.forms.isEmpty else {
-                return [Hatch(id: id, form: nil, weight: weight, rarity: rarity, alwaysShiny: alwaysShiny)]
-            }
-            let weights = PokemonForm.rollWeights(among: draw.forms, collected: draw.collected)
-            let total = Double(weights.reduce(0, +))
-            return zip(draw.forms, weights).map {
-                Hatch(id: id, form: $0, weight: weight * Double($1) / total, rarity: rarity, alwaysShiny: alwaysShiny)
-            }
-        }
+        hatchDraw.outcomes(egg, index: index)
     }
 
     /// The one achievement that counts copies: a legendary graduated a second time unlocks the Azure Flute. A Spare

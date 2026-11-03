@@ -1835,6 +1835,18 @@ read_when:
   rest to every growth. `feed` and `answerHeal` return what they leave; the store credits it to the egg or the
   Pokémon. Guard: `testTokensPastTheEndGoBackToGrowth` (fails with the leftover dropped).
 
+- **A line's branches answer "is it a duplicate", never "what will it bring".** `ActiveNews.newSpecies` unites every way the
+  Pokémon raised can still take, on purpose: it says whether sending it off loses anything without giving its route away.
+  Prof. Oak's bubble and the badge's hint read the union as this individual's gain: an Applin "would bring 5 species" when it
+  brings 2 or 3. `activeGoals` had already met this on Eevee and fixed it locally, and the verdict's tests only used linear
+  lines. A sentence about one individual counts through `activeWays`, one way at a time.
+- **A word says what the player can act on, not which factor applies.** `hasGrowthBoost` means the line already graduated in
+  this form, which is why it pays; the badge's "Repeat" read it, next to "New" and "Line to complete" on an Eevee with seven
+  evolutions to find. The word and its tint read `activeIsRepeat`; the boost itself does not change.
+- **The evolution track shows what this individual can reach.** A form is rolled with the species, but the track offered every
+  form of a coming stage: a silhouette of an Alolan Marowak above a Kanto Cubone that Home called a duplicate. Screens that
+  judge an individual and screens that preview its future must read the same `form`.
+
 ## 에너지 (상시 표시 애니메이션)
 
 - **절전용 정지 상태는 짝 알림 하나에만 복구를 맡기지 마라.** `screensDidSleep` 이 폴링 타이머를 끄고
@@ -2257,3 +2269,11 @@ read_when:
   missed:** the tests had the installed commit on `main`, and the first fix compared times, which cannot see a
   diverged line (found by the second review). Only a commit GitHub's `compare/{installed}...{candidate}` calls
   "ahead" is offered (`UpdateChecker.offered`, `testOnlyACommitTheInstalledOneLeadsToIsOffered`).
+- **A condition the Luck screen replays changes with a dated rule.** The dungeons made every battle form count for the
+  Glimmering Charm; merged with the Luck screen, its replay read today's condition at every past moment and found the
+  charm never earned (`HatchLuckLoadingTests.testTheCharmsCountedRegisteredPokemonToo` caught it at the merge).
+  **Why it was missed:** each branch was right alone; the replay's eras live in `HatchRules`, which the dungeons branch
+  did not know. The count now reads `HatchRules.Change.battleFormsCount`, dated at the dungeons' merge into main (a
+  date to come until then), and the replay counts the battle forms of the state it rebuilds, not today's. Sweep: no
+  other draw item's condition changed on the branch. A change to what an achievement or a draw item asks takes a case
+  in `HatchRules`.

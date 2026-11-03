@@ -310,6 +310,12 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(s.state.active?.baseID, 147)
         XCTAssertEqual(s.state.active?.isShiny, true)
         XCTAssertNil(s.state.eggFromDungeon)
+        // The Luck screen replays it as the boss's egg, a sure draw, not as a Pokémon Egg.
+        let egg = HatchEgg.dungeon(baseID: 147, form: nil, shiny: true)
+        XCTAssertEqual(s.state.active?.hatch?.egg, egg)
+        let outcomes = s.hatchDraw.outcomes(egg, index: [BaseSpecies(id: 147, captureRate: 45)])
+        XCTAssertEqual(outcomes.map(\.id), [147])
+        XCTAssertEqual(outcomes.first?.alwaysShiny, true)
     }
 
     /// R13: Arceus hatches from no egg: not a plain one, not a Legendary Egg, not a Birthday Egg.
@@ -317,8 +323,8 @@ final class DungeonStoreTests: XCTestCase {
         let index = [BaseSpecies(id: 493, captureRate: 3, isLegendary: true), BaseSpecies(id: 150, captureRate: 3, isLegendary: true),
                      BaseSpecies(id: 16, captureRate: 255)]
         let s = try hatchingStore(index: index) { _ in }
-        XCTAssertFalse(s.hatchPool(index, egg: CompanionStore.EggSpec()).contains { $0.base.id == 493 })
-        XCTAssertFalse(s.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 493 })
+        XCTAssertFalse(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec()).contains { $0.base.id == 493 })
+        XCTAssertFalse(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 493 })
         XCTAssertFalse(BirthdayGift.pool(index, graduated: []).lines.contains { $0.id == 493 })
     }
 

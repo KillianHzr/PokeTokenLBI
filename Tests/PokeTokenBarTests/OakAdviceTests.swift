@@ -61,9 +61,28 @@ final class OakAdviceTests: XCTestCase {
     /// A Charmeleon whose Charizard was never graduated: one species to bring. A released Charizard holds nothing.
     func testASpeciesNeverGraduatedIsALineToComplete() throws {
         let charmeleon = mon([4, 5], stage: 1)
-        XCTAssertEqual(try store(active: charmeleon, dex: [graduated([4, 5])]).activeVerdict, .lineToComplete(newSpecies: 1))
+        XCTAssertEqual(try store(active: charmeleon, dex: [graduated([4, 5])]).activeVerdict, .lineToComplete(newSpecies: 1...1))
         XCTAssertEqual(try store(active: charmeleon, dex: [graduated([4, 5, 6], released: true)]).activeVerdict,
-                       .lineToComplete(newSpecies: 3))
+                       .lineToComplete(newSpecies: 3...3))
+    }
+
+    /// [Regression] An individual takes one way of its line: an Applin brings 2 species or 3, not the 5 of all its ways.
+    func testALineToCompleteCountsOneWayOfTheLine() throws {
+        XCTAssertEqual(try store(active: mon([840]), dex: []).activeVerdict, .lineToComplete(newSpecies: 2...3))
+        XCTAssertEqual(try store(active: mon([840, 1011], stage: 1), dex: []).activeVerdict,
+                       .lineToComplete(newSpecies: 3...3), "its way taken")
+        XCTAssertEqual(try store(active: mon([133]), dex: [graduated([133, 470])]).activeVerdict,
+                       .lineToComplete(newSpecies: 0...1), "the evolution already graduated brings nothing")
+    }
+
+    func testTheBubbleSaysUpToWhileTheWayIsOpen() {
+        func bubble(_ count: ClosedRange<Int>) -> String {
+            L(.en).oakBubble(.lineToComplete(newSpecies: count), name: "Applin", newFormName: "")
+        }
+        XCTAssertTrue(bubble(3...3).contains("will bring 3 species"), bubble(3...3))
+        XCTAssertTrue(bubble(1...1).contains("will bring a species"), bubble(1...1))
+        XCTAssertTrue(bubble(2...3).contains("can bring up to 3 species"), bubble(2...3))
+        XCTAssertTrue(bubble(0...1).contains("can bring a species"), bubble(0...1))
     }
 
     /// An Alolan Vulpix while only Kanto's line is graduated: every species is there, not in its form.
@@ -72,7 +91,7 @@ final class OakAdviceTests: XCTestCase {
         XCTAssertEqual(try store(active: mon([37], form: alola), dex: [graduated([37, 38])]).activeVerdict,
                        .newForm(speciesID: 37))
         XCTAssertEqual(try store(active: mon([37], form: alola), dex: [graduated([37], form: alola)]).activeVerdict,
-                       .lineToComplete(newSpecies: 1), "a species never graduated weighs more than a form")
+                       .lineToComplete(newSpecies: 1...1), "a species never graduated weighs more than a form")
     }
 
     /// A Pichu whose line is graduated still brings a costume missing when it becomes Pikachu: not a Spare.
@@ -285,7 +304,7 @@ final class OakAdviceTests: XCTestCase {
     /// Only a Spare is sent off: a Pokémon that brings something has no egg to go for.
     func testAPokemonThatBringsSomethingIsNotSentOff() async throws {
         let s = try await spareStore(bag: [.fossilEgg: 1], lines: [[4, 5, 6]], active: mon([7]))
-        XCTAssertEqual(s.activeVerdict, .lineToComplete(newSpecies: 3))
+        XCTAssertEqual(s.activeVerdict, .lineToComplete(newSpecies: 3...3))
         XCTAssertNil(s.oakRelease)
     }
 
@@ -405,7 +424,7 @@ final class OakAdviceTests: XCTestCase {
             st.usedSinceInstall = 10 * rare
         }
         await s.loadHatchIndex()
-        XCTAssertEqual(s.activeVerdict, .lineToComplete(newSpecies: 3))
+        XCTAssertEqual(s.activeVerdict, .lineToComplete(newSpecies: 3...3))
         XCTAssertEqual(s.oakBudget?.egg, .rareEgg)
         XCTAssertEqual(s.oakBudget?.buyAhead, 0, "the Pokémon raised")
         XCTAssertEqual(s.oakBudget?.waitsForNext, true)
@@ -449,7 +468,7 @@ final class OakAdviceTests: XCTestCase {
         }
         await s.hatch(baseID: 16)
         await s.loadHatchIndex()
-        XCTAssertEqual(s.activeVerdict, .lineToComplete(newSpecies: 3))
+        XCTAssertEqual(s.activeVerdict, .lineToComplete(newSpecies: 3...3))
         XCTAssertEqual(s.oakBudget, OakBudget(egg: .rareEgg, odds: 1, target: 1, held: 0, buyAhead: 1, waitsForNext: false,
                                               reserve: 0, candies: 2))
         XCTAssertEqual(s.candiesToGive, 2)

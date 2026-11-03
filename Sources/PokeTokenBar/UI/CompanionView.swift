@@ -618,18 +618,18 @@ struct EvoLineView: View {
                                 Group {
                                     if item.isCollected {
                                         // Faded when it is a coming evolution (Home); a Pokédex page's family is caught.
-                                        SpriteView(speciesID: item.speciesID, size: thumb, shiny: shiny, form: item.form ?? form,
+                                        SpriteView(speciesID: item.speciesID, size: thumb, shiny: shiny, form: form,
                                                    sameScale: true, bottomAligned: bottomAligned)
                                             .opacity(node.state == .future ? 0.4 : 1)
                                             .saturation(node.state == .future ? 0.6 : 1)
                                     } else {
                                         // Silhouette noire (ombre) pour les évolutions non encore obtenues
-                                        SpriteView(speciesID: item.speciesID, size: thumb, shiny: false, form: item.form ?? form,
+                                        SpriteView(speciesID: item.speciesID, size: thumb, shiny: false, form: form,
                                                    isSilhouette: true, sameScale: true, bottomAligned: bottomAligned)
                                     }
                                 }
                                 if let names {
-                                    Text(item.isCollected ? PokemonForm.displayName(names[item.speciesID] ?? "…", speciesID: item.speciesID, form: item.form ?? form, label: nil) : "???")
+                                    Text(item.isCollected ? PokemonForm.displayName(names[item.speciesID] ?? "…", speciesID: item.speciesID, form: form, label: nil) : "???")
                                         .font(.system(size: nameFontSize))
                                         .foregroundStyle(item.isCollected ? .secondary : .tertiary)
                                         .lineLimit(nameLineLimit)
@@ -824,7 +824,7 @@ struct EvolutionTrackView: View {
 
     private func candidate(_ item: BranchEvolutionItem, size: CGFloat) -> some View {
         SpriteView(speciesID: item.speciesID, size: size, shiny: item.isCollected && shiny,
-                   form: item.form ?? form, isSilhouette: !item.isCollected)
+                   form: form, isSilhouette: !item.isCollected)
             .opacity(item.isCollected ? 0.8 : 0.55)
             .frame(width: size, height: size)
             .modifier(DexEntryLink(target: item.isCollected ? dexLinks[item.speciesID] : nil, hint: l.dexOpenEntryHint,
@@ -1001,7 +1001,7 @@ struct CompanionHeader: View {
     private var growthBadge: some View {
         let total = store.currentGrowthTotal
         if total > 1.0001 {
-            let isRepeat = store.state.active?.hasGrowthBoost == true
+            let isRepeat = store.activeIsRepeat
             let badge = Badge(isRepeat ? store.l.repeatGrowthBoost(total) : store.l.growthBoost(total),
                               tint: isRepeat ? .orange : .blue, style: .tinted).fixedSize()
             let breakdown = store.currentGrowthFactors.map(store.growthFactorLine).joined(separator: " · ")
@@ -3168,14 +3168,15 @@ struct FormUnlockToast: View {
     }
 }
 
-/// What graduating the Pokémon raised would advance (`CompanionStore.activeGoals`), under its track: three goals at
-/// most, the others on one line. Nothing when it brings nothing.
+/// What graduating the Pokémon raised would advance (`CompanionStore.activeGoals`), under its track: every goal on
+/// its own row, however long the list. Nothing when it brings nothing.
 @MainActor
 struct ActiveGoalsList: View {
     let store: CompanionStore
     /// Opens the goal's achievement; nil, the lines are not links.
     var onOpen: ((ItemKind) -> Void)? = nil
-    static let shown = 3
+    /// The goals the send-off confirmation's sentence names before "…".
+    static let inSentence = 3
 
     var body: some View {
         let goals = store.activeGoals
@@ -3183,7 +3184,7 @@ struct ActiveGoalsList: View {
             let l = store.l
             VStack(alignment: .leading, spacing: 4) {
                 Text(l.countsFor).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                ForEach(Array(goals.prefix(Self.shown).enumerated()), id: \.offset) { _, goal in
+                ForEach(Array(goals.enumerated()), id: \.offset) { _, goal in
                     let row = HStack(spacing: 6) {
                         ItemIconView(kind: goal.item, size: 16)
                         Text(l.activeGoalName(goal)).lineLimit(1).truncationMode(.tail)
@@ -3204,12 +3205,6 @@ struct ActiveGoalsList: View {
                         row
                     }
                 }
-                if goals.count > Self.shown {
-                    Text(l.moreGoals(goals.count - Self.shown, goals.dropFirst(Self.shown)
-                        .map { "\(l.activeGoalName($0)) (+\($0.gain))" }.joined(separator: " · ")))
-                        .font(.caption2).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
             .accessibilityElement(children: onOpen == nil ? .combine : .contain)
         }
@@ -3220,8 +3215,8 @@ struct ActiveGoalsList: View {
         let goals = store.activeGoals
         guard !goals.isEmpty else { return nil }
         let l = store.l
-        let list = goals.prefix(shown).map { "\(l.activeGoalName($0)) (+\($0.gain))" }.joined(separator: ", ")
-            + (goals.count > shown ? ", …" : "")
+        let list = goals.prefix(inSentence).map { "\(l.activeGoalName($0)) (+\($0.gain))" }.joined(separator: ", ")
+            + (goals.count > inSentence ? ", …" : "")
         return l.stillCountsFor(store.displayName, list)
     }
 }

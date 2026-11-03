@@ -44,9 +44,9 @@ final class StoneEggDuplicateTests: XCTestCase {
         XCTAssertFalse(s.state.isLineComplete(baseID: 618), "the Galarian Stunfisk is missing")
         XCTAssertTrue(s.state.isLineComplete(baseID: 618, type: .electric))
         XCTAssertFalse(s.state.isLineComplete(baseID: 618, type: .ground), "a Ground egg can bring the Galarian one")
-        XCTAssertEqual(s.hatchWeight(for: stunfisk), stunfisk.hatchWeight)
-        XCTAssertEqual(s.hatchWeight(for: stunfisk, type: .electric), stunfisk.hatchWeight / 4)
-        XCTAssertEqual(s.hatchWeight(for: stunfisk, type: .ground), stunfisk.hatchWeight)
+        XCTAssertEqual(s.hatchDraw.hatchWeight(for: stunfisk), stunfisk.hatchWeight)
+        XCTAssertEqual(s.hatchDraw.hatchWeight(for: stunfisk, type: .electric), stunfisk.hatchWeight / 4)
+        XCTAssertEqual(s.hatchDraw.hatchWeight(for: stunfisk, type: .ground), stunfisk.hatchWeight)
     }
 
     /// A collected line weighs half in a plain egg and a quarter in a stone's; a line still to finish keeps its weight.
@@ -56,16 +56,16 @@ final class StoneEggDuplicateTests: XCTestCase {
             $0.dex = [self.graduated([309, 310])]
             $0.collectedFinals = ["309:310"]
         }
-        XCTAssertEqual(done.hatchWeight(for: electrike), electrike.hatchWeight / 2)
-        XCTAssertEqual(done.hatchWeight(for: electrike, type: .electric), electrike.hatchWeight / 4)
+        XCTAssertEqual(done.hatchDraw.hatchWeight(for: electrike), electrike.hatchWeight / 2)
+        XCTAssertEqual(done.hatchDraw.hatchWeight(for: electrike, type: .electric), electrike.hatchWeight / 4)
         let open = try store()
-        XCTAssertEqual(open.hatchWeight(for: electrike, type: .electric), electrike.hatchWeight)
+        XCTAssertEqual(open.hatchDraw.hatchWeight(for: electrike, type: .electric), electrike.hatchWeight)
         let legendary = BaseSpecies(id: 145, captureRate: 3, isUnbreedableLegendary: true)
         let zapdos = try store {
             $0.dex = [self.graduated([145])]
             $0.collectedFinals = ["145:145"]
         }
-        XCTAssertGreaterThanOrEqual(zapdos.hatchWeight(for: legendary, type: .electric), 1, "never zero")
+        XCTAssertGreaterThanOrEqual(zapdos.hatchDraw.hatchWeight(for: legendary, type: .electric), 1, "never zero")
     }
 
     /// No egg brings the line hatched last again while another one is left.

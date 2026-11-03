@@ -623,6 +623,8 @@ final class SaveTransferTests: XCTestCase {
         // eggTier(알 등급 보증) = 진행 — 산 물건이지 이 기기의 장부가 아니라 기기를 옮겨도 따라간다.
         let progress: Set<String> = ["usedSinceInstall", "spentTokens", "eggUsage", "eggTier",
                                      "eggTypeGuarantee", "eggFromTypeNullEgg", "eggFromLegendaryEgg", "pendingHatchID", "pendingForm", "active",
+                                     // The draw items the waiting species was rolled with, kept with it.
+                                     "pendingHatchItems",
                                      "representativeSpeciesID", "representativeForm", "dex",
                                      "collectedFinals", "inventory", "claimedAchievements",
                                      // The rule `active.usedAtStage` was earned under: it travels with that value.
