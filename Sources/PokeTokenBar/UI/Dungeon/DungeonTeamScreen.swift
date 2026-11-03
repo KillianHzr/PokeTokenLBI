@@ -50,7 +50,8 @@ struct DungeonTeamScreen: View {
         }
         .padding(PopoverMetrics.padding)
         .frame(height: 520, alignment: .top)
-        .task(id: team) { await estimate() }
+        // Again when a member changes form or moves: its spec changes with them, not the team's ids.
+        .task(id: estimateKey) { await estimate() }
     }
 
     private func rulesBox(size: Int, rules: [DungeonRule], team: [DungeonCandidate], _ l: L) -> some View {
@@ -159,20 +160,23 @@ struct DungeonTeamScreen: View {
     }
 
     /// R7: run off the main thread, the team's specs made here.
+    /// The team, each member's battle form and loop: what the estimate depends on.
+    private var estimateKey: [String] {
+        team.map { id in
+            "\(id)|\(store.dungeonProgress.battleFormChoice[id] ?? "")|\((store.dungeonProgress.moveLoops[id] ?? []).joined(separator: ","))"
+        }
+    }
+
     private func estimate() async {
         odds = nil
         let (size, rules) = store.teamRules(dungeon)
         let picked = team.compactMap { id in store.dungeonCandidates.first { $0.id == id } }
-        guard DungeonTeamRules.isValid(picked.map(DungeonCandidate.init), size: size, rules: rules) else { return }
-        let members = picked.compactMap { entry in
-            store.dungeonSpec(entry, for: dungeon).map { ExpeditionMember(entryID: entry.id, spec: $0) }
-        }
-        let place = DungeonCatalog.dungeon(dungeon)
+        guard DungeonTeamRules.isValid(picked.map(DungeonCandidate.init), size: size, rules: rules),
+              let estimate = store.reachEstimate(team: team, for: dungeon) else { return }
         try? await Task.sleep(for: .milliseconds(250))
         guard !Task.isCancelled else { return }
-        let value = await Task.detached(priority: .utility) {
-            DungeonTeamBuilder.reachOdds(team: members, dungeon: place)
-        }.value
+        // The Bag's berries and Revives go along, as at the departure; a challenge's boss stands at the end.
+        let value = await Task.detached(priority: .utility) { estimate.run() }.value
         guard !Task.isCancelled else { return }
         odds = value
     }

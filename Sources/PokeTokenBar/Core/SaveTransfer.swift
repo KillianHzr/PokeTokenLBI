@@ -178,6 +178,7 @@ enum SaveTransfer {
             s.eggFromLegendaryEgg = false; s.eggFromBirthdayEgg = false; s.pendingShiny = false; s.eggEvent = nil; s.eggFromFossilEgg = false
             s.eggFromDungeon = nil
         }
+        if let egg = s.eggFromDungeon, !isHatchable(egg) { s.eggFromDungeon = nil }
         s.migrateLegacyBadgeClaims()
         s.pendingForm = PokemonForm.resolved(baseID: s.pendingHatchID ?? 0, form: s.pendingForm)
         // 만족시킬 수 없는 보증은 알을 영구히 못 깨게 만든다 — 전설은 capture_rate 로 표현할 수 없어
@@ -214,6 +215,11 @@ enum SaveTransfer {
         return s
     }
 
+    /// A dungeon egg the app can hatch: its line's first species and the boss it came from among the 1,025 it knows.
+    private static func isHatchable(_ egg: DungeonEgg) -> Bool {
+        (1...1025).contains(egg.baseID) && SpeciesInfo.all[egg.baseID] != nil && (1...1025).contains(egg.sourceSpeciesID)
+    }
+
     /// The dungeons' counts are added to (tokens, wins, a first victory's doubled loot) and some become seeds
     /// (`UInt64(floor)`, `UInt64(departures + 1)`): out of range, each trapped at its next use.
     private static func sanitized(_ progress: DungeonProgress, clampToken: (Int) -> Int) -> DungeonProgress {
@@ -227,7 +233,22 @@ enum SaveTransfer {
         var p = progress
         p.wins = p.wins.mapValues(count)
         p.departures = count(p.departures)
+        // An egg of a species the app cannot hatch would send the Pokémon raised off for an egg that never opens.
+        p.eggs = p.eggs.filter(isHatchable)
+        // The challenges' days and weeks are short keys; their draws name known battle forms; a member's form is one.
+        p.dailyTried = p.dailyTried.flatMap { $0.count <= 10 ? $0 : nil }
+        p.weeklyTried = p.weeklyTried.flatMap { $0.count <= 8 ? $0 : nil }
+        p.challengeDraws = p.challengeDraws.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
+        let battleForms = Set(BattleForms.all.map(\.form.rawValue))
+        p.battleFormChoice = p.battleFormChoice.filter { battleForms.contains($0.value) }
         if var e = p.expedition {
+            // Three throws at most and a price within the wallet's reach: past them, a throw counted backwards.
+            switch e.phase {
+            case .capture(let left): e.phase = .capture(throwsLeft: min(max(0, left), 3))
+            case .awaitingHeal(let price): e.phase = .awaitingHeal(price: clampToken(price))
+            case .exploring, .finished: break
+            }
+            e.loot.eggs = e.loot.eggs.filter(isHatchable)
             e.cost = min(max(1, e.cost), maxTokenValue)
             e.floor = min(max(1, e.floor), e.floors)
             e.floorTokens = clampToken(e.floorTokens)
@@ -254,6 +275,7 @@ enum SaveTransfer {
             r.tokens = clampToken(r.tokens)
             r.battles = count(r.battles)
             r.loot = loot(r.loot)
+            r.loot.eggs = r.loot.eggs.filter(isHatchable)
             p.lastResult = r
         }
         return p

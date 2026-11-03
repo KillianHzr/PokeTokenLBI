@@ -1791,6 +1791,19 @@ read_when:
   and Spanish). Guard: `ExpeditionLayoutTests.testAJournalBattleFitsOnOneLine` measures the line's natural width in
   every language, live or not, against the card's; three sprites a side make it fail.
 
+- **A screen's estimate takes the path the real thing takes.** The team screen ran the odds through its own copy of
+  the departure: no boss for the daily and weekly dungeons (whose boss is drawn, `bosses: []`), so `[][0]` crashed the
+  app on Prepare; and no berries, Revives or battle forms, so the odds understated the team that would set off.
+  **Why it was missed:** the store's own `reachOdds` (the departure's inputs) was tested and never called; the screen's
+  copy was untested. The screen now runs `CompanionStore.reachEstimate`, the departure's inputs, and the engine never
+  indexes an empty boss list. Guard: `DungeonStoreTests.testAChallengesOddsDoNotCrash` (crashes with the guard
+  removed). Sweep: every other random pick is over a fixed table or a list a test keeps non-empty (`DungeonTests`).
+
+- **What a consumer does not take goes back.** `ExpeditionEngine.feed` dropped the tokens left once the boss fell or the
+  team lost, while the store said they went to the dungeon: a morning's catch-up finishing the last floor lost the
+  rest to every growth. `feed` and `answerHeal` return what they leave; the store credits it to the egg or the
+  Pokémon. Guard: `testTokensPastTheEndGoBackToGrowth` (fails with the leftover dropped).
+
 ## 에너지 (상시 표시 애니메이션)
 
 - **절전용 정지 상태는 짝 알림 하나에만 복구를 맡기지 마라.** `screensDidSleep` 이 폴링 타이머를 끄고

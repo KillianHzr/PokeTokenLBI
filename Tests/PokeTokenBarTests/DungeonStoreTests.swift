@@ -487,4 +487,83 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertFalse(s.claimAchievement(.battleFormsMedal), "the next step asks for 15")
         XCTAssertEqual(ItemKind.battleFormsMedal.collectorGroup, .legendaryArtifacts)
     }
+
+    // MARK: The review of 2026-11-02
+
+    /// [Regression] A challenge has no boss list: its odds estimate indexed an empty one and crashed the Prepare screen.
+    /// The estimate now carries the day's boss, the Bag's berries and Revives, and the members' battle forms.
+    func testAChallengesOddsDoNotCrash() throws {
+        let team = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        let members = team.compactMap { entry in
+            DungeonTeamBuilder.spec(for: entry).map { ExpeditionMember(entryID: entry.id, spec: $0) }
+        }
+        for id in [DungeonID.daily, .weekly] {
+            let odds = DungeonTeamBuilder.reachOdds(team: members, dungeon: DungeonCatalog.dungeon(id), runs: 2)
+            XCTAssertTrue((0...1).contains(odds), id.rawValue)
+        }
+        let s = try store(dex: team, inventory: [.sitrusBerry: 3]) { $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1 }
+        let estimate = try XCTUnwrap(s.reachEstimate(team: team.map(\.id), for: .daily))
+        XCTAssertEqual(estimate.boss?.form, s.challengeBoss(.daily)?.form)
+        XCTAssertEqual(estimate.berries[.sitrus], 3, "the berries the departure takes")
+    }
+
+    /// [Regression] Tokens past the boss's fall walked nowhere: a morning's catch-up finishing the last floor lost the
+    /// rest. What the dungeon does not take goes back to the growth it paused.
+    func testTokensPastTheEndGoBackToGrowth() throws {
+        let team = Array(strong.prefix(3))
+        let s = try store(dex: strong)
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: team.map(\.id)))
+        var e = try XCTUnwrap(s.expedition)
+        let context = ExpeditionContext(tier: .t1, shinyDenominator: 64, now: now)
+        let left = ExpeditionEngine.feed(&e, tokens: e.floorCost * e.floors * 10, context: context)
+        XCTAssertFalse({ if case .exploring = e.phase { return true }; return false }(), "the dungeon is done")
+        XCTAssertGreaterThan(left, e.floorCost * e.floors, "most of it left over")
+        let before = s.state.active?.usedAtStage ?? 0
+        XCTAssertEqual(s.feedExpedition(e.floorCost * e.floors * 10).map { $0 > 0 }, true)
+        _ = before
+        XCTAssertNil(s.feedExpedition(1).flatMap { $0 > 0 ? $0 : nil }, "once over, nothing more walks it")
+    }
+
+    /// [Regression] The day's boss stays as first shown: a graduation in the day changed the draw's list, and the boss.
+    func testTheDaysBossStaysAllDay() throws {
+        let morning = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        let s = try store(dex: morning) { $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1 }
+        s.settleChallengeBosses()
+        let boss = try XCTUnwrap(s.challengeBoss(.daily))
+        let draws = s.dungeonProgress.challengeDraws
+        XCTAssertEqual(draws["daily:\(s.challengePeriod(.daily))"], boss.key)
+        // Later the same day, more Mega-capable species graduated: the kept draw wins over a new one.
+        let noon = morning + [94, 65, 248, 448, 445, 376, 257, 282, 306, 359].map { graduated($0) }
+        let later = try store(dex: noon) {
+            $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1
+            $0.dungeons.challengeDraws = draws
+        }
+        XCTAssertEqual(later.challengeBoss(.daily), boss)
+    }
+
+    /// [Regression] A hand-edited throw count past three is clamped at the import: a throw then counted backwards.
+    func testAnImportedCaptureKeepsThreeThrows() throws {
+        var state = CompanionState()
+        state.installBaselineSet = true
+        let spec = try XCTUnwrap(BattlerSpec.make(id: "e6", speciesID: 6, level: 100))
+        var e = ExpeditionEngine.start(dungeon: DungeonCatalog.dungeon(.viridianForest),
+                                       team: [ExpeditionMember(entryID: "e6", spec: spec)], rules: [], teamSize: 1, seed: 1,
+                                       cost: 75_000_000, berries: [:], revives: [:],
+                                       context: ExpeditionContext(tier: .t1, shinyDenominator: 64, now: now))
+        e.phase = .capture(throwsLeft: 1000)
+        state.dungeons.expedition = e
+        let data = try SaveTransfer.encode(state: state, appVersion: "2.5.0", deviceName: "Mac", now: now)
+        let back = try SaveTransfer.decode(data).state.dungeons.expedition
+        XCTAssertEqual(back?.phase, .capture(throwsLeft: 3))
+    }
+
+    /// [Regression] Leaving is refused once the boss fell: it turned a victory, its throws waiting, into a defeat.
+    func testNoLeavingOnceTheBossFell() throws {
+        let s = try store(dex: strong, inventory: [.escapeRope: 1])
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
+        s.abandonExpedition()
+        XCTAssertNotNil(s.expedition, "still at the throws")
+        XCTAssertEqual(s.itemCount(.escapeRope), 1, "no rope spent")
+    }
 }

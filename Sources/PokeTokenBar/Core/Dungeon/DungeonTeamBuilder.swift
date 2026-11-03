@@ -75,9 +75,23 @@ enum DungeonTeamBuilder {
         return best.ids
     }
 
+    /// What `reachOdds` runs on, built on the main thread (`CompanionStore.reachEstimate`), run off it.
+    struct ReachEstimate: Sendable {
+        let team: [ExpeditionMember]
+        let dungeon: Dungeon
+        let berries: [BattleBerry: Int]
+        let revives: [String: Int]
+        let boss: ExpeditionBoss?
+
+        func run() -> Double {
+            DungeonTeamBuilder.reachOdds(team: team, dungeon: dungeon, berries: berries, revives: revives, boss: boss)
+        }
+    }
+
     /// R7: the share of `runs` expeditions that reach the boss, the boss itself left out.
     static func reachOdds(team: [ExpeditionMember], dungeon: Dungeon, runs: Int = 24, seed: UInt64 = 1,
-                          berries: [BattleBerry: Int] = [:], revives: [String: Int] = [:]) -> Double {
+                          berries: [BattleBerry: Int] = [:], revives: [String: Int] = [:],
+                          boss: ExpeditionBoss? = nil) -> Double {
         guard !team.isEmpty, runs > 0 else { return 0 }
         let context = ExpeditionContext(tier: dungeon.tier, shinyDenominator: 64, now: Date(timeIntervalSince1970: 0))
         var reached = 0
@@ -85,7 +99,7 @@ enum DungeonTeamBuilder {
             var expedition = ExpeditionEngine.start(dungeon: dungeon, team: team, rules: dungeon.rules,
                                                     teamSize: team.count, seed: seed &+ UInt64(run) &* 7919,
                                                     cost: dungeon.floors * 1000, berries: berries, revives: revives,
-                                                    context: context)
+                                                    context: context, boss: boss)
             // Walk every floor but the boss's; an emergency heal is taken, as the estimate assumes the player answers.
             while expedition.floor < expedition.floors, !expedition.isOver {
                 ExpeditionEngine.feed(&expedition, tokens: expedition.floorCost, context: context)

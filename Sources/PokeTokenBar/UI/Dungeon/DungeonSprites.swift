@@ -492,8 +492,19 @@ enum DungeonSprites {
     @MainActor private static var cache: [DungeonID: CGImage] = [:]
 
     /// The diorama cropped to what is drawn: the menu bar fits its 20 points to it, not to the empty sky above.
+    @MainActor private static var trimmedCache: [DungeonID: CGImage] = [:]
+
+    /// Cropped once: the menu bar and the medals' icons asked at every redraw.
     @MainActor
     static func trimmedImage(_ id: DungeonID) -> CGImage? {
+        if let cached = trimmedCache[id] { return cached }
+        let trimmed = cropped(id)
+        if let trimmed { trimmedCache[id] = trimmed }
+        return trimmed
+    }
+
+    @MainActor
+    private static func cropped(_ id: DungeonID) -> CGImage? {
         guard let image = image(id) else { return nil }
         let width = image.width, height = image.height
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,

@@ -39,6 +39,8 @@ struct DungeonsView: View {
             .reservesScrollerLane()
         }
         .frame(height: 520)
+        // The day's and the week's bosses stay as first shown.
+        .task { store.settleChallengeBosses() }
     }
 
     /// The Ruins of Alph show only once a Treasure Map, or a visit, made them known.

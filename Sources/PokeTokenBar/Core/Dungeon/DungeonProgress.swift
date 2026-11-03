@@ -50,6 +50,8 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     /// The day (`yyyy-MM-dd`) and the week (`yyyy-Www`) whose challenge was tried: one try each.
     var dailyTried: String?
     var weeklyTried: String?
+    /// The challenges' bosses as first shown ("daily:2026-11-02" → `BattleForm.key`), kept for their period.
+    var challengeDraws: [String: String] = [:]
 
     init() {}
 
@@ -69,6 +71,7 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         battleFormChoice = c.lenient([String: String].self, forKey: .battleFormChoice, default: [:])
         dailyTried = c.lenientOptional(String.self, forKey: .dailyTried)
         weeklyTried = c.lenientOptional(String.self, forKey: .weeklyTried)
+        challengeDraws = c.lenient([String: String].self, forKey: .challengeDraws, default: [:])
     }
 
     func wins(_ id: DungeonID) -> Int { wins[id.rawValue] ?? 0 }

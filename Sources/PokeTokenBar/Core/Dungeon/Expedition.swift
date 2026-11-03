@@ -191,7 +191,12 @@ enum ExpeditionEngine {
                       boss chosen: ExpeditionBoss? = nil) -> Expedition {
         var random = BattleRandom(seed: seed)
         // A challenge's boss is the battle form drawn for the day or the week, never shiny.
+        // A challenge's estimate (`DungeonTeamBuilder.reachOdds`) may come without its boss, which it leaves out: a
+        // stand-in keeps `[][0]` from trapping (the review of 2026-11-02 found the Prepare screen crashing).
         let boss = chosen ?? {
+            guard !dungeon.bosses.isEmpty else {
+                return ExpeditionBoss(speciesID: dungeon.wild.first ?? 1, form: nil, isShiny: false)
+            }
             let bossID = dungeon.bosses[random.below(dungeon.bosses.count)]
             return ExpeditionBoss(speciesID: bossID, form: nil, isShiny: random.below(max(1, context.shinyDenominator)) == 0)
         }()
@@ -205,15 +210,17 @@ enum ExpeditionEngine {
     // MARK: Tokens
 
     /// Tokens walk the team on: each floor filled plays its event, the last its boss. While the team waits, they go
-    /// to the reserve.
-    static func feed(_ e: inout Expedition, tokens: Int, context: ExpeditionContext) {
-        guard tokens > 0 else { return }
+    /// to the reserve. Returns those left once the boss fell or the team lost: the growth they paused takes them back
+    /// (a morning's catch-up finishing the last floor lost hundreds of millions, review of 2026-11-02).
+    @discardableResult
+    static func feed(_ e: inout Expedition, tokens: Int, context: ExpeditionContext) -> Int {
+        guard tokens > 0 else { return 0 }
         switch e.phase {
         case .awaitingHeal:
             e.reserve += tokens
-            return
+            return 0
         case .capture, .finished:
-            return
+            return tokens
         case .exploring:
             break
         }
@@ -230,7 +237,11 @@ enum ExpeditionEngine {
             resolveFloor(&e, context: context)
             if case .exploring = e.phase { e.floor += 1 }
         }
-        if case .awaitingHeal = e.phase { e.reserve += left }
+        if case .awaitingHeal = e.phase {
+            e.reserve += left
+            return 0
+        }
+        return left
     }
 
     private static func resolveFloor(_ e: inout Expedition, context: ExpeditionContext) {
@@ -514,8 +525,10 @@ enum ExpeditionEngine {
     }
 
     /// R5: paid, the team is back to full and the knocked-out stand; either way it moves on with the reserve.
-    static func answerHeal(_ e: inout Expedition, paid: Bool, context: ExpeditionContext) {
-        guard case .awaitingHeal(let price) = e.phase else { return }
+    /// The answer to the heal; the reserve walks on, and what the dungeon did not take is returned (`feed`).
+    @discardableResult
+    static func answerHeal(_ e: inout Expedition, paid: Bool, context: ExpeditionContext) -> Int {
+        guard case .awaitingHeal(let price) = e.phase else { return 0 }
         if paid {
             for i in e.team.indices { e.team[i].spec.hp = e.team[i].spec.stats.hp }
             e.healUsed = true
@@ -525,7 +538,7 @@ enum ExpeditionEngine {
         e.floor += 1
         let reserve = e.reserve
         e.reserve = 0
-        feed(&e, tokens: reserve, context: context)
+        return feed(&e, tokens: reserve, context: context)
     }
 
     // MARK: The end

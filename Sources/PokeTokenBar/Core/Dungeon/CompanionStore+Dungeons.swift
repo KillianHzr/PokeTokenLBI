@@ -33,7 +33,10 @@ extension CompanionStore {
         case .won(let id): return state.dungeons.wins(id) > 0
         case .wonTier(let tier):
             return DungeonCatalog.all.contains { $0.tier == tier && !$0.id.isChallenge && state.dungeons.wins($0.id) > 0 }
-        case .linesGraduated(let count): return graduatedCollectionProgress.lines >= count
+        case .linesGraduated(let count):
+            // The lines alone: the whole collection count walked every form of every species for one number.
+            let species = Set(graduated.map(\.finalID)).filter(PokemonAssets.animatedSpeciesIDs.contains)
+            return Set(species.map(PokemonEvolutionData.root)).count >= count
         case .legendariesGraduated(let count):
             return Set(graduated.filter { $0.rarity == .legendary }.map(\.finalID)).count >= count
         case .beatBosses(let species): return species.allSatisfy(state.dungeons.beat)
@@ -82,10 +85,26 @@ extension CompanionStore {
         guard id.isChallenge else { return nil }
         let candidates = challengeCandidates(id)
         guard !candidates.isEmpty else { return nil }
+        // Kept once seen (`settleChallengeBosses`): a graduation in the day changed the draw's list, and the boss.
+        if let key = state.dungeons.challengeDraws[challengeDrawKey(id)],
+           let kept = candidates.first(where: { $0.key == key }) { return kept }
         // FNV-1a: `hashValue` changes from launch to launch.
         var hash: UInt64 = 0xcbf2_9ce4_8422_2325
         for byte in (id.rawValue + challengePeriod(id)).utf8 { hash = (hash ^ UInt64(byte)) &* 0x100_0000_01b3 }
         return candidates[Int(hash % UInt64(candidates.count))]
+    }
+
+    private func challengeDrawKey(_ id: DungeonID) -> String { "\(id.rawValue):\(challengePeriod(id))" }
+
+    /// Keeps the day's and the week's bosses as first shown, for their whole period; older draws go.
+    func settleChallengeBosses() {
+        var draws: [String: String] = [:]
+        for id in [DungeonID.daily, .weekly] {
+            if let boss = challengeBoss(id) { draws[challengeDrawKey(id)] = boss.key }
+        }
+        guard draws != state.dungeons.challengeDraws else { return }
+        changeDungeons { $0.challengeDraws = draws }
+        persist()
     }
 
     /// The battle form a graduated Pokémon fights in: one of its species' won forms, chosen on the team screen.
@@ -169,12 +188,15 @@ extension CompanionStore {
         return DungeonTeamBuilder.compose(pool, dungeon: DungeonCatalog.dungeon(id), size: size, rules: rules)
     }
 
-    /// R7: the odds this team reaches the boss.
-    func reachOdds(team ids: [String], for id: DungeonID) -> Double {
-        let members = ids.compactMap { id in state.dex.first { $0.id == id } }
+    /// R7: what the odds that this team reaches the boss are run on, off the main thread: the team as it would set
+    /// off (its battle forms, its loops), with the Bag's berries and Revives it takes along, and a challenge's boss.
+    func reachEstimate(team ids: [String], for id: DungeonID) -> DungeonTeamBuilder.ReachEstimate? {
+        let candidates = dungeonCandidates
+        let members = ids.compactMap { id in candidates.first { $0.id == id } }
             .compactMap { entry in dungeonSpec(entry, for: id).map { ExpeditionMember(entryID: entry.id, spec: $0) } }
-        return DungeonTeamBuilder.reachOdds(team: members, dungeon: DungeonCatalog.dungeon(id),
-                                            berries: bagBerries, revives: bagRevives)
+        guard members.count == ids.count, !members.isEmpty else { return nil }
+        let boss = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
+        return .init(team: members, dungeon: DungeonCatalog.dungeon(id), berries: bagBerries, revives: bagRevives, boss: boss)
     }
 
     private var bagBerries: [BattleBerry: Int] {
@@ -209,6 +231,7 @@ extension CompanionStore {
         changeBag(.maxRevive, by: -(revives[ItemKind.maxRevive.rawValue] ?? 0))
         let context = ExpeditionContext(tier: dungeon.tier, shinyDenominator: Int(shinyDenominator), now: currentDate)
         let seed = drawSeed() ^ UInt64(state.dungeons.departures + 1)
+        settleChallengeBosses()
         let challenge = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
         let started = ExpeditionEngine.start(dungeon: dungeon, team: members, rules: rules, teamSize: size, seed: seed,
                                              cost: dungeon.cost(difficulty: growthDifficulty), berries: berries,
@@ -230,17 +253,17 @@ extension CompanionStore {
     // MARK: Tokens
 
     /// Q1: while a team explores or waits for its heal, the tokens walk it instead of growing the Pokémon. Returns
-    /// whether they went to the dungeon; once the boss fell, growth takes them again.
-    func feedExpedition(_ tokens: Int) -> Bool {
-        guard var e = expedition, let context = expeditionContext else { return false }
+    /// nil when no team takes them, else those it left once its boss fell or it lost, which growth takes back.
+    func feedExpedition(_ tokens: Int) -> Int? {
+        guard var e = expedition, let context = expeditionContext else { return nil }
         switch e.phase {
         case .exploring, .awaitingHeal: break
-        case .capture, .finished: return false
+        case .capture, .finished: return nil
         }
         let reached = e.bossReached
-        ExpeditionEngine.feed(&e, tokens: tokens, context: context)
+        let left = ExpeditionEngine.feed(&e, tokens: tokens, context: context)
         store(e, bossNewlyReached: !reached && e.bossReached)
-        return true
+        return left
     }
 
     /// Saves the expedition's step and ends it when it is over.
@@ -262,14 +285,20 @@ extension CompanionStore {
             guard availableTokens >= price else { return false }
             spendTokens(price)
         }
-        ExpeditionEngine.answerHeal(&e, paid: pay, context: context)
+        let left = ExpeditionEngine.answerHeal(&e, paid: pay, context: context)
         store(e)
+        creditGrowthPastTheDungeon(left)
         return true
     }
 
     /// Q4: leaves the dungeon; the loot is lost unless an Escape Rope takes it out.
     func abandonExpedition() {
-        guard var e = expedition, let context = expeditionContext, !e.isOver else { return }
+        // Not once the boss fell: a victory, its throws waiting, would turn into a defeat.
+        guard var e = expedition, let context = expeditionContext else { return }
+        switch e.phase {
+        case .exploring, .awaitingHeal: break
+        case .capture, .finished: return
+        }
         let roped = changeBag(.escapeRope, by: -1) == -1
         ExpeditionEngine.append(&e, .abandon(rope: roped), context: context)
         e.phase = .finished(won: false)

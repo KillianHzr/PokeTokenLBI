@@ -565,12 +565,19 @@ final class SaveTransferTests: XCTestCase {
         state.dungeons.wins = ["viridianForest": Int.max]
         state.dungeons.departures = -7
         state.dungeons.moveLoops = ["e6": ["flamethrower"]]
-        state.dungeons.eggs = [DungeonEgg(id: "a", baseID: 147, form: nil, isShiny: true, sourceSpeciesID: 149)]
+        state.dungeons.eggs = [DungeonEgg(id: "a", baseID: 147, form: nil, isShiny: true, sourceSpeciesID: 149),
+                               DungeonEgg(id: "bad", baseID: 99_999, form: nil, isShiny: false, sourceSpeciesID: 0)]
+        state.dungeons.battleFormChoice = ["e6": "mega-x", "e9": "not-a-form"]
+        state.dungeons.challengeDraws = ["daily:2026-08-03": "6-mega-x", "daily:x": "6-mega-w"]
 
         let data = try SaveTransfer.encode(state: state, appVersion: "2.5.0", deviceName: "Old Mac", now: transferNow)
         let d = try SaveTransfer.decode(data).state.dungeons
         XCTAssertEqual(d.moveLoops, ["e6": ["flamethrower"]])
-        XCTAssertEqual(d.eggs, state.dungeons.eggs)
+        // [Regression, review of 2026-11-02] An egg the app cannot hatch, a member's form or a draw it does not know,
+        // a throw count past three: each is dropped or clamped at the boundary.
+        XCTAssertEqual(d.eggs, [state.dungeons.eggs[0]], "the unhatchable egg is dropped")
+        XCTAssertEqual(d.battleFormChoice, ["e6": "mega-x"])
+        XCTAssertEqual(d.challengeDraws, ["daily:2026-08-03": "6-mega-x"])
         let walked = try XCTUnwrap(d.expedition)
         XCTAssertEqual(walked.floor, 1)
         XCTAssertEqual(walked.floorTokens, SaveTransfer.maxTokenValue)

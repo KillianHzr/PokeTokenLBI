@@ -2314,7 +2314,18 @@ final class CompanionStore {
     /// The tokens' growth: a dungeon's walk while a team explores (Q1: growth pauses, the Shop and the candies go
     /// on), else the egg's incubation or the Pokémon's growth.
     private func creditGrowth(_ delta: Int) {
-        if feedExpedition(delta) { return }
+        var delta = delta
+        if let left = feedExpedition(delta) {
+            guard left > 0 else { return }
+            delta = left
+        }
+        creditGrowthPastTheDungeon(delta)
+    }
+
+    /// The egg's incubation or the Pokémon's growth, for the tokens a dungeon did not take (its boss fallen, its
+    /// team lost).
+    func creditGrowthPastTheDungeon(_ delta: Int) {
+        guard delta > 0 else { return }
         if state.active == nil {
             state.eggUsage += delta
         } else {
@@ -4008,12 +4019,14 @@ final class CompanionStore {
     /// else a legendary one, from the lists of both; once all graduated, any of them, shiny. A random legendary of the
     /// REST fallback could be one graduated while a mythical was missing, and was never shiny.
     private func chooseBirthdayBaseViaREST() async -> (id: Int, shiny: Bool)? {
-        let graduated = graduatedSpeciesIDs
+        // R13: Arceus comes from the Hall of Origin only, this fallback too (it drew 493, review of 2026-11-02).
+        let graduated = graduatedSpeciesIDs.union(PokemonOdds.dungeonOnly)
         let mythicals = Set(SpeciesGoal.mythicals).subtracting(graduated)
         if !mythicals.isEmpty { return await chooseListedBaseViaREST(mythicals, charm: false).map { ($0, false) } }
         let legendaries = Set(SpeciesGoal.legendaries).subtracting(graduated)
         if !legendaries.isEmpty { return await chooseListedBaseViaREST(legendaries, charm: false).map { ($0, false) } }
-        return await chooseListedBaseViaREST(Set(SpeciesGoal.mythicals + SpeciesGoal.legendaries), charm: false)
+        return await chooseListedBaseViaREST(Set(SpeciesGoal.mythicals + SpeciesGoal.legendaries).subtracting(PokemonOdds.dungeonOnly),
+                                             charm: false)
             .map { ($0, true) }
     }
 
