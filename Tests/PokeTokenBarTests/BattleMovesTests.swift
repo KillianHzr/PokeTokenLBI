@@ -749,4 +749,229 @@ final class BattleMovesTests: XCTestCase {
         let outcome = battle([try mon("clef", 36, moves: ["fairy-lock", "moonblast"])], [try mon("lax", 143, moves: ["growl"])])
         XCTAssertTrue(has(outcome, .fail(battler: "clef", move: "fairy-lock", reason: .nothing)))
     }
+
+    // MARK: Data the engine reads
+
+    /// [Regression] Bulletproof never stopped a ball: the flag was read as "ballistic" where PokéAPI writes
+    /// "ballistics", and the check also asked for Soundproof. Every flag the engine reads must exist in the data,
+    /// "slicing" aside (PokéAPI has none yet).
+    func testEveryFlagTheEngineReadsExists() throws {
+        for flag in ["contact", "charge", "recharge", "sound", "punch", "bite", "pulse", "ballistics", "powder",
+                     "protect", "authentic", "mirror", "reflectable", "snatch", "gravity", "heal"] {
+            XCTAssertTrue(MoveTable.all.values.contains { $0.flags.contains(flag) }, flag)
+        }
+        XCTAssertTrue(try XCTUnwrap(MoveTable.move("shadow-ball")).isBallistic)
+        let outcome = battle([try mon("gengar", 94, moves: ["shadow-ball"])],
+                             [try mon("chesnaught", 652, moves: ["growl"], ability: "bulletproof")])
+        XCTAssertTrue(has(outcome, .ability(battler: "chesnaught", ability: "bulletproof")))
+        XCTAssertFalse(hits(outcome).contains { $0.move == "shadow-ball" })
+    }
+
+    // MARK: Restraints
+
+    /// When `effect` first landed on `battler`.
+    private func volatileAt(_ outcome: BattleOutcome, _ battler: String, _ effect: String) -> Int? {
+        outcome.events.first { $0.event == .volatile(battler: battler, effect: effect) }?.time
+    }
+
+    /// The moves `battler` started casting between `start` and `end`.
+    private func casts(_ outcome: BattleOutcome, _ battler: String, from start: Int, to end: Int) -> [String] {
+        outcome.events.compactMap { timed in
+            guard case .cast(let who, let move, _, _) = timed.event, who == battler, timed.time > start, timed.time < end
+            else { return nil }
+            return move
+        }
+    }
+
+    /// Taunt keeps status moves off for three turns; Encore holds the target to its last move for three; Disable
+    /// takes that move for four; Torment forbids the same move twice in a row.
+    func testTauntEncoreDisableTorment() throws {
+        let turn = BattleRules.turn
+        let foe = try mon("scizor", 212, level: 60, moves: ["swords-dance", "bullet-punch", "agility"])
+        let taunt = battle([try mon("lax", 143, moves: ["taunt", "rain-dance", "sunny-day"])], [foe])
+        let taunted = try XCTUnwrap(volatileAt(taunt, "scizor", "taunt"))
+        // Struggle only once Snorlax is down and nothing is left to aim at.
+        XCTAssertEqual(Set(casts(taunt, "scizor", from: taunted, to: taunted + 3 * turn)).subtracting(["struggle"]),
+                       ["bullet-punch"])
+        let encore = battle([try mon("lax", 143, moves: ["encore", "rain-dance", "sunny-day"])],
+                            [try mon("scizor", 212, level: 60, moves: ["bullet-punch", "x-scissor"])])
+        let encored = try XCTUnwrap(volatileAt(encore, "scizor", "encore"))
+        XCTAssertEqual(Set(casts(encore, "scizor", from: encored, to: encored + 3 * turn)).count, 1)
+        let disable = battle([try mon("lax", 143, moves: ["disable", "rain-dance", "sunny-day"])],
+                             [try mon("scizor", 212, level: 60, moves: ["bullet-punch", "x-scissor"])])
+        let disabledAt = try XCTUnwrap(volatileAt(disable, "scizor", "disable"))
+        let move = try XCTUnwrap(hits(disable).last { $0.attacker == "scizor" && $0.time <= disabledAt }).move
+        XCTAssertFalse(casts(disable, "scizor", from: disabledAt, to: disabledAt + 4 * turn).contains(move))
+        let torment = battle([try mon("lax", 143, moves: ["torment", "rain-dance", "sunny-day"])],
+                             [try mon("scizor", 212, level: 60, moves: ["bullet-punch"])])
+        let tormented = try XCTUnwrap(volatileAt(torment, "scizor", "torment"))
+        let after = casts(torment, "scizor", from: tormented, to: tormented + 10 * turn)
+        XCTAssertTrue(zip(after, after.dropFirst()).allSatisfy { $0 != $1 || $0 == "struggle" }, "\(after)")
+    }
+
+    /// Imprison keeps the foes from the moves its user knows; Heal Block keeps them from healing; Embargo from their
+    /// berries.
+    func testImprisonHealBlockEmbargo() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let prison = battle([try mon("lax", 143, moves: ["imprison", "tackle"] + fillers)],
+                            [try mon("rat", 20, moves: ["tackle", "quick-attack"])])
+        let jailed = try XCTUnwrap(volatileAt(prison, "lax", "imprison"))
+        XCTAssertFalse(casts(prison, "rat", from: jailed, to: prison.duration).contains("tackle"))
+        // Blissey heals by Soft-Boiled and by Leech Seed: neither while blocked, and Soft-Boiled is not even cast.
+        let block = battle([try mon("lax", 143, moves: ["heal-block", "rain-dance", "sunny-day"])],
+                           [try mon("bliss", 242, moves: ["leech-seed", "soft-boiled", "seismic-toss"], hp: 300)])
+        let blocked = try XCTUnwrap(volatileAt(block, "bliss", "heal-block"))
+        let until = blocked + 5 * BattleRules.turn
+        for timed in block.events where timed.time > blocked && timed.time < until {
+            if case .heal("bliss", _, _, _) = timed.event { XCTFail("Blissey heals at \(timed.time)") }
+        }
+        XCTAssertFalse(casts(block, "bliss", from: blocked, to: until).contains("soft-boiled"))
+        XCTAssertTrue(block.events.contains {
+            if case .hurt("lax", _, _, .leechSeed) = $0.event { return $0.time > blocked && $0.time < until }
+            return false
+        }, "the seed drains on, its heal kept off")
+        let champ = try mon("champ", 68, moves: fillers)
+        let embargo = battle([champ], [try mon("absol", 359, moves: ["embargo", "night-slash"])], berries: [.sitrus: 1])
+        let held = try XCTUnwrap(volatileAt(embargo, "champ", "embargo"))
+        XCTAssertFalse(embargo.events.contains {
+            if case .berry("champ", _) = $0.event { return $0.time > held && $0.time < held + 5 * BattleRules.turn }
+            return false
+        })
+    }
+
+    /// Perish Song knocks out everyone on the field three turns later, never a boss (the owner, 2026-11-03).
+    func testPerishSongSparesABoss() throws {
+        let side = [try mon("lapras", 131, moves: ["perish-song", "rain-dance", "sunny-day"]), try mon("bench", 6, moves: ["growl"])]
+        let outcome = battle(side, [try mon("lax", 143, moves: ["rain-dance", "sunny-day"])])
+        let sung = try XCTUnwrap(volatileAt(outcome, "lax", "perish-song"))
+        XCTAssertTrue(outcome.events.contains {
+            if case .hurt("lax", _, 0, .perishSong) = $0.event { return $0.time == sung + 3 * BattleRules.turn }
+            return false
+        })
+        XCTAssertTrue(outcome.events.contains {
+            if case .hurt("lapras", _, 0, .perishSong) = $0.event { return true }
+            return false
+        }, "its user falls too")
+        let boss = battle(side, [try mon("boss", 143, moves: ["rain-dance", "sunny-day"], isBoss: true)])
+        XCTAssertNil(volatileAt(boss, "boss", "perish-song"))
+        XCTAssertFalse(boss.events.contains {
+            if case .hurt("boss", _, _, .perishSong) = $0.event { return true }
+            return false
+        })
+    }
+
+    /// Curse from a Ghost costs half its HP and takes a quarter of the target's each turn, a sixteenth of a boss's;
+    /// Nightmare likewise while the target sleeps. Not a Ghost, Curse trades Speed for Attack and Defense.
+    func testCurseAndNightmare() throws {
+        let gengar = try mon("gengar", 94, moves: ["curse", "rain-dance", "sunny-day"])
+        let lax = try mon("lax", 143, moves: ["rain-dance", "sunny-day"])
+        let cursed = battle([gengar], [lax])
+        XCTAssertTrue(has(cursed, .hurt(battler: "gengar", amount: gengar.stats.hp / 2, hp: gengar.stats.hp - gengar.stats.hp / 2,
+                                        cause: .curse)))
+        XCTAssertTrue(cursed.events.contains {
+            if case .hurt("lax", let amount, _, .curse) = $0.event { return amount == lax.stats.hp / 4 }
+            return false
+        })
+        let boss = try mon("boss", 143, moves: ["rain-dance", "sunny-day"], isBoss: true)
+        let onBoss = battle([gengar], [boss])
+        XCTAssertTrue(onBoss.events.contains {
+            if case .hurt("boss", let amount, _, .curse) = $0.event { return amount == boss.stats.hp / 16 }
+            return false
+        })
+        XCTAssertFalse(onBoss.events.contains {
+            if case .hurt("boss", let amount, _, .curse) = $0.event { return amount > boss.stats.hp / 16 }
+            return false
+        })
+        let plain = battle([try mon("lax", 143, moves: ["curse", "body-slam"])], [try mon("champ", 68, moves: ["growl"])])
+        XCTAssertTrue(plain.events.contains {
+            if case .stat("lax", .defense, 1) = $0.event { return true }
+            return false
+        })
+        let dream = battle([try mon("gengar", 94, moves: ["hypnosis", "nightmare", "rain-dance", "sunny-day"])], [lax], seed: 3)
+        XCTAssertTrue(dream.events.contains {
+            if case .hurt("lax", let amount, _, .nightmare) = $0.event { return amount == lax.stats.hp / 4 }
+            return false
+        })
+    }
+
+    /// Ingrain and Aqua Ring heal a sixteenth each turn, Ingrain grounding its user; Magnet Rise lifts it off for five
+    /// turns.
+    func testIngrainAquaRingMagnetRise() throws {
+        let lax = try mon("lax", 143, moves: ["aqua-ring", "ingrain", "rain-dance", "sunny-day"], hp: 100)
+        let outcome = battle([lax], [try mon("champ", 68, moves: ["rain-dance", "sunny-day"])])
+        for cause in [BattleHealCause.ingrain, .aquaRing] {
+            XCTAssertTrue(outcome.events.contains {
+                if case .heal("lax", let amount, _, let c) = $0.event { return c == cause && amount == lax.stats.hp / 16 }
+                return false
+            }, "\(cause)")
+        }
+        let rooted = battle([try mon("bird", 18, moves: ["ingrain", "rain-dance", "sunny-day"])],
+                            [try mon("chomp", 445, level: 40, moves: ["earthquake"])])
+        let at = try XCTUnwrap(volatileAt(rooted, "bird", "ingrain"))
+        XCTAssertTrue(hits(rooted).contains { $0.move == "earthquake" && $0.time > at }, "rooted, Pidgeot is on the ground")
+        let risen = battle([try mon("magne", 462, moves: ["magnet-rise", "thunderbolt"])],
+                           [try mon("chomp", 445, level: 60, moves: ["earthquake"])])
+        let lifted = try XCTUnwrap(volatileAt(risen, "magne", "magnet-rise"))
+        XCTAssertFalse(hits(risen).contains {
+            $0.move == "earthquake" && $0.time > lifted && $0.time < lifted + 5 * BattleRules.turn
+        })
+    }
+
+    /// Foresight lets Normal moves hit a Ghost, Miracle Eye Psychic moves a Dark type; Lock-On makes the next move
+    /// sure; Tar Shot doubles Fire on its target; Octolock lowers both defenses each turn.
+    func testForesightLockOnTarShotOctolock() throws {
+        let fore = battle([try mon("lax", 143, moves: ["foresight", "body-slam"])], [try mon("gengar", 94, level: 50, moves: ["growl"])])
+        XCTAssertNotNil(volatileAt(fore, "gengar", "foresight"))
+        XCTAssertTrue(hits(fore).contains { $0.move == "body-slam" })
+        let eye = battle([try mon("alakazam", 65, moves: ["miracle-eye", "psychic"])], [try mon("umbreon", 197, moves: ["growl"])])
+        XCTAssertTrue(hits(eye).contains { $0.move == "psychic" })
+        var sure = 0, zaps = 0
+        for seed: UInt64 in 1...6 {
+            let lock = battle([try mon("magne", 462, moves: ["lock-on", "zap-cannon"])], [try mon("lax", 143, moves: ["growl"])],
+                              seed: seed)
+            var locked = false
+            for timed in lock.events {
+                switch timed.event {
+                case .volatile("magne", "lock-on"): locked = true
+                case .hit("magne", _, "zap-cannon", _, _, _, _): if locked { sure += 1; locked = false }; zaps += 1
+                case .miss("magne", _, "zap-cannon"): XCTAssertFalse(locked, "a locked Zap Cannon never misses"); locked = false
+                default: break
+                }
+            }
+        }
+        XCTAssertGreaterThan(sure, 3)
+        let tar = battle([try mon("coal", 839, moves: ["tar-shot", "flamethrower"])], [try mon("lax", 143, moves: ["growl"])])
+        XCTAssertTrue(tar.events.contains {
+            if case .hit("coal", "lax", "flamethrower", _, _, 2.0, _) = $0.event { return true }
+            return false
+        })
+        let octo = battle([try mon("grapploct", 853, moves: ["octolock", "brutal-swing"])],
+                          [try mon("lax", 143, moves: ["rain-dance", "sunny-day"])])
+        XCTAssertTrue(octo.events.contains {
+            if case .stat("lax", .specialDefense, -1) = $0.event { return true }
+            return false
+        })
+    }
+
+    /// Grudge: the move that knocks its user out is lost to the attacker for the battle. Spite, Block, Mean Look and
+    /// Spider Web have nothing to take or hold here: nothing happens.
+    func testGrudgeAndTheMovesWithNothingToHold() throws {
+        var triggered = 0
+        for seed: UInt64 in 1...8 {
+            // The foes keep their order: Rattata first, Snorlax after it.
+            let outcome = battle([try mon("champ", 68, level: 30, moves: ["karate-chop", "tackle"])],
+                                 [try mon("rat", 19, level: 30, moves: ["grudge", "rain-dance", "sunny-day"]),
+                                  try mon("bench", 143, moves: ["growl"])], seed: seed)
+            guard has(outcome, .volatile(battler: "champ", effect: "grudge")),
+                  let ko = outcome.events.first(where: { $0.event == .faint(battler: "rat") }) else { continue }
+            triggered += 1
+            let killer = try XCTUnwrap(hits(outcome).last { $0.target == "rat" && $0.time <= ko.time })
+            XCTAssertFalse(casts(outcome, "champ", from: ko.time + 1, to: outcome.duration).contains(killer.move), "seed \(seed)")
+        }
+        XCTAssertGreaterThan(triggered, 0)
+        for slug in ["spite", "block", "mean-look", "spider-web"] {
+            let none = battle([try mon("lax", 143, moves: [slug, "body-slam"])], [try mon("champ", 68, moves: ["growl"])])
+            XCTAssertTrue(has(none, .fail(battler: "lax", move: slug, reason: .nothing)), slug)
+        }
+    }
 }

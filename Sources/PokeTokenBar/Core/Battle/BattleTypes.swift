@@ -126,11 +126,12 @@ enum BattleHurtCause: String, Codable, Sendable {
     case substitute, protection
     /// Spikes or Stealth Rock on entry.
     case hazard
+    case curse, nightmare, perishSong
 }
 
 /// Why a Pokémon regained HP.
 enum BattleHealCause: String, Codable, Sendable {
-    case move, drain, berry, ability, weather, leechSeed, wish, terrain, painSplit
+    case move, drain, berry, ability, weather, leechSeed, wish, terrain, painSplit, ingrain, aquaRing
 }
 
 /// Why a cast did nothing.
@@ -140,6 +141,8 @@ enum BattleFailReason: String, Codable, Sendable {
     case substitute
     /// A move that does nothing here, as in the games (Splash), or whose effect has no hold in these battles.
     case nothing
+    /// Taunt, Encore, Disable, Torment, Imprison or Heal Block forbids the move now.
+    case restrained
 }
 
 /// Everything that happens, timed in milliseconds from the start: a replay replays these, a live view plays them at
@@ -180,6 +183,10 @@ enum BattleEvent: Codable, Sendable, Equatable {
     case fieldCondition(condition: String, active: Bool)
     /// A side's entry hazard and its layers now (0: cleared).
     case hazard(side: Int, hazard: String, layers: Int)
+    /// A lasting effect on one battler starts: Taunt, Encore, Disable, Torment, Heal Block, Embargo, Perish Song,
+    /// Nightmare, Ingrain, Aqua Ring, Foresight, Miracle Eye, Telekinesis, Magnet Rise, Curse, Lock-On, Octolock,
+    /// Tar Shot, Imprison, Grudge.
+    case volatile(battler: String, effect: String)
     case end(winner: Int)
 }
 

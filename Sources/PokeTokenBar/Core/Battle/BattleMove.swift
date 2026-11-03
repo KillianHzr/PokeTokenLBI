@@ -67,8 +67,10 @@ struct BattleMove: Sendable, Equatable {
     var isPunch: Bool { flags.contains("punch") }
     var isBite: Bool { flags.contains("bite") }
     var isPulse: Bool { flags.contains("pulse") }
-    var isBallistic: Bool { flags.contains("ballistic") }
+    /// PokéAPI's name for the ball and bomb moves Bulletproof stops.
+    var isBallistic: Bool { flags.contains("ballistics") }
     var isPowder: Bool { flags.contains("powder") }
+    /// PokéAPI has no such flag yet (2026-11-03): Sharpness waits for the generator to take Showdown's.
     var isSlicing: Bool { flags.contains("slicing") }
     /// Protect stops it: PokéAPI's flag, or no flag at all, as its newest moves come (2026-11-03).
     var isBlockedByProtect: Bool { flags.isEmpty || flags.contains("protect") }

@@ -63,6 +63,35 @@ struct BattleSimulation {
         var snatchUntil = 0
         /// Casts completed since it entered: Mat Block only works on the first.
         var castsSinceEntry = 0
+        /// Restraints, to when they hold: Taunt (status moves), Encore (its move only), Disable (that move), Heal
+        /// Block, Embargo (berries), Telekinesis and Magnet Rise (off the ground).
+        var tauntedUntil = 0
+        var encoreUntil = 0
+        var encoreMove: String?
+        var disabledUntil = 0
+        var disabledMove: String?
+        var healBlockedUntil = 0
+        var embargoUntil = 0
+        var telekinesisUntil = 0
+        var magnetRiseUntil = 0
+        /// Torment: never the same move twice in a row. Grudge's: moves a fainting Grudge user took for good.
+        var tormented = false
+        var lostMoves: Set<String> = []
+        var imprisoning = false
+        var grudge = false
+        var perishAt: Int?
+        var nightmare = false
+        var cursed = false
+        var ingrained = false
+        var aquaRing = false
+        /// Foresight and Odor Sleuth (Ghost hit by Normal and Fighting), Miracle Eye (Dark by Psychic): evasion ignored.
+        var identified = false
+        var miracleEye = false
+        var tarred = false
+        var noRetreat = false
+        var octolockedBy: Int?
+        /// Lock-On and Mind Reader: the next move at this target never misses.
+        var lockOn: (target: Int, until: Int)?
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -146,7 +175,8 @@ struct BattleSimulation {
         if terrain != nil { times.append(terrainUntil) }
         times += sideConditions.flatMap(\.values) + fieldConditions.values
         if active.contains(where: { battlers[$0].status != nil || battlers[$0].trappedBy != nil
-            || battlers[$0].seededBy != nil || residualAbility(battlers[$0]) }) || weather == .sand {
+            || battlers[$0].seededBy != nil || residualAbility(battlers[$0]) || battlers[$0].cursed
+            || battlers[$0].ingrained || battlers[$0].aquaRing || battlers[$0].octolockedBy != nil }) || weather == .sand {
             times.append(nextResidual)
         }
         if active.contains(where: { battlers[$0].status == .freeze }) { times.append(nextThaw) }
@@ -154,6 +184,7 @@ struct BattleSimulation {
             let b = battlers[index]
             if b.status == .sleep { times.append(b.wakeAt) }
             if let yawn = b.yawnAt { times.append(yawn) }
+            if let perish = b.perishAt { times.append(perish) }
             if b.castMove != nil { times.append(b.castEnds) }
         }
         return times.filter { $0 >= now }.min()
@@ -194,6 +225,10 @@ struct BattleSimulation {
             if let yawn = battlers[index].yawnAt, yawn <= now {
                 battlers[index].yawnAt = nil
                 if battlers[index].status == nil { inflict(.sleep, on: index, by: nil) }
+            }
+            if let perish = battlers[index].perishAt, perish <= now {
+                battlers[index].perishAt = nil
+                hurt(index, battlers[index].hp, .perishSong)
             }
         }
         if nextThaw <= now {
@@ -390,10 +425,13 @@ struct BattleSimulation {
         var chosen: String?
         if battlers[index].loafing {
             chosen = "_loaf"
+        } else if !asleep, battlers[index].encoreUntil > now, let encored = battlers[index].encoreMove {
+            // Encore: its move again, useful or not; Struggle when it may not.
+            chosen = canUse(encored, by: index) ? encored : nil
         } else {
             for offset in 0..<max(1, loop.count) where !loop.isEmpty {
                 let slug = loop[(battlers[index].moveIndex + offset) % loop.count]
-                if isUseful(slug, by: index) {
+                if isUseful(slug, by: index), canUse(slug, by: index) {
                     battlers[index].moveIndex = (battlers[index].moveIndex + offset) % loop.count
                     chosen = slug
                     break
@@ -456,6 +494,13 @@ struct BattleSimulation {
         } else if battlers[index].confusedUntil > 0 {
             battlers[index].confusedUntil = 0
             log(.cure(battler: battlers[index].spec.id, ailment: .confusion))
+        }
+        // Grudge holds through the cast that follows it.
+        battlers[index].grudge = false
+        if slug != "struggle", !canUse(slug, by: index) {
+            log(.fail(battler: battlers[index].spec.id, move: slug, reason: .restrained))
+            advance(index, after: slug)
+            return
         }
         if let move = MoveTable.move(slug) { use(move, by: index) }
         battlers[index].castsSinceEntry += 1
@@ -534,7 +579,63 @@ struct BattleSimulation {
                 || allies(of: index).contains { battlers[$0].stages.values.contains { $0 < 0 } }
         case "court-change":
             return !hazards[b.side].isEmpty || ["reflect", "light-screen", "aurora-veil", "tailwind"].contains { sideHas(1 - b.side, $0) }
-        case "fairy-lock": return !foes.isEmpty
+        case "fairy-lock", "spite", "block", "mean-look", "spider-web": return !foes.isEmpty
+        case "taunt":
+            return target(of: move, by: index).map {
+                battlers[$0].tauntedUntil <= now && !["oblivious", "aroma-veil"].contains(battlers[$0].ability)
+                    && foeKnows($0) { !$0.isDamaging }
+            } ?? false
+        case "encore":
+            return target(of: move, by: index).map { encoreable($0) } ?? false
+        case "disable":
+            return target(of: move, by: index).map { t in
+                battlers[t].disabledUntil <= now && battlers[t].lastMove.map { battlers[t].spec.moves.contains($0) } ?? false
+            } ?? false
+        case "torment": return target(of: move, by: index).map { !battlers[$0].tormented } ?? false
+        case "imprison":
+            return !b.imprisoning && foes.contains { foe in battlers[foe].spec.moves.contains { b.spec.moves.contains($0) } }
+        case "heal-block":
+            return foes.contains { battlers[$0].healBlockedUntil <= now && foeKnows($0) { $0.flags.contains("heal") } }
+        case "embargo":
+            return berries[1 - b.side].values.reduce(0, +) > 0
+                && target(of: move, by: index).map { battlers[$0].embargoUntil <= now } ?? false
+        case "perish-song":
+            // Everyone on the field but a boss falls in three turns, its user too: only with more Pokémon left.
+            let mine = battlers.filter { $0.side == b.side && !$0.isFainted }.count
+            let theirs = battlers.filter { $0.side != b.side && !$0.isFainted }.count
+            return b.perishAt == nil && mine > theirs && foes.contains { perishes($0) }
+        case "nightmare":
+            return target(of: move, by: index).map { battlers[$0].status == .sleep && !battlers[$0].nightmare } ?? false
+        case "ingrain": return !b.ingrained
+        case "aqua-ring": return !b.aquaRing
+        case "foresight", "odor-sleuth":
+            return target(of: move, by: index).map { t in
+                !battlers[t].identified && (battlers[t].types.contains(.ghost) && b.spec.moves.contains { slug in
+                    MoveTable.move(slug).map { $0.isDamaging && ($0.type == .normal || $0.type == .fighting) } ?? false
+                } || battlers[t].stage(.evasion) > 0)
+            } ?? false
+        case "miracle-eye":
+            return target(of: move, by: index).map { t in
+                !battlers[t].miracleEye && (battlers[t].types.contains(.dark) && b.spec.moves.contains { slug in
+                    MoveTable.move(slug).map { $0.isDamaging && $0.type == .psychic } ?? false
+                } || battlers[t].stage(.evasion) > 0)
+            } ?? false
+        case "telekinesis":
+            return !fieldHas("gravity") && target(of: move, by: index).map { battlers[$0].telekinesisUntil <= now } ?? false
+        case "magnet-rise":
+            return !fieldHas("gravity") && !b.ingrained && b.magnetRiseUntil <= now
+                && foes.contains { foeKnows($0) { $0.isDamaging && $0.type == .ground } }
+        case "curse":
+            if b.types.contains(.ghost) {
+                return b.hp * 2 > b.maxHP && target(of: move, by: index).map { !battlers[$0].cursed } ?? false
+            }
+            return b.stage(.attack) < 6 || b.stage(.defense) < 6
+        case "grudge": return !b.grudge && !foes.isEmpty
+        case "lock-on", "mind-reader":
+            return b.lockOn == nil && b.spec.moves.contains { MoveTable.move($0).map { $0.accuracy > 0 && $0.accuracy < 100 } ?? false }
+        case "octolock": return target(of: move, by: index).map { battlers[$0].octolockedBy == nil } ?? false
+        case "tar-shot": return target(of: move, by: index).map { !battlers[$0].tarred || battlers[$0].stage(.speed) > -6 } ?? false
+        case "no-retreat": return !b.noRetreat
         case "defog":
             return !hazards[b.side].isEmpty || ["reflect", "light-screen", "aurora-veil"].contains { sideHas(1 - b.side, $0) }
                 || foes.contains { battlers[$0].stage(.evasion) > -6 }
@@ -590,6 +691,36 @@ struct BattleSimulation {
         default:
             return false
         }
+    }
+
+    /// Whether the restraints on the battler let it use `slug` now: Taunt keeps status moves off, Disable and Grudge
+    /// one move, Torment the last one, Imprison those its user knows, Heal Block the healing ones, Encore all but one.
+    private func canUse(_ slug: String, by index: Int) -> Bool {
+        let b = battlers[index]
+        guard let move = MoveTable.move(slug) else { return false }
+        if b.encoreUntil > now, let encored = b.encoreMove, slug != encored { return false }
+        if b.tauntedUntil > now, !move.isDamaging { return false }
+        if b.disabledUntil > now, slug == b.disabledMove { return false }
+        if b.lostMoves.contains(slug) { return false }
+        if b.tormented, slug == b.lastMove { return false }
+        if b.healBlockedUntil > now, move.flags.contains("heal") || Self.statusKind(move) == .heal { return false }
+        return !foes(of: index).contains { battlers[$0].imprisoning && battlers[$0].spec.moves.contains(slug) }
+    }
+
+    /// The foe a move cast now would aim at.
+    private func target(of move: BattleMove, by index: Int) -> Int? { pickTarget(for: move, by: index) }
+
+    /// Whether Encore can hold the target: a last move still in its loop that is not itself a copier or Encore.
+    private func encoreable(_ target: Int) -> Bool {
+        let t = battlers[target]
+        guard t.encoreUntil <= now, let last = t.lastMove, t.spec.moves.contains(last) else { return false }
+        return !["encore", "transform", "mimic", "sketch", "struggle", "mirror-move", "sleep-talk", "assist",
+                 "metronome", "copycat", "me-first", "instruct"].contains(last)
+    }
+
+    /// Whether Perish Song takes this Pokémon: never a boss (the owner, 2026-11-03), nor a Soundproof one.
+    private func perishes(_ index: Int) -> Bool {
+        !battlers[index].spec.isBoss && battlers[index].ability != "soundproof" && battlers[index].perishAt == nil
     }
 
     /// Whether a foe's loop holds a move that `matches`: what a guard waits for.
@@ -713,6 +844,34 @@ struct BattleSimulation {
             }
             battlers[index].spec.moves[slot] = learned
             log(.learn(battler: id, move: learned))
+            return
+        case "taunt", "encore", "disable", "torment", "embargo", "nightmare", "foresight", "odor-sleuth", "miracle-eye",
+             "telekinesis", "octolock", "lock-on", "mind-reader", "tar-shot", "spite", "block", "mean-look", "spider-web",
+             "curse", "heal-block":
+            restrain(move, by: index)
+            return
+        case "imprison", "ingrain", "aqua-ring", "magnet-rise", "grudge":
+            let effects: [String: WritableKeyPath<Battler, Bool>] = ["imprison": \.imprisoning, "ingrain": \.ingrained,
+                                                                      "aqua-ring": \.aquaRing, "grudge": \.grudge]
+            if move.slug == "magnet-rise" {
+                guard !fieldHas("gravity"), !battlers[index].ingrained else { return failed(move, by: index) }
+                battlers[index].magnetRiseUntil = now + 5 * BattleRules.turn
+            } else if let path = effects[move.slug] {
+                guard !battlers[index][keyPath: path] else { return failed(move, by: index) }
+                battlers[index][keyPath: path] = true
+            }
+            log(.volatile(battler: id, effect: move.slug))
+            return
+        case "perish-song":
+            for other in active where perishes(other) {
+                battlers[other].perishAt = now + 3 * BattleRules.turn
+                log(.volatile(battler: battlers[other].spec.id, effect: move.slug))
+            }
+            return
+        case "no-retreat":
+            guard !battlers[index].noRetreat else { return failed(move, by: index) }
+            battlers[index].noRetreat = true
+            useStatus(move, by: index)
             return
         case "instruct":
             // The ally uses its last move again at once, its own cast going on.
@@ -1021,6 +1180,86 @@ struct BattleSimulation {
         if average > mine { heal(index, average - mine, .painSplit) } else { hurt(index, mine - average, .painSplit) }
     }
 
+    // MARK: Restraints
+
+    private mutating func failed(_ move: BattleMove, by index: Int, _ reason: BattleFailReason = .failed) {
+        log(.fail(battler: battlers[index].spec.id, move: move.slug, reason: reason))
+    }
+
+    /// The moves that hold one foe: Taunt and Encore (three turns), Disable (four), Heal Block and Embargo (five),
+    /// Torment, Nightmare, Foresight, Miracle Eye, Telekinesis (three), Octolock, Lock-On, Tar Shot, Curse. Spite takes
+    /// PP and Block, Mean Look and Spider Web keep a Pokémon in: nothing of the kind here.
+    private mutating func restrain(_ move: BattleMove, by index: Int) {
+        let turn = BattleRules.turn
+        if ["spite", "block", "mean-look", "spider-web"].contains(move.slug) { return failed(move, by: index, .nothing) }
+        if move.slug == "curse", !battlers[index].types.contains(.ghost) {
+            // Not a Ghost: Speed down, Attack and Defense up.
+            changeStage(index, .speed, by: -1, fromFoe: false)
+            changeStage(index, .attack, by: 1, fromFoe: false)
+            changeStage(index, .defense, by: 1, fromFoe: false)
+            return
+        }
+        let aimed = move.slug == "heal-block" ? foes(of: index) : statusTargets(move, by: index)
+        guard !aimed.isEmpty else { return failed(move, by: index, .noTarget) }
+        for aim in aimed {
+            guard let (target, source) = statusLands(move, by: index, on: aim) else { continue }
+            guard move.accuracy == 0 || hits(move, by: source, on: target) else {
+                log(.miss(attacker: battlers[source].spec.id, target: battlers[target].spec.id, move: move.slug))
+                continue
+            }
+            var t = battlers[target]
+            switch move.slug {
+            case "taunt":
+                guard !["oblivious", "aroma-veil"].contains(t.ability), t.tauntedUntil <= now else { return failed(move, by: index) }
+                t.tauntedUntil = now + 3 * turn
+            case "encore":
+                guard encoreable(target) else { return failed(move, by: index) }
+                t.encoreUntil = now + 3 * turn
+                t.encoreMove = t.lastMove
+            case "disable":
+                guard let last = t.lastMove, t.spec.moves.contains(last), t.disabledUntil <= now else {
+                    return failed(move, by: index)
+                }
+                t.disabledUntil = now + 4 * turn
+                t.disabledMove = last
+            case "torment": t.tormented = true
+            case "heal-block": t.healBlockedUntil = now + 5 * turn
+            case "embargo": t.embargoUntil = now + 5 * turn
+            case "nightmare":
+                guard t.status == .sleep, !t.nightmare else { return failed(move, by: index) }
+                t.nightmare = true
+            case "foresight", "odor-sleuth": t.identified = true
+            case "miracle-eye": t.miracleEye = true
+            case "telekinesis":
+                guard !fieldHas("gravity") else { return failed(move, by: index) }
+                t.telekinesisUntil = now + 3 * turn
+            case "octolock":
+                guard t.octolockedBy == nil else { return failed(move, by: index) }
+                t.octolockedBy = source
+            case "lock-on", "mind-reader":
+                battlers[source].lockOn = (target, now + 2 * turn)
+                log(.volatile(battler: battlers[source].spec.id, effect: move.slug))
+                continue
+            case "tar-shot":
+                t.tarred = true
+                battlers[target] = t
+                changeStage(target, .speed, by: -1, fromFoe: true)
+                log(.volatile(battler: t.spec.id, effect: move.slug))
+                continue
+            case "curse":
+                // A Ghost pays half its HP to curse the target: a quarter of its HP each turn, a sixteenth for a boss.
+                guard !t.cursed else { return failed(move, by: index) }
+                hurt(source, battlers[source].maxHP / 2, .curse)
+                t = battlers[target]
+                t.cursed = true
+            default:
+                break
+            }
+            battlers[target] = t
+            log(.volatile(battler: t.spec.id, effect: move.slug))
+        }
+    }
+
     // MARK: Sides and field
 
     /// Screens, Safeguard, Mist, Tailwind, Lucky Chant, hazards, Trick Room and the rooms, the sports, Ion Deluge,
@@ -1247,12 +1486,19 @@ struct BattleSimulation {
 
     private mutating func hits(_ move: BattleMove, by index: Int, on target: Int) -> Bool {
         if move.accuracy == 0 { return true }
+        if let lock = battlers[index].lockOn, lock.target == target, lock.until > now {
+            battlers[index].lockOn = nil
+            return true
+        }
+        if battlers[target].telekinesisUntil > now, !Self.ohkoMoves.contains(move.slug) { return true }
         if battlers[index].ability == "no-guard" || battlers[target].ability == "no-guard" { return true }
         if (move.slug == "thunder" || move.slug == "hurricane"), weather == .rain { return true }
         if move.slug == "blizzard", weather == .snow { return true }
         var accuracy = Double(move.accuracy)
         if (move.slug == "thunder" || move.slug == "hurricane"), weather == .sun { accuracy = 50 }
-        let stage = max(-6, min(6, battlers[index].stage(.accuracy) - battlers[target].stage(.evasion)))
+        let evasion = battlers[target].identified || battlers[target].miracleEye ? min(0, battlers[target].stage(.evasion))
+            : battlers[target].stage(.evasion)
+        let stage = max(-6, min(6, battlers[index].stage(.accuracy) - evasion))
         accuracy *= stage >= 0 ? Double(3 + stage) / 3 : 3 / Double(3 - stage)
         if battlers[index].ability == "compound-eyes" { accuracy *= 1.3 }
         if battlers[index].ability == "hustle", move.moveClass == .physical { accuracy *= 0.8 }
@@ -1303,11 +1549,14 @@ struct BattleSimulation {
         let type = moveType(move, by: index)
         let d = battlers[target]
         let breaksMold = ["mold-breaker", "teravolt", "turboblaze"].contains(battlers[index].ability)
-        let grounded = fieldHas("gravity")
+        let grounded = fieldHas("gravity") || d.ingrained
         if type == .ground, d.ability == "levitate", !breaksMold, !grounded { return 0 }
+        if type == .ground, d.magnetRiseUntil > now || d.telekinesisUntil > now, !grounded { return 0 }
         var factor = d.types.reduce(1.0) { result, defending in
             var single = PokemonTypeData.effectiveness(attacking: type, defending: defending)
             if single == 0, type == .ground, defending == .flying, grounded { single = 1 }
+            if single == 0, defending == .ghost, type == .normal || type == .fighting, d.identified { single = 1 }
+            if single == 0, defending == .dark, type == .psychic, d.miracleEye { single = 1 }
             if single == 0, defending == .ghost, (type == .normal || type == .fighting),
                battlers[index].ability == "scrappy" || battlers[index].ability == "minds-eye" {
                 single = 1
@@ -1316,6 +1565,7 @@ struct BattleSimulation {
             return result * single
         }
         if d.ability == "wonder-guard", factor <= 1, !breaksMold { factor = 0 }
+        if d.tarred, type == .fire { factor *= 2 }
         return factor
     }
 
@@ -1355,7 +1605,7 @@ struct BattleSimulation {
         default:
             break
         }
-        if d.ability == "soundproof", move.isSound || d.ability == "bulletproof" && move.isBallistic {
+        if d.ability == "soundproof" && move.isSound || d.ability == "bulletproof" && move.isBallistic {
             trigger()
             return true
         }
@@ -1369,7 +1619,10 @@ struct BattleSimulation {
     }
 
     private func isGrounded(_ index: Int) -> Bool {
-        fieldHas("gravity") || !battlers[index].types.contains(.flying) && battlers[index].ability != "levitate"
+        let b = battlers[index]
+        if fieldHas("gravity") || b.ingrained { return true }
+        if b.magnetRiseUntil > now || b.telekinesisUntil > now { return false }
+        return !b.types.contains(.flying) && b.ability != "levitate"
     }
 
     private func effectiveSpeed(_ index: Int) -> Int {
@@ -1822,6 +2075,26 @@ struct BattleSimulation {
                 log(.ability(battler: b.spec.id, ability: b.ability))
                 changeStage(index, .speed, by: 1, fromFoe: false)
             }
+            // A boss loses a sixteenth to Curse and Nightmare, not a quarter: they would take any boss in four turns.
+            let share = b.spec.isBoss ? 16 : 4
+            if b.cursed, !guarded, !battlers[index].isFainted { hurt(index, max(1, b.maxHP / share), .curse) }
+            if b.nightmare, !guarded, !battlers[index].isFainted {
+                if battlers[index].status == .sleep {
+                    hurt(index, max(1, b.maxHP / share), .nightmare)
+                } else {
+                    battlers[index].nightmare = false
+                }
+            }
+            if b.ingrained, !battlers[index].isFainted { heal(index, max(1, b.maxHP / 16), .ingrain) }
+            if b.aquaRing, !battlers[index].isFainted { heal(index, max(1, b.maxHP / 16), .aquaRing) }
+            if let locker = b.octolockedBy, !battlers[index].isFainted {
+                if battlers[locker].isFainted || battlers[locker].slot == nil {
+                    battlers[index].octolockedBy = nil
+                } else {
+                    changeStage(index, .defense, by: -1, fromFoe: true)
+                    changeStage(index, .specialDefense, by: -1, fromFoe: true)
+                }
+            }
         }
     }
 
@@ -1837,6 +2110,7 @@ struct BattleSimulation {
 
     private mutating func heal(_ index: Int, _ amount: Int, _ cause: BattleHealCause) {
         guard !battlers[index].isFainted, amount > 0, battlers[index].hp < battlers[index].maxHP else { return }
+        if battlers[index].healBlockedUntil > now, cause != .painSplit { return }
         let gained = min(amount, battlers[index].maxHP - battlers[index].hp)
         battlers[index].hp += gained
         log(.heal(battler: battlers[index].spec.id, amount: gained, hp: battlers[index].hp, cause: cause))
@@ -1845,7 +2119,7 @@ struct BattleSimulation {
     /// A side's berry, eaten once per Pokémon when its HP fall under half: a Sitrus under a quarter, else an Oran first.
     private mutating func eatBerryIfLow(_ index: Int) {
         let b = battlers[index]
-        guard !b.ateBerry, !b.isFainted, b.hp * 2 < b.maxHP, !fieldHas("magic-room") else { return }
+        guard !b.ateBerry, !b.isFainted, b.hp * 2 < b.maxHP, !fieldHas("magic-room"), b.embargoUntil <= now else { return }
         let side = b.side
         let pick: BattleBerry?
         if b.hp * 4 <= b.maxHP, (berries[side][.sitrus] ?? 0) > 0 {
@@ -1868,6 +2142,11 @@ struct BattleSimulation {
         let id = battlers[index].spec.id
         battlers[index].castMove = nil
         log(.faint(battler: id))
+        // Grudge: the move that knocked its user out is lost to the attacker for the battle.
+        if battlers[index].grudge, let attacker, attacker != index, let move = battlers[attacker].lastMove {
+            battlers[attacker].lostMoves.insert(move)
+            log(.volatile(battler: battlers[attacker].spec.id, effect: "grudge"))
+        }
         if let attacker, attacker != index, battlers[index].destinyBond, !battlers[attacker].isFainted {
             let taken = battlers[attacker].hp
             battlers[attacker].hp = 0
@@ -2019,7 +2298,10 @@ struct BattleSimulation {
         "transform", "mimic", "sketch", "instruct", "endure", "substitute", "wide-guard", "quick-guard", "crafty-shield",
         "mat-block", "magic-coat", "snatch", "reflect", "light-screen", "aurora-veil", "safeguard", "mist", "tailwind",
         "lucky-chant", "spikes", "toxic-spikes", "stealth-rock", "sticky-web", "trick-room", "gravity", "magic-room",
-        "wonder-room", "haze", "mud-sport", "water-sport", "fairy-lock", "ion-deluge", "court-change", "defog", "tidy-up"])
+        "wonder-room", "haze", "mud-sport", "water-sport", "fairy-lock", "ion-deluge", "court-change", "defog", "tidy-up",
+        "taunt", "encore", "disable", "torment", "imprison", "heal-block", "embargo", "perish-song", "nightmare", "ingrain",
+        "aqua-ring", "foresight", "odor-sleuth", "miracle-eye", "telekinesis", "magnet-rise", "curse", "spite", "grudge",
+        "lock-on", "mind-reader", "block", "mean-look", "spider-web", "octolock", "tar-shot", "no-retreat"])
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

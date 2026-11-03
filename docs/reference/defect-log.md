@@ -515,6 +515,14 @@ read_when:
   and failed three identity assertions; locally the sprites come from disk at once, so nothing showed. Both
   classes now lift the cache limit in `setUp` and restore it in `tearDown`.
 
+- **A data key the code names must be read from the data, not guessed.** Bulletproof never stopped a ball or a bomb:
+  `BattleMove.isBallistic` looked for a "ballistic" flag where PokéAPI writes "ballistics", and `absorbs` asked for
+  Soundproof in the same condition (`d.ability == "soundproof", sound || bulletproof && ball`). No test played the
+  ability, and the engine's tests only used flags that happened to be spelt right. `testEveryFlagTheEngineReadsExists`
+  now checks each flag the engine reads against the move table, and plays Bulletproof against Shadow Ball (it fails with
+  either defect put back). Sweep of the flags read: all exist but "slicing", which PokéAPI does not have at all
+  (Sharpness waits for the generator to take Showdown's flags; noted in the moves plan).
+
 - **An NSCache is no place to prove an object is kept: it lets entries go on its own.** The guard above lifted the
   entry count only, and the cache gained a 64 MB cost limit later (`e6683cd`, 2026-10-29); lifting that too
   (`df04340`) was not enough. Full suites on the dungeons branch still failed the identity checks of
