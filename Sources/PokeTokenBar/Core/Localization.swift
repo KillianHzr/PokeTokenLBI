@@ -2880,10 +2880,6 @@ struct L {
         guard let generation = goal.generation, goal.item != .excavation else { return name }
         return "\(name), \(regionName(generation: generation))"
     }
-    func moreGoals(_ count: Int, _ list: String) -> String {
-        t("외 \(count)개: \(list)", "and \(count) more: \(list)", "ほか\(count)件：\(list)", "y \(count) más: \(list)",
-          "et \(count) autres : \(list)", "e mais \(count): \(list)", "und \(count) weitere: \(list)", "и ещё \(count): \(list)")
-    }
     /// The confirmation of a send-off, when the Pokémon still counts for goals.
     func stillCountsFor(_ name: String, _ list: String) -> String {
         t("\(KoreanParticle.subject.attach(to: name)) 아직 채워 주는 목표: \(list).", "\(name) still counts toward \(list).",

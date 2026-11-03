@@ -3106,14 +3106,15 @@ struct FormUnlockToast: View {
     }
 }
 
-/// What graduating the Pokémon raised would advance (`CompanionStore.activeGoals`), under its track: three goals at
-/// most, the others on one line. Nothing when it brings nothing.
+/// What graduating the Pokémon raised would advance (`CompanionStore.activeGoals`), under its track: every goal on
+/// its own row, however long the list. Nothing when it brings nothing.
 @MainActor
 struct ActiveGoalsList: View {
     let store: CompanionStore
     /// Opens the goal's achievement; nil, the lines are not links.
     var onOpen: ((ItemKind) -> Void)? = nil
-    static let shown = 3
+    /// The goals the send-off confirmation's sentence names before "…".
+    static let inSentence = 3
 
     var body: some View {
         let goals = store.activeGoals
@@ -3121,7 +3122,7 @@ struct ActiveGoalsList: View {
             let l = store.l
             VStack(alignment: .leading, spacing: 4) {
                 Text(l.countsFor).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                ForEach(Array(goals.prefix(Self.shown).enumerated()), id: \.offset) { _, goal in
+                ForEach(Array(goals.enumerated()), id: \.offset) { _, goal in
                     let row = HStack(spacing: 6) {
                         ItemIconView(kind: goal.item, size: 16)
                         Text(l.activeGoalName(goal)).lineLimit(1).truncationMode(.tail)
@@ -3142,12 +3143,6 @@ struct ActiveGoalsList: View {
                         row
                     }
                 }
-                if goals.count > Self.shown {
-                    Text(l.moreGoals(goals.count - Self.shown, goals.dropFirst(Self.shown)
-                        .map { "\(l.activeGoalName($0)) (+\($0.gain))" }.joined(separator: " · ")))
-                        .font(.caption2).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
             .accessibilityElement(children: onOpen == nil ? .combine : .contain)
         }
@@ -3158,8 +3153,8 @@ struct ActiveGoalsList: View {
         let goals = store.activeGoals
         guard !goals.isEmpty else { return nil }
         let l = store.l
-        let list = goals.prefix(shown).map { "\(l.activeGoalName($0)) (+\($0.gain))" }.joined(separator: ", ")
-            + (goals.count > shown ? ", …" : "")
+        let list = goals.prefix(inSentence).map { "\(l.activeGoalName($0)) (+\($0.gain))" }.joined(separator: ", ")
+            + (goals.count > inSentence ? ", …" : "")
         return l.stillCountsFor(store.displayName, list)
     }
 }

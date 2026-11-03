@@ -66,6 +66,16 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-03", entries: [
+            .improved("2026-11-03-goals-full-list", { $0.t("홈에서 키우는 포켓몬이 채우는 업적이 이제 모두 한 줄씩 보여요.",
+                                                         "On Home, every achievement your Pokémon counts for now has its own row.",
+                                                         "ホームで、育てているポケモンが進める実績がすべて1行ずつ表示されるようになりました。",
+                                                         "En Inicio, cada logro que tu Pokémon hace avanzar tiene ahora su propia línea.",
+                                                         "Sur l'Accueil, chaque succès que ton Pokémon fait avancer a maintenant sa propre ligne.",
+                                                         "Na tela inicial, cada conquista que seu Pokémon faz avançar agora tem a própria linha.",
+                                                         "Auf der Startseite hat jetzt jeder Erfolg, für den dein Pokémon zählt, eine eigene Zeile.",
+                                                         "На главной у каждого успеха, который продвигает ваш покемон, теперь своя строка.") }),
+        ]),
         ChangelogDay(date: "2026-11-02", entries: [
             .new("2026-11-02-hatch-luck") { l in
                 l.t("오늘 사용한 토큰 카드에 클로버 버튼이 생겼어요. 모든 부화를 그때의 확률로 다시 돌려 운 지수, 항목별 결과, 추이, 가장 희박했던 뽑기를 보여 줘요.",
@@ -77,6 +87,14 @@ enum Changelog {
                     "Ein Kleeblatt auf der Karte Heute verbrauchte Tokens öffnet dein Schlüpfglück: jeder Schlupf mit den Chancen seines Moments nachgespielt, ein Glückswert, jedes Kriterium, sein Verlauf und deine unwahrscheinlichsten Ziehungen.",
                     "Клевер на карточке \"Токены за сегодня\" открывает твою удачу при вылуплении: каждое вылупление пересчитано с шансами своего момента, индекс удачи, каждый критерий, графики и самые невероятные выпадения.")
             },
+            .fixed("2026-11-02-achievements-claimed-last", { $0.t("이미 받은 업적은 이제 목록 맨 아래로 내려가요.",
+                                                                  "Achievements you already claimed now sit at the very bottom of their list.",
+                                                                  "受け取り済みの実績は、リストのいちばん下に並ぶようになりました。",
+                                                                  "Los logros ya reclamados ahora quedan al final de su lista.",
+                                                                  "Les succès déjà obtenus passent maintenant tout en bas de leur liste.",
+                                                                  "As conquistas já resgatadas agora ficam no fim da lista.",
+                                                                  "Bereits eingelöste Erfolge stehen jetzt ganz unten in ihrer Liste.",
+                                                                  "Уже полученные успехи теперь стоят в самом конце списка.") }),
             .improved("2026-11-02-candy-100m") { l in
                 let candy = l.itemName(.rareCandy)
                 return l.t("\(candy) 하나가 이제 75M 대신 100M 경험치를 줘요.",
