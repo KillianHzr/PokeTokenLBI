@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import XCTest
 @testable import PokeTokenBar
 
@@ -49,6 +51,20 @@ final class ActiveGoalsTests: XCTestCase {
         XCTAssertEqual(kanto.gain, 2, "Eevee and one of its Kanto evolutions")
         let water = try XCTUnwrap(ItemKind.allCases.first { $0.badgeType == .water })
         XCTAssertEqual(s.activeGoals.first { $0.item == water && $0.generation == 1 }?.gain, 1, "Vaporeon")
+    }
+
+    /// Home lists every goal on a row of its own, however many (the owner, 2026-11-03: all of them, "même si l'encadré
+    /// fait 89000px de haut"): the list grows by at least an icon's height per goal, where it used to show three and
+    /// fold the others into one caption line.
+    func testHomeListsEveryGoalOnItsOwnRow() throws {
+        let s = try store(active: larvitar)
+        let goals = s.activeGoals
+        XCTAssertGreaterThan(goals.count, 4, "enough goals that three rows and a caption would be shorter")
+        let width = PopoverMetrics.contentWidth - 2 * Design.cardPadding
+        let host = NSHostingView(rootView: ActiveGoalsList(store: s).frame(width: width))
+        host.layoutSubtreeIfNeeded()
+        let rows = CGFloat(goals.count) * 16 + CGFloat(goals.count - 1) * 4
+        XCTAssertGreaterThanOrEqual(host.fittingSize.height, rows, "\(goals.count) goals in \(host.fittingSize.height) pt")
     }
 
     /// Nothing new, nothing shown: its line graduated already.
