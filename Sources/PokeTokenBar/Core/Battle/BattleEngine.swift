@@ -128,6 +128,18 @@ struct BattleSimulation {
         var rolledPower: Double?
         /// Roost: its Flying type is set aside until its next cast ends.
         var roosting = false
+        /// Glaive Rush: until its next cast ends, hits on it never miss and deal double.
+        var exposed = false
+        /// Salt Cure on it; Syrup Bomb's turns left; how many hits it took (Rage Fist); when a stat of it last rose.
+        var salted = false
+        var syrupLeft = 0
+        var timesHit = 0
+        var raisedAt = -1
+        /// Focus Energy (+2) and Dragon Cheer (+1, +2 for a Dragon) to its critical-hit stage; Laser Focus: its next
+        /// move a critical hit; Powder: its next Fire move bursts.
+        var critBoost = 0
+        var laserFocus = false
+        var powdered = false
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -218,7 +230,8 @@ struct BattleSimulation {
         times += sideConditions.flatMap(\.values) + fieldConditions.values
         if active.contains(where: { battlers[$0].status != nil || battlers[$0].trappedBy != nil
             || battlers[$0].seededBy != nil || residualAbility(battlers[$0]) || battlers[$0].cursed
-            || battlers[$0].ingrained || battlers[$0].aquaRing || battlers[$0].octolockedBy != nil }) || weather == .sand {
+            || battlers[$0].ingrained || battlers[$0].aquaRing || battlers[$0].octolockedBy != nil || battlers[$0].salted
+            || battlers[$0].syrupLeft > 0 }) || weather == .sand {
             times.append(nextResidual)
         }
         if active.contains(where: { battlers[$0].status == .freeze }) { times.append(nextThaw) }
@@ -540,6 +553,7 @@ struct BattleSimulation {
         guard let slug = battlers[index].castMove else { return }
         battlers[index].castMove = nil
         battlers[index].semiInvulnerable = nil
+        battlers[index].exposed = false
         // Destiny Bond holds through the cast that follows it, to that cast's end.
         battlers[index].destinyBond = false
         if slug == "_loaf" {
@@ -610,6 +624,10 @@ struct BattleSimulation {
             if foes.isEmpty { return false }
             if slug == "dream-eater" { return foes.contains { battlers[$0].status == .sleep } }
             if slug == "belch" { return b.consumedBerry != nil }
+            if slug == "double-shock" { return b.types.contains(.electric) }
+            if slug == "upper-hand" {
+                return target(of: move, by: index).flatMap { battlers[$0].castMove.flatMap(MoveTable.move) }.map { $0.priority > 0 } ?? false
+            }
             if slug == "fake-out" || slug == "first-impression" { return b.castsSinceEntry == 0 }
             if slug == "spit-up" { return b.stockpile > 0 }
             if slug == "last-resort" { return lastResortReady(index) }
@@ -725,6 +743,21 @@ struct BattleSimulation {
         case "tar-shot": return target(of: move, by: index).map { !battlers[$0].tarred || battlers[$0].stage(.speed) > -6 } ?? false
         case "no-retreat": return !b.noRetreat
         case "stockpile": return b.stockpile < 3
+        case "splash", "celebrate", "hold-hands", "happy-hour": return !foes.isEmpty
+        case "focus-energy": return b.critBoost < 2
+        case "laser-focus": return !b.laserFocus && b.spec.moves.contains { MoveTable.move($0)?.isDamaging == true }
+        case "dragon-cheer": return allies(of: index).contains { $0 != index && battlers[$0].critBoost == 0 }
+        case "shelter": return b.stage(.defense) < 6
+        case "victory-dance": return b.stage(.attack) < 6 || b.stage(.speed) < 6
+        case "take-heart": return b.status != nil || b.stage(.specialAttack) < 6
+        case "powder":
+            return target(of: move, by: index).map { t in
+                !battlers[t].powdered && !battlers[t].types.contains(.grass) && foeKnows(t) { $0.type == .fire && $0.isDamaging }
+            } ?? false
+        case "psycho-shift":
+            return b.status.map { status in target(of: move, by: index).map { canInflict(status, on: $0) } ?? false } ?? false
+        case "doodle":
+            return target(of: move, by: index).map { battlers[$0].ability != b.ability && !battlers[$0].ability.isEmpty } ?? false
         case "memento": return b.hp * 4 < b.maxHP && !bench(b.side).isEmpty && !foes.isEmpty
         case "healing-wish", "lunar-dance":
             return b.hp * 4 < b.maxHP && bench(b.side).contains { battlers[$0].hp * 2 < battlers[$0].maxHP || battlers[$0].status != nil }
@@ -872,6 +905,8 @@ struct BattleSimulation {
         if b.disabledUntil > now, slug == b.disabledMove { return false }
         if b.lostMoves.contains(slug) { return false }
         if b.tormented, slug == b.lastMove { return false }
+        // Gigaton Hammer and Blood Moon never twice in a row.
+        if slug == b.lastMove, slug == "gigaton-hammer" || slug == "blood-moon" { return false }
         if b.healBlockedUntil > now, move.flags.contains("heal") || Self.statusKind(move) == .heal { return false }
         return !foes(of: index).contains { battlers[$0].imprisoning && battlers[$0].spec.moves.contains(slug) }
     }
@@ -936,6 +971,13 @@ struct BattleSimulation {
         let previousMove = battlers[index].lastMove
         battlers[index].lastMove = move.slug
         lastMoveUsed = move.slug
+        // Powdered, a Pokémon whose Fire move goes off takes a quarter of its HP instead.
+        if battlers[index].powdered, move.type == .fire {
+            battlers[index].powdered = false
+            log(.fail(battler: id, move: move.slug, reason: .failed))
+            hurt(index, max(1, battlers[index].maxHP / 4), .ability)
+            return
+        }
         // A foe waiting with Snatch takes a move its user aims at itself.
         if move.flags.contains("snatch"), move.targetsOwnSide,
            let thief = foes(of: index).first(where: { battlers[$0].snatchUntil > now }) {
@@ -1236,6 +1278,54 @@ struct BattleSimulation {
             }
             log(.heal(battler: revived.spec.id, amount: revived.hp, hp: revived.hp, cause: .move))
             return
+        case "splash", "celebrate", "hold-hands", "happy-hour":
+            // Nothing happens, as in the games.
+            return failed(move, by: index, .nothing)
+        case "focus-energy":
+            guard battlers[index].critBoost < 2 else { return failed(move, by: index) }
+            battlers[index].critBoost = 2
+            log(.volatile(battler: id, effect: move.slug))
+            return
+        case "laser-focus":
+            battlers[index].laserFocus = true
+            log(.volatile(battler: id, effect: move.slug))
+            return
+        case "dragon-cheer":
+            for ally in allies(of: index) where ally != index && battlers[ally].critBoost == 0 {
+                battlers[ally].critBoost = battlers[ally].types.contains(.dragon) ? 2 : 1
+                log(.volatile(battler: battlers[ally].spec.id, effect: move.slug))
+            }
+            return
+        case "shelter":
+            changeStage(index, .defense, by: 2, fromFoe: false)
+            return
+        case "victory-dance":
+            for stat in [BattleStat.attack, .defense, .speed] { changeStage(index, stat, by: 1, fromFoe: false) }
+            return
+        case "take-heart":
+            cure(index)
+            changeStage(index, .specialAttack, by: 1, fromFoe: false)
+            changeStage(index, .specialDefense, by: 1, fromFoe: false)
+            return
+        case "powder", "psycho-shift", "doodle":
+            guard let aim = statusTargets(move, by: index).first,
+                  let (target, source) = statusLands(move, by: index, on: aim) else { return }
+            switch move.slug {
+            case "powder":
+                guard !battlers[target].types.contains(.grass), battlers[target].ability != "overcoat" else {
+                    return failed(move, by: index)
+                }
+                battlers[target].powdered = true
+                log(.volatile(battler: battlers[target].spec.id, effect: move.slug))
+            case "psycho-shift":
+                // Its own status moves onto the target.
+                guard let status = battlers[source].status, canInflict(status, on: target) else { return failed(move, by: index) }
+                cure(source)
+                inflict(status, on: target, by: source)
+            default:
+                for ally in allies(of: source) { setAbility(ally, battlers[target].ability) }
+            }
+            return
         case "stockpile":
             guard battlers[index].stockpile < 3 else { return failed(move, by: index) }
             battlers[index].stockpile += 1
@@ -1334,6 +1424,15 @@ struct BattleSimulation {
             }
         case "last-resort":
             if !lastResortReady(index) { return failed(move, by: index) }
+        case "double-shock":
+            if !battlers[index].types.contains(.electric) { return failed(move, by: index) }
+        case "upper-hand":
+            // Only against a foe casting a priority move.
+            if let target = targets.first, (battlers[target].castMove.flatMap(MoveTable.move)?.priority ?? 0) <= 0 {
+                return failed(move, by: index)
+            }
+        case "fickle-beam":
+            battlers[index].rolledPower = random.chance(30) ? 160 : 80
         case "spit-up":
             if battlers[index].stockpile == 0 { return failed(move, by: index) }
         case "magnitude":
@@ -1380,6 +1479,15 @@ struct BattleSimulation {
         }
         battlers[index].answering = nil
         battlers[index].lastLanded = dealtTotal > 0
+        // Chloroblast, Steel Beam and Mind Blown cost half the HP, landed or not; a Jump Kick that does not land costs
+        // its user half its HP.
+        if ["chloroblast", "steel-beam", "mind-blown"].contains(move.slug), battlers[index].ability != "magic-guard" {
+            hurt(index, (battlers[index].maxHP + 1) / 2, .recoil)
+        }
+        if Self.crashMoves.contains(move.slug), dealtTotal == 0, battlers[index].ability != "magic-guard" {
+            hurt(index, battlers[index].maxHP / 2, .recoil)
+        }
+        if move.slug == "glaive-rush", !battlers[index].isFainted { battlers[index].exposed = true }
         if ["explosion", "self-destruct", "misty-explosion"].contains(move.slug)
             || move.slug == "final-gambit" && dealtTotal > 0 {
             hurt(index, battlers[index].hp, .recoil)
@@ -1397,6 +1505,7 @@ struct BattleSimulation {
         }
         if move.slug == "rapid-spin" || move.slug == "mortal-spin" { spinAway(index) }
         if move.slug == "spit-up" { releaseStockpile(index) }
+        recentMoveAfterHit(move, by: index, targets: targets)
         if move.slug == "smack-down" || move.slug == "thousand-arrows" {
             for target in targets where !battlers[target].isFainted && !isGrounded(target) {
                 battlers[target].smackedDown = true
@@ -1477,7 +1586,11 @@ struct BattleSimulation {
             }
         }
         var dealt = 0
-        for _ in 0..<count where !battlers[target].isFainted {
+        for hit in 0..<count where !battlers[target].isFainted {
+            // Triple Kick, Triple Axel and Population Bomb roll each hit after the first, stopping on a miss; the
+            // Triples grow with each.
+            if hit > 0, Self.eachHitRolled.contains(move.slug), !hits(move, by: index, on: target) { break }
+            if move.slug == "triple-kick" || move.slug == "triple-axel" { battlers[index].rolledPower = Double(move.power * (hit + 1)) }
             let critical = rollsCritical(move, by: index, on: target)
             let damage = damageFor(move, by: index, on: target, spread: spread, critical: critical, typeFactor: typeFactor)
             // The substitute takes the hits while it stands; the hits after it breaks reach the Pokémon.
@@ -1501,7 +1614,8 @@ struct BattleSimulation {
     /// Whether a protection stops `move` against `target`: its own (Protect and kin; King's Shield, Obstruct, Silk
     /// Trap and Burning Bulwark only against damage), or its side's guard for the moves it guards against.
     private func isProtected(_ target: Int, from move: BattleMove) -> Bool {
-        guard move.isBlockedByProtect, !Self.protectionBreakers.contains(move.slug), !resolvingFuture else { return false }
+        guard move.isBlockedByProtect, !Self.protectionBreakers.contains(move.slug), !resolvingFuture,
+              move.slug != "hyper-drill", move.slug != "mighty-cleave" else { return false }
         let t = battlers[target]
         if t.protectedUntil > now, move.isDamaging || !Self.damageOnlyShields.contains(t.protection ?? "") { return true }
         let guards = sideGuards[t.side]
@@ -1758,6 +1872,50 @@ struct BattleSimulation {
         guard original.contains(.flying) else { return }
         battlers[index].types = original
         log(.retype(battler: battlers[index].spec.id, types: original))
+    }
+
+    /// What the newest moves do once they hit: Stone Axe and Ceaseless Edge lay Stealth Rock and Spikes, Ice Spinner
+    /// ends the terrain, Salt Cure and Syrup Bomb hold the target, Psychic Noise blocks its healing for two turns,
+    /// Alluring Voice confuses a target whose stats rose, Double Shock spends its user's Electric type.
+    private mutating func recentMoveAfterHit(_ move: BattleMove, by index: Int, targets: [Int]) {
+        let side = 1 - battlers[index].side
+        switch move.slug {
+        case "stone-axe", "ceaseless-edge":
+            let hazard = move.slug == "stone-axe" ? "stealth-rock" : "spikes"
+            let layers = hazards[side][hazard] ?? 0
+            if layers < (hazard == "spikes" ? 3 : 1) {
+                hazards[side][hazard] = layers + 1
+                log(.hazard(side: side, hazard: hazard, layers: layers + 1))
+            }
+        case "ice-spinner":
+            if terrain != nil {
+                terrain = nil
+                log(.terrain(nil))
+            }
+        case "double-shock":
+            retype(index, battlers[index].types.count == 1 ? [.normal] : battlers[index].types.filter { $0 != .electric })
+        default:
+            break
+        }
+        for target in targets where !battlers[target].isFainted {
+            switch move.slug {
+            case "salt-cure":
+                if !battlers[target].salted {
+                    battlers[target].salted = true
+                    log(.volatile(battler: battlers[target].spec.id, effect: move.slug))
+                }
+            case "syrup-bomb":
+                battlers[target].syrupLeft = 3
+                log(.volatile(battler: battlers[target].spec.id, effect: move.slug))
+            case "psychic-noise":
+                battlers[target].healBlockedUntil = max(battlers[target].healBlockedUntil, now + 2 * BattleRules.turn)
+                log(.volatile(battler: battlers[target].spec.id, effect: "heal-block"))
+            case "alluring-voice":
+                if battlers[target].raisedAt >= battlers[index].castStartedAt { inflict(.confusion, on: target, by: index, move: move) }
+            default:
+                break
+            }
+        }
     }
 
     /// Spit Up and Swallow spend the Stockpile, and the Defenses it raised fall back.
@@ -2239,6 +2397,8 @@ struct BattleSimulation {
         if battlers[index].ability == "no-guard" || battlers[target].ability == "no-guard" { return true }
         if let hidden = hiddenMove(target), !(Self.reachesHidden[hidden] ?? []).contains(move.slug) { return false }
         if (move.slug == "thunder" || move.slug == "hurricane"), weather == .rain { return true }
+        if ["bleakwind-storm", "wildbolt-storm", "sandsear-storm"].contains(move.slug), weather == .rain { return true }
+        if battlers[target].exposed { return true }
         if move.slug == "blizzard", weather == .snow { return true }
         var accuracy = Double(move.accuracy)
         if (move.slug == "thunder" || move.slug == "hurricane"), weather == .sun { accuracy = 50 }
@@ -2256,7 +2416,11 @@ struct BattleSimulation {
         if ["battle-armor", "shell-armor"].contains(battlers[target].ability) || sideHas(battlers[target].side, "lucky-chant") {
             return false
         }
-        var stage = move.critStage
+        if battlers[index].laserFocus {
+            battlers[index].laserFocus = false
+            return true
+        }
+        var stage = move.critStage + battlers[index].critBoost
         if battlers[index].ability == "super-luck" { stage += 1 }
         switch stage {
         case ...0: return random.below(24) == 0
@@ -2441,6 +2605,13 @@ struct BattleSimulation {
         case "rising-voltage": if terrain == .electric, isGrounded(target) { power *= 2 }
         case "grav-apple": if fieldHas("gravity") { power *= 1.5 }
         case "misty-explosion": if terrain == .misty, isGrounded(index) { power *= 1.5 }
+        case "last-respects":
+            power = 50 + 50 * Double(battlers.filter { $0.side == a.side && $0.isFainted }.count)
+        case "rage-fist": power = min(350, 50 + 50 * Double(a.timesHit))
+        case "psyblade": if terrain == .electric { power *= 1.5 }
+        case "collision-course", "electro-drift": if effectiveness(move, by: index, on: target) > 1 { power *= 5461.0 / 4096 }
+        case "temper-flare": if a.lastMove != nil, !a.lastLanded { power *= 2 }
+        case "fickle-beam", "triple-kick", "triple-axel": power = a.rolledPower ?? power
         case "stored-power", "power-trip":
             power = 20 + 20 * Double(a.stages.values.filter { $0 > 0 }.reduce(0, +))
         case "weather-ball": if weather != nil { power = 100 }
@@ -2545,7 +2716,8 @@ struct BattleSimulation {
         let type = moveType(move, by: index)
         switch (weather, type) {
         case (.sun?, .fire), (.rain?, .water): modify(1.5)
-        case (.sun?, .water), (.rain?, .fire): modify(0.5)
+        case (.sun?, .water): modify(move.slug == "hydro-steam" ? 1.5 : 0.5)
+        case (.rain?, .fire): modify(0.5)
         default: break
         }
         if critical { modify(a.ability == "sniper" ? 2.25 : 1.5) }
@@ -2576,6 +2748,7 @@ struct BattleSimulation {
             }
         }
         if a.ability == "tinted-lens", typeFactor < 1 { modify(2) }
+        if d.exposed { modify(2) }
         if a.ability == "water-bubble", type == .water { modify(2) }
         return max(1, Int(damage))
     }
@@ -2672,6 +2845,7 @@ struct BattleSimulation {
     /// Keeps the hit for the moves that answer one: the hits of one multi-hit move add up.
     private mutating func remember(_ amount: Int, on target: Int, by index: Int, move: BattleMove) {
         battlers[target].hitBy[index] = now
+        battlers[target].timesHit += 1
         if battlers[target].castMove == "bide" {
             battlers[target].bideTaken += amount
             battlers[target].bideAttacker = index
@@ -2727,7 +2901,11 @@ struct BattleSimulation {
         if battlers[target].ability == "shield-dust" { return }
         if let ailment = move.ailment, move.category == .damageAilment || move.ailmentChance > 0 {
             let chance = move.ailmentChance > 0 ? move.ailmentChance : move.effectChance
-            if random.chance(serene(index, chance)) { inflict(ailment, on: target, by: index, move: move) }
+            if random.chance(serene(index, chance)) {
+                // Dire Claw: poison, paralysis or sleep, drawn.
+                let drawn = move.slug == "dire-claw" ? [BattleAilment.poison, .paralysis, .sleep][random.below(3)] : ailment
+                inflict(drawn, on: target, by: index, move: move)
+            }
         }
         if move.flinchChance > 0, random.chance(serene(index, move.flinchChance)),
            battlers[target].ability != "inner-focus", let slug = battlers[target].castMove {
@@ -2884,6 +3062,15 @@ struct BattleSimulation {
                 } else {
                     battlers[index].nightmare = false
                 }
+            }
+            if b.salted, !guarded, !battlers[index].isFainted {
+                // Salt Cure: an eighth each turn, a quarter for a Water or Steel type, a sixteenth for a boss.
+                let salt = b.spec.isBoss ? 16 : b.types.contains(.water) || b.types.contains(.steel) ? 4 : 8
+                hurt(index, max(1, b.maxHP / salt), .curse)
+            }
+            if b.syrupLeft > 0, !battlers[index].isFainted {
+                battlers[index].syrupLeft -= 1
+                changeStage(index, .speed, by: -1, fromFoe: true)
             }
             if b.ingrained, !battlers[index].isFainted { heal(index, max(1, b.maxHP / 16), .ingrain) }
             if b.aquaRing, !battlers[index].isFainted { heal(index, max(1, b.maxHP / 16), .aquaRing) }
@@ -3054,6 +3241,7 @@ struct BattleSimulation {
         let current = battlers[index].stage(stat)
         let next = max(-6, min(6, current + amount))
         if next < current { battlers[index].loweredAt = now }
+        if next > current { battlers[index].raisedAt = now }
         guard next != current else { return }
         battlers[index].stages[stat] = next
         log(.stat(battler: battlers[index].spec.id, stat: stat, change: next - current))
@@ -3106,6 +3294,10 @@ struct BattleSimulation {
         "electric-terrain": .electric, "grassy-terrain": .grassy, "misty-terrain": .misty, "psychic-terrain": .psychic,
     ]
     static let ohkoMoves: Set<String> = ["fissure", "guillotine", "horn-drill", "sheer-cold"]
+    /// The moves whose hits after the first each roll their accuracy.
+    static let eachHitRolled: Set<String> = ["triple-kick", "triple-axel", "population-bomb"]
+    /// The moves that cost their user half its HP when they do not land.
+    static let crashMoves: Set<String> = ["jump-kick", "high-jump-kick", "axe-kick", "supercell-slam"]
     static let semiInvulnerableMoves: Set<String> = ["fly", "dig", "dive", "bounce", "phantom-force", "shadow-force",
                                                      "sky-drop"]
     /// The moves that reach a Pokémon out of reach, by where it hides.
@@ -3182,7 +3374,10 @@ struct BattleSimulation {
         "ally-switch", "follow-me", "rage-powder", "spotlight", "after-you", "quash", "helping-hand", "parting-shot",
         "trick", "switcheroo", "bestow", "recycle", "stuff-cheeks", "teatime", "corrosive-gas", "stockpile", "swallow",
         "memento", "healing-wish", "lunar-dance", "strength-sap", "purify", "jungle-healing", "lunar-blessing",
-        "heal-bell", "aromatherapy", "refresh", "roost", "revival-blessing"])
+        "heal-bell", "aromatherapy", "refresh", "roost", "revival-blessing", "focus-energy", "laser-focus",
+        "dragon-cheer", "shelter", "victory-dance", "take-heart", "powder", "psycho-shift", "doodle"])
+    // Splash, Celebrate, Hold Hands and Happy Hour are played ("nothing happens") but do nothing, as in the games: the
+    // loop editor shows them so and the suggestions never pick them.
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

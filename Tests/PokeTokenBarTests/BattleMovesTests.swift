@@ -1560,4 +1560,128 @@ final class BattleMovesTests: XCTestCase {
         }
         XCTAssertGreaterThanOrEqual(enters.count, 2, "it steps in again")
     }
+
+    // MARK: The newest moves, and the last ones
+
+    /// PokéAPI gives the newest moves a power and nothing else: the table fills their effects in.
+    func testTheNewestMovesGetTheirEffects() throws {
+        XCTAssertEqual(try XCTUnwrap(MoveTable.move("wave-crash")).drain, -33)
+        let arrows = try XCTUnwrap(MoveTable.move("triple-arrows"))
+        XCTAssertEqual(arrows.critStage, 1)
+        XCTAssertEqual(arrows.flinchChance, 30)
+        XCTAssertEqual(arrows.statChanges, [BattleMove.StatChange(stat: .defense, change: -1)])
+        XCTAssertEqual(arrows.category, .damageLower)
+        XCTAssertEqual(try XCTUnwrap(MoveTable.move("population-bomb")).maxHits, 10)
+        XCTAssertEqual(try XCTUnwrap(MoveTable.move("malignant-chain")).ailment, .badPoison)
+        XCTAssertEqual(try XCTUnwrap(MoveTable.move("make-it-rain")).category, .damageRaise)
+        let fillers = ["rain-dance", "sunny-day"]
+        let crash = battle([try mon("basc", 550, moves: ["wave-crash"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertTrue(crash.events.contains {
+            if case .hurt("basc", _, _, .recoil) = $0.event { return true }
+            return false
+        })
+        var drawn = Set<BattleAilment>()
+        for seed: UInt64 in 1...12 {
+            let claw = battle([try mon("sneasler", 903, level: 50, moves: ["dire-claw", "rain-dance"])],
+                              [try mon("lax", 143, moves: fillers, ability: "thick-fat")], seed: seed)
+            for timed in claw.events {
+                if case .status("lax", let ailment) = timed.event { drawn.insert(ailment) }
+            }
+        }
+        XCTAssertGreaterThanOrEqual(drawn.count, 2, "\(drawn)")
+    }
+
+    /// Population Bomb rolls each hit after the first and stops on a miss; Triple Kick grows with each hit.
+    func testHitsRolledOneByOne() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        var counts = Set<Int>()
+        for seed: UInt64 in 1...8 {
+            let bomb = battle([try mon("maus", 925, level: 30, moves: ["population-bomb"])], [try mon("bliss", 242, moves: fillers)], seed: seed)
+            let first = try XCTUnwrap(hits(bomb).first { $0.move == "population-bomb" })
+            counts.insert(hits(bomb).filter { $0.move == "population-bomb" && $0.time == first.time }.count)
+        }
+        XCTAssertGreaterThan(counts.count, 1, "not always ten: \(counts)")
+        XCTAssertTrue(counts.allSatisfy { (1...10).contains($0) })
+        let kick = battle([try mon("hitmon", 106, level: 40, moves: ["triple-kick"])], [try mon("bliss", 242, moves: fillers)])
+        let first = try XCTUnwrap(hits(kick).first { $0.move == "triple-kick" })
+        let volley = hits(kick).filter { $0.move == "triple-kick" && $0.time == first.time }.map(\.damage)
+        if volley.count == 3 { XCTAssertGreaterThan(volley[2], volley[0], "\(volley)") }
+    }
+
+    /// High Jump Kick that does not land costs half the HP; Steel Beam costs it, landed or not; Stone Axe lays
+    /// Stealth Rock; Salt Cure takes an eighth a turn, a sixteenth of a boss.
+    func testCrashCostsAndLeftovers() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let kicker = try mon("hitmon", 106, moves: ["high-jump-kick"])
+        let jump = battle([kicker], [try mon("gengar", 94, moves: fillers)])
+        XCTAssertTrue(has(jump, .hurt(battler: "hitmon", amount: kicker.stats.hp / 2, hp: kicker.stats.hp - kicker.stats.hp / 2,
+                                      cause: .recoil)), "a Ghost takes no kick")
+        let beam = try mon("magne", 462, moves: ["steel-beam"])
+        let steel = battle([beam], [try mon("lax", 143, moves: fillers)])
+        XCTAssertTrue(has(steel, .hurt(battler: "magne", amount: (beam.stats.hp + 1) / 2, hp: beam.stats.hp - (beam.stats.hp + 1) / 2,
+                                       cause: .recoil)))
+        let axe = battle([try mon("kleavor", 900, level: 40, moves: ["stone-axe"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertTrue(has(axe, .hazard(side: 1, hazard: "stealth-rock", layers: 1)))
+        let lax = try mon("lax", 143, moves: fillers)
+        let salt = battle([try mon("garg", 934, level: 30, moves: ["salt-cure", "rain-dance", "sunny-day"])], [lax])
+        XCTAssertTrue(salt.events.contains {
+            if case .hurt("lax", let amount, _, .curse) = $0.event { return amount == lax.stats.hp / 8 }
+            return false
+        })
+        let boss = try mon("boss", 143, moves: fillers, isBoss: true)
+        let onBoss = battle([try mon("garg", 934, level: 30, moves: ["salt-cure", "rain-dance", "sunny-day"])], [boss])
+        XCTAssertFalse(onBoss.events.contains {
+            if case .hurt("boss", let amount, _, .curse) = $0.event { return amount > boss.stats.hp / 16 }
+            return false
+        })
+    }
+
+    /// Rage Fist grows with each hit its user took; Gigaton Hammer is never used twice in a row; Laser Focus makes the
+    /// next hit critical; Splash and its kin do nothing.
+    func testRageFistGigatonLaserFocusSplash() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let rage = battle([try mon("anni", 979, level: 50, moves: ["rage-fist"])], [try mon("shuckle", 213, moves: ["peck"])])
+        let fists = hits(rage).filter { $0.move == "rage-fist" && $0.hp > 0 }.map(\.damage)
+        XCTAssertGreaterThan(Double(try XCTUnwrap(fists.last)) / Double(try XCTUnwrap(fists.first)), 1.5, "\(fists)")
+        // Alone in its loop: Struggle between two Hammers.
+        let hammer = battle([try mon("tinka", 959, level: 30, moves: ["gigaton-hammer"])], [try mon("bliss", 242, moves: fillers)])
+        let casts = hammer.events.compactMap { timed -> String? in
+            if case .cast("tinka", let move, _, _) = timed.event { return move }
+            return nil
+        }
+        XCTAssertFalse(zip(casts, casts.dropFirst()).contains { $0 == "gigaton-hammer" && $1 == "gigaton-hammer" }, "\(casts.prefix(6))")
+        let laser = battle([try mon("lax", 143, moves: ["laser-focus", "body-slam"])], [try mon("bliss", 242, moves: fillers)])
+        let focused = try XCTUnwrap(volatileAt(laser, "lax", "laser-focus"))
+        XCTAssertTrue(laser.events.contains {
+            if case .hit("lax", _, "body-slam", _, _, _, true) = $0.event { return $0.time > focused }
+            return false
+        })
+        let splash = battle([try mon("karp", 129, moves: ["splash"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertTrue(has(splash, .fail(battler: "karp", move: "splash", reason: .nothing)))
+    }
+
+    /// Powder makes the foe's next Fire move burst on it; Psycho Shift hands the user's status to the target; Victory
+    /// Dance raises three stats.
+    func testPowderPsychoShiftVictoryDance() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let zard = try mon("zard", 6, level: 60, moves: ["flamethrower"])
+        let powder = battle([try mon("vivi", 666, moves: ["powder"] + fillers)], [zard])
+        XCTAssertTrue(powder.events.contains {
+            if case .hurt("zard", let amount, _, .ability) = $0.event { return amount == zard.stats.hp / 4 }
+            return false
+        })
+        let burnt = battle([try mon("lax", 143, moves: ["psycho-shift", "body-slam"], ability: "thick-fat")],
+                           [try mon("sable", 302, level: 50, moves: ["will-o-wisp", "rain-dance"])])
+        XCTAssertTrue(burnt.events.contains {
+            if case .status("sable", .burn) = $0.event { return true }
+            return false
+        }, "Snorlax's burn moved onto Sableye")
+        let dance = battle([try mon("quaq", 914, moves: ["victory-dance", "aqua-step"])], [try mon("lax", 143, moves: fillers)])
+        for stat in [BattleStat.attack, .defense, .speed] {
+            XCTAssertTrue(dance.events.contains {
+                if case .stat("quaq", let s, 1) = $0.event { return s == stat }
+                return false
+            }, "\(stat)")
+        }
+    }
 }

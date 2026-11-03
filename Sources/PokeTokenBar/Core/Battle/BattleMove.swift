@@ -166,12 +166,14 @@ enum MoveTable {
             }
             return BattleMove.StatChange(stat: stat, change: change)
         }
-        return BattleMove(slug: f[0], type: type, moveClass: moveClass, power: int(3), accuracy: int(4), priority: int(5),
-                          target: f[6], effectChance: int(7), ailment: ailment, ailmentChance: int(9),
-                          critStage: int(10), drain: int(11), healing: int(12), flinchChance: int(13),
-                          minHits: int(14), maxHits: int(15), minTurns: int(16), maxTurns: int(17), statChance: int(18),
-                          statChanges: changes, category: MoveMetaCategory(rawValue: f[20]) ?? .unique,
-                          flags: Set(f[21].split(separator: ",").map(String.init)))
+        let move = BattleMove(slug: f[0], type: type, moveClass: moveClass, power: int(3), accuracy: int(4),
+                              priority: int(5), target: f[6], effectChance: int(7), ailment: ailment,
+                              ailmentChance: int(9), critStage: int(10), drain: int(11), healing: int(12),
+                              flinchChance: int(13), minHits: int(14), maxHits: int(15), minTurns: int(16),
+                              maxTurns: int(17), statChance: int(18), statChanges: changes,
+                              category: MoveMetaCategory(rawValue: f[20]) ?? .unique,
+                              flags: Set(f[21].split(separator: ",").map(String.init)))
+        return RecentMoveEffect.all[move.slug].map(move.completed) ?? move
     }
 }
 
