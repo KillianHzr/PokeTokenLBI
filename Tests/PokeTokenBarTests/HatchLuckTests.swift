@@ -187,6 +187,18 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertNil(h.newOdds)
     }
 
+    func testAnUnknownDittoCameFromAnEggItCanHideIn() {
+        let h = luck([entry(16, day: 1, released: true), entry(PokemonOdds.dittoSpeciesID, day: 2)]).hatches[1]
+        XCTAssertEqual(h.possibleEggs, [.tier(nil)])
+        XCTAssertEqual(h.lineOddsByEgg[.tier(nil)] ?? 0, 212.0 / 255 / 128, accuracy: 1e-12, "Caterpie, the only common left")
+    }
+
+    func testALineOutOfTheIndexCameFromNoEggItCanName() {
+        let h = luck([entry(16, day: 1, released: true), entry(25, day: 2)]).hatches[1]
+        XCTAssertEqual(h.possibleEggs, [])
+        XCTAssertNil(h.egg)
+    }
+
     /// A Ditto hides in an evolving common from an egg that promises nothing: not in Luvdisc, not from a stone.
     func testWhereADittoCanHide() throws {
         let index = [BaseSpecies(id: 16, captureRate: 255), BaseSpecies(id: 370, captureRate: 225)]
