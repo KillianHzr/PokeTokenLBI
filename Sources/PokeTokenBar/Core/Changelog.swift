@@ -66,6 +66,16 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-03", entries: [
+            .improved("2026-11-03-goals-full-list", { $0.t("홈에서 키우는 포켓몬이 채우는 업적이 이제 모두 한 줄씩 보여요.",
+                                                         "On Home, every achievement your Pokémon counts for now has its own row.",
+                                                         "ホームで、育てているポケモンが進める実績がすべて1行ずつ表示されるようになりました。",
+                                                         "En Inicio, cada logro que tu Pokémon hace avanzar tiene ahora su propia línea.",
+                                                         "Sur l'Accueil, chaque succès que ton Pokémon fait avancer a maintenant sa propre ligne.",
+                                                         "Na tela inicial, cada conquista que seu Pokémon faz avançar agora tem a própria linha.",
+                                                         "Auf der Startseite hat jetzt jeder Erfolg, für den dein Pokémon zählt, eine eigene Zeile.",
+                                                         "На главной у каждого успеха, который продвигает ваш покемон, теперь своя строка.") }),
+        ]),
         ChangelogDay(date: "2026-11-02", entries: [
             .fixed("2026-11-02-achievements-claimed-last", { $0.t("이미 받은 업적은 이제 목록 맨 아래로 내려가요.",
                                                                   "Achievements you already claimed now sit at the very bottom of their list.",
