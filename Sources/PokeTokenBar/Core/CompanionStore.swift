@@ -3964,10 +3964,12 @@ final class CompanionStore {
     struct LuckInputs: Equatable {
         let entries: [DexEntry]
         let drawItems: [ItemKind]
+        let eggsUsed: [HatchEgg: Int]
     }
 
     var luckInputs: LuckInputs {
-        LuckInputs(entries: dexEntries, drawItems: (ItemKind.drawItems + ItemKind.formerDrawItems).filter { itemCount($0) > 0 })
+        LuckInputs(entries: dexEntries, drawItems: (ItemKind.drawItems + ItemKind.formerDrawItems).filter { itemCount($0) > 0 },
+                   eggsUsed: EggStock.used(in: state))
     }
 
     /// Replays every hatch off the main thread once the species index is loaded, again only when its inputs changed.
@@ -3991,15 +3993,72 @@ final class CompanionStore {
     /// Notes the egg the player says a hatch from before the record came from, after a release; nil forgets it. The
     /// Pokémon Egg after a graduation, and what the app noted itself, are not theirs to say.
     func chooseHatchEgg(_ egg: HatchEgg?, forEntry id: String) {
-        let record = egg.map { HatchRecord(egg: $0, chosenByPlayer: true) }
+        let record = egg.map { HatchRecord(egg: $0, source: .player) }
         if let i = state.dex.firstIndex(where: { $0.id == id }) {
-            guard i > 0, state.dex[i - 1].isReleased, state.dex[i].hatch?.chosenByPlayer != false else { return }
+            guard i > 0, state.dex[i - 1].isReleased, state.dex[i].hatch?.isOpenToPlayer != false else { return }
             state.dex[i].hatch = record
         } else if id == activeDexEntry?.id, state.dex.last?.isReleased == true,
-                  state.active?.hatch?.chosenByPlayer != false {
+                  state.active?.hatch?.isOpenToPlayer != false {
             state.active?.hatch = record
         } else {
             return
+        }
+        save()
+    }
+
+    /// Gives each hatch whose egg is still unknown the one it most likely came from (`HatchLuck.guessedEggs`), which the
+    /// player may still change.
+    func deduceUnknownEggs() {
+        guard let guesses = hatchLuck?.guessedEggs(), !guesses.isEmpty else { return }
+        for i in state.dex.indices {
+            if let egg = guesses[state.dex[i].id] { state.dex[i].hatch = HatchRecord(egg: egg, source: .deduced) }
+        }
+        if let id = activeDexEntry?.id, let egg = guesses[id] { state.active?.hatch = HatchRecord(egg: egg, source: .deduced) }
+        save()
+    }
+
+    /// Reads the log for the eggs of the hatches from before the record, off the main thread: the file is up to 2 MB, and
+    /// the older half is in `.old.log`.
+    func readEggJournal(from log: URL = AppLog.logFileURL) async {
+        let older = log.deletingPathExtension().appendingPathExtension("old.log")
+        let journal = await Task.detached(priority: .utility) {
+            EggJournal(text: [older, log].compactMap { try? String(decoding: Data(contentsOf: $0), as: UTF8.self) }
+                .joined(separator: "\n"))
+        }.value
+        absorb(journal)
+    }
+
+    /// Writes in the save what the log says, for it to outlive the log's rotation: an egg goes to the hatch after the
+    /// release it was used for, over the player's word and the app's guess, not over a record.
+    func absorb(_ journal: EggJournal) {
+        var releases: [Int: Int] = [:]
+        for (i, entry) in state.dex.enumerated() {
+            if let at = entry.releasedAt { releases[Int(at.timeIntervalSince1970)] = i }
+        }
+        func noted(_ egg: HatchEgg, over record: HatchRecord?) -> HatchRecord? {
+            record?.isOpenToPlayer == false ? record : HatchRecord(egg: egg, source: .journal)
+        }
+        for use in journal.uses {
+            let second = Int(use.at.timeIntervalSince1970)
+            guard let released = releases[second] ?? releases[second - 1] else { continue }
+            if released + 1 < state.dex.count {
+                let record = noted(use.egg, over: state.dex[released + 1].hatch)
+                state.dex[released + 1].hatch = record
+            } else if state.active != nil {
+                let record = noted(use.egg, over: state.active?.hatch)
+                state.active?.hatch = record
+            }
+        }
+        // The Pokémon that hatched is the next to leave. Sent off before its reveal, it keeps the disguise as its line.
+        for disguise in journal.disguises {
+            let second = Int(disguise.at.timeIntervalSince1970)
+            guard let i = state.dex.firstIndex(where: { $0.caughtAt.map { Int($0.timeIntervalSince1970) > second } ?? false }),
+                  state.dex[i].baseID == PokemonOdds.dittoSpeciesID else { continue }
+            let afterRelease = i > 0 && state.dex[i - 1].isReleased
+            var record = state.dex[i].hatch ?? (afterRelease ? nil : HatchRecord(egg: .tier(nil), source: .journal))
+            guard record?.source == .journal else { continue }
+            record?.rolledBaseID = disguise.baseID
+            state.dex[i].hatch = record
         }
         save()
     }

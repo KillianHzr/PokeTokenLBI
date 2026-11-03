@@ -103,7 +103,7 @@ final class HatchLuckTests: XCTestCase {
     }
 
     func testAnEggThePlayerChoseCountsEverywhere() throws {
-        let chosen = HatchRecord(egg: .tier(.rare), chosenByPlayer: true)
+        let chosen = HatchRecord(egg: .tier(.rare), source: .player)
         let l = luck([entry(16, day: 1, released: true), entry(147, day: 2, record: chosen)])
         let h = l.hatches[1]
         XCTAssertEqual(h.egg, .tier(.rare))
@@ -123,7 +123,7 @@ final class HatchLuckTests: XCTestCase {
     func testTheOnlyPossibleEggCountsWithoutAsking() throws {
         let index = [BaseSpecies(id: 16, captureRate: 255), BaseSpecies(id: 140, captureRate: 45)]
         let l = luck([entry(16, day: 1, released: true),
-                      entry(140, [140, 141], day: 2, record: HatchRecord(egg: .tier(.rare), chosenByPlayer: true))],
+                      entry(140, [140, 141], day: 2, record: HatchRecord(egg: .tier(.rare), source: .player))],
                      index: index)
         let kabuto = try XCTUnwrap(l.hatches.last)
         XCTAssertEqual(kabuto.possibleEggs, [.fossil])
@@ -146,7 +146,7 @@ final class HatchLuckTests: XCTestCase {
     /// A Fossil Egg is never used on a Fossil Egg's own Pokémon: the egg after it was not one.
     func testNoFossilEggRightAfterOne() {
         let index = self.index + [BaseSpecies(id: 138, captureRate: 45), BaseSpecies(id: 142, captureRate: 45)]
-        let fossil = HatchRecord(egg: .fossil, chosenByPlayer: true)
+        let fossil = HatchRecord(egg: .fossil, source: .player)
         let l = luck([entry(16, day: 1, released: true), entry(138, day: 2, released: true, record: fossil), entry(142, day: 3)],
                      index: index)
         XCTAssertNil(l.hatches[2].egg)
@@ -254,10 +254,10 @@ final class HatchLuckTests: XCTestCase {
         collection.lastHatchedBaseID = 16
         let draw = HatchDraw(collection: collection, items: [.ovalCharm])
         for species in index where species.id != 16 {
-            let l = HatchLuck(entries: before + [entry(species.id, day: 4)], includesActive: false, today: CompanionState(),
-                              index: index, itemsSince: [.ovalCharm: Self.day(0)], now: Self.day(5))
+            let moments = HatchLuck.moments(entries: before + [entry(species.id, day: 4)], today: CompanionState(),
+                                            itemsSince: [.ovalCharm: Self.day(0)])
             let expected = bagEggs.filter { egg in draw.outcomes(egg, index: index).contains { $0.id == species.id } }
-            XCTAssertEqual(l.hatches[3].possibleEggs, expected, "#\(species.id)")
+            XCTAssertEqual(HatchLuck.possibleEggs(of: moments[3], index: index).map(\.egg), expected, "#\(species.id)")
         }
     }
 }

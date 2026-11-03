@@ -156,6 +156,26 @@ extension L {
           "Eier angeben", "Указать яйца")
     }
 
+    var luckDontRemember: String {
+        t("기억나지 않아요", "I don't remember", "覚えていません", "No me acuerdo", "Je ne m'en souviens plus", "Não me lembro",
+          "Ich weiß es nicht mehr", "Не помню")
+    }
+
+    var luckDontRememberHint: String {
+        t("알 수 없는 알마다 가장 그럴듯한 알을 정해 줘요. 나중에 바꿀 수 있어요.",
+          "Gives each unknown egg the most likely one. You can still change it.",
+          "不明なタマゴそれぞれに、最もありそうなタマゴを割り当てます。あとで変更できます。",
+          "Asigna a cada huevo desconocido el más probable. Podrás cambiarlo.",
+          "Attribue à chaque œuf inconnu le plus logique. Tu pourras le changer.",
+          "Atribui a cada ovo desconhecido o mais provável. Você ainda pode mudar.",
+          "Gibt jedem unbekannten Ei das wahrscheinlichste. Du kannst es noch ändern.",
+          "Назначает каждому неизвестному яйцу самое вероятное. Его можно изменить.")
+    }
+
+    var luckDeduced: String {
+        t("추정", "deduced", "推定", "deducido", "déduit", "deduzido", "abgeleitet", "выведено")
+    }
+
     var luckEggOfHatch: String {
         t("이 부화의 알", "Egg of this hatch", "この孵化のタマゴ", "Huevo de esta eclosión", "Œuf de cette éclosion",
           "Ovo desta eclosão", "Ei dieses Schlupfs", "Яйцо этого вылупления")

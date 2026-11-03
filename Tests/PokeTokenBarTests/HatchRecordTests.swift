@@ -56,7 +56,7 @@ final class HatchRecordTests: XCTestCase {
             let s = try await hatched(setUp)
             XCTAssertNotNil(s.state.active, "\(egg)")
             XCTAssertEqual(s.state.active?.hatch?.egg, egg)
-            XCTAssertEqual(s.state.active?.hatch?.chosenByPlayer, false)
+            XCTAssertEqual(s.state.active?.hatch?.source, .hatch)
         }
     }
 

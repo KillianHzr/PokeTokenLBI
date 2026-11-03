@@ -38,28 +38,50 @@ enum HatchEgg: Codable, Sendable, Hashable {
             else { return nil }
         }
     }
+
+    /// The same egg whatever claim it came from.
+    var withoutKey: HatchEgg {
+        if case .event(let event, _) = self { return .event(event, key: nil) }
+        return self
+    }
 }
 
 /// How a Pokémon hatched, kept with it from its hatch to its graduation or release, for the Luck screen to replay its
 /// rolls (`HatchDraw`): its egg, and the draw items each roll met.
 struct HatchRecord: Codable, Sendable, Equatable {
+    /// Who names its egg.
+    enum Source: String, Codable, Sendable {
+        /// The app, at the hatch.
+        case hatch
+        /// The player, for a hatch from before the record.
+        case player
+        /// The log, for a hatch from before the record (`EggJournal`).
+        case journal
+        /// The app's best guess, which the player asked for.
+        case deduced
+    }
+
     var egg: HatchEgg
     /// The draw items owned when its species was rolled, its form with it: as the egg started, or at the hatch when
     /// nothing was rolled before.
     var rollItems: Set<ItemKind> = []
     /// The draw items owned when it hatched: its shiny and Ditto rolls.
     var hatchItems: Set<ItemKind> = []
-    /// The egg was chosen by the player, for a hatch from before the record: its draw items then come from their dates.
-    var chosenByPlayer = false
+    var source = Source.hatch
     /// The line its egg rolled when it became something else: a Ditto's disguise, the next egg's line hatched last.
     var rolledBaseID: Int?
 
-    init(egg: HatchEgg, rollItems: Set<ItemKind> = [], hatchItems: Set<ItemKind> = [], chosenByPlayer: Bool = false,
+    /// A hatch from before the record: nothing noted its draw items, which come from their dates.
+    var itemsFromDates: Bool { source != .hatch }
+    /// The player may still say otherwise.
+    var isOpenToPlayer: Bool { source == .player || source == .deduced }
+
+    init(egg: HatchEgg, rollItems: Set<ItemKind> = [], hatchItems: Set<ItemKind> = [], source: Source = .hatch,
          rolledBaseID: Int? = nil) {
         self.egg = egg
         self.rollItems = rollItems
         self.hatchItems = hatchItems
-        self.chosenByPlayer = chosenByPlayer
+        self.source = source
         self.rolledBaseID = rolledBaseID
     }
 
@@ -72,7 +94,7 @@ struct HatchRecord: Codable, Sendable, Equatable {
         }
         rollItems = items(.rollItems)
         hatchItems = items(.hatchItems)
-        chosenByPlayer = (try? c.decodeIfPresent(Bool.self, forKey: .chosenByPlayer)) ?? false
+        source = ((try? c.decodeIfPresent(Source.self, forKey: .source)) ?? nil) ?? .hatch
         rolledBaseID = (try? c.decodeIfPresent(Int.self, forKey: .rolledBaseID)) ?? nil
     }
 }

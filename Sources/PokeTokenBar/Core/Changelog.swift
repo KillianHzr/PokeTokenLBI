@@ -67,6 +67,16 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-03", entries: [
+            .new("2026-11-03-hatch-luck") { l in
+                l.t("오늘 사용한 토큰 카드에 클로버 버튼이 생겼어요. 모든 부화를 그때의 확률로 다시 돌려 운 지수, 항목별 결과, 추이, 가장 희박했던 뽑기를 보여 줘요.",
+                    "A clover on the Today's tokens card opens your hatch luck: every hatch replayed with the odds of its moment, a luck score, each criterion, its curves and your most unlikely draws.",
+                    "本日のトークンのカードにクローバーが加わりました。すべての孵化をその時の確率で振り返り、運スコア、項目別の結果、推移、最もありえなかった抽選を表示します。",
+                    "Un trébol en la tarjeta Tokens de hoy abre tu suerte al eclosionar: cada eclosión repasada con las probabilidades de su momento, un índice de suerte, cada criterio, sus curvas y tus sorteos más improbables.",
+                    "Un trèfle sur la carte Tokens du jour ouvre ta chance au tirage : chaque éclosion rejouée avec les chances de son moment, un indice de chance, chaque critère, ses courbes et tes tirages les plus improbables.",
+                    "Um trevo no cartão Tokens de hoje abre sua sorte nas eclosões: cada eclosão refeita com as chances do seu momento, um índice de sorte, cada critério, suas curvas e seus sorteios mais improváveis.",
+                    "Ein Kleeblatt auf der Karte Heute verbrauchte Tokens öffnet dein Schlüpfglück: jeder Schlupf mit den Chancen seines Moments nachgespielt, ein Glückswert, jedes Kriterium, sein Verlauf und deine unwahrscheinlichsten Ziehungen.",
+                    "Клевер на карточке \"Токены за сегодня\" открывает твою удачу при вылуплении: каждое вылупление пересчитано с шансами своего момента, индекс удачи, каждый критерий, графики и самые невероятные выпадения.")
+            },
             .improved("2026-11-03-goals-full-list", { $0.t("홈에서 키우는 포켓몬이 채우는 업적이 이제 모두 한 줄씩 보여요.",
                                                          "On Home, every achievement your Pokémon counts for now has its own row.",
                                                          "ホームで、育てているポケモンが進める実績がすべて1行ずつ表示されるようになりました。",
@@ -77,16 +87,6 @@ enum Changelog {
                                                          "На главной у каждого успеха, который продвигает ваш покемон, теперь своя строка.") }),
         ]),
         ChangelogDay(date: "2026-11-02", entries: [
-            .new("2026-11-02-hatch-luck") { l in
-                l.t("오늘 사용한 토큰 카드에 클로버 버튼이 생겼어요. 모든 부화를 그때의 확률로 다시 돌려 운 지수, 항목별 결과, 추이, 가장 희박했던 뽑기를 보여 줘요.",
-                    "A clover on the Today's tokens card opens your hatch luck: every hatch replayed with the odds of its moment, a luck score, each criterion, its curves and your most unlikely draws.",
-                    "本日のトークンのカードにクローバーが加わりました。すべての孵化をその時の確率で振り返り、運スコア、項目別の結果、推移、最もありえなかった抽選を表示します。",
-                    "Un trébol en la tarjeta Tokens de hoy abre tu suerte al eclosionar: cada eclosión repasada con las probabilidades de su momento, un índice de suerte, cada criterio, sus curvas y tus sorteos más improbables.",
-                    "Un trèfle sur la carte Tokens du jour ouvre ta chance au tirage : chaque éclosion rejouée avec les chances de son moment, un indice de chance, chaque critère, ses courbes et tes tirages les plus improbables.",
-                    "Um trevo no cartão Tokens de hoje abre sua sorte nas eclosões: cada eclosão refeita com as chances do seu momento, um índice de sorte, cada critério, suas curvas e seus sorteios mais improváveis.",
-                    "Ein Kleeblatt auf der Karte Heute verbrauchte Tokens öffnet dein Schlüpfglück: jeder Schlupf mit den Chancen seines Moments nachgespielt, ein Glückswert, jedes Kriterium, sein Verlauf und deine unwahrscheinlichsten Ziehungen.",
-                    "Клевер на карточке \"Токены за сегодня\" открывает твою удачу при вылуплении: каждое вылупление пересчитано с шансами своего момента, индекс удачи, каждый критерий, графики и самые невероятные выпадения.")
-            },
             .fixed("2026-11-02-achievements-claimed-last", { $0.t("이미 받은 업적은 이제 목록 맨 아래로 내려가요.",
                                                                   "Achievements you already claimed now sit at the very bottom of their list.",
                                                                   "受け取り済みの実績は、リストのいちばん下に並ぶようになりました。",

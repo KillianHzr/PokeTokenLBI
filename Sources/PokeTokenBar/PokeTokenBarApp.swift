@@ -91,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         store = UsageStore()
         companion = CompanionStore()
         Task { await companion.preparePokemonProfiles() }
+        Task { await companion.readEggJournal() }
         Task { _ = await SpriteStore.shared.data(itemName: SpriteStore.oakPortrait) }
         updater = UpdateChecker()
         store.localizationLanguage = companion.language   // 알림 현지화용 미러 시드

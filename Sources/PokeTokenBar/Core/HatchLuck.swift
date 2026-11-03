@@ -28,10 +28,14 @@ struct HatchLuck: Sendable {
         /// The record's egg, the player's choice, or a Pokémon Egg after a graduation; nil when unknown.
         let egg: HatchEgg?
         let eggChosenByPlayer: Bool
-        /// The player may say its egg (`HatchRecord.chosenByPlayer`): a hatch after a release the app did not note.
+        /// The app's guess, which the player asked for and may still change (`guessedEggs`).
+        let eggDeduced: Bool
+        /// The player may say its egg (`HatchRecord.isOpenToPlayer`): a hatch after a release the app did not note.
         let asksEgg: Bool
         /// The eggs that could have brought it, for the player to say which.
         let possibleEggs: [HatchEgg]
+        /// The odds of its line, of a Ditto for one, from each of them.
+        let lineOddsByEgg: [HatchEgg: Double]
         /// The odds of the rarity it hatched in, of a Ditto for one.
         let rarityOdds: OddsRange
         /// Whether it brought something new (`HatchDraw.bringsNew`), and the odds of that outcome; nil for a Ditto.
@@ -61,6 +65,7 @@ struct HatchLuck: Sendable {
     let criteria: [CriterionResult]
     /// Hatches a week, from the first catch to now; nil under two dated catches a day apart.
     let hatchesPerWeek: Double?
+    let stock: EggStock
 
     /// `entries`: the Pokédex in hatch order, the Pokémon raised last when `includesActive`. `today`: what the save does
     /// not date, the Plates' achievements, taken as they are. `itemsSince`: when the player got each draw item, for
@@ -68,16 +73,23 @@ struct HatchLuck: Sendable {
     init(entries: [DexEntry], includesActive: Bool, today: CompanionState, index: [BaseSpecies],
          itemsSince: [ItemKind: Date] = [:], now: Date) {
         let rarities = Dictionary(index.map { ($0.id, $0.rarity) }, uniquingKeysWith: { a, _ in a })
+        let moments = Self.moments(entries: entries, today: today, itemsSince: itemsSince)
+        // Which eggs each hatch could have come from, then what the Bag's counts settle among them.
+        let measured = moments.map { moment in
+            moment.asksEgg ? Self.possibleEggs(of: moment, index: index) : []
+        }
+        let slots = zip(moments, measured).map { moment, possible in
+            EggStock.Slot(started: moment.previous?.caughtAt, possible: possible.map(\.egg), egg: moment.egg,
+                          asked: moment.asksEgg)
+        }
+        stock = EggStock(today: today, entries: entries)
+        let settled = stock.settle(slots)
         var hatches: [Hatch] = []
-        for (i, moment) in Self.moments(entries: entries, today: today, itemsSince: itemsSince).enumerated() {
-            let entry = moment.entry, record = entry.hatch, previous = moment.previous
-            let egg = record?.egg ?? (previous?.isReleased == true ? nil : .tier(nil))
-            let previousEgg = hatches.last?.egg
-            hatches.append(Self.hatch(number: i + 1, entry: entry, isActive: includesActive && i == entries.count - 1,
-                                      egg: egg, chosen: record?.chosenByPlayer ?? false,
-                                      asked: record?.chosenByPlayer ?? (previous?.isReleased == true),
-                                      roll: moment.roll, hatch: moment.hatch,
-                                      afterFossilEgg: previousEgg == .fossil, index: index, rarities: rarities))
+        for (i, moment) in moments.enumerated() {
+            hatches.append(Self.hatch(number: i + 1, entry: moment.entry, isActive: includesActive && i == entries.count - 1,
+                                      slot: settled[i], source: moment.entry.hatch?.source,
+                                      possible: measured[i].filter { settled[i].possible.contains($0.egg) },
+                                      roll: moment.roll, hatch: moment.hatch, index: index, rarities: rarities))
         }
         var runs = Criterion.allCases.map { _ in (odds: [Double](), hits: 0) }
         var distributions = Criterion.allCases.map { _ in [1.0] }
@@ -121,6 +133,11 @@ struct HatchLuck: Sendable {
         let previous: DexEntry?
         let roll: HatchDraw
         let hatch: HatchDraw
+
+        /// A hatch after a release the app did not note, whose egg the player may say.
+        var asksEgg: Bool { entry.hatch?.isOpenToPlayer ?? (previous?.isReleased == true) }
+        /// What its record says, or a Pokémon Egg after a graduation; nil when unknown.
+        var egg: HatchEgg? { entry.hatch?.egg ?? (previous?.isReleased == true ? nil : .tier(nil)) }
     }
 
     /// When a Pokémon hatched, or when the one before it left for a save that kept no hatch.
@@ -141,7 +158,7 @@ struct HatchLuck: Sendable {
             let previous = i > 0 ? entries[i - 1] : nil
             collection.lastHatchedBaseID = previous?.hatch?.rolledBaseID ?? previous?.baseID
             let rollItems: Set<ItemKind>, hatchItems: Set<ItemKind>
-            if let record = entry.hatch, !record.chosenByPlayer {
+            if let record = entry.hatch, !record.itemsFromDates {
                 (rollItems, hatchItems) = (record.rollItems, record.hatchItems)
             } else {
                 let started = previous?.caughtAt
@@ -168,7 +185,7 @@ struct HatchLuck: Sendable {
     }()
 
     /// What one egg's draw gave each outcome a hatch is judged on.
-    private struct EggOdds {
+    struct EggOdds {
         var share: [Rarity: Double] = [:]
         var line = 0.0
         var new = 0.0
@@ -219,13 +236,25 @@ struct HatchLuck: Sendable {
             // A season's Deerling, first rolled apart from the pool.
             if base == EventEgg.deerlingID, spec.event?.seasonForm != nil { return true }
             return roll.guaranteeCheck(spec)(species)
-                && (spec.event?.admits(species, companionLine: roll.collection.companionLineID) ?? true)
         }
     }
 
-    private static func hatch(number: Int, entry: DexEntry, isActive: Bool, egg: HatchEgg?, chosen: Bool, asked: Bool,
-                              roll: HatchDraw, hatch: HatchDraw, afterFossilEgg: Bool, index: [BaseSpecies],
-                              rarities: [Int: Rarity]) -> Hatch {
+    /// The eggs there were that day whose pool holds its line, a Ditto only from an egg it can hide in.
+    static func possibleEggs(of moment: Moment, index: [BaseSpecies]) -> [(egg: HatchEgg, odds: EggOdds)] {
+        let entry = moment.entry, roll = moment.roll
+        let isDitto = entry.baseID == PokemonOdds.dittoSpeciesID
+        let bringsNew = roll.bringsNew()
+        return bagEggs.filter { candidate in
+            roll.rules.allows(candidate) && (isDitto || mayHold(candidate, base: entry.baseID, roll: roll, index: index))
+        }.map { candidate in
+            (candidate, odds(of: candidate, base: entry.baseID, roll: roll, hatch: moment.hatch, index: index,
+                             bringsNew: bringsNew))
+        }.filter { isDitto ? $0.1.ditto > 0 : $0.1.line > 0 }
+    }
+
+    private static func hatch(number: Int, entry: DexEntry, isActive: Bool, slot: EggStock.Slot, source: HatchRecord.Source?,
+                              possible: [(egg: HatchEgg, odds: EggOdds)], roll: HatchDraw, hatch: HatchDraw,
+                              index: [BaseSpecies], rarities: [Int: Rarity]) -> Hatch {
         let isDitto = entry.baseID == PokemonOdds.dittoSpeciesID
         let rarity = rarities[entry.baseID] ?? entry.rarity
         let bringsNew = roll.bringsNew()
@@ -233,14 +262,8 @@ struct HatchLuck: Sendable {
         func measure(_ candidate: HatchEgg) -> EggOdds {
             odds(of: candidate, base: entry.baseID, roll: roll, hatch: hatch, index: index, bringsNew: bringsNew)
         }
-        // Those there were that day whose pool holds the line, a Ditto only from an egg it can hide in.
-        let possible = !asked ? [] : bagEggs.filter { candidate in
-            roll.rules.allows(candidate) && !(afterFossilEgg && candidate == .fossil)
-                && (isDitto || mayHold(candidate, base: entry.baseID, roll: roll, index: index))
-        }.map { ($0, measure($0)) }.filter { isDitto ? $0.1.ditto > 0 : $0.1.line > 0 }
-        let sure = possible.count == 1 ? possible[0].0 : nil
-        let known = sure ?? egg
-        let all = known.map { egg in [possible.first { $0.0 == egg }?.1 ?? measure(egg)] } ?? possible.map(\.1)
+        let known = slot.egg
+        let all = known.map { egg in [possible.first { $0.egg == egg }?.odds ?? measure(egg)] } ?? possible.map(\.odds)
         func range(_ value: (EggOdds) -> Double) -> OddsRange {
             let values = all.map(value)
             return OddsRange(low: values.min() ?? 0, high: values.max() ?? 0)
@@ -259,10 +282,44 @@ struct HatchLuck: Sendable {
             judged[.shiny] = Judgement(odds: shiny, hit: entry.isShiny)
         }
         return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, rarity: rarity, egg: known,
-                     eggChosenByPlayer: chosen && sure == nil,
-                     asksEgg: asked && sure == nil, possibleEggs: possible.map(\.0), rarityOdds: rarityOdds, bringsNew: new,
+                     eggChosenByPlayer: source == .player && known != nil && !slot.isSure,
+                     eggDeduced: source == .deduced && known != nil && !slot.isSure,
+                     asksEgg: slot.asked && !slot.isSure, possibleEggs: possible.map(\.egg),
+                     lineOddsByEgg: Dictionary(possible.map { ($0.egg, isDitto ? $0.odds.ditto : $0.odds.line) },
+                                               uniquingKeysWith: { a, _ in a }),
+                     rarityOdds: rarityOdds,
+                     bringsNew: new,
                      newOdds: isDitto ? nil : range { new ? $0.new : 1 - $0.new },
                      lineOdds: known == nil ? nil : all.first.map { isDitto ? $0.ditto : $0.line }, judged: judged)
+    }
+
+    /// The egg each hatch still unknown most likely came from, for a player who does not remember. Each counted egg left
+    /// goes where it makes the Pokémon hatched the likeliest against the Shop's egg it would have had otherwise, the
+    /// oldest hatch on a tie. The others take that Shop's egg, the rarest their line allows.
+    func guessedEggs() -> [String: HatchEgg] {
+        var left = stock.left
+        for hatch in hatches where hatch.entry.hatch?.isOpenToPlayer != false {
+            if let egg = hatch.egg?.withoutKey, let count = left[egg] { left[egg] = max(0, count - 1) }
+        }
+        let shopEggs = hatches.filter { $0.egg == nil }.compactMap { hatch -> (hatch: Hatch, egg: HatchEgg)? in
+            let egg = ([.tier(.rare), .tier(.uncommon), .tier(nil)] as [HatchEgg]).first(where: hatch.possibleEggs.contains)
+            return egg.map { (hatch, $0) }
+        }
+        var places: [(gain: Double, number: Int, order: Int, id: String, egg: HatchEgg)] = []
+        for (hatch, shopEgg) in shopEggs {
+            for (order, egg) in hatch.possibleEggs.enumerated() where (left[egg] ?? 0) > 0 {
+                let gain = (hatch.lineOddsByEgg[egg] ?? 0) / (hatch.lineOddsByEgg[shopEgg] ?? 1)
+                places.append((gain, hatch.number, order, hatch.entry.id, egg))
+            }
+        }
+        places.sort { ($1.gain, $0.number, $0.order) < ($0.gain, $1.number, $1.order) }
+        var guesses: [String: HatchEgg] = [:]
+        for place in places where guesses[place.id] == nil && (left[place.egg] ?? 0) > 0 {
+            guesses[place.id] = place.egg
+            left[place.egg, default: 0] -= 1
+        }
+        for (hatch, shopEgg) in shopEggs where guesses[hatch.entry.id] == nil { guesses[hatch.entry.id] = shopEgg }
+        return guesses
     }
 
     /// The three draws least likely, from eggs known.

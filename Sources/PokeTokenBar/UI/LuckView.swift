@@ -144,7 +144,7 @@ struct LuckScreen: View {
             if !toPick.isEmpty {
                 eggsToPickCard(toPick, l)
             }
-            if !drawItems.isEmpty, luck.hatches.contains(where: { $0.entry.hatch?.chosenByPlayer != false }) {
+            if !drawItems.isEmpty, luck.hatches.contains(where: { $0.entry.hatch?.itemsFromDates != false }) {
                 drawItemsCard(drawItems, l)
             }
             if !luck.improbable.isEmpty {
@@ -257,6 +257,8 @@ struct LuckScreen: View {
         HStack(spacing: 4) {
             if hatch.egg == nil {
                 Image(systemName: "questionmark.circle.fill").font(.caption).foregroundStyle(Color.readableOrange)
+            } else if hatch.eggDeduced {
+                Text(l.luckDeduced).font(.caption2).foregroundStyle(.secondary)
             }
             menu(hatch, l)
         }
@@ -311,6 +313,9 @@ struct LuckScreen: View {
             SectionTitle(text: l.luckEggsToPick)
             Text(l.luckUnknownEggs(hatches.count)).font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Button(l.luckDontRemember) { store.deduceUnknownEggs() }
+                .buttonStyle(.link).font(.caption.weight(.semibold))
+                .hoverTip(l.luckDontRememberHint)
             ForEach(hatches, id: \.number) { hatch in
                 HStack(spacing: 8) {
                     sprite(hatch, size: 30)

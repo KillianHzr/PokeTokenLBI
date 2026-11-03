@@ -369,17 +369,17 @@ final class HatchRulesTests: XCTestCase {
 
     /// Pichu only came to the Pokémon Day egg with #97: the menu of an earlier hatch does not offer it.
     func testTheEggMenuReadsTheRulesOfTheEvent() throws {
-        func hatch(rolled date: Date) throws -> HatchLuck.Hatch {
+        func possibleEggs(rolled date: Date) -> [HatchEgg] {
             let index = [BaseSpecies(id: 16, captureRate: 255), BaseSpecies(id: 172, captureRate: 190)]
             let entries = [DexEntry(baseID: 16, finalID: 16, chainOrder: [16], rarity: .common, caughtAt: date, releasedAt: date),
                            DexEntry(baseID: 172, finalID: 172, chainOrder: [172], rarity: .common, caughtAt: date.addingTimeInterval(60))]
-            return try XCTUnwrap(HatchLuck(entries: entries, includesActive: false, today: CompanionState(), index: index,
-                                           now: date.addingTimeInterval(120)).hatches.last)
+            let moment = HatchLuck.moments(entries: entries, today: CompanionState(), itemsSince: [:])[1]
+            return HatchLuck.possibleEggs(of: moment, index: index).map(\.egg)
         }
         let edge = Change.seasonEggsAndBabies.publishedAt
         let pokemonDay = HatchEgg.event(.pokemonDay, key: nil)
-        XCTAssertFalse(try hatch(rolled: edge.addingTimeInterval(-1)).possibleEggs.contains(pokemonDay))
-        XCTAssertTrue(try hatch(rolled: edge).possibleEggs.contains(pokemonDay))
+        XCTAssertFalse(possibleEggs(rolled: edge.addingTimeInterval(-1)).contains(pokemonDay))
+        XCTAssertTrue(possibleEggs(rolled: edge).contains(pokemonDay))
     }
 
     /// The egg menu of a hatch only offers the eggs there were when it was rolled: no Fossil Egg before the dig.

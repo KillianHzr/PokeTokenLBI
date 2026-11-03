@@ -1,7 +1,7 @@
 import XCTest
 @testable import PokeTokenBar
 
-/// What the player says of their hatches from before the record (`HatchRecord.chosenByPlayer`): the egg of a hatch
+/// What the player says of their hatches from before the record (`HatchRecord.source`): the egg of a hatch
 /// after a release, and since when they own each draw item. Both are written in the save.
 @MainActor
 final class HatchEggChoiceTests: XCTestCase {
@@ -40,7 +40,7 @@ final class HatchEggChoiceTests: XCTestCase {
         let s = try store([entry(16, days: 9, released: true), entry(10, days: 5)])
         let id = s.state.dex[1].id
         s.chooseHatchEgg(.tier(.rare), forEntry: id)
-        XCTAssertEqual(s.state.dex[1].hatch, HatchRecord(egg: .tier(.rare), chosenByPlayer: true))
+        XCTAssertEqual(s.state.dex[1].hatch, HatchRecord(egg: .tier(.rare), source: .player))
         XCTAssertEqual(relaunched().state.dex[1].hatch?.egg, .tier(.rare), "written in the save")
         s.chooseHatchEgg(.stone(.normal), forEntry: id)
         XCTAssertEqual(s.state.dex[1].hatch?.egg, .stone(.normal), "the player may change it")
@@ -52,7 +52,7 @@ final class HatchEggChoiceTests: XCTestCase {
         let s = try store([entry(16, days: 9, released: true)])
         let id = try XCTUnwrap(s.dexEntries.last?.id)
         s.chooseHatchEgg(.fossil, forEntry: id)
-        XCTAssertEqual(s.state.active?.hatch, HatchRecord(egg: .fossil, chosenByPlayer: true))
+        XCTAssertEqual(s.state.active?.hatch, HatchRecord(egg: .fossil, source: .player))
     }
 
     /// After a graduation the egg was a Pokémon Egg, and what the app noted stays as it noted it.
