@@ -880,10 +880,11 @@ final class CompanionStore {
     }
 
     /// How a species not caught yet comes (7.5): from the species it evolves from (`base`: its line's first), a fossil
-    /// line's egg, a legendary's or a mythical's eggs, else any egg.
+    /// line's egg, a big update to come (Arceus, `PokemonOdds.dungeonOnly`), a legendary's or a mythical's eggs, else
+    /// any egg.
     enum SpeciesSource: Equatable, Sendable {
         case evolves(from: Int, base: Int)
-        case fossil, legendary, mythical, egg
+        case fossil, later, legendary, mythical, egg
     }
 
     nonisolated static func source(of speciesID: Int) -> SpeciesSource {
@@ -893,6 +894,7 @@ final class CompanionStore {
             return .evolves(from: parent, base: base)
         }
         if FossilDig.isFossilLine(speciesID) { return .fossil }
+        if PokemonOdds.dungeonOnly.contains(speciesID) { return .later }
         if SpeciesGoal.mythicals.contains(speciesID) { return .mythical }
         if SpeciesGoal.legendaries.contains(speciesID) { return .legendary }
         return .egg
@@ -2926,6 +2928,15 @@ final class CompanionStore {
         return true
     }
 
+    /// A save that pre-rolled Arceus before it left the eggs rolls again (`PokemonOdds.dungeonOnly`).
+    private func dropDungeonOnlyPreRoll() {
+        guard let pending = state.pendingHatchID, PokemonOdds.dungeonOnly.contains(pending) else { return }
+        state.pendingHatchID = nil
+        state.pendingForm = nil
+        state.pendingShiny = false
+        AppLog.write("hatch: pre-rolled Arceus dropped, it hatches from no egg for now")
+    }
+
     // MARK: Event eggs
 
     /// The player's very first catch, its time and line: the companion's anniversary egg follows it.
@@ -3406,6 +3417,7 @@ final class CompanionStore {
 
     func hatchIfNeeded() async {
         guard state.active == nil, !isHatching, state.eggUsage >= eggHatchThreshold else { return }
+        dropDungeonOnlyPreRoll()
         // 프리패치가 "종 롤 중"(pending 미확정)일 때만 대기 — 이중 rng 소비 방지.
         // pending 확정 후의 예열(라인/스프라이트)과는 동시 진행해도 안전하다.
         guard state.pendingHatchID != nil || !prefetchInFlight else { return }
@@ -3482,6 +3494,7 @@ final class CompanionStore {
         prefetchInFlight = true
         defer { finishEggPrefetch(generation: generation, shouldHatch: shouldHatch) }
 
+        dropDungeonOnlyPreRoll()
         if state.pendingHatchID == nil {
             let selected = await chooseBase()
             // await 사이에 부화가 끝났거나(active != nil) 상태가 통째로 교체됐으면(세이브 불러오기)
@@ -3904,12 +3917,14 @@ final class CompanionStore {
     /// else a legendary one, from the lists of both; once all graduated, any of them, shiny. A random legendary of the
     /// REST fallback could be one graduated while a mythical was missing, and was never shiny.
     private func chooseBirthdayBaseViaREST() async -> (id: Int, shiny: Bool)? {
-        let graduated = graduatedSpeciesIDs
+        // Arceus hatches from no egg for now (`PokemonOdds.dungeonOnly`), this fallback neither.
+        let graduated = graduatedSpeciesIDs.union(PokemonOdds.dungeonOnly)
         let mythicals = Set(SpeciesGoal.mythicals).subtracting(graduated)
         if !mythicals.isEmpty { return await chooseListedBaseViaREST(mythicals, charm: false).map { ($0, false) } }
         let legendaries = Set(SpeciesGoal.legendaries).subtracting(graduated)
         if !legendaries.isEmpty { return await chooseListedBaseViaREST(legendaries, charm: false).map { ($0, false) } }
-        return await chooseListedBaseViaREST(Set(SpeciesGoal.mythicals + SpeciesGoal.legendaries), charm: false)
+        return await chooseListedBaseViaREST(Set(SpeciesGoal.mythicals + SpeciesGoal.legendaries).subtracting(PokemonOdds.dungeonOnly),
+                                             charm: false)
             .map { ($0, true) }
     }
 
@@ -3956,7 +3971,10 @@ final class CompanionStore {
         let graduated = graduatedSpeciesIDs
         // The Friendship Egg keeps its promise even then: the line is the player's own first Pokémon.
         let friendship = egg.event == .companion ? companionLineID : nil
-        let admitted = full.filter { !FossilDig.isFossilLine($0.id) || graduated.contains($0.id) || $0.id == friendship }
+        let admitted = full.filter {
+            !PokemonOdds.dungeonOnly.contains($0.id)
+                && (!FossilDig.isFossilLine($0.id) || graduated.contains($0.id) || $0.id == friendship)
+        }
         var index = egg.tier.map { t in admitted.filter(t.admits) } ?? admitted
         // A Legendary Egg hatches a legendary or mythical Pokémon, any of them.
         if egg.legendaryEgg { index = index.filter(\.isLegendary) }
@@ -4128,7 +4146,7 @@ final class CompanionStore {
             let ids = PokemonAssets.animatedSpeciesIDs
             let id = Int(rng.next() % UInt64(ids.count)) + ids.lowerBound
             do {
-                if let bs = try await provider.baseSpecies(id: id) {
+                if let bs = try await provider.baseSpecies(id: id), !PokemonOdds.dungeonOnly.contains(bs.id) {
                     // 등급 보증은 가중 경로와 **같은 기준**으로 여기서도 걸러야 한다 — 이 폴백만 빠지면
                     // GraphQL 인덱스 장애 때 보증이 조용히 깨진다. 못 찾으면 알 유지(구매 소멸 금지).
                     if let tier, !tier.admits(bs) { continue }
