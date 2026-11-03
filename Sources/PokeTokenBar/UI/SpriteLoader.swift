@@ -290,8 +290,18 @@ enum SpriteLoader {
         return max(1, width * height * 4)
     }
 
+    /// Kept beside the cache while a test checks that images are reused: NSCache may let entries go at any moment, as
+    /// it did late in the full suite (2026-11-03), which says nothing of the reuse under test. Nil in the app.
+    static var retainedForTesting: [NSString: NSImage]?
+
     static func remember(_ image: NSImage, forKey key: NSString) {
         imageCache.setObject(image, forKey: key, cost: pixelBytes(image))
+        retainedForTesting?[key] = image
+    }
+
+    /// The image kept under `key`, if any.
+    static func remembered(_ key: NSString) -> NSImage? {
+        imageCache.object(forKey: key) ?? retainedForTesting?[key]
     }
 
     /// 메모리·디스크 캐시에 이미 있으면 동기 반환(네트워크 없음). 없으면 nil.
@@ -302,7 +312,7 @@ enum SpriteLoader {
         let key = SpriteStore.cacheKey(speciesID: speciesID, animated: animated, shiny: shiny, form: form)
         let f = directory.appendingPathComponent("\(key).\(ext)")
         let imageKey = f.path as NSString
-        if let img = imageCache.object(forKey: imageKey) { return img }
+        if let img = remembered(imageKey) { return img }
         if let d = try? Data(contentsOf: f), let img = NSImage(data: d) {
             remember(img, forKey: imageKey)
             return img
@@ -429,11 +439,11 @@ enum SpriteLoader {
             let key = SpriteStore.cacheKey(speciesID: speciesID, animated: moving, shiny: shiny, form: form)
             let ext = moving ? "gif" : "png"
             let imageKey = store.directory.appendingPathComponent("\(key).\(ext)").path as NSString
-            if let img = imageCache.object(forKey: imageKey) { return img }
+            if let img = remembered(imageKey) { return img }
             guard let d = await store.data(speciesID: speciesID, animated: moving,
                                           shiny: shiny, form: form) else { continue }
             // await 중 같은 종의 다른 행이 로드를 끝냈으면 그 객체를 재사용한다.
-            if let img = imageCache.object(forKey: imageKey) { return img }
+            if let img = remembered(imageKey) { return img }
             guard let img = NSImage(data: d) else { continue }
             remember(img, forKey: imageKey)
             return img
@@ -447,7 +457,7 @@ enum SpriteLoader {
     static func cachedItemImage(name: String, directory: URL = cacheDir) -> NSImage? {
         let f = directory.appendingPathComponent("item-\(name).png")
         let imageKey = f.path as NSString
-        if let img = imageCache.object(forKey: imageKey) { return img }
+        if let img = remembered(imageKey) { return img }
         if let d = try? Data(contentsOf: f), let img = NSImage(data: d) {
             remember(img, forKey: imageKey)
             return img
@@ -458,9 +468,9 @@ enum SpriteLoader {
     /// 아이템 스프라이트 — 런타임 로드(+캐시). 미제공/실패면 nil(뷰가 이모지로 폴백).
     static func itemImage(name: String, store: SpriteStore = .shared) async -> NSImage? {
         let imageKey = store.directory.appendingPathComponent("item-\(name).png").path as NSString
-        if let img = imageCache.object(forKey: imageKey) { return img }
+        if let img = remembered(imageKey) { return img }
         guard let d = await store.data(itemName: name) else { return nil }
-        if let img = imageCache.object(forKey: imageKey) { return img }
+        if let img = remembered(imageKey) { return img }
         guard let img = NSImage(data: d) else { return nil }
         remember(img, forKey: imageKey)
         return img
