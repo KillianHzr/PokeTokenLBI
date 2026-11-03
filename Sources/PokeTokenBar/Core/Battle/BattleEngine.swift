@@ -98,6 +98,12 @@ struct BattleSimulation {
     private var lastMoveUsed: String?
     /// Each side's Wide Guard, Quick Guard, Mat Block and Crafty Shield, to when they hold.
     private var sideGuards: [[String: Int]] = [[:], [:]]
+    /// Each side's screens, Safeguard, Mist, Tailwind and Lucky Chant, to when they hold.
+    private var sideConditions: [[String: Int]] = [[:], [:]]
+    /// Each side's entry hazards and their layers: what the Pokémon sent in on that side step on.
+    private var hazards: [[String: Int]] = [[:], [:]]
+    /// Trick Room, Gravity, Magic Room, Wonder Room, Mud Sport, Water Sport and Ion Deluge, to when they hold.
+    private var fieldConditions: [String: Int] = [:]
 
     init(_ setup: BattleSetup) {
         self.setup = setup
@@ -138,6 +144,7 @@ struct BattleSimulation {
         var times: [Int] = pendingEntries.map(\.time) + wishes.map(\.time)
         if weather != nil { times.append(weatherUntil) }
         if terrain != nil { times.append(terrainUntil) }
+        times += sideConditions.flatMap(\.values) + fieldConditions.values
         if active.contains(where: { battlers[$0].status != nil || battlers[$0].trappedBy != nil
             || battlers[$0].seededBy != nil || residualAbility(battlers[$0]) }) || weather == .sand {
             times.append(nextResidual)
@@ -160,6 +167,16 @@ struct BattleSimulation {
         if terrain != nil, terrainUntil <= now {
             terrain = nil
             log(.terrain(nil))
+        }
+        for side in sideConditions.indices {
+            for (condition, until) in sideConditions[side].sorted(by: { $0.key < $1.key }) where until <= now {
+                sideConditions[side][condition] = nil
+                log(.sideCondition(side: side, condition: condition, active: false))
+            }
+        }
+        for (condition, until) in fieldConditions.sorted(by: { $0.key < $1.key }) where until <= now {
+            fieldConditions[condition] = nil
+            log(.fieldCondition(condition: condition, active: false))
         }
         for entry in pendingEntries.filter({ $0.time <= now }).sorted(by: { ($0.side, $0.slot) < ($1.side, $1.slot) }) {
             pendingEntries.removeAll { $0.side == entry.side && $0.slot == entry.slot }
@@ -242,9 +259,40 @@ struct BattleSimulation {
         guard field[side][slot] == nil || battlers[field[side][slot]!].isFainted,
               let pick = bestEntrant(side: side, slot: slot, ordered: side == 1) else { return }
         place(pick, side: side, slot: slot)
+        stepOnHazards(pick)
+        guard !battlers[pick].isFainted else { return }
         entryAbility(pick)
         startCast(pick)
     }
+
+    /// The hazards of its side hurt or slow a Pokémon sent in: Spikes (1/8, 1/6, 1/4 by layer) and Sticky Web on the
+    /// ground, Toxic Spikes poison it there (a Poison type on the ground clears them), Stealth Rock by its Rock
+    /// weakness. Magic Guard keeps the damage off.
+    private mutating func stepOnHazards(_ index: Int) {
+        let side = battlers[index].side
+        let guarded = battlers[index].ability == "magic-guard"
+        if let rocks = hazards[side]["stealth-rock"], rocks > 0, !guarded {
+            let factor = battlers[index].types.reduce(1.0) { $0 * PokemonTypeData.effectiveness(attacking: .rock, defending: $1) }
+            hurt(index, max(1, Int(Double(battlers[index].maxHP) * factor / 8)), .hazard)
+        }
+        guard !battlers[index].isFainted, isGrounded(index) else { return }
+        if let spikes = hazards[side]["spikes"], spikes > 0, !guarded {
+            hurt(index, max(1, battlers[index].maxHP / [8, 6, 4][min(spikes, 3) - 1]), .hazard)
+        }
+        guard !battlers[index].isFainted else { return }
+        if let toxic = hazards[side]["toxic-spikes"], toxic > 0 {
+            if battlers[index].types.contains(.poison) {
+                hazards[side]["toxic-spikes"] = nil
+                log(.hazard(side: side, hazard: "toxic-spikes", layers: 0))
+            } else if !sideHas(side, "safeguard") {
+                inflict(toxic > 1 ? .badPoison : .poison, on: index, by: nil)
+            }
+        }
+        if hazards[side]["sticky-web"] ?? 0 > 0 { changeStage(index, .speed, by: -1, fromFoe: true) }
+    }
+
+    private func sideHas(_ side: Int, _ condition: String) -> Bool { (sideConditions[side][condition] ?? 0) > now }
+    private func fieldHas(_ condition: String) -> Bool { (fieldConditions[condition] ?? 0) > now }
 
     private mutating func place(_ index: Int, side: Int, slot: Int) {
         field[side][slot] = index
@@ -374,7 +422,9 @@ struct BattleSimulation {
     /// whatever its speed; Solar Beam in the sun skips its charge.
     private func castDuration(_ slug: String, by index: Int) -> Int {
         if slug == "bide" { return 2 * BattleRules.turn }
-        let scale = 300 / (100 + Double(effectiveSpeed(index))) / Double(BattleRules.speedUp)
+        // Trick Room turns speeds around: the slower cast quicker.
+        let speed = fieldHas("trick-room") ? max(10, 400 - effectiveSpeed(index)) : effectiveSpeed(index)
+        let scale = 300 / (100 + Double(speed)) / Double(BattleRules.speedUp)
         var duration = Double(MoveTable.move(slug)?.castBase ?? 1200) * scale
         if slug == "solar-beam" || slug == "solar-blade", weather == .sun { duration -= 2000 * scale }
         return max(100, Int(duration.rounded()))
@@ -435,6 +485,7 @@ struct BattleSimulation {
             }
         }
         if Self.sleepMoves.contains(slug) { return false }
+        if fieldHas("gravity"), move.flags.contains("gravity") { return false }
         if move.isDamaging {
             if foes.isEmpty { return false }
             if slug == "dream-eater" { return foes.contains { battlers[$0].status == .sleep } }
@@ -455,6 +506,40 @@ struct BattleSimulation {
         case "magic-coat": return foes.contains { foeKnows($0) { $0.flags.contains("reflectable") } }
         case "snatch": return foes.contains { foeKnows($0) { $0.flags.contains("snatch") } }
         case "substitute": return b.substituteHP == 0 && b.hp > b.maxHP / 4
+        case "reflect": return !sideHas(b.side, slug) && foes.contains { foeKnows($0) { $0.moveClass == .physical } }
+        case "light-screen": return !sideHas(b.side, slug) && foes.contains { foeKnows($0) { $0.moveClass == .special } }
+        case "aurora-veil": return !sideHas(b.side, slug) && weather == .snow && !foes.isEmpty
+        case "safeguard": return !sideHas(b.side, slug) && foes.contains { foeKnows($0) { $0.ailment != nil } }
+        case "mist":
+            return !sideHas(b.side, slug) && foes.contains { foeKnows($0) { $0.statChanges.contains { $0.change < 0 } } }
+        case "tailwind", "lucky-chant": return !sideHas(b.side, slug) && !foes.isEmpty
+        case "spikes", "toxic-spikes", "stealth-rock", "sticky-web":
+            let most = ["spikes": 3, "toxic-spikes": 2][slug] ?? 1
+            return (hazards[1 - b.side][slug] ?? 0) < most && !bench(1 - b.side).isEmpty
+        case "trick-room":
+            // Only for a side slower than the foes, and never to end it.
+            guard !fieldHas(slug), !foes.isEmpty else { return false }
+            let mine = allies(of: index).map(effectiveSpeed), theirs = foes.map(effectiveSpeed)
+            return mine.reduce(0, +) * theirs.count < theirs.reduce(0, +) * mine.count
+        case "gravity":
+            return !fieldHas(slug) && b.spec.moves.contains { MoveTable.move($0).map { $0.type == .ground && $0.isDamaging } ?? false }
+                && foes.contains { !isGrounded($0) }
+        case "magic-room": return !fieldHas(slug) && (berries[1 - b.side].values.reduce(0, +)) > 0
+        case "wonder-room": return !fieldHas(slug) && !foes.isEmpty
+        case "mud-sport": return !fieldHas(slug) && foes.contains { foeKnows($0) { $0.isDamaging && $0.type == .electric } }
+        case "water-sport": return !fieldHas(slug) && foes.contains { foeKnows($0) { $0.isDamaging && $0.type == .fire } }
+        case "ion-deluge": return !fieldHas(slug) && foes.contains { foeKnows($0) { $0.isDamaging && $0.type == .normal } }
+        case "haze":
+            return foes.contains { battlers[$0].stages.values.contains { $0 > 0 } }
+                || allies(of: index).contains { battlers[$0].stages.values.contains { $0 < 0 } }
+        case "court-change":
+            return !hazards[b.side].isEmpty || ["reflect", "light-screen", "aurora-veil", "tailwind"].contains { sideHas(1 - b.side, $0) }
+        case "fairy-lock": return !foes.isEmpty
+        case "defog":
+            return !hazards[b.side].isEmpty || ["reflect", "light-screen", "aurora-veil"].contains { sideHas(1 - b.side, $0) }
+                || foes.contains { battlers[$0].stage(.evasion) > -6 }
+        case "tidy-up":
+            return !hazards[b.side].isEmpty || b.stage(.attack) < 6 || b.stage(.speed) < 6
         case "pain-split": return pickTarget(for: move, by: index).map { battlers[$0].hp > b.hp } ?? false
         case "transform":
             return !b.transformed && pickTarget(for: move, by: index).map { !battlers[$0].transformed } ?? false
@@ -494,11 +579,14 @@ struct BattleSimulation {
             }
             // Nothing lands behind a substitute: the move is skipped.
             return foes.contains { foe in
-                !isScreened(foe, from: move, by: index) && move.statChanges.contains { battlers[foe].stage($0.stat) > -6 }
+                !isScreened(foe, from: move, by: index) && !sideHas(battlers[foe].side, "mist")
+                    && move.statChanges.contains { battlers[foe].stage($0.stat) > -6 }
             }
         case .ailment, .swagger:
             guard let ailment = move.ailment else { return false }
-            return foes.contains { canInflict(ailment, on: $0, move: move) && !isScreened($0, from: move, by: index) }
+            return foes.contains {
+                canInflict(ailment, on: $0, move: move) && !isScreened($0, from: move, by: index) && !safeguarded($0, from: index)
+            }
         default:
             return false
         }
@@ -639,6 +727,11 @@ struct BattleSimulation {
         default:
             break
         }
+        if fieldHas("gravity"), move.flags.contains("gravity") {
+            log(.fail(battler: id, move: move.slug, reason: .failed))
+            return
+        }
+        if fieldMove(move, by: index) { return }
         if !move.isDamaging {
             useStatus(move, by: index)
             return
@@ -682,6 +775,10 @@ struct BattleSimulation {
             return
         }
         guard !battlers[index].isFainted, dealtTotal > 0 else { return }
+        if move.slug == "rapid-spin" || move.slug == "mortal-spin" { spinAway(index) }
+        if move.slug == "mortal-spin" {
+            for target in targets where !battlers[target].isFainted { inflict(.poison, on: target, by: index, move: move) }
+        }
         if move.drain > 0 {
             let amount = max(1, dealtTotal * move.drain / 100)
             heal(index, amount, .drain)
@@ -735,6 +832,9 @@ struct BattleSimulation {
         if typeFactor == 0 {
             log(.noEffect(attacker: attackerID, target: targetID, move: move.slug))
             return 0
+        }
+        if Self.screenBreakers.contains(move.slug) {
+            for screen in ["reflect", "light-screen", "aurora-veil"] { endSideCondition(battlers[target].side, screen) }
         }
         var count = 1
         if move.maxHits > 1 {
@@ -921,6 +1021,111 @@ struct BattleSimulation {
         if average > mine { heal(index, average - mine, .painSplit) } else { hurt(index, mine - average, .painSplit) }
     }
 
+    // MARK: Sides and field
+
+    /// Screens, Safeguard, Mist, Tailwind, Lucky Chant, hazards, Trick Room and the rooms, the sports, Ion Deluge,
+    /// Haze, Court Change; Defog and Tidy Up clear before their stat changes. True when the move is done.
+    private mutating func fieldMove(_ move: BattleMove, by index: Int) -> Bool {
+        let id = battlers[index].spec.id
+        let side = battlers[index].side
+        let turn = BattleRules.turn
+        func failed() -> Bool {
+            log(.fail(battler: id, move: move.slug, reason: .failed))
+            return true
+        }
+        switch move.slug {
+        case "reflect", "light-screen", "safeguard", "mist", "lucky-chant", "aurora-veil", "tailwind":
+            if sideHas(side, move.slug) || move.slug == "aurora-veil" && weather != .snow { return failed() }
+            startSideCondition(side, move.slug, turns: move.slug == "tailwind" ? 4 : 5)
+            return true
+        case "spikes", "toxic-spikes", "stealth-rock", "sticky-web":
+            let most = ["spikes": 3, "toxic-spikes": 2][move.slug] ?? 1
+            let layers = hazards[1 - side][move.slug] ?? 0
+            guard layers < most else { return failed() }
+            hazards[1 - side][move.slug] = layers + 1
+            log(.hazard(side: 1 - side, hazard: move.slug, layers: layers + 1))
+            return true
+        case "trick-room", "magic-room", "wonder-room":
+            // Used again while it holds, it ends.
+            if fieldHas(move.slug) {
+                fieldConditions[move.slug] = nil
+                log(.fieldCondition(condition: move.slug, active: false))
+            } else {
+                fieldConditions[move.slug] = now + 5 * turn
+                log(.fieldCondition(condition: move.slug, active: true))
+            }
+            return true
+        case "gravity", "mud-sport", "water-sport", "ion-deluge":
+            if fieldHas(move.slug) { return failed() }
+            fieldConditions[move.slug] = now + (move.slug == "ion-deluge" ? 1 : 5) * turn
+            log(.fieldCondition(condition: move.slug, active: true))
+            return true
+        case "haze":
+            for other in active {
+                for (stat, stage) in battlers[other].stages.sorted(by: { $0.key.rawValue < $1.key.rawValue }) where stage != 0 {
+                    log(.stat(battler: battlers[other].spec.id, stat: stat, change: -stage))
+                }
+                battlers[other].stages = [:]
+            }
+            return true
+        case "court-change":
+            sideConditions.swapAt(0, 1)
+            hazards.swapAt(0, 1)
+            sideGuards.swapAt(0, 1)
+            for s in 0..<2 {
+                for (hazard, layers) in hazards[s].sorted(by: { $0.key < $1.key }) {
+                    log(.hazard(side: s, hazard: hazard, layers: layers))
+                }
+                for condition in sideConditions[s].keys.sorted() {
+                    log(.sideCondition(side: s, condition: condition, active: true))
+                }
+            }
+            return true
+        case "fairy-lock":
+            // It keeps Pokémon from leaving: none leaves the field here but knocked out.
+            log(.fail(battler: id, move: move.slug, reason: .nothing))
+            return true
+        case "defog":
+            for s in 0..<2 { clearHazards(s) }
+            for condition in ["reflect", "light-screen", "aurora-veil", "safeguard", "mist"] {
+                endSideCondition(1 - side, condition)
+            }
+            return false
+        case "tidy-up":
+            for s in 0..<2 { clearHazards(s) }
+            for other in active where battlers[other].substituteHP > 0 {
+                battlers[other].substituteHP = 0
+                log(.substitute(battler: battlers[other].spec.id, hp: 0))
+            }
+            return false
+        default:
+            return false
+        }
+    }
+
+    private mutating func startSideCondition(_ side: Int, _ condition: String, turns: Int) {
+        sideConditions[side][condition] = now + turns * BattleRules.turn
+        log(.sideCondition(side: side, condition: condition, active: true))
+    }
+
+    private mutating func endSideCondition(_ side: Int, _ condition: String) {
+        guard sideConditions[side][condition] != nil else { return }
+        sideConditions[side][condition] = nil
+        log(.sideCondition(side: side, condition: condition, active: false))
+    }
+
+    private mutating func clearHazards(_ side: Int) {
+        for hazard in hazards[side].keys.sorted() { log(.hazard(side: side, hazard: hazard, layers: 0)) }
+        hazards[side] = [:]
+    }
+
+    /// Rapid Spin and Mortal Spin free their user: its side's hazards, Leech Seed and a binding move.
+    private mutating func spinAway(_ index: Int) {
+        clearHazards(battlers[index].side)
+        battlers[index].seededBy = nil
+        battlers[index].trappedBy = nil
+    }
+
     // MARK: Moves that use another
 
     /// Metronome, Assist, Sleep Talk, Copycat, Mirror Move, Me First and Nature Power use another move in their
@@ -1051,11 +1256,14 @@ struct BattleSimulation {
         accuracy *= stage >= 0 ? Double(3 + stage) / 3 : 3 / Double(3 - stage)
         if battlers[index].ability == "compound-eyes" { accuracy *= 1.3 }
         if battlers[index].ability == "hustle", move.moveClass == .physical { accuracy *= 0.8 }
+        if fieldHas("gravity") { accuracy *= 5.0 / 3 }
         return Double(random.below(100)) < accuracy
     }
 
     private mutating func rollsCritical(_ move: BattleMove, by index: Int, on target: Int) -> Bool {
-        if ["battle-armor", "shell-armor"].contains(battlers[target].ability) { return false }
+        if ["battle-armor", "shell-armor"].contains(battlers[target].ability) || sideHas(battlers[target].side, "lucky-chant") {
+            return false
+        }
         var stage = move.critStage
         if battlers[index].ability == "super-luck" { stage += 1 }
         switch stage {
@@ -1087,6 +1295,7 @@ struct BattleSimulation {
             }
         }
         if battlers[index].ability == "normalize" { return .normal }
+        if move.type == .normal, fieldHas("ion-deluge") { return .electric }
         return move.type
     }
 
@@ -1094,9 +1303,11 @@ struct BattleSimulation {
         let type = moveType(move, by: index)
         let d = battlers[target]
         let breaksMold = ["mold-breaker", "teravolt", "turboblaze"].contains(battlers[index].ability)
-        if type == .ground, d.ability == "levitate", !breaksMold { return 0 }
+        let grounded = fieldHas("gravity")
+        if type == .ground, d.ability == "levitate", !breaksMold, !grounded { return 0 }
         var factor = d.types.reduce(1.0) { result, defending in
             var single = PokemonTypeData.effectiveness(attacking: type, defending: defending)
+            if single == 0, type == .ground, defending == .flying, grounded { single = 1 }
             if single == 0, defending == .ghost, (type == .normal || type == .fighting),
                battlers[index].ability == "scrappy" || battlers[index].ability == "minds-eye" {
                 single = 1
@@ -1158,7 +1369,7 @@ struct BattleSimulation {
     }
 
     private func isGrounded(_ index: Int) -> Bool {
-        !battlers[index].types.contains(.flying) && battlers[index].ability != "levitate"
+        fieldHas("gravity") || !battlers[index].types.contains(.flying) && battlers[index].ability != "levitate"
     }
 
     private func effectiveSpeed(_ index: Int) -> Int {
@@ -1174,6 +1385,7 @@ struct BattleSimulation {
         }
         if b.ability == "surge-surfer", terrain == .electric { speed *= 2 }
         if b.slowStartUntil > now { speed *= 0.5 }
+        if sideHas(b.side, "tailwind") { speed *= 2 }
         return max(1, Int(speed))
     }
 
@@ -1238,6 +1450,7 @@ struct BattleSimulation {
             }
         }
         if terrain == .misty, type == .dragon, isGrounded(target) { power *= 0.5 }
+        if type == .electric && fieldHas("mud-sport") || type == .fire && fieldHas("water-sport") { power /= 3 }
         return power * a.powerBoost
     }
 
@@ -1259,7 +1472,9 @@ struct BattleSimulation {
         if a.ability == "unaware" { defenseStage = 0 }
         if d.ability == "unaware" { attackStage = 0 }
         var attack = Double(source.spec.stats.value(attackStat)) * stageMultiplier(attackStage)
-        var defense = Double(d.spec.stats.value(defenseStat)) * stageMultiplier(defenseStage)
+        // Wonder Room swaps the Defense and Special Defense a Pokémon has, not their stages.
+        let defenseRead: BattleStat = fieldHas("wonder-room") ? (defenseStat == .defense ? .specialDefense : .defense) : defenseStat
+        var defense = Double(d.spec.stats.value(defenseRead)) * stageMultiplier(defenseStage)
         switch a.ability {
         case "huge-power", "pure-power": if attackStat == .attack { attack *= 2 }
         case "guts": if a.status != nil, physical { attack *= 1.5 }
@@ -1289,6 +1504,11 @@ struct BattleSimulation {
         default: break
         }
         if critical { modify(a.ability == "sniper" ? 2.25 : 1.5) }
+        // Reflect, Light Screen and Aurora Veil: half the damage, two thirds when more than one stands on the side.
+        let screen = physical ? "reflect" : "light-screen"
+        if !critical, a.ability != "infiltrator", sideHas(d.side, screen) || sideHas(d.side, "aurora-veil") {
+            modify(allies(of: target).count > 1 ? 2732.0 / 4096 : 0.5)
+        }
         damage = floor(damage * Double(85 + random.below(16)) / 100)
         if a.types.contains(type) || ["protean", "libero"].contains(a.ability) {
             modify(a.ability == "adaptability" ? 2 : 1.5)
@@ -1505,7 +1725,7 @@ struct BattleSimulation {
     private mutating func inflict(_ ailment: BattleAilment, on target: Int, by source: Int?, move: BattleMove? = nil) {
         var ailment = ailment
         if move?.slug == "toxic" { ailment = .badPoison }
-        guard canInflict(ailment, on: target, move: move) else { return }
+        guard canInflict(ailment, on: target, move: move), !safeguarded(target, from: source) else { return }
         let id = battlers[target].spec.id
         switch ailment {
         case .confusion:
@@ -1532,6 +1752,13 @@ struct BattleSimulation {
             battlers[target].status = ailment
         }
         log(.status(battler: id, ailment: ailment))
+    }
+
+    /// Safeguard keeps a side's statuses and confusion off, from the foes' moves (an Infiltrator's aside).
+    private func safeguarded(_ target: Int, from source: Int?) -> Bool {
+        guard let source, battlers[source].side != battlers[target].side, battlers[source].ability != "infiltrator"
+        else { return false }
+        return sideHas(battlers[target].side, "safeguard")
     }
 
     private mutating func cure(_ index: Int) {
@@ -1618,7 +1845,7 @@ struct BattleSimulation {
     /// A side's berry, eaten once per Pokémon when its HP fall under half: a Sitrus under a quarter, else an Oran first.
     private mutating func eatBerryIfLow(_ index: Int) {
         let b = battlers[index]
-        guard !b.ateBerry, !b.isFainted, b.hp * 2 < b.maxHP else { return }
+        guard !b.ateBerry, !b.isFainted, b.hp * 2 < b.maxHP, !fieldHas("magic-room") else { return }
         let side = b.side
         let pick: BattleBerry?
         if b.hp * 4 <= b.maxHP, (berries[side][.sitrus] ?? 0) > 0 {
@@ -1681,6 +1908,7 @@ struct BattleSimulation {
         var amount = amount
         if ability == "contrary" { amount = -amount }
         if ability == "simple" { amount *= 2 }
+        if fromFoe, amount < 0, sideHas(battlers[index].side, "mist") { return }
         if fromFoe, amount < 0 {
             if ["clear-body", "white-smoke", "full-metal-body"].contains(ability)
                 || ability == "hyper-cutter" && stat == .attack || ability == "keen-eye" && stat == .accuracy
@@ -1743,6 +1971,8 @@ struct BattleSimulation {
         "electric-terrain": .electric, "grassy-terrain": .grassy, "misty-terrain": .misty, "psychic-terrain": .psychic,
     ]
     static let ohkoMoves: Set<String> = ["fissure", "guillotine", "horn-drill", "sheer-cold"]
+    /// The moves that break Reflect, Light Screen and Aurora Veil before they hit.
+    static let screenBreakers: Set<String> = ["brick-break", "psychic-fangs", "raging-bull"]
     /// The moves whose success falls when one follows another.
     static let protectionMoves: Set<String> = ["protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker",
         "obstruct", "silk-trap", "burning-bulwark", "endure", "wide-guard", "quick-guard", "mat-block"]
@@ -1787,7 +2017,9 @@ struct BattleSimulation {
     static let handledStatusMoves = Set(["protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker",
         "obstruct", "silk-trap", "burning-bulwark", "destiny-bond", "wish", "rest", "belly-drum", "pain-split",
         "transform", "mimic", "sketch", "instruct", "endure", "substitute", "wide-guard", "quick-guard", "crafty-shield",
-        "mat-block", "magic-coat", "snatch"])
+        "mat-block", "magic-coat", "snatch", "reflect", "light-screen", "aurora-veil", "safeguard", "mist", "tailwind",
+        "lucky-chant", "spikes", "toxic-spikes", "stealth-rock", "sticky-web", "trick-room", "gravity", "magic-room",
+        "wonder-room", "haze", "mud-sport", "water-sport", "fairy-lock", "ion-deluge", "court-change", "defog", "tidy-up"])
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

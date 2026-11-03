@@ -13,8 +13,9 @@ final class BattleMovesTests: XCTestCase {
         return spec
     }
 
-    private func battle(_ mine: [BattlerSpec], _ theirs: [BattlerSpec], active: Int = 1, seed: UInt64 = 1) -> BattleOutcome {
-        BattleEngine.run(BattleSetup(sides: [BattleSideSpec(battlers: mine, active: active),
+    private func battle(_ mine: [BattlerSpec], _ theirs: [BattlerSpec], active: Int = 1, seed: UInt64 = 1,
+                        berries: [BattleBerry: Int] = [:]) -> BattleOutcome {
+        BattleEngine.run(BattleSetup(sides: [BattleSideSpec(battlers: mine, active: active, berries: berries),
                                              BattleSideSpec(battlers: theirs, active: active)], seed: seed))
     }
 
@@ -524,5 +525,228 @@ final class BattleMovesTests: XCTestCase {
         let outcome = battle([try mon("weavile", 461, moves: ["feint"])], [try mon("lax", 143, moves: ["protect"])])
         XCTAssertTrue(hits(outcome).contains { $0.move == "feint" })
         XCTAssertFalse(has(outcome, .fail(battler: "weavile", move: "feint", reason: .protected)))
+    }
+
+    // MARK: Sides and field
+
+    /// When `condition` held, from its events: (start, end) pairs, the end at the battle's if it never ended.
+    private func windows(_ outcome: BattleOutcome, side: Int? = nil, _ condition: String) -> [(start: Int, end: Int)] {
+        var result: [(start: Int, end: Int)] = []
+        var start: Int?
+        for timed in outcome.events {
+            let active: Bool
+            switch timed.event {
+            case .sideCondition(let s, let c, let on) where c == condition && (side == nil || s == side): active = on
+            case .fieldCondition(let c, let on) where c == condition: active = on
+            default: continue
+            }
+            if active, start == nil { start = timed.time }
+            if !active, let begun = start {
+                result.append((begun, timed.time))
+                start = nil
+            }
+        }
+        if let start { result.append((start, outcome.duration)) }
+        return result
+    }
+
+    private func during(_ time: Int, _ windows: [(start: Int, end: Int)]) -> Bool {
+        windows.contains { time > $0.start && time < $0.end }
+    }
+
+    /// The mean damage of `move`'s hits that were not critical nor a knock-out (that one shows the HP it took),
+    /// during `windows` (or at any time).
+    private func meanDamage(_ outcome: BattleOutcome, _ move: String, in windows: [(start: Int, end: Int)]? = nil) -> Double {
+        let damages = outcome.events.compactMap { timed -> Int? in
+            guard case .hit(_, _, let m, let damage, let hp, _, false) = timed.event, m == move, hp > 0 else { return nil }
+            if let windows, !during(timed.time, windows) { return nil }
+            return damage
+        }
+        return damages.isEmpty ? 0 : Double(damages.reduce(0, +)) / Double(damages.count)
+    }
+
+    /// Reflect halves physical damage for five turns, Light Screen special damage; Brick Break shatters them first.
+    func testScreensHalveTheirDamage() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        for (screen, attack) in [("reflect", "strength"), ("light-screen", "hyper-voice")] {
+            let foe = try mon("champ", attack == "strength" ? 68 : 131, moves: [attack])
+            let shielded = battle([try mon("lax", 143, moves: [screen] + fillers)], [foe])
+            let bare = battle([try mon("lax", 143, moves: fillers)], [foe])
+            let held = windows(shielded, side: 0, screen)
+            XCTAssertFalse(held.isEmpty, screen)
+            XCTAssertTrue(held.allSatisfy { $0.end - $0.start <= 5 * BattleRules.turn }, screen)
+            let ratio = meanDamage(shielded, attack, in: held) / meanDamage(bare, attack)
+            XCTAssertEqual(ratio, 0.5, accuracy: 0.06, "\(screen): \(ratio)")
+        }
+        let broken = battle([try mon("lax", 143, moves: ["reflect"] + fillers)], [try mon("champ", 68, moves: ["brick-break"])])
+        let shattered = try XCTUnwrap(broken.events.first { $0.event == .sideCondition(side: 0, condition: "reflect", active: false) })
+        XCTAssertTrue(hits(broken).contains { $0.move == "brick-break" && $0.time == shattered.time })
+    }
+
+    /// Safeguard keeps statuses off the side, Mist its stats; the foes' status moves against them are skipped
+    /// meanwhile, a damaging move's stat drop does not land. Toxic and Icy Wind come after the side's move.
+    func testSafeguardAndMist() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let safe = battle([try mon("lax", 143, moves: ["safeguard"] + fillers, ability: "thick-fat")],
+                          [try mon("gengar", 94, level: 50, moves: ["shadow-ball", "toxic"])])
+        let guarded = windows(safe, side: 0, "safeguard")
+        XCTAssertFalse(guarded.isEmpty)
+        for timed in safe.events {
+            if case .status("lax", _) = timed.event { XCTAssertFalse(during(timed.time, guarded), "\(timed.time)") }
+        }
+        let misty = battle([try mon("lax", 143, moves: ["mist"] + fillers)], [try mon("lapras", 131, level: 50, moves: ["icy-wind"])])
+        let held = windows(misty, side: 0, "mist")
+        XCTAssertFalse(held.isEmpty)
+        var hitDuring = false
+        for timed in misty.events {
+            if case .stat("lax", _, let change) = timed.event, change < 0 { XCTAssertFalse(during(timed.time, held)) }
+            if case .hit(_, "lax", "icy-wind", _, _, _, _) = timed.event, during(timed.time, held) { hitDuring = true }
+        }
+        XCTAssertTrue(hitDuring)
+        var poisonedOutside = false
+        for timed in safe.events {
+            if case .cast("gengar", "toxic", _, _) = timed.event, !during(timed.time, guarded) { poisonedOutside = true }
+        }
+        XCTAssertTrue(poisonedOutside || !guarded.isEmpty)
+    }
+
+    /// Tailwind doubles the side's speed for four turns; Lucky Chant keeps critical hits off for five. Rain Dance
+    /// and Sunny Day, always one of them to cast, fill the loops: the battles go on.
+    func testTailwindAndLuckyChant() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let lax = try mon("lax", 143, moves: ["tailwind"] + fillers)
+        let windy = battle([lax], [try mon("champ", 68, moves: fillers)])
+        let blown = windows(windy, side: 0, "tailwind")
+        XCTAssertEqual(blown.first.map { $0.end - $0.start }, 4 * BattleRules.turn)
+        let cast = try XCTUnwrap(windy.events.first {
+            if case .cast("lax", let move, _, _) = $0.event { return move != "tailwind" && during($0.time, blown) }
+            return false
+        })
+        guard case .cast(_, _, _, let ends) = cast.event else { return XCTFail() }
+        XCTAssertEqual(ends - cast.time, Int((1200.0 * 300 / Double(100 + 2 * lax.stats.speed) / 3).rounded()))
+        let chant = battle([try mon("lax", 143, moves: ["lucky-chant", "rain-dance", "sunny-day"])],
+                           [try mon("champ", 68, level: 30, moves: ["storm-throw"])])
+        let chanted = windows(chant, side: 0, "lucky-chant")
+        XCTAssertFalse(chanted.isEmpty)
+        var chantedHits = 0
+        for timed in chant.events {
+            if case .hit(_, "lax", "storm-throw", _, _, _, let critical) = timed.event, during(timed.time, chanted) {
+                XCTAssertFalse(critical)
+                chantedHits += 1
+            }
+        }
+        XCTAssertGreaterThan(chantedHits, 3, "Storm Throw, always critical elsewhere")
+    }
+
+    /// Entry hazards hurt, poison or slow the Pokémon sent in after a knock-out; a Poison type clears Toxic Spikes.
+    func testEntryHazards() throws {
+        let setter = try mon("setter", 227, moves: ["spikes", "stealth-rock", "sticky-web", "toxic-spikes", "toxic-spikes",
+                                                     "spikes", "spikes", "brave-bird"])
+        let zard = try mon("zard", 6, moves: ["growl"], ability: "blaze")
+        let outcome = battle([setter], [try mon("first", 129, level: 70, moves: ["splash"]), zard, try mon("grimer", 88, moves: ["growl"])])
+        XCTAssertTrue(has(outcome, .hazard(side: 1, hazard: "spikes", layers: 3)))
+        XCTAssertTrue(has(outcome, .hazard(side: 1, hazard: "toxic-spikes", layers: 2)))
+        // Charizard flies over Spikes and Toxic Spikes, not over Stealth Rock: four times weak, half its HP.
+        XCTAssertTrue(has(outcome, .hurt(battler: "zard", amount: zard.stats.hp / 2, hp: zard.stats.hp - zard.stats.hp / 2,
+                                         cause: .hazard)))
+        XCTAssertFalse(has(outcome, .status(battler: "zard", ailment: .badPoison)))
+        XCTAssertTrue(has(outcome, .hazard(side: 1, hazard: "toxic-spikes", layers: 0)), "Grimer clears them")
+        XCTAssertFalse(has(outcome, .status(battler: "grimer", ailment: .badPoison)))
+    }
+
+    /// Trick Room turns speeds around for five turns: the slower cast quicker.
+    func testTrickRoomTurnsSpeedsAround() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let lax = try mon("lax", 143, moves: ["trick-room"] + fillers)
+        let outcome = battle([lax], [try mon("jolt", 135, moves: fillers)])
+        let room = windows(outcome, "trick-room")
+        XCTAssertEqual(room.first.map { $0.end - $0.start }, 5 * BattleRules.turn)
+        let cast = try XCTUnwrap(outcome.events.first {
+            if case .cast("lax", let move, _, _) = $0.event { return move != "trick-room" && during($0.time, room) }
+            return false
+        })
+        guard case .cast(_, _, _, let ends) = cast.event else { return XCTFail() }
+        XCTAssertEqual(ends - cast.time, Int((1200.0 * 300 / Double(100 + 400 - lax.stats.speed) / 3).rounded()))
+        let fast = battle([try mon("jolt", 135, moves: ["trick-room", "thunderbolt"])], [try mon("lax", 143, moves: ["growl"])])
+        XCTAssertTrue(windows(fast, "trick-room").isEmpty, "a side faster than the foes never sets it")
+    }
+
+    /// Gravity grounds everyone and keeps the airborne moves from use; Wonder Room swaps Defense and Special Defense;
+    /// Magic Room keeps berries uneaten; Haze clears the stat stages.
+    func testGravityRoomsAndHaze() throws {
+        let heavy = battle([try mon("chomp", 445, moves: ["gravity", "earthquake"])], [try mon("bird", 18, moves: ["bounce", "growl"])])
+        let pulled = windows(heavy, "gravity")
+        XCTAssertFalse(pulled.isEmpty)
+        XCTAssertTrue(heavy.events.contains {
+            if case .hit("chomp", "bird", "earthquake", _, _, _, _) = $0.event { return during($0.time, pulled) }
+            return false
+        })
+        XCTAssertFalse(heavy.events.contains {
+            if case .cast("bird", "bounce", _, _) = $0.event { return during($0.time, pulled) }
+            return false
+        })
+        let fillers = ["rain-dance", "sunny-day"]
+        let wonder = battle([try mon("bliss", 242, moves: ["wonder-room"] + fillers)], [try mon("champ", 68, moves: ["strength"])])
+        let bare = battle([try mon("bliss", 242, moves: fillers)], [try mon("champ", 68, moves: ["strength"])])
+        let swapped = windows(wonder, "wonder-room")
+        XCTAssertLessThan(meanDamage(wonder, "strength", in: swapped) / meanDamage(bare, "strength"), 0.3,
+                          "Blissey's Special Defense takes the physical hits")
+        // Magic Room keeps the foes' berries uneaten: Snorlax sets it against Machamp's Sitrus Berries.
+        let champ = try mon("champ", 68, moves: fillers)
+        let magic = battle([champ], [try mon("lax", 143, moves: ["magic-room", "body-slam"])], berries: [.sitrus: 2])
+        let room = windows(magic, "magic-room")
+        var halfDuring = false
+        for timed in magic.events {
+            if case .berry = timed.event { XCTAssertFalse(during(timed.time, room), "\(timed.time)") }
+            if case .hit(_, "champ", _, _, let hp, _, _) = timed.event, hp > 0, hp * 2 < champ.stats.hp,
+               during(timed.time, room) { halfDuring = true }
+        }
+        XCTAssertTrue(halfDuring, "Machamp falls under half its HP inside the room")
+        let hazy = battle([try mon("weezing", 110, moves: ["haze", "sludge-bomb"])],
+                          [try mon("scizor", 212, moves: ["swords-dance", "bullet-punch"])])
+        XCTAssertTrue(hazy.events.contains {
+            if case .stat("scizor", .attack, let change) = $0.event { return change < 0 }
+            return false
+        })
+    }
+
+    /// Mud Sport divides Electric moves by three; Ion Deluge turns Normal moves Electric for a turn.
+    func testSportsAndIonDeluge() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let muddy = battle([try mon("lax", 143, moves: ["mud-sport"] + fillers)], [try mon("jolt", 135, moves: ["thunderbolt"])])
+        let bare = battle([try mon("lax", 143, moves: fillers)], [try mon("jolt", 135, moves: ["thunderbolt"])])
+        let sport = windows(muddy, "mud-sport")
+        // The power falls to a third; the damage a bit less, the formula's last +2 staying whole.
+        let ratio = meanDamage(muddy, "thunderbolt", in: sport) / meanDamage(bare, "thunderbolt")
+        XCTAssertTrue((0.3...0.42).contains(ratio), "\(ratio)")
+        let ion = battle([try mon("chomp", 445, moves: ["ion-deluge", "dragon-claw"])], [try mon("lax", 143, moves: ["tackle"])])
+        let deluge = windows(ion, "ion-deluge")
+        XCTAssertFalse(deluge.isEmpty)
+        XCTAssertTrue(ion.events.contains {
+            if case .noEffect("lax", "chomp", "tackle") = $0.event { return during($0.time, deluge) }
+            return false
+        }, "an Electric Tackle does nothing to Garchomp")
+    }
+
+    /// Court Change swaps the sides' hazards; Defog clears them; Rapid Spin clears its own side's.
+    func testHazardsMoveAndClear() throws {
+        let court = battle([try mon("cinder", 815, moves: ["court-change", "pyro-ball"]), try mon("bench", 6, moves: ["growl"])],
+                           [try mon("setter", 227, moves: ["stealth-rock", "brave-bird"]), try mon("next", 130, moves: ["growl"])])
+        XCTAssertTrue(has(court, .hazard(side: 0, hazard: "stealth-rock", layers: 1)))
+        let swapped = court.events.firstIndex { $0.event == .hazard(side: 1, hazard: "stealth-rock", layers: 1)
+            && court.events.contains { $0.event == .hazard(side: 0, hazard: "stealth-rock", layers: 1) } }
+        XCTAssertNotNil(swapped)
+        let fog = battle([try mon("bird", 18, moves: ["defog", "brave-bird"]), try mon("bench", 6, moves: ["growl"])],
+                         [try mon("setter", 227, moves: ["stealth-rock", "drill-peck"])])
+        XCTAssertTrue(has(fog, .hazard(side: 0, hazard: "stealth-rock", layers: 0)))
+        let spin = battle([try mon("star", 121, moves: ["rapid-spin", "surf"]), try mon("bench", 6, moves: ["growl"])],
+                          [try mon("setter", 227, moves: ["stealth-rock", "drill-peck"])])
+        XCTAssertTrue(has(spin, .hazard(side: 0, hazard: "stealth-rock", layers: 0)))
+    }
+
+    /// Fairy Lock keeps Pokémon from leaving, which none does here: it plays, and nothing happens.
+    func testFairyLockDoesNothingHere() throws {
+        let outcome = battle([try mon("clef", 36, moves: ["fairy-lock", "moonblast"])], [try mon("lax", 143, moves: ["growl"])])
+        XCTAssertTrue(has(outcome, .fail(battler: "clef", move: "fairy-lock", reason: .nothing)))
     }
 }

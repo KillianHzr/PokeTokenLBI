@@ -124,6 +124,8 @@ enum BattleHurtCause: String, Codable, Sendable {
     case burn, poison, weather, recoil, trap, leechSeed, confusion, ability, belly, destinyBond, sun, painSplit
     /// Substitute's cost, and Spiky Shield's thorns.
     case substitute, protection
+    /// Spikes or Stealth Rock on entry.
+    case hazard
 }
 
 /// Why a Pokémon regained HP.
@@ -136,6 +138,8 @@ enum BattleFailReason: String, Codable, Sendable {
     case paralysis, confusion, noTarget, protected, truant, immune, failed
     /// A status move against a Pokémon behind its substitute.
     case substitute
+    /// A move that does nothing here, as in the games (Splash), or whose effect has no hold in these battles.
+    case nothing
 }
 
 /// Everything that happens, timed in milliseconds from the start: a replay replays these, a live view plays them at
@@ -170,6 +174,12 @@ enum BattleEvent: Codable, Sendable, Equatable {
     case endured(battler: String)
     /// Magic Coat or Magic Bounce sent `move` back; Snatch took it.
     case reflect(battler: String, move: String)
+    /// A side's Reflect, Light Screen, Aurora Veil, Safeguard, Mist, Tailwind or Lucky Chant starts or ends.
+    case sideCondition(side: Int, condition: String, active: Bool)
+    /// Trick Room, Gravity, Magic Room, Wonder Room, Mud Sport, Water Sport or Ion Deluge starts or ends.
+    case fieldCondition(condition: String, active: Bool)
+    /// A side's entry hazard and its layers now (0: cleared).
+    case hazard(side: Int, hazard: String, layers: Int)
     case end(winner: Int)
 }
 
