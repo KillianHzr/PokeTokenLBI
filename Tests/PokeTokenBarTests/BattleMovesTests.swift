@@ -14,9 +14,10 @@ final class BattleMovesTests: XCTestCase {
     }
 
     private func battle(_ mine: [BattlerSpec], _ theirs: [BattlerSpec], active: Int = 1, seed: UInt64 = 1,
-                        berries: [BattleBerry: Int] = [:]) -> BattleOutcome {
+                        berries: [BattleBerry: Int] = [:], theirBerries: [BattleBerry: Int] = [:]) -> BattleOutcome {
         BattleEngine.run(BattleSetup(sides: [BattleSideSpec(battlers: mine, active: active, berries: berries),
-                                             BattleSideSpec(battlers: theirs, active: active)], seed: seed))
+                                             BattleSideSpec(battlers: theirs, active: active, berries: theirBerries)],
+                                     seed: seed))
     }
 
     private struct Hit {
@@ -1161,5 +1162,83 @@ final class BattleMovesTests: XCTestCase {
         let after = battle([try mon("clef", 36, moves: ["after-you"]), try mon("snorlax", 143, moves: ["giga-impact"])], foes, active: 2)
         let at = try XCTUnwrap(volatileAt(after, "snorlax", "after-you"))
         XCTAssertTrue(hits(after).contains { $0.attacker == "snorlax" && $0.time == at }, "Snorlax's long cast lands at once")
+    }
+
+    // MARK: Berries held
+
+    /// Knock Off hits 1.5x as hard on a Pokémon holding a berry and knocks it off: never eaten after.
+    func testKnockOffKnocksTheBerryOff() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let outcome = battle([try mon("lax", 143, moves: fillers)], [try mon("absol", 359, level: 60, moves: ["knock-off"])],
+                             berries: [.sitrus: 1])
+        let knocked = try XCTUnwrap(outcome.events.first {
+            if case .berryTaken("lax", .sitrus, nil) = $0.event { return true }
+            return false
+        })
+        XCTAssertFalse(outcome.events.contains {
+            if case .berry("lax", _) = $0.event { return $0.time > knocked.time }
+            return false
+        })
+        let all = hits(outcome).filter { $0.move == "knock-off" && $0.hp > 0 }
+        let first = try XCTUnwrap(all.first), rest = all.dropFirst()
+        XCTAssertFalse(rest.isEmpty)
+        let mean = Double(rest.map(\.damage).reduce(0, +)) / Double(rest.count)
+        XCTAssertEqual(Double(first.damage) / mean, 1.5, accuracy: 0.2)
+    }
+
+    /// Thief steals the berry for a user holding none; Pluck eats it; Incinerate burns it; Trick takes it.
+    func testMovesThatTakeTheBerry() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        func run(_ slug: String) throws -> BattleOutcome {
+            battle([try mon("lax", 143, moves: fillers)], [try mon("user", 359, level: 50, moves: [slug] + fillers)],
+                   berries: [.sitrus: 1])
+        }
+        let thief = try run("thief")
+        XCTAssertTrue(has(thief, .berryTaken(battler: "lax", berry: .sitrus, by: "user")))
+        XCTAssertTrue(has(thief, .berryGiven(battler: "user", berry: .sitrus)))
+        let pluck = try run("pluck")
+        XCTAssertTrue(has(pluck, .berryTaken(battler: "lax", berry: .sitrus, by: "user")))
+        XCTAssertTrue(has(pluck, .berry(battler: "user", berry: .sitrus)))
+        let burnt = try run("incinerate")
+        XCTAssertTrue(has(burnt, .berryTaken(battler: "lax", berry: .sitrus, by: nil)))
+        let trick = try run("trick")
+        XCTAssertTrue(has(trick, .berryGiven(battler: "user", berry: .sitrus)))
+    }
+
+    /// Recycle gives back the berry eaten; Belch needs one eaten first; Natural Gift throws the held one (Psychic for
+    /// a Sitrus); Stuff Cheeks eats it and raises Defense; Corrosive Gas takes the foes'.
+    func testMovesThatUseTheBerry() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let recycle = battle([try mon("lax", 143, moves: ["recycle", "rain-dance", "sunny-day"])],
+                             [try mon("champ", 68, level: 60, moves: ["cross-chop"])],
+                             berries: [.sitrus: 1])
+        let eaten = recycle.events.filter {
+            if case .berry("lax", _) = $0.event { return true }
+            return false
+        }
+        XCTAssertTrue(has(recycle, .berryGiven(battler: "lax", berry: .sitrus)))
+        XCTAssertGreaterThanOrEqual(eaten.count, 2, "eaten, recycled, eaten again")
+        let belch = battle([try mon("swalot", 317, moves: ["belch", "sludge-bomb"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertFalse(belch.events.contains {
+            if case .cast("swalot", "belch", _, _) = $0.event { return true }
+            return false
+        }, "no berry eaten, no Belch")
+        let gift = battle([try mon("lax", 143, moves: ["natural-gift"] + fillers)], [try mon("champ", 68, moves: fillers)],
+                          berries: [.sitrus: 1])
+        XCTAssertTrue(gift.events.contains {
+            if case .hit("lax", "champ", "natural-gift", _, _, 2.0, _) = $0.event { return true }
+            return false
+        }, "a Psychic Natural Gift on Machamp")
+        XCTAssertTrue(has(gift, .berryTaken(battler: "lax", berry: .sitrus, by: nil)))
+        let cheeks = battle([try mon("greedent", 820, moves: ["stuff-cheeks", "body-slam"])], [try mon("champ", 68, moves: fillers)],
+                            berries: [.oran: 1])
+        XCTAssertTrue(has(cheeks, .berry(battler: "greedent", berry: .oran)))
+        XCTAssertTrue(cheeks.events.contains {
+            if case .stat("greedent", .defense, 2) = $0.event { return true }
+            return false
+        })
+        let gas = battle([try mon("lax", 143, moves: fillers)], [try mon("weezing", 110, moves: ["corrosive-gas", "sludge-bomb"])],
+                         berries: [.sitrus: 1])
+        XCTAssertTrue(has(gas, .berryTaken(battler: "lax", berry: .sitrus, by: nil)))
     }
 }

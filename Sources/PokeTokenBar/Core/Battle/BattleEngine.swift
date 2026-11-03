@@ -100,6 +100,9 @@ struct BattleSimulation {
         var ragePowder = false
         /// What it entered the battle as: leaving the field gives it back.
         var originalSpec: BattlerSpec?
+        /// The berry it ate last (Belch, Recycle), and the one its Fling or Natural Gift is using.
+        var consumedBerry: BattleBerry?
+        var throwing: BattleBerry?
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -545,6 +548,8 @@ struct BattleSimulation {
         if move.isDamaging {
             if foes.isEmpty { return false }
             if slug == "dream-eater" { return foes.contains { battlers[$0].status == .sleep } }
+            if slug == "belch" { return b.consumedBerry != nil }
+            if slug == "natural-gift" || slug == "fling" { return slug == "natural-gift" && heldBerry(index) != nil }
             if ["explosion", "self-destruct", "misty-explosion", "final-gambit"].contains(slug) {
                 return allies(of: index).count + bench(b.side).count > 1 || foes.count == 1
             }
@@ -647,6 +652,13 @@ struct BattleSimulation {
         case "octolock": return target(of: move, by: index).map { battlers[$0].octolockedBy == nil } ?? false
         case "tar-shot": return target(of: move, by: index).map { !battlers[$0].tarred || battlers[$0].stage(.speed) > -6 } ?? false
         case "no-retreat": return !b.noRetreat
+        case "trick", "switcheroo":
+            return heldBerry(index) == nil && target(of: move, by: index).map { heldBerry($0) != nil } ?? false
+        case "bestow", "fling": return false
+        case "recycle": return b.consumedBerry != nil && heldBerry(index) == nil
+        case "stuff-cheeks": return heldBerry(index) != nil && b.stage(.defense) < 6
+        case "teatime": return active.contains { heldBerry($0) != nil && battlers[$0].side == b.side }
+        case "corrosive-gas": return foes.contains { heldBerry($0) != nil }
         case "baton-pass":
             return !bench(b.side).isEmpty && (b.stages.values.reduce(0, +) > 0 || b.substituteHP > 0)
         case "shed-tail": return !bench(b.side).isEmpty && b.hp * 2 > b.maxHP + 1 && b.substituteHP == 0
@@ -958,6 +970,37 @@ struct BattleSimulation {
         case "power-trick", "power-shift", "acupressure", "conversion", "camouflage":
             selfSwap(move, by: index)
             return
+        case "trick", "switcheroo", "bestow":
+            // One of the two holds a berry: it changes hands.
+            guard let aim = statusTargets(move, by: index).first,
+                  let (target, source) = statusLands(move, by: index, on: aim) else { return }
+            let mine = heldBerry(source), theirs = heldBerry(target)
+            if move.slug != "bestow", let berry = theirs, mine == nil, battlers[target].ability != "sticky-hold" {
+                _ = takeBerry(target, by: source)
+                giveBerry(berry, to: source)
+            } else if let berry = mine, theirs == nil {
+                _ = takeBerry(source, by: target)
+                giveBerry(berry, to: target)
+            } else {
+                failed(move, by: index)
+            }
+            return
+        case "recycle":
+            guard let berry = battlers[index].consumedBerry, heldBerry(index) == nil else { return failed(move, by: index) }
+            battlers[index].consumedBerry = nil
+            giveBerry(berry, to: index)
+            return
+        case "stuff-cheeks":
+            guard let berry = takeBerry(index, by: index) else { return failed(move, by: index) }
+            eat(berry, by: index)
+            changeStage(index, .defense, by: 2, fromFoe: false)
+            return
+        case "teatime":
+            for other in active { if let berry = takeBerry(other, by: other) { eat(berry, by: other) } }
+            return
+        case "corrosive-gas":
+            for other in active where other != index { _ = takeBerry(other, by: nil) }
+            return
         case "baton-pass", "teleport":
             if !switchOut(index, baton: move.slug == "baton-pass") { failed(move, by: index) }
             return
@@ -1078,6 +1121,16 @@ struct BattleSimulation {
             log(.fail(battler: id, move: move.slug, reason: .noTarget))
             return
         }
+        if move.slug == "fling" || move.slug == "natural-gift" {
+            // They use the berry held, gone even if they miss; nothing to use, nothing happens.
+            guard !fieldHas("magic-room"), battlers[index].embargoUntil <= now,
+                  let berry = takeBerry(index, by: nil) else {
+                log(.fail(battler: id, move: move.slug, reason: .failed))
+                return
+            }
+            battlers[index].throwing = berry
+        }
+        defer { battlers[index].throwing = nil }
         if move.slug == "endeavor", let target = targets.first, battlers[target].hp <= battlers[index].hp {
             log(.fail(battler: id, move: move.slug, reason: .failed))
             return
@@ -1085,7 +1138,9 @@ struct BattleSimulation {
         let spread = targets.count > 1
         var dealtTotal = 0
         for target in targets where !battlers[target].isFainted && !battlers[index].isFainted {
-            dealtTotal += strike(move, by: index, on: target, spread: spread)
+            let dealt = strike(move, by: index, on: target, spread: spread)
+            dealtTotal += dealt
+            if dealt > 0 { berryAfterHit(move, by: index, on: target) }
         }
         battlers[index].answering = nil
         if ["explosion", "self-destruct", "misty-explosion"].contains(move.slug)
@@ -1917,6 +1972,7 @@ struct BattleSimulation {
         if battlers[index].ability == "normalize" { return .normal }
         if move.type == .normal, fieldHas("ion-deluge") { return .electric }
         if battlers[index].electrified { return .electric }
+        if move.slug == "natural-gift", let berry = battlers[index].throwing { return berry == .oran ? .poison : .psychic }
         return move.type
     }
 
@@ -2041,7 +2097,9 @@ struct BattleSimulation {
         case "weather-ball": if weather != nil { power = 100 }
         case "solar-beam", "solar-blade": if weather == .rain || weather == .sand || weather == .snow { power /= 2 }
         case "low-kick", "grass-knot", "heavy-slam", "heat-crash": power = 80
-        case "knock-off": power = 97
+        case "knock-off": if heldBerry(target) != nil { power *= 1.5 }
+        case "natural-gift": power = a.throwing == nil ? 0 : 80
+        case "fling": power = a.throwing == nil ? 0 : 10
         case "punishment", "return", "frustration": power = 80
         default: break
         }
@@ -2509,8 +2567,62 @@ struct BattleSimulation {
         guard let pick else { return }
         berries[side][pick, default: 0] -= 1
         battlers[index].ateBerry = true
+        battlers[index].consumedBerry = pick
         log(.berry(battler: b.spec.id, berry: pick))
         heal(index, max(1, Int(Double(b.maxHP) * pick.share)), .berry)
+    }
+
+    // MARK: Berries held
+
+    /// The berry a Pokémon holds: its side's best one left, unless it ate, used or lost its own (a side shares its
+    /// berries, one per Pokémon).
+    private func heldBerry(_ index: Int) -> BattleBerry? {
+        guard !battlers[index].ateBerry else { return nil }
+        let side = battlers[index].side
+        if (berries[side][.sitrus] ?? 0) > 0 { return .sitrus }
+        if (berries[side][.oran] ?? 0) > 0 { return .oran }
+        return nil
+    }
+
+    /// The berry leaves its holder: gone from its side, the holder holding none from now on.
+    private mutating func takeBerry(_ index: Int, by taker: Int?) -> BattleBerry? {
+        guard let berry = heldBerry(index) else { return nil }
+        berries[battlers[index].side][berry, default: 0] -= 1
+        battlers[index].ateBerry = true
+        log(.berryTaken(battler: battlers[index].spec.id, berry: berry, by: taker.map { battlers[$0].spec.id }))
+        return berry
+    }
+
+    private mutating func giveBerry(_ berry: BattleBerry, to index: Int) {
+        berries[battlers[index].side][berry, default: 0] += 1
+        battlers[index].ateBerry = false
+        log(.berryGiven(battler: battlers[index].spec.id, berry: berry))
+    }
+
+    /// Eaten on the spot (Pluck, Stuff Cheeks, Teatime, a flung one): its healing, whatever the HP.
+    private mutating func eat(_ berry: BattleBerry, by index: Int) {
+        battlers[index].consumedBerry = berry
+        log(.berry(battler: battlers[index].spec.id, berry: berry))
+        heal(index, max(1, Int(Double(battlers[index].maxHP) * berry.share)), .berry)
+    }
+
+    /// What a damaging move does to berries once it hit: Knock Off knocks it off, Thief and Covet steal it for a
+    /// user holding none, Pluck and Bug Bite eat it, Incinerate burns it; a flung berry is eaten by its target.
+    private mutating func berryAfterHit(_ move: BattleMove, by index: Int, on target: Int) {
+        switch move.slug {
+        case "knock-off", "incinerate":
+            _ = takeBerry(target, by: nil)
+        case "thief", "covet":
+            guard heldBerry(index) == nil, let berry = takeBerry(target, by: index) else { return }
+            giveBerry(berry, to: index)
+        case "pluck", "bug-bite":
+            guard let berry = takeBerry(target, by: index) else { return }
+            eat(berry, by: index)
+        case "fling":
+            if let berry = battlers[index].throwing, !battlers[target].isFainted { eat(berry, by: target) }
+        default:
+            break
+        }
     }
 
     private mutating func faint(_ index: Int, by attacker: Int?) {
@@ -2681,7 +2793,8 @@ struct BattleSimulation {
         "psych-up", "topsy-turvy", "acupressure", "soak", "magic-powder", "conversion", "conversion-2", "reflect-type",
         "camouflage", "forests-curse", "trick-or-treat", "electrify", "simple-beam", "worry-seed", "entrainment",
         "role-play", "skill-swap", "gastro-acid", "baton-pass", "shed-tail", "teleport", "roar", "whirlwind",
-        "ally-switch", "follow-me", "rage-powder", "spotlight", "after-you", "quash", "helping-hand", "parting-shot"])
+        "ally-switch", "follow-me", "rage-powder", "spotlight", "after-you", "quash", "helping-hand", "parting-shot",
+        "trick", "switcheroo", "bestow", "recycle", "stuff-cheeks", "teatime", "corrosive-gas"])
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

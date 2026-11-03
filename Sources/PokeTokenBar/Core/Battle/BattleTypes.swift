@@ -164,6 +164,10 @@ enum BattleEvent: Codable, Sendable, Equatable {
     case flinch(battler: String)
     case ability(battler: String, ability: String)
     case berry(battler: String, berry: BattleBerry)
+    /// The battler no longer holds its berry: knocked off, burnt, stolen or eaten by `by`, thrown, given.
+    case berryTaken(battler: String, berry: BattleBerry, by: String?)
+    /// Recycle, Thief, Trick or Bestow gave the battler a berry to hold.
+    case berryGiven(battler: String, berry: BattleBerry)
     case weather(BattleWeather?)
     case terrain(BattleTerrain?)
     case faint(battler: String)
