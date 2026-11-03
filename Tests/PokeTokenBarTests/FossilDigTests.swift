@@ -218,13 +218,14 @@ final class FossilDigTests: XCTestCase {
         XCTAssertEqual(used.regionTiers(.excavation).filter(\.isClaimed).count, 6, "an egg already used stays used")
     }
 
-    /// The Excavation is not a stone: last in the Stones tab, with an egg to claim or every dig done.
-    func testTheExcavationClosesTheStonesTab() throws {
+    /// The Excavation is not a stone: it closes the stones of its own state, never below one claimed (the owner,
+    /// 2026-11-02). With an egg to claim it comes up with what is ready; every dig done, it sinks with what is claimed.
+    func testTheExcavationClosesTheStonesOfItsState() throws {
         let ready = try store(dex: rocks.prefix(4).map { graduated($0) })
         XCTAssertTrue(ready.regionTiers(.excavation).contains(where: \.isReady))
-        XCTAssertEqual(ready.achievementItems(in: .evolutionStones).last, .excavation)
+        XCTAssertEqual(ready.achievementItems(in: .evolutionStones).first, .excavation, "the only reward ready")
         let done = try store(dex: FossilDig.lines.map { graduated($0) })
-        XCTAssertEqual(done.achievementItems(in: .evolutionStones).last, .excavation)
+        XCTAssertEqual(done.achievementItems(in: .evolutionStones).last, .excavation, "done, with the claimed")
     }
 
     /// A Fossil Egg hatches a missing fossil line, each as likely; once every line graduated, any of them.
