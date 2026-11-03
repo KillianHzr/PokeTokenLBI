@@ -5,8 +5,8 @@ struct BattleFrame: Equatable, Sendable {
     struct Unit: Equatable, Sendable {
         let id: String
         let side: Int
-        let speciesID: Int
-        let form: PokemonForm?
+        var speciesID: Int
+        var form: PokemonForm?
         let isShiny: Bool
         let maxHP: Int
         var hp: Int
@@ -74,6 +74,11 @@ struct BattleFrame: Equatable, Sendable {
                 }
             case .cure(let id, let ailment):
                 if let i = index[id], units[i].status == ailment { units[i].status = nil }
+            case .transform(let id, let into):
+                if let i = index[id], let j = index[into] {
+                    units[i].speciesID = units[j].speciesID
+                    units[i].form = units[j].form
+                }
             default:
                 break
             }

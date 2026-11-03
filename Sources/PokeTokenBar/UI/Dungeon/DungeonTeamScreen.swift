@@ -231,7 +231,7 @@ struct LoopEditor: View {
         let data = SpeciesBattleTable.data(speciesID: entry.finalID, form: entry.form)
         let learnable = store.pokemonDetails(speciesID: entry.finalID, form: entry.form)?.moves.map(\.name) ?? []
         let options = Array(Set((data?.pool ?? []) + learnable + loop)).compactMap(MoveTable.move)
-            .filter { !loop.contains($0.slug) }
+            .filter { !loop.contains($0.slug) && !$0.isZOrMax }
             .sorted { ($0.isDamaging ? $0.power : -1, $1.slug) > ($1.isDamaging ? $1.power : -1, $0.slug) }
         let unlocked = store.dungeonProgress.unlockedMoves
         return ScrollView {

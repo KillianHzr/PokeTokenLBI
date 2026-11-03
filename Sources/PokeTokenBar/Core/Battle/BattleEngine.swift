@@ -14,7 +14,8 @@ enum BattleEngine {
 /// One battle being played. Every list is walked in a fixed order, so the same seed always gives the same battle.
 struct BattleSimulation {
     struct Battler {
-        let spec: BattlerSpec
+        /// Transform rewrites its stats, ability and loop.
+        var spec: BattlerSpec
         let side: Int
         var hp: Int
         var slot: Int?
@@ -48,6 +49,11 @@ struct BattleSimulation {
         var bideAttacker: Int?
         /// The damage the reactive move being used sends back.
         var answering: Int?
+        /// The move it used last, a called move rather than its caller: what Mirror Move, Mimic and Instruct read.
+        var lastMove: String?
+        var transformed = false
+        /// Me First's 1.5x on the move it takes.
+        var powerBoost = 1.0
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -79,6 +85,8 @@ struct BattleSimulation {
     private var nextResidual = BattleRules.residualTick
     private var nextThaw = BattleRules.thawTick
     private var winner: Int?
+    /// The last move anyone used: Copycat's.
+    private var lastMoveUsed: String?
 
     init(_ setup: BattleSetup) {
         self.setup = setup
@@ -178,6 +186,11 @@ struct BattleSimulation {
             completeCast(index)
             checkVictory()
         }
+        // Put to sleep by this step, a Pokémon that knows Sleep Talk or Snore starts one.
+        for index in active where battlers[index].status == .sleep && battlers[index].castMove == nil
+            && battlers[index].spec.moves.contains(where: Self.sleepMoves.contains) {
+            startCast(index)
+        }
     }
 
     // MARK: Entering the field
@@ -275,6 +288,14 @@ struct BattleSimulation {
         case "slow-start":
             battlers[index].slowStartUntil = now + 5 * BattleRules.residualTick
             log(.ability(battler: b.spec.id, ability: b.ability))
+        case "imposter":
+            guard let slot = b.slot else { return }
+            let opposite = field[1 - b.side]
+            let facing = slot < opposite.count ? opposite[slot] : nil
+            guard let foe = facing.flatMap({ battlers[$0].isFainted ? nil : $0 }) ?? foes(of: index).first,
+                  !battlers[foe].transformed else { return }
+            log(.ability(battler: b.spec.id, ability: b.ability))
+            transform(index, into: foe)
         default:
             break
         }
@@ -300,7 +321,9 @@ struct BattleSimulation {
     /// frozen starts nothing until it is free.
     private mutating func startCast(_ index: Int) {
         guard !battlers[index].isFainted, battlers[index].slot != nil, winner == nil else { return }
-        guard battlers[index].status != .sleep, battlers[index].status != .freeze else {
+        let asleep = battlers[index].status == .sleep
+        guard battlers[index].status != .freeze,
+              !asleep || battlers[index].spec.moves.contains(where: Self.sleepMoves.contains) else {
             battlers[index].castMove = nil
             return
         }
@@ -317,6 +340,10 @@ struct BattleSimulation {
                     break
                 }
             }
+        }
+        if asleep, chosen == nil {
+            battlers[index].castMove = nil
+            return
         }
         let slug = chosen ?? "struggle"
         let move = MoveTable.move(slug)
@@ -387,6 +414,15 @@ struct BattleSimulation {
         guard let move = MoveTable.move(slug) else { return false }
         let b = battlers[index]
         let foes = foes(of: index)
+        // Asleep, only Sleep Talk and Snore; awake, never them.
+        if b.status == .sleep {
+            switch slug {
+            case "snore": return !foes.isEmpty
+            case "sleep-talk": return !sleepTalkOptions(index).isEmpty
+            default: return false
+            }
+        }
+        if Self.sleepMoves.contains(slug) { return false }
         if move.isDamaging {
             if foes.isEmpty { return false }
             if slug == "dream-eater" { return foes.contains { battlers[$0].status == .sleep } }
@@ -401,6 +437,17 @@ struct BattleSimulation {
             return !foes.isEmpty
         case "destiny-bond": return !foes.isEmpty
         case "pain-split": return pickTarget(for: move, by: index).map { battlers[$0].hp > b.hp } ?? false
+        case "transform":
+            return !b.transformed && pickTarget(for: move, by: index).map { !battlers[$0].transformed } ?? false
+        case "mimic", "sketch":
+            guard let learned = pickTarget(for: move, by: index).flatMap({ battlers[$0].lastMove }) else { return false }
+            return Self.canBeCalled(learned) && !b.spec.moves.contains(learned)
+        case "copycat": return lastMoveUsed.map(Self.canBeCalled) ?? false
+        case "mirror-move": return pickTarget(for: move, by: index).flatMap { mirrored(by: $0) } != nil
+        case "me-first": return pickTarget(for: move, by: index).flatMap { meFirstMove(of: $0) } != nil
+        case "metronome", "nature-power": return !foes.isEmpty
+        case "assist": return !foes.isEmpty && !assistOptions(index).isEmpty
+        case "instruct": return instructTarget(index) != nil
         case "wish": return b.hp < b.maxHP && !wishes.contains { $0.side == b.side && $0.slot == b.slot }
         case "rest": return b.hp < b.maxHP && b.ability != "insomnia" && b.ability != "vital-spirit"
         case "belly-drum": return b.hp * 2 > b.maxHP && b.stage(.attack) < 6
@@ -448,6 +495,12 @@ struct BattleSimulation {
 
     private mutating func use(_ move: BattleMove, by index: Int) {
         let id = battlers[index].spec.id
+        if Self.callers.contains(move.slug) {
+            call(move, by: index)
+            return
+        }
+        battlers[index].lastMove = move.slug
+        lastMoveUsed = move.slug
         // Field and self moves first: they need no foe in front.
         if let weatherKind = Self.weatherMoves[move.slug] {
             setWeather(weatherKind, by: nil)
@@ -483,6 +536,37 @@ struct BattleSimulation {
             return
         case "pain-split":
             painSplit(move, by: index)
+            return
+        case "transform":
+            guard let target = statusTargets(move, by: index).first, !battlers[target].transformed,
+                  !battlers[index].transformed else {
+                log(.fail(battler: id, move: move.slug, reason: .failed))
+                return
+            }
+            transform(index, into: target)
+            // The copied loop starts from its first move once this cast's end moves the index on.
+            battlers[index].moveIndex = -1
+            return
+        case "mimic", "sketch":
+            // The target's last move takes this one's place in the loop for the rest of the battle.
+            guard let target = statusTargets(move, by: index).first, let learned = battlers[target].lastMove,
+                  Self.canBeCalled(learned), !battlers[index].spec.moves.contains(learned),
+                  let slot = battlers[index].spec.moves.firstIndex(of: move.slug) else {
+                log(.fail(battler: id, move: move.slug, reason: .failed))
+                return
+            }
+            battlers[index].spec.moves[slot] = learned
+            log(.learn(battler: id, move: learned))
+            return
+        case "instruct":
+            // The ally uses its last move again at once, its own cast going on.
+            guard let ally = instructTarget(index), let slug = battlers[ally].lastMove, let repeated = MoveTable.move(slug)
+            else {
+                log(.fail(battler: id, move: move.slug, reason: .failed))
+                return
+            }
+            log(.call(battler: battlers[ally].spec.id, move: slug))
+            use(repeated, by: ally)
             return
         default:
             break
@@ -678,6 +762,113 @@ struct BattleSimulation {
         if battlers[target].spec.isBoss { loss = min(loss, battlers[target].maxHP / 8) }
         if loss > 0 { hurt(target, loss, .painSplit) } else { heal(target, -loss, .painSplit) }
         if average > mine { heal(index, average - mine, .painSplit) } else { hurt(index, mine - average, .painSplit) }
+    }
+
+    // MARK: Moves that use another
+
+    /// Metronome, Assist, Sleep Talk, Copycat, Mirror Move, Me First and Nature Power use another move in their
+    /// place; it aims anew, but Mirror Move's and Me First's at their target.
+    private mutating func call(_ move: BattleMove, by index: Int) {
+        let id = battlers[index].spec.id
+        var boost = 1.0
+        var slug: String?
+        switch move.slug {
+        case "metronome":
+            slug = Self.metronomePool[random.below(Self.metronomePool.count)]
+        case "assist":
+            let options = assistOptions(index)
+            slug = options.isEmpty ? nil : options[random.below(options.count)]
+        case "sleep-talk":
+            let options = battlers[index].status == .sleep ? sleepTalkOptions(index) : []
+            slug = options.isEmpty ? nil : options[random.below(options.count)]
+        case "copycat":
+            slug = lastMoveUsed.flatMap { Self.canBeCalled($0) ? $0 : nil }
+        case "mirror-move":
+            slug = statusTargets(move, by: index).first.flatMap { mirrored(by: $0) }
+        case "me-first":
+            slug = statusTargets(move, by: index).first.flatMap { meFirstMove(of: $0) }
+            boost = 1.5
+        case "nature-power":
+            slug = switch terrain {
+            case .electric?: "thunderbolt"
+            case .grassy?: "energy-ball"
+            case .misty?: "moonblast"
+            case .psychic?: "psychic"
+            case nil: "tri-attack"
+            }
+        default:
+            break
+        }
+        guard let slug, let called = MoveTable.move(slug) else {
+            log(.fail(battler: id, move: move.slug, reason: .failed))
+            return
+        }
+        log(.call(battler: id, move: slug))
+        let aimed = battlers[index].castTarget
+        if move.slug != "mirror-move", move.slug != "me-first" { battlers[index].castTarget = nil }
+        battlers[index].powerBoost = boost
+        use(called, by: index)
+        battlers[index].powerBoost = 1
+        battlers[index].castTarget = aimed
+    }
+
+    /// The target's last move, if Mirror Move may copy it.
+    private func mirrored(by target: Int) -> String? {
+        guard let slug = battlers[target].lastMove, Self.canBeCalled(slug),
+              MoveTable.move(slug)?.flags.contains("mirror") == true else { return nil }
+        return slug
+    }
+
+    /// The damaging move the target is casting, which Me First takes before it lands.
+    private func meFirstMove(of target: Int) -> String? {
+        guard let slug = battlers[target].castMove, Self.canBeCalled(slug), MoveTable.move(slug)?.isDamaging == true
+        else { return nil }
+        return slug
+    }
+
+    /// The moves of the side's other Pokémon, bench included, Assist may use.
+    private func assistOptions(_ index: Int) -> [String] {
+        let side = battlers[index].side
+        let moves = battlers.indices.filter { $0 != index && battlers[$0].side == side && !battlers[$0].isFainted }
+            .flatMap { battlers[$0].spec.moves }
+        return Array(Set(moves.filter { Self.canBeCalled($0) && MoveTable.move($0)?.charges == false })).sorted()
+    }
+
+    /// The loop's other moves Sleep Talk may use: not a charging one, Snore yes.
+    private func sleepTalkOptions(_ index: Int) -> [String] {
+        battlers[index].spec.moves.filter { slug in
+            slug != "sleep-talk" && (Self.canBeCalled(slug) || slug == "snore")
+                && MoveTable.move(slug).map { !$0.charges && !$0.recharges } ?? false
+        }
+    }
+
+    /// The ally Instruct makes repeat its last move: one standing beside the user with a move it may repeat.
+    private func instructTarget(_ index: Int) -> Int? {
+        allies(of: index).first { ally in
+            guard ally != index, let slug = battlers[ally].lastMove, Self.canBeCalled(slug),
+                  let move = MoveTable.move(slug) else { return false }
+            return !move.charges && !move.recharges
+        }
+    }
+
+    /// Transform (and Imposter): the target's stats but HP, its types, ability, loop and stat stages. A boss's raised
+    /// stats stay its own: the copy takes its species' at its level.
+    private mutating func transform(_ index: Int, into target: Int) {
+        let t = battlers[target]
+        var stats = t.spec.stats
+        if t.spec.isBoss, let data = SpeciesBattleTable.data(speciesID: t.spec.speciesID, form: t.spec.form) {
+            stats = BattleStats.computed(base: data.baseStats, ivs: Array(repeating: 31, count: 6), level: t.spec.level,
+                                         nature: nil, speciesID: t.spec.speciesID)
+        }
+        stats.hp = battlers[index].maxHP
+        battlers[index].spec.stats = stats
+        battlers[index].spec.ability = t.spec.ability
+        battlers[index].spec.moves = t.spec.moves
+        battlers[index].types = t.types
+        battlers[index].stages = t.stages
+        battlers[index].transformed = true
+        battlers[index].moveIndex = 0
+        log(.transform(battler: battlers[index].spec.id, into: t.spec.id))
     }
 
     /// Moonlight, Synthesis and Morning Sun heal two thirds in the sun and a quarter in other weather.
@@ -890,7 +1081,7 @@ struct BattleSimulation {
             }
         }
         if terrain == .misty, type == .dragon, isGrounded(target) { power *= 0.5 }
-        return power
+        return power * a.powerBoost
     }
 
     private mutating func damageFor(_ move: BattleMove, by index: Int, on target: Int, spread: Bool, critical: Bool,
@@ -1391,6 +1582,27 @@ struct BattleSimulation {
         "electric-terrain": .electric, "grassy-terrain": .grassy, "misty-terrain": .misty, "psychic-terrain": .psychic,
     ]
     static let ohkoMoves: Set<String> = ["fissure", "guillotine", "horn-drill", "sheer-cold"]
+    /// The moves that use another in their place (`call`).
+    static let callers: Set<String> = ["metronome", "assist", "sleep-talk", "copycat", "mirror-move", "me-first",
+                                       "nature-power"]
+    static let sleepMoves: Set<String> = ["sleep-talk", "snore"]
+    /// What no calling or copying move uses: the callers and copiers, protections, moves aimed at an ally, those
+    /// that answer a hit or wait for one, and Z and Max Moves (Metronome's list in the games, mostly).
+    static let uncallable: Set<String> = [
+        "after-you", "assist", "baneful-bunker", "beak-blast", "belch", "bestow", "bide", "burning-bulwark",
+        "celebrate", "chatter", "comeuppance", "copycat", "counter", "covet", "crafty-shield", "destiny-bond", "detect",
+        "endure", "feint", "focus-punch", "follow-me", "helping-hand", "hold-hands", "instruct", "kings-shield",
+        "mat-block", "max-guard", "me-first", "metal-burst", "metronome", "mimic", "mirror-coat", "mirror-move",
+        "nature-power", "obstruct", "protect", "quash", "quick-guard", "rage-powder", "shell-trap", "silk-trap",
+        "sketch", "sleep-talk", "snatch", "snore", "spiky-shield", "spotlight", "struggle", "switcheroo", "thief",
+        "transform", "trick", "wide-guard",
+    ]
+    static func canBeCalled(_ slug: String) -> Bool {
+        !uncallable.contains(slug) && MoveTable.move(slug).map { !$0.isZOrMax } ?? false
+    }
+    /// Every move Metronome may use, in a fixed order for the seed.
+    static let metronomePool: [String] = MoveTable.all.keys.filter(canBeCalled).sorted()
+
     /// The moves that send back the damage taken, and by how much.
     static let reactiveMoves: [String: Double] = ["counter": 2, "mirror-coat": 2, "bide": 2, "metal-burst": 1.5,
                                                   "comeuppance": 1.5]
@@ -1404,6 +1616,8 @@ struct BattleSimulation {
 
     /// The moves the engine plays, the others doing nothing here: the Pokémon sheet says so (`BattleMove.hasEffect`).
     static let handledStatusMoves = Set(["protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker",
-        "obstruct", "silk-trap", "burning-bulwark", "destiny-bond", "wish", "rest", "belly-drum", "pain-split"])
+        "obstruct", "silk-trap", "burning-bulwark", "destiny-bond", "wish", "rest", "belly-drum", "pain-split",
+        "transform", "mimic", "sketch", "instruct"])
+        .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

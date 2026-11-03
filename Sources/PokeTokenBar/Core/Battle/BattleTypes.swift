@@ -154,6 +154,12 @@ enum BattleEvent: Codable, Sendable, Equatable {
     case weather(BattleWeather?)
     case terrain(BattleTerrain?)
     case faint(battler: String)
+    /// A move that uses another (Metronome, Sleep Talk, Copycat...) and the move it used; Instruct's ally repeating.
+    case call(battler: String, move: String)
+    /// Transform or Imposter: the battler now looks like `into`.
+    case transform(battler: String, into: String)
+    /// Mimic or Sketch put `move` in the loop for the rest of the battle.
+    case learn(battler: String, move: String)
     case end(winner: Int)
 }
 

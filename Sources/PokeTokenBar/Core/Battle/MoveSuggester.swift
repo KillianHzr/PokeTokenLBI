@@ -8,7 +8,7 @@ enum MoveSuggester {
                         unlocked: Set<String> = [], theme: [PokemonType] = []) -> [String] {
         let physical = stats.attack >= stats.specialAttack
         let candidates = Array(Set(data.pool + learnable)).sorted().compactMap(MoveTable.move).filter { move in
-            move.hasEffect && (!move.isLocked || unlocked.contains(move.slug)) && !avoided.contains(move.slug)
+            move.hasEffect && !move.isZOrMax && (!move.isLocked || unlocked.contains(move.slug)) && !avoided.contains(move.slug)
         }
         func damage(_ move: BattleMove) -> Double {
             guard move.isDamaging, move.power > 0 else { return 0 }
@@ -61,5 +61,5 @@ enum MoveSuggester {
     private static let avoided: Set<String> = ["explosion", "self-destruct", "misty-explosion", "final-gambit",
                                                 "memento", "dream-eater", "nightmare", "focus-punch", "struggle",
                                                 "belch", "fake-out", "first-impression", "rest", "belly-drum",
-                                                "destiny-bond", "future-sight", "doom-desire"]
+                                                "destiny-bond", "future-sight", "doom-desire", "snore", "sleep-talk"]
 }

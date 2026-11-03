@@ -92,6 +92,20 @@ struct BattleMove: Sendable, Equatable {
         }
     }
 
+    /// Z-Moves and Max Moves: the app has no crystal nor band, so no loop holds them and no move calls them
+    /// (the owner, 2026-11-03).
+    var isZOrMax: Bool {
+        slug.hasSuffix("--physical") || slug.hasSuffix("--special") || slug.hasPrefix("max-") || slug.hasPrefix("g-max-")
+            || Self.zSignatures.contains(slug)
+    }
+
+    static let zSignatures: Set<String> = [
+        "catastropika", "sinister-arrow-raid", "malicious-moonsault", "oceanic-operetta", "guardian-of-alola",
+        "soul-stealing-7-star-strike", "stoked-sparksurfer", "pulverizing-pancake", "extreme-evoboost",
+        "genesis-supernova", "10-000-000-volt-thunderbolt", "light-that-burns-the-sky", "searing-sunraze-smash",
+        "menacing-moonraze-maelstrom", "lets-snuggle-forever", "splintered-stormshards", "clangorous-soulblaze",
+    ]
+
     /// Offensive moves of 100 power or more are locked until a Technical Capsule unlocks them (validated 2026-10-30).
     var isLocked: Bool { isDamaging && power >= 100 }
 

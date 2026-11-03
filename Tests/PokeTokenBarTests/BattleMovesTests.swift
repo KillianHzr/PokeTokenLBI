@@ -215,4 +215,184 @@ final class BattleMovesTests: XCTestCase {
             return amount == (10 + boss.stats.hp) / 2 - 10
         })
     }
+
+    // MARK: Moves that use another
+
+    private func calls(_ outcome: BattleOutcome, _ battler: String) -> [(time: Int, move: String)] {
+        outcome.events.compactMap { timed in
+            guard case .call(let who, let move) = timed.event, who == battler else { return nil }
+            return (timed.time, move)
+        }
+    }
+
+    /// Metronome uses a move at random among those it may call, never a Z or Max Move, a protection or a caller.
+    func testMetronomeUsesARandomMove() throws {
+        XCTAssertTrue(BattleSimulation.metronomePool.allSatisfy { BattleSimulation.canBeCalled($0) })
+        XCTAssertFalse(BattleSimulation.metronomePool.contains { MoveTable.move($0)?.isZOrMax ?? true })
+        XCTAssertFalse(BattleSimulation.metronomePool.contains("protect"))
+        XCTAssertFalse(BattleSimulation.metronomePool.contains("metronome"))
+        XCTAssertGreaterThan(BattleSimulation.metronomePool.count, 700)
+        var called = Set<String>()
+        for seed: UInt64 in 1...4 {
+            let outcome = battle([try mon("clef", 36, moves: ["metronome"])], [try mon("lax", 143, moves: ["growl"])],
+                                 seed: seed)
+            called.formUnion(calls(outcome, "clef").map(\.move))
+            XCTAssertTrue(calls(outcome, "clef").allSatisfy { BattleSimulation.metronomePool.contains($0.move) })
+        }
+        XCTAssertGreaterThan(called.count, 10)
+    }
+
+    /// Assist uses a move of another Pokémon of its side, the bench's too (the foes' side keeps its order: Persian
+    /// first, Charizard on the bench).
+    func testAssistUsesAMoveOfItsSide() throws {
+        let outcome = battle([try mon("lax", 143, moves: ["growl"])],
+                             [try mon("cat", 53, moves: ["assist"]), try mon("bench", 6, moves: ["flamethrower"])])
+        let used = calls(outcome, "cat")
+        XCTAssertFalse(used.isEmpty)
+        XCTAssertTrue(used.allSatisfy { $0.move == "flamethrower" })
+        XCTAssertTrue(hits(outcome).contains { $0.attacker == "cat" && $0.move == "flamethrower" })
+    }
+
+    /// Asleep, a Pokémon with Sleep Talk keeps casting it, each time using one of its other moves; awake, it skips it.
+    /// Snore likewise only while asleep.
+    func testSleepTalkAndSnoreWorkOnlyAsleep() throws {
+        let outcome = battle([try mon("lax", 143, moves: ["sleep-talk", "snore", "body-slam"])],
+                             [try mon("shroom", 286, moves: ["spore", "growl"])], seed: 2)
+        var asleep = false
+        var spoke = 0, snored = 0
+        for timed in outcome.events {
+            switch timed.event {
+            case .status("lax", .sleep): asleep = true
+            case .cure("lax", .sleep): asleep = false
+            case .cast("lax", let move, _, _):
+                if move == "sleep-talk" || move == "snore" { XCTAssertTrue(asleep, "\(move) at \(timed.time)") }
+            case .call("lax", let move):
+                XCTAssertTrue(asleep)
+                XCTAssertTrue(["snore", "body-slam"].contains(move))
+                spoke += 1
+            case .hit("lax", _, "snore", _, _, _, _):
+                snored += 1
+            default:
+                break
+            }
+        }
+        XCTAssertGreaterThan(spoke, 0)
+        XCTAssertGreaterThan(snored, 0)
+    }
+
+    /// Copycat uses the last move anyone used; Mirror Move its target's. Copycat is skipped until a move it may use was
+    /// used, Growl filling in.
+    func testCopycatAndMirrorMoveCopyTheLastMove() throws {
+        let copy = battle([try mon("cat", 53, moves: ["copycat", "growl"])],
+                          [try mon("zard", 6, level: 50, moves: ["flamethrower"])])
+        XCTAssertTrue(calls(copy, "cat").contains { $0.move == "flamethrower" })
+        XCTAssertTrue(hits(copy).contains { $0.attacker == "cat" && $0.move == "flamethrower" })
+        let mirror = battle([try mon("bird", 18, moves: ["mirror-move", "growl"])],
+                            [try mon("zard", 6, level: 50, moves: ["flamethrower"])])
+        XCTAssertTrue(calls(mirror, "bird").contains { $0.move == "flamethrower" })
+        // Moves of the user's own stats are not moves Mirror Move copies.
+        let dance = battle([try mon("bird", 18, moves: ["mirror-move", "growl"])],
+                           [try mon("scizor", 212, moves: ["swords-dance", "agility", "calm-mind", "bulk-up"])])
+        XCTAssertTrue(calls(dance, "bird").isEmpty)
+    }
+
+    /// Me First takes the damaging move its target is casting, at one and a half times its power.
+    func testMeFirstTakesTheTargetsMove() throws {
+        let outcome = battle([try mon("jolt", 135, moves: ["me-first"])], [try mon("lax", 143, moves: ["hyper-voice"])])
+        let used = calls(outcome, "jolt")
+        XCTAssertFalse(used.isEmpty)
+        XCTAssertTrue(used.allSatisfy { $0.move == "hyper-voice" })
+        // A status move is not taken.
+        let growl = battle([try mon("jolt", 135, moves: ["me-first", "tackle"])], [try mon("lax", 143, moves: ["growl"])])
+        XCTAssertTrue(calls(growl, "jolt").isEmpty)
+    }
+
+    /// Nature Power is Tri Attack without a terrain, Thunderbolt on Electric Terrain.
+    func testNaturePowerFollowsTheTerrain() throws {
+        let plain = battle([try mon("lax", 143, moves: ["nature-power"])], [try mon("lapras", 131, moves: ["growl"])])
+        XCTAssertEqual(calls(plain, "lax").first?.move, "tri-attack")
+        let electric = battle([try mon("lax", 143, moves: ["nature-power"])],
+                              [try mon("koko", 785, moves: ["growl"], ability: "electric-surge")])
+        XCTAssertEqual(calls(electric, "lax").first?.move, "thunderbolt")
+    }
+
+    /// Transform copies the target's types, stats but HP, ability and loop; a boss's raised stats stay its own, the
+    /// copy casting at its species' speed.
+    func testTransformCopiesTheTarget() throws {
+        let zard = try mon("zard", 6, moves: ["flamethrower", "air-slash"])
+        let ditto = try mon("ditto", 132, moves: ["transform"])
+        let outcome = battle([ditto], [zard])
+        XCTAssertTrue(outcome.events.contains { $0.event == .transform(battler: "ditto", into: "zard") })
+        XCTAssertTrue(hits(outcome).contains { $0.attacker == "ditto" && $0.move == "flamethrower" })
+        let frame = BattleFrame.at(outcome.duration, setup: outcome.setup, events: outcome.events)
+        XCTAssertEqual(frame.units.first { $0.id == "ditto" }?.speciesID, 6, "the replay shows a Charizard")
+        // Against a boss whose stats are doubled, the copy's casts last by Charizard's own speed.
+        var boss = try XCTUnwrap(BattlerSpec.make(id: "boss", speciesID: 6, level: 100, moves: ["growl"], isBoss: true,
+                                                  hpFactor: 4, statFactor: 2))
+        boss.hp = boss.stats.hp
+        let onBoss = battle([ditto], [boss])
+        let species = try XCTUnwrap(SpeciesBattleTable.data(speciesID: 6))
+        let speed = BattleStats.computed(base: species.baseStats, ivs: Array(repeating: 31, count: 6), level: 100,
+                                         nature: nil, speciesID: 6).speed
+        let cast = try XCTUnwrap(onBoss.events.first {
+            if case .cast("ditto", "growl", _, _) = $0.event { return true }
+            return false
+        })
+        guard case .cast(_, _, _, let ends) = cast.event else { return XCTFail() }
+        XCTAssertEqual(ends - cast.time, Int((1200.0 * 300 / Double(100 + speed) / 3).rounded()))
+    }
+
+    /// Imposter transforms its Pokémon into the foe in front as it enters.
+    func testImposterTransformsOnEntry() throws {
+        let outcome = battle([try mon("ditto", 132, moves: ["transform"], ability: "imposter")],
+                             [try mon("zard", 6, moves: ["flamethrower"])])
+        let transform = try XCTUnwrap(outcome.events.first { $0.event == .transform(battler: "ditto", into: "zard") })
+        XCTAssertEqual(transform.time, 0)
+    }
+
+    /// Mimic and Sketch put the target's last move in place of themselves for the rest of the battle.
+    func testMimicAndSketchLearnTheTargetsLastMove() throws {
+        for copier in ["mimic", "sketch"] {
+            let outcome = battle([try mon("smeargle", 235, moves: [copier, "tackle"])],
+                                 [try mon("zard", 6, level: 50, moves: ["flamethrower"])])
+            XCTAssertTrue(outcome.events.contains { $0.event == .learn(battler: "smeargle", move: "flamethrower") }, copier)
+            XCTAssertTrue(hits(outcome).contains { $0.attacker == "smeargle" && $0.move == "flamethrower" }, copier)
+        }
+    }
+
+    /// Instruct makes the ally beside repeat its last move at once.
+    func testInstructMakesTheAllyRepeat() throws {
+        let outcome = battle([try mon("oranguru", 765, moves: ["instruct"]), try mon("zard", 6, moves: ["flamethrower"])],
+                             [try mon("lax", 143, moves: ["growl"]), try mon("lapras", 131, moves: ["growl"])], active: 2)
+        let repeats = calls(outcome, "zard")
+        XCTAssertFalse(repeats.isEmpty)
+        for repeated in repeats {
+            XCTAssertTrue(hits(outcome).contains { $0.attacker == "zard" && $0.time == repeated.time })
+        }
+    }
+
+    // MARK: Any move
+
+    /// Loops of any moves at random, every move but the Z and Max ones: each battle ends, no HP below zero.
+    func testLoopsOfAnyMovesAlwaysEndCleanly() throws {
+        var random = BattleRandom(seed: 2027)
+        let moves = MoveTable.all.keys.filter { !(MoveTable.move($0)?.isZOrMax ?? true) }.sorted()
+        let ids = SpeciesBattleTable.all.keys.filter { $0 <= 1025 }.sorted()
+        for round in 0..<400 {
+            func team(_ side: String) -> [BattlerSpec] {
+                (0..<(1 + random.below(4))).compactMap { i in
+                    BattlerSpec.make(id: "\(side)\(i)", speciesID: ids[random.below(ids.count)], level: 50 + random.below(51),
+                                     moves: (0..<4).map { _ in moves[random.below(moves.count)] },
+                                     isBoss: side == "t" && random.below(4) == 0)
+                }
+            }
+            let mine = team("m"), theirs = team("t")
+            let outcome = battle(mine, theirs, active: 1 + random.below(2), seed: UInt64(round))
+            XCTAssertLessThanOrEqual(outcome.duration, BattleRules.timeLimit, "round \(round)")
+            XCTAssertEqual(outcome.events.map(\.time), outcome.events.map(\.time).sorted(), "round \(round)")
+            for spec in mine + theirs {
+                XCTAssertTrue((0...spec.stats.hp).contains(try XCTUnwrap(outcome.hpLeft[spec.id])), "round \(round)")
+            }
+        }
+    }
 }
