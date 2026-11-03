@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Generate the battle tables the dungeons' engine reads, from PokéAPI's GraphQL endpoint.
+"""Generate the battle tables the dungeons' engine reads, from PokéAPI's GraphQL endpoint, and the move flags PokéAPI
+lacks from Pokémon Showdown's move data (MIT), pinned to a commit and read as text, never run.
 
 Writes Sources/PokeTokenBar/Core/Battle/BattleData.generated.swift: every move's battle data, and every Pokémon
 variety's base stats, abilities and the four moves a wild one or a boss loops. Facts only, no names or texts: the app
@@ -12,12 +13,24 @@ the compiler down far more than the parse costs at runtime.
 """
 
 import json
+import re
 import sys
 import time
 import urllib.request
 from pathlib import Path
 
 ENDPOINT = "https://graphql.pokeapi.co/v1beta2"
+# PokéAPI's move attributes stop around generation 6: no slicing or wind flag, and none at all for the newest moves.
+SHOWDOWN_MOVES = ("https://raw.githubusercontent.com/smogon/pokemon-showdown/"
+                  "62597d90b2f888200dead4762f739f638ac1cf7c/data/moves.ts")
+# Showdown's flag names, as PokéAPI's move attributes call them.
+SHOWDOWN_FLAGS = {"contact": "contact", "sound": "sound", "punch": "punch", "slicing": "slicing", "wind": "wind",
+                  "bite": "bite", "pulse": "pulse", "bullet": "ballistics", "dance": "dance", "powder": "powder",
+                  "protect": "protect", "mirror": "mirror", "heal": "heal", "bypasssub": "authentic",
+                  "reflectable": "reflectable", "snatch": "snatch", "gravity": "gravity", "charge": "charge",
+                  "recharge": "recharge", "defrost": "defrost", "distance": "distance", "nonsky": "non-sky-battle"}
+# Each move's Showdown flags by its national number, PokéAPI's move id (`fetch_showdown_flags`).
+SHOWDOWN = {}
 OUT = Path(__file__).resolve().parent.parent / "Sources/PokeTokenBar/Core/Battle/BattleData.generated.swift"
 
 # The games each species learns its moves in, as `PokemonDetails.preferredVersionGroups` reads them; a form outside
@@ -55,6 +68,28 @@ def query(text, retries=4):
             time.sleep(3 * (attempt + 1))
 
 
+def fetch_showdown_flags():
+    """Each move's flags in Showdown's data, by number: its `num:` and `flags: {...}` lines, parsed as text."""
+    request = urllib.request.Request(SHOWDOWN_MOVES, headers={"User-Agent": "PokeTokenBar-battle-data"})
+    with urllib.request.urlopen(request, timeout=180) as response:
+        text = response.read().decode("utf-8")
+    flags, number = {}, None
+    for line in text.splitlines():
+        if re.match(r'^\t"?[a-z0-9]+"?: \{$', line):
+            number = None
+        elif (m := re.match(r"^\t\tnum: (-?\d+),$", line)):
+            number = int(m.group(1))
+        elif number is not None and (m := re.match(r"^\t\tflags: \{(.*)\},$", line)):
+            names = {pair.split(":")[0].strip() for pair in m.group(1).split(",") if pair.strip()}
+            flags.setdefault(number, set()).update(SHOWDOWN_FLAGS[n] for n in names if n in SHOWDOWN_FLAGS)
+    return flags
+
+
+def move_flags(move):
+    """PokéAPI's attributes and Showdown's flags together: one adds what the other lacks."""
+    return {row["moveattribute"]["name"] for row in move["moveattributemaps"]} | SHOWDOWN.get(move["id"], set())
+
+
 def fetch_moves():
     data = query("""{ move(where: {id: {_lt: 10000}}, order_by: {id: asc}) {
         id name power accuracy priority move_effect_chance
@@ -68,7 +103,7 @@ def fetch_moves():
 
 def fetch_pokemon():
     data = query("""{ pokemon(order_by: {id: asc}) {
-        id name pokemon_species_id is_default
+        id name pokemon_species_id is_default weight
         pokemonstats { base_stat stat { name } }
         pokemonabilities(order_by: {slot: asc}) { slot is_hidden ability { name } }
         pokemontypes(order_by: {slot: asc}) { type { name } } } }""")
@@ -167,7 +202,7 @@ def move_line(move):
     ailment = ((meta.get("movemetaailment") or {}).get("name")) or "none"
     category = ((meta.get("movemetacategory") or {}).get("name")) or "unique"
     stats = ",".join(f'{row["stat"]["name"]}:{row["change"]}' for row in move["movemetastatchanges"])
-    flags = ",".join(sorted(row["moveattribute"]["name"] for row in move["moveattributemaps"]))
+    flags = ",".join(sorted(move_flags(move)))
     fields = [
         move["name"], move["type"]["name"], move["movedamageclass"]["name"],
         move["power"] or 0, move["accuracy"] or 0, move["priority"] or 0, move["movetarget"]["name"],
@@ -203,7 +238,7 @@ def loop_moves(pokemon, learnset, moves, types):
         power = move["power"] or 0
         if power == 0 or move["movedamageclass"]["name"] == "status":
             return 0
-        flags = {row["moveattribute"]["name"] for row in move["moveattributemaps"]}
+        flags = move_flags(move)
         if "charge" in flags or "recharge" in flags:
             power *= 0.5
         meta = (move["movemeta"] or [None])[0] or {}
@@ -270,6 +305,8 @@ def loop_moves(pokemon, learnset, moves, types):
 
 
 def main():
+    SHOWDOWN.update(fetch_showdown_flags())
+    print(f"{len(SHOWDOWN)} moves in Showdown's data", file=sys.stderr)
     moves = fetch_moves()
     by_name = {m["name"]: m for m in moves}
     print(f"{len(moves)} moves", file=sys.stderr)
@@ -286,7 +323,7 @@ def main():
         learnset = learnsets.get(p["id"]) or learnsets.get(p["pokemon_species_id"], [])
         loop, pool = loop_moves(p, learnset, by_name, types)
         fields = [p["id"], p["pokemon_species_id"], ",".join(str(stats.get(k, 0)) for k in STAT_KEYS),
-                  ",".join(types), abilities, ",".join(loop), ",".join(pool)]
+                  ",".join(types), abilities, ",".join(loop), ",".join(pool), p["weight"] or 0]
         lines.append("|".join(str(f) for f in fields))
     move_lines = [move_line(m) for m in moves]
     species_lines = [species_line(s) for s in fetch_species()]
@@ -306,7 +343,7 @@ enum BattleDataTables {{
 {literal(move_lines)}
 """
 
-    /// pokemonID|speciesID|hp,atk,def,spa,spd,spe|types|abilities (* = hidden)|loop moves|suggestion pool
+    /// pokemonID|speciesID|hp,atk,def,spa,spd,spe|types|abilities (* = hidden)|loop moves|suggestion pool|weight (hg)
     static let species = """
 {literal(lines)}
 """

@@ -758,7 +758,7 @@ final class BattleMovesTests: XCTestCase {
     /// "slicing" aside (PokéAPI has none yet).
     func testEveryFlagTheEngineReadsExists() throws {
         for flag in ["contact", "charge", "recharge", "sound", "punch", "bite", "pulse", "ballistics", "powder",
-                     "protect", "authentic", "mirror", "reflectable", "snatch", "gravity", "heal"] {
+                     "protect", "authentic", "mirror", "reflectable", "snatch", "gravity", "heal", "slicing", "wind"] {
             XCTAssertTrue(MoveTable.all.values.contains { $0.flags.contains(flag) }, flag)
         }
         XCTAssertTrue(try XCTUnwrap(MoveTable.move("shadow-ball")).isBallistic)
@@ -766,6 +766,49 @@ final class BattleMovesTests: XCTestCase {
                              [try mon("chesnaught", 652, moves: ["growl"], ability: "bulletproof")])
         XCTAssertTrue(has(outcome, .ability(battler: "chesnaught", ability: "bulletproof")))
         XCTAssertFalse(hits(outcome).contains { $0.move == "shadow-ball" })
+    }
+
+    // MARK: Weights and Showdown's flags
+
+    /// Low Kick and Grass Knot by the target's weight; Heavy Slam and Heat Crash by how many times their user outweighs
+    /// it. PokéAPI gives each variety's weight (in hectograms).
+    func testWeightPowers() throws {
+        XCTAssertEqual([0.1, 9.9, 10, 24.9, 25, 50, 99.9, 100, 199.9, 200, 999].map { BattleSimulation.weightPower(targetKilograms: $0) },
+                       [20, 20, 40, 40, 60, 80, 80, 100, 100, 120, 120])
+        XCTAssertEqual([1, 1.99, 2, 3, 4, 4.99, 5, 50].map(BattleSimulation.weightRatioPower), [40, 40, 60, 80, 100, 100, 120, 120])
+        XCTAssertEqual(SpeciesBattleTable.data(speciesID: 143)?.weight, 4600, "Snorlax, 460 kg")
+        XCTAssertEqual(SpeciesBattleTable.data(speciesID: 25)?.weight, 60, "Pikachu, 6 kg")
+        // Heavy Metal doubles a Pikachu's 6 kg past 10: Low Kick goes from 20 to 40.
+        let kicker = try mon("lee", 106, moves: ["low-kick"])
+        let light = battle([kicker], [try mon("pika", 25, moves: ["splash"], isBoss: true)])
+        let heavy = battle([kicker], [try mon("pika", 25, moves: ["splash"], ability: "heavy-metal", isBoss: true)])
+        XCTAssertEqual(meanDamage(heavy, "low-kick") / meanDamage(light, "low-kick"), 2, accuracy: 0.25)
+        // Snorlax outweighs a Machamp 3.5 times (80), a Light Metal one 7 times (120).
+        let slammer = try mon("lax", 143, moves: ["heavy-slam"])
+        let champ = battle([slammer], [try mon("champ", 68, moves: ["splash"], isBoss: true)])
+        let lighter = battle([slammer], [try mon("champ", 68, moves: ["splash"], ability: "light-metal", isBoss: true)])
+        XCTAssertEqual(meanDamage(lighter, "heavy-slam") / meanDamage(champ, "heavy-slam"), 1.5, accuracy: 0.2)
+    }
+
+    /// Charge doubles the next Electric move; Wind Rider takes a wind move and raises its Attack; Sharpness lifts a
+    /// slicing move by half. The slicing and wind flags come from Showdown's data: PokéAPI has neither.
+    func testChargeWindAndSlicing() throws {
+        let foe = try mon("lax", 143, moves: ["splash"], isBoss: true)
+        let charged = battle([try mon("pika", 25, moves: ["charge", "thunder-shock"])], [foe])
+        let plain = battle([try mon("pika", 25, moves: ["growl", "thunder-shock"])], [foe])
+        XCTAssertEqual(meanDamage(charged, "thunder-shock") / meanDamage(plain, "thunder-shock"), 2, accuracy: 0.25)
+
+        XCTAssertTrue(try XCTUnwrap(MoveTable.move("air-cutter")).isWind)
+        XCTAssertTrue(try XCTUnwrap(MoveTable.move("x-scissor")).isSlicing)
+        let rider = battle([try mon("pidgeot", 18, moves: ["air-cutter"])],
+                           [try mon("bramble", 947, moves: ["splash"], ability: "wind-rider", isBoss: true)])
+        XCTAssertTrue(has(rider, .ability(battler: "bramble", ability: "wind-rider")))
+        XCTAssertFalse(hits(rider).contains { $0.move == "air-cutter" })
+
+        let target = try mon("lax", 143, moves: ["splash"], isBoss: true)
+        let sharp = battle([try mon("gallade", 475, moves: ["psycho-cut"], ability: "sharpness")], [target])
+        let steady = battle([try mon("gallade", 475, moves: ["psycho-cut"], ability: "steadfast")], [target])
+        XCTAssertEqual(meanDamage(sharp, "psycho-cut") / meanDamage(steady, "psycho-cut"), 1.5, accuracy: 0.2)
     }
 
     // MARK: Restraints

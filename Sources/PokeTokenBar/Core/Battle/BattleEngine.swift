@@ -113,6 +113,10 @@ struct BattleSimulation {
         var streak = 0
         var lastLanded = false
         var defenseCurl = false
+        /// Charge, Wind Power or Electromorphosis: its next Electric move hits twice as hard.
+        var charged = false
+        /// The species and form it weighs as: its own, or its target's after Transform.
+        var weighsAs: (speciesID: Int, form: PokemonForm?)?
         /// When its cast started, when it last acted, last took damage, last had a stat lowered, and when each foe
         /// last hit it: what Payback, Avalanche, Assurance, Focus Punch, Bolt Beak and Lash Out read.
         var castStartedAt = 0
@@ -871,6 +875,8 @@ struct BattleSimulation {
         case "wish": return b.hp < b.maxHP && !wishes.contains { $0.side == b.side && $0.slot == b.slot }
         case "rest": return b.hp < b.maxHP && b.ability != "insomnia" && b.ability != "vital-spirit"
         case "belly-drum": return b.hp * 2 > b.maxHP && b.stage(.attack) < 6
+        // Worth it while it is not charged, its Special Defense raised or not.
+        case "charge": return !b.charged || b.stage(.specialDefense) < 6
         case "nightmare": return false
         case "sunny-day": return weather != .sun
         case "rain-dance": return weather != .rain
@@ -1384,10 +1390,14 @@ struct BattleSimulation {
         }
         if fieldMove(move, by: index) { return }
         if move.slug == "defense-curl" { battlers[index].defenseCurl = true }
+        if move.slug == "charge" { battlers[index].charged = true }
         if !move.isDamaging {
             useStatus(move, by: index)
             return
         }
+        // A charge goes with the Electric move it doubles, whatever that move does.
+        let spendsCharge = battlers[index].charged && moveType(move, by: index) == .electric
+        defer { if spendsCharge { battlers[index].charged = false } }
         let targets: [Int]
         if Self.reactiveMoves[move.slug] != nil {
             // Counter and its kin answer the foe that hit last, whoever stands in front; nothing taken, nothing sent.
@@ -2394,8 +2404,30 @@ struct BattleSimulation {
 
     /// Transform (and Imposter): the target's stats but HP, its types, ability, loop and stat stages. A boss's raised
     /// stats stay its own: the copy takes its species' at its level.
+    /// Low Kick and Grass Knot: 20 under 10 kg, then 40, 60, 80, 100, and 120 from 200 kg.
+    static func weightPower(targetKilograms kg: Double) -> Double {
+        kg >= 200 ? 120 : kg >= 100 ? 100 : kg >= 50 ? 80 : kg >= 25 ? 60 : kg >= 10 ? 40 : 20
+    }
+
+    /// Heavy Slam and Heat Crash, by how many times its user outweighs the target: 40, then 60 from twice, up to 120
+    /// from five times.
+    static func weightRatioPower(_ ratio: Double) -> Double {
+        ratio >= 5 ? 120 : ratio >= 4 ? 100 : ratio >= 3 ? 80 : ratio >= 2 ? 60 : 40
+    }
+
+    /// In kilograms, as the games weigh it: its form's, or its target's after Transform; Heavy Metal doubles it, Light
+    /// Metal halves it.
+    private func weight(_ index: Int) -> Double {
+        let b = battlers[index]
+        let who = b.weighsAs ?? (b.spec.speciesID, b.spec.form)
+        var kg = Double(SpeciesBattleTable.data(speciesID: who.speciesID, form: who.form)?.weight ?? 0) / 10
+        if b.ability == "heavy-metal" { kg *= 2 } else if b.ability == "light-metal" { kg /= 2 }
+        return max(0.1, kg)
+    }
+
     private mutating func transform(_ index: Int, into target: Int) {
         let t = battlers[target]
+        battlers[index].weighsAs = t.weighsAs ?? (t.spec.speciesID, t.spec.form)
         var stats = t.spec.stats
         if t.spec.isBoss, let data = SpeciesBattleTable.data(speciesID: t.spec.speciesID, form: t.spec.form) {
             stats = BattleStats.computed(base: data.baseStats, ivs: Array(repeating: 31, count: 6), level: t.spec.level,
@@ -2569,6 +2601,12 @@ struct BattleSimulation {
             trigger()
             return true
         }
+        // Wind Rider takes a wind move and raises its Attack.
+        if d.ability == "wind-rider", move.isWind {
+            trigger()
+            changeStage(target, .attack, by: 1, fromFoe: false)
+            return true
+        }
         return false
     }
 
@@ -2655,7 +2693,8 @@ struct BattleSimulation {
             power = 20 + 20 * Double(a.stages.values.filter { $0 > 0 }.reduce(0, +))
         case "weather-ball": if weather != nil { power = 100 }
         case "solar-beam", "solar-blade": if weather == .rain || weather == .sand || weather == .snow { power /= 2 }
-        case "low-kick", "grass-knot", "heavy-slam", "heat-crash": power = 80
+        case "low-kick", "grass-knot": power = Self.weightPower(targetKilograms: weight(target))
+        case "heavy-slam", "heat-crash": power = Self.weightRatioPower(weight(index) / weight(target))
         case "knock-off": if heldBerry(target) != nil { power *= 1.5 }
         case "rollout", "ice-ball":
             // Doubled at each cast in a row, and again after Defense Curl; on a boss, never past 120 (the owner's rule:
@@ -2671,6 +2710,7 @@ struct BattleSimulation {
         default: break
         }
         let type = moveType(move, by: index)
+        if a.charged, type == .electric { power *= 2 }
         switch a.ability {
         case "technician": if move.power > 0, move.power <= 60 { power *= 1.5 }
         case "iron-fist": if move.isPunch { power *= 1.2 }
@@ -2912,6 +2952,12 @@ struct BattleSimulation {
         case "rattled": if [.bug, .dark, .ghost].contains(type) { changeStage(target, .speed, by: 1, fromFoe: false) }
         case "water-compaction": if type == .water { changeStage(target, .defense, by: 2, fromFoe: false) }
         case "steam-engine": if type == .water || type == .fire { changeStage(target, .speed, by: 6, fromFoe: false) }
+        // Charged, for its next Electric move: by a wind move, or by any hit.
+        case "wind-power", "electromorphosis":
+            if battlers[target].ability == "electromorphosis" || move.isWind, !battlers[target].charged {
+                battlers[target].charged = true
+                log(.ability(battler: battlers[target].spec.id, ability: battlers[target].ability))
+            }
         default: break
         }
     }

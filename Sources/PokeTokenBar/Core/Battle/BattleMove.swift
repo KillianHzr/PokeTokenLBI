@@ -70,8 +70,9 @@ struct BattleMove: Sendable, Equatable {
     /// PokéAPI's name for the ball and bomb moves Bulletproof stops.
     var isBallistic: Bool { flags.contains("ballistics") }
     var isPowder: Bool { flags.contains("powder") }
-    /// PokéAPI has no such flag yet (2026-11-03): Sharpness waits for the generator to take Showdown's.
+    /// Showdown's flags (2026-11-03): PokéAPI has neither.
     var isSlicing: Bool { flags.contains("slicing") }
+    var isWind: Bool { flags.contains("wind") }
     /// Protect stops it: PokéAPI's flag, or no flag at all, as its newest moves come (2026-11-03).
     var isBlockedByProtect: Bool { flags.isEmpty || flags.contains("protect") }
     /// Sound moves and those PokéAPI marks "authentic" go through a substitute.
@@ -200,6 +201,8 @@ struct SpeciesBattleData: Sendable, Equatable {
     /// The moves a player's suggestion picks from (`MoveSuggester`): each type's strongest under 100 power and at 100
     /// or more, the best setup, recovery and status moves.
     let pool: [String]
+    /// In hectograms, as PokéAPI gives it: what Low Kick, Grass Knot, Heavy Slam and Heat Crash weigh.
+    var weight = 0
 
     static func == (lhs: SpeciesBattleData, rhs: SpeciesBattleData) -> Bool { lhs.pokemonID == rhs.pokemonID }
 }
@@ -218,7 +221,8 @@ enum SpeciesBattleTable {
             table[id] = SpeciesBattleData(pokemonID: id, speciesID: species, baseStats: stats,
                                           types: f[3].split(separator: ",").compactMap { PokemonType(rawValue: String($0)) },
                                           abilities: abilities, loop: f[5].split(separator: ",").map(String.init),
-                                          pool: f[6].split(separator: ",").map(String.init))
+                                          pool: f[6].split(separator: ",").map(String.init),
+                                          weight: f.count > 7 ? Int(f[7]) ?? 0 : 0)
         }
         return table
     }()
