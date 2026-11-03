@@ -7,13 +7,16 @@ import XCTest
 @MainActor
 final class SpriteImageCacheTests: XCTestCase {
     /// Other tests leave sprite views loading in the background (over the network on CI) into this shared
-    /// cache; with its 64-entry limit they could evict the image under test between two awaits. Unbounded
-    /// while these tests run, so the identity checks only see their own loads.
+    /// cache; with its limits, in entries and in bytes, they could evict the image under test between two awaits.
+    /// Unbounded while these tests run, so the identity checks only see their own loads.
     private var savedImageCacheLimit = 0
+    private var savedImageCacheCostLimit = 0
 
     override func setUp() async throws {
         savedImageCacheLimit = SpriteLoader.imageCache.countLimit
+        savedImageCacheCostLimit = SpriteLoader.imageCache.totalCostLimit
         SpriteLoader.imageCache.countLimit = 0
+        SpriteLoader.imageCache.totalCostLimit = 0
         // And empty: by here the whole suite has filled it, and under the memory it holds the cache evicts the images
         // these tests just put in, limit or not.
         SpriteLoader.imageCache.removeAllObjects()
@@ -21,6 +24,7 @@ final class SpriteImageCacheTests: XCTestCase {
 
     override func tearDown() async throws {
         SpriteLoader.imageCache.countLimit = savedImageCacheLimit
+        SpriteLoader.imageCache.totalCostLimit = savedImageCacheCostLimit
     }
 
     func testSynchronousLoadsReuseImagesAndKeepVariantsSeparate() throws {
