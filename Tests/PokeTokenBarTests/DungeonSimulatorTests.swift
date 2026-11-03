@@ -34,19 +34,26 @@ final class DungeonSimulatorTests: XCTestCase {
             }
             let team = ids.compactMap { id in pool.first { $0.candidate.entryID == id } }
                 .map { ExpeditionMember(entryID: $0.candidate.entryID, spec: $0.spec) }
+            // A challenge's boss is a battle form (a Mega for the daily, a Gigantamax, Primal or legendary Mega for the
+            // weekly), drawn per run; without it the engine would stand a wild species in.
+            let forms = dungeon.id == .daily ? BattleForms.daily : dungeon.id == .weekly ? BattleForms.weekly : []
             var reached = 0, won = 0, battles = 0
             let context = ExpeditionContext(tier: dungeon.tier, shinyDenominator: 64, now: Date(timeIntervalSince1970: 0))
             for run in 0..<runs {
                 var e = ExpeditionEngine.start(dungeon: dungeon, team: team, rules: rules, teamSize: size,
                                                seed: UInt64(run) &* 104_729 &+ 11, cost: dungeon.floors * 1000,
-                                               berries: [:], revives: [:], context: context)
+                                               berries: [:], revives: [:], context: context,
+                                               boss: forms.isEmpty ? nil : Optional(forms[run % forms.count]).map {
+                                                   ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false)
+                                               })
                 while !e.isOver, case .exploring = e.phase {
                     ExpeditionEngine.feed(&e, tokens: e.floorCost, context: context)
                     if case .awaitingHeal = e.phase { ExpeditionEngine.answerHeal(&e, paid: false, context: context) }
                 }
                 battles += e.battles
                 if e.bossReached { reached += 1 }
-                if case .capture = e.phase { won += 1 }
+                // The boss fell: a capture to come, or a challenge's form won at once.
+                if case .capture = e.phase { won += 1 } else if case .finished(won: true) = e.phase { won += 1 }
             }
             let names = team.map { "\($0.spec.speciesID)" }.joined(separator: ",")
             print(String(format: "SIM %@ T%d reach %3.0f%% win %3.0f%% battles %.1f team [%@]", dungeon.id.rawValue,
