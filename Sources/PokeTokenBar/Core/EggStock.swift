@@ -10,17 +10,13 @@ struct EggStock: Sendable, Equatable {
     /// The eggs that may also come from elsewhere, for which `left` is only a minimum.
     let floors: Set<HatchEgg>
 
-    /// A hatch, as the replay knows it before the counts.
     struct Slot: Sendable, Equatable {
         /// When its egg started: it had to be in the Bag by then. Nil when unknown.
         var started: Date?
-        /// The eggs that could have brought it.
         var possible: [HatchEgg]
-        /// What its record says, or a Pokémon Egg after a graduation; nil when unknown.
         var egg: HatchEgg?
         /// Whether its egg is still open: a hatch after a release, without a record of the app.
         var asked = true
-        /// No other egg can have brought it.
         var isSure = false
     }
 

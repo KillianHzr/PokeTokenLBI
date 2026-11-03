@@ -47,6 +47,12 @@ final class HatchLuckLoadingTests: XCTestCase {
                               difficulty: 1, writer: nil)
     }
 
+    func testTheReplayKeepsTheDatesOfTheDrawItems() async throws {
+        let s = try store(clock: Clock(), items: [.shinyCharm])
+        await s.loadHatchLuck()
+        XCTAssertEqual(s.hatchLuck?.itemsSince, [.shinyCharm: CompanionStore.shinyCharmForEveryone])
+    }
+
     func testNothingBeforeTheSpeciesIndex() async throws {
         let s = try store(provider: NoIndexProvider(), clock: Clock())
         await s.loadHatchLuck()

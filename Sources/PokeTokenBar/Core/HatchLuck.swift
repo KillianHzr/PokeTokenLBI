@@ -11,7 +11,6 @@ struct HatchLuck: Sendable {
         let high: Double
     }
 
-    /// A criterion's verdict on one hatch: the odds it had, and whether it came.
     struct Judgement: Equatable, Sendable {
         let odds: Double
         let hit: Bool
@@ -32,7 +31,6 @@ struct HatchLuck: Sendable {
         let eggDeduced: Bool
         /// The player may say its egg (`HatchRecord.isOpenToPlayer`): a hatch after a release the app did not note.
         let asksEgg: Bool
-        /// The eggs that could have brought it, for the player to say which.
         let possibleEggs: [HatchEgg]
         /// The odds of its line, of a Ditto for one, from each of them.
         let lineOddsByEgg: [HatchEgg: Double]
@@ -66,6 +64,7 @@ struct HatchLuck: Sendable {
     /// Hatches a week, from the first catch to now; nil under two dated catches a day apart.
     let hatchesPerWeek: Double?
     let stock: EggStock
+    let itemsSince: [ItemKind: Date]
 
     /// `entries`: the Pokédex in hatch order, the Pokémon raised last when `includesActive`. `today`: what the save does
     /// not date, the Plates' achievements, taken as they are. `itemsSince`: when the player got each draw item, for
@@ -74,7 +73,6 @@ struct HatchLuck: Sendable {
          itemsSince: [ItemKind: Date] = [:], now: Date) {
         let rarities = Dictionary(index.map { ($0.id, $0.rarity) }, uniquingKeysWith: { a, _ in a })
         let moments = Self.moments(entries: entries, today: today, itemsSince: itemsSince)
-        // Which eggs each hatch could have come from, then what the Bag's counts settle among them.
         let measured = moments.map { moment in
             moment.asksEgg ? Self.possibleEggs(of: moment, index: index) : []
         }
@@ -82,6 +80,7 @@ struct HatchLuck: Sendable {
             EggStock.Slot(started: moment.previous?.caughtAt, possible: possible.map(\.egg), egg: moment.egg,
                           asked: moment.asksEgg)
         }
+        self.itemsSince = itemsSince
         stock = EggStock(today: today, entries: entries)
         let settled = stock.settle(slots)
         var hatches: [Hatch] = []
@@ -127,7 +126,6 @@ struct HatchLuck: Sendable {
         }
     }
 
-    /// A Pokémon's egg in the replay: the draws its species and its hatch were rolled with.
     struct Moment: Sendable {
         let entry: DexEntry
         let previous: DexEntry?
@@ -178,13 +176,11 @@ struct HatchLuck: Sendable {
         return moments
     }
 
-    /// Every egg the Bag can hold, which a hatch whose egg is unknown may have come from.
     private static let bagEggs: [HatchEgg] = {
         var seen = Set<HatchEgg>()
         return ItemKind.allCases.compactMap(HatchEgg.init(item:)).filter { seen.insert($0).inserted }
     }()
 
-    /// What one egg's draw gave each outcome a hatch is judged on.
     struct EggOdds {
         var share: [Rarity: Double] = [:]
         var line = 0.0
@@ -198,7 +194,7 @@ struct HatchLuck: Sendable {
                              bringsNew: (Int, PokemonForm?) -> Bool) -> EggOdds {
         var odds = EggOdds()
         let spec = egg.spec ?? EggSpec()
-        let shiny = hatch.alwaysShiny ? 1 : 1 / Double(hatch.shinyDenominator)
+        let shiny = hatch.shinyChance
         for outcome in roll.outcomes(egg, index: index) {
             let w = outcome.weight
             odds.total += w
@@ -225,7 +221,6 @@ struct HatchLuck: Sendable {
 
     typealias EggSpec = CompanionStore.EggSpec
 
-    /// Whether `egg`'s draw can hold `base`, before its odds are worked out.
     private static func mayHold(_ egg: HatchEgg, base: Int, roll: HatchDraw, index: [BaseSpecies]) -> Bool {
         switch egg {
         case .typeNull: return base == PokemonForm.typeNullSpeciesID
@@ -270,7 +265,6 @@ struct HatchLuck: Sendable {
         }
         let rarityOdds = range { isDitto ? $0.ditto : $0.share[rarity] ?? 0 }
         var judged: [Criterion: Judgement] = [:]
-        let shiny = hatch.alwaysShiny ? 1 : 1 / Double(hatch.shinyDenominator)
         if known != nil, let o = all.first {
             for (criterion, r) in [(Criterion.uncommon, Rarity.uncommon), (.rare, .rare), (.legendary, .legendary)] {
                 judged[criterion] = Judgement(odds: o.share[r] ?? 0, hit: !isDitto && rarity == r)
@@ -279,7 +273,7 @@ struct HatchLuck: Sendable {
             judged[.ditto] = Judgement(odds: o.ditto, hit: isDitto)
             if !isDitto { judged[.new] = Judgement(odds: o.new, hit: new) }
         } else {
-            judged[.shiny] = Judgement(odds: shiny, hit: entry.isShiny)
+            judged[.shiny] = Judgement(odds: hatch.shinyChance, hit: entry.isShiny)
         }
         return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, rarity: rarity, egg: known,
                      eggChosenByPlayer: source == .player && known != nil && !slot.isSure,
@@ -322,12 +316,10 @@ struct HatchLuck: Sendable {
         return guesses
     }
 
-    /// The three draws least likely, from eggs known.
     var improbable: [Hatch] {
         Array(hatches.filter { ($0.lineOdds ?? 0) > 0 }.sorted { $0.lineOdds! < $1.lineOdds! }.prefix(3))
     }
 
-    /// The criteria the player did best and worst on, the first of those tied.
     var strongest: CriterionResult? { criteria.max { $0.percentile < $1.percentile } }
     var weakest: CriterionResult? { criteria.min { $0.percentile < $1.percentile } }
 
@@ -354,7 +346,6 @@ struct HatchLuck: Sendable {
         return Wait(count: max(1, Int((time / size).rounded())), unit: unit)
     }
 
-    /// The Luck score: the criteria's mean percentile, out of 100.
     var score: Double { criteria.isEmpty ? 50 : criteria.reduce(0) { $0 + $1.percentile } / Double(criteria.count) * 100 }
 
     /// The share of equally placed players who did worse with `odds` and `hits` hits: ties count half.

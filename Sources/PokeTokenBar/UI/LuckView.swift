@@ -145,7 +145,7 @@ struct LuckScreen: View {
                 eggsToPickCard(toPick, l)
             }
             if !drawItems.isEmpty, luck.hatches.contains(where: { $0.entry.hatch?.itemsFromDates != false }) {
-                drawItemsCard(drawItems, l)
+                drawItemsCard(drawItems, since: luck.itemsSince, l)
             }
             if !luck.improbable.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
@@ -252,7 +252,6 @@ struct LuckScreen: View {
         }
     }
 
-    /// The eggs that could have brought a hatch from before the record, for the player to say which.
     private func eggMenu(_ hatch: HatchLuck.Hatch, _ l: L) -> some View {
         HStack(spacing: 4) {
             if hatch.egg == nil {
@@ -307,7 +306,6 @@ struct LuckScreen: View {
         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    /// The hatches whose egg is still unknown, newest first, to say them without searching the history.
     private func eggsToPickCard(_ hatches: [HatchLuck.Hatch], _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionTitle(text: l.luckEggsToPick)
@@ -333,8 +331,7 @@ struct LuckScreen: View {
         .designCard()
     }
 
-    /// Since when the player owns each draw item, for the hatches from before the record (`drawItemSince`).
-    private func drawItemsCard(_ items: [ItemKind], _ l: L) -> some View {
+    private func drawItemsCard(_ items: [ItemKind], since dates: [ItemKind: Date], _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionTitle(text: l.luckDrawItemsTitle)
             Text(l.luckDrawItemsHint).font(.caption).foregroundStyle(.secondary)
@@ -343,7 +340,7 @@ struct LuckScreen: View {
                 HStack(spacing: 6) {
                     Text(l.itemName(item)).font(.callout.weight(.semibold)).lineLimit(1)
                     Spacer(minLength: 4)
-                    if let since = store.drawItemSince(item) {
+                    if let since = dates[item] {
                         Text(l.luckObtainedOn).font(.caption).foregroundStyle(.secondary)
                         Text(since.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted)
                             .locale(store.language.displayLocale)))
@@ -361,7 +358,6 @@ struct LuckScreen: View {
             .frame(width: size, height: size)
     }
 
-    /// A species of the entry's line in the player's language, in its form; its number until its name is known.
     private func name(_ entry: DexEntry, _ speciesID: Int) -> String {
         guard let raw = store.language.resolveName(entry.names?[speciesID] ?? [:]) else { return "#\(speciesID)" }
         return PokemonForm.displayName(raw, speciesID: speciesID, form: entry.form, language: store.language)

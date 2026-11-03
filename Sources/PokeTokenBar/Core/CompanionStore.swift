@@ -3956,11 +3956,9 @@ final class CompanionStore {
         hatchIndex = full
     }
 
-    /// The Luck screen's replay (`loadHatchLuck`), and what it replayed.
     private(set) var hatchLuck: HatchLuck?
     @ObservationIgnored private var replayedLuckInputs: LuckInputs?
 
-    /// What the replay depends on: the Pokédex, and the draw items owned, dated from it (`drawItemSince`).
     struct LuckInputs: Equatable {
         let entries: [DexEntry]
         let drawItems: [ItemKind]

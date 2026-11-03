@@ -41,6 +41,7 @@ struct HatchDraw: Sendable {
 
     /// The Glimmering Charm, reward for every form, makes every hatch shiny.
     var alwaysShiny: Bool { items.contains(.glimmeringCharm) }
+    var shinyChance: Double { alwaysShiny ? 1 : 1 / Double(shinyDenominator) }
 
     func rollsShiny(roll: UInt64) -> Bool {
         CompanionStore.rollsShiny(roll: roll, charmOwned: items.contains(.shinyCharm),

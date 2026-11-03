@@ -1,6 +1,5 @@
 import Foundation
 
-/// The egg a Pokémon hatched from.
 enum HatchEgg: Codable, Sendable, Hashable {
     /// A Pokémon Egg (nil: the egg after a graduation, or the Shop's plain egg), or an egg of a guaranteed rarity, bought
     /// or given by an achievement: the same Bag item.
@@ -24,7 +23,6 @@ enum HatchEgg: Codable, Sendable, Hashable {
         }
     }
 
-    /// The egg a Bag item gives when used; nil for an item that is no egg.
     init?(item: ItemKind) {
         switch item {
         case .typeNullEgg: self = .typeNull
@@ -49,7 +47,6 @@ enum HatchEgg: Codable, Sendable, Hashable {
 /// How a Pokémon hatched, kept with it from its hatch to its graduation or release, for the Luck screen to replay its
 /// rolls (`HatchDraw`): its egg, and the draw items each roll met.
 struct HatchRecord: Codable, Sendable, Equatable {
-    /// Who names its egg.
     enum Source: String, Codable, Sendable {
         /// The app, at the hatch.
         case hatch

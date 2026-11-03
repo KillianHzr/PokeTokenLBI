@@ -22,13 +22,14 @@ final class EggDeductionTests: XCTestCase {
         return e
     }
 
-    private func luck(_ entries: [DexEntry], stones: Int = 0, today: CompanionState = CompanionState()) -> HatchLuck {
+    private func luck(_ entries: [DexEntry], stones: Int = 0, today: CompanionState = CompanionState(),
+                      index: [BaseSpecies]? = nil) -> HatchLuck {
         var today = today
         if stones > 0 {
             today.claimedAchievements.insert("shinyStone")
             today.inventory["shinyStone"] = 5 - stones
         }
-        return HatchLuck(entries: entries, includesActive: false, today: today, index: index, now: Self.day(30))
+        return HatchLuck(entries: entries, includesActive: false, today: today, index: index ?? self.index, now: Self.day(30))
     }
 
     func testEachHatchTakesTheRarestShopEggItsLineAllows() {
@@ -49,6 +50,23 @@ final class EggDeductionTests: XCTestCase {
         let guesses = luck(entries, stones: 1).guessedEggs()
         XCTAssertEqual(guesses[entries[1].id], rare)
         XCTAssertEqual(guesses[entries[2].id], dragon)
+    }
+
+    /// As likely from the stone both times: it goes where the Rare Egg made Dratini the least likely, not to the oldest.
+    func testTheGainIsAgainstTheShopEgg() {
+        let index = self.index + [BaseSpecies(id: 131, captureRate: 45)]
+        let entries = [entry(263, day: 1), entry(131, day: 2), entry(147, day: 3), entry(263, day: 4), entry(147, day: 5)]
+        let guesses = luck(entries, stones: 1, index: index).guessedEggs()
+        XCTAssertEqual(guesses[entries[2].id], rare, "the Rare Egg brought nothing else after the line hatched last")
+        XCTAssertEqual(guesses[entries[4].id], dragon)
+    }
+
+    /// What the app noted is already off the count.
+    func testARecordIsNotTakenOffTheCountTwice() {
+        let entries = [entry(263, day: 1), entry(147, day: 2, record: HatchRecord(egg: dragon)), entry(263, day: 3),
+                       entry(147, day: 4), entry(263, day: 5), entry(147, day: 6)]
+        let guesses = luck(entries, stones: 2).guessedEggs()
+        XCTAssertEqual(guesses.values.filter { $0 == dragon }.count, 1)
     }
 
     func testOnATieTheOldestHatchTakesIt() {

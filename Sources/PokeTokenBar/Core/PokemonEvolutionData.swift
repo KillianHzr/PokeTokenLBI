@@ -99,12 +99,12 @@ enum PokemonEvolutionData {
         for child in entry.value { map[child] = entry.key }
     }
 
-    /// First species of the line.
     /// The stages of the line's longest branch, as an egg's line counts them (`EvoLine.totalForms`).
     static func stageCount(from speciesID: Int) -> Int {
         1 + ((children[speciesID] ?? []).map(stageCount(from:)).max() ?? 0)
     }
 
+    /// First species of the line.
     static func root(of speciesID: Int) -> Int {
         var id = speciesID
         while let parent = parents[id] { id = parent }
