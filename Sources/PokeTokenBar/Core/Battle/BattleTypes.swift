@@ -187,6 +187,11 @@ enum BattleEvent: Codable, Sendable, Equatable {
     /// Nightmare, Ingrain, Aqua Ring, Foresight, Miracle Eye, Telekinesis, Magnet Rise, Curse, Lock-On, Octolock,
     /// Tar Shot, Imprison, Grudge.
     case volatile(battler: String, effect: String)
+    /// Soak, Reflect Type, Conversion... gave the battler these types.
+    case retype(battler: String, types: [PokemonType])
+    /// Skill Swap, Role Play, Entrainment, Simple Beam, Worry Seed or Gastro Acid gave the battler this ability ("" for
+    /// none).
+    case abilityChange(battler: String, ability: String)
     case end(winner: Int)
 }
 

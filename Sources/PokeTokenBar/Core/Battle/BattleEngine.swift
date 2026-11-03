@@ -92,6 +92,8 @@ struct BattleSimulation {
         var octolockedBy: Int?
         /// Lock-On and Mind Reader: the next move at this target never misses.
         var lockOn: (target: Int, until: Int)?
+        /// Electrify: its next move is Electric.
+        var electrified = false
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -503,6 +505,7 @@ struct BattleSimulation {
             return
         }
         if let move = MoveTable.move(slug) { use(move, by: index) }
+        battlers[index].electrified = false
         battlers[index].castsSinceEntry += 1
         if !battlers[index].isFainted, battlers[index].slot != nil { advance(index, after: slug) }
     }
@@ -636,6 +639,48 @@ struct BattleSimulation {
         case "octolock": return target(of: move, by: index).map { battlers[$0].octolockedBy == nil } ?? false
         case "tar-shot": return target(of: move, by: index).map { !battlers[$0].tarred || battlers[$0].stage(.speed) > -6 } ?? false
         case "no-retreat": return !b.noRetreat
+        case "power-swap", "guard-swap", "heart-swap", "psych-up":
+            let stats: [BattleStat] = switch slug {
+            case "power-swap": [.attack, .specialAttack]
+            case "guard-swap": [.defense, .specialDefense]
+            default: BattleStat.allCases
+            }
+            func sum(_ i: Int) -> Int { stats.reduce(0) { $0 + battlers[i].stage($1) } }
+            return target(of: move, by: index).map { sum($0) > sum(index) } ?? false
+        case "speed-swap":
+            return target(of: move, by: index).map { battlers[$0].spec.stats.speed > b.spec.stats.speed } ?? false
+        case "power-split":
+            return target(of: move, by: index).map {
+                battlers[$0].spec.stats.attack + battlers[$0].spec.stats.specialAttack > b.spec.stats.attack + b.spec.stats.specialAttack
+            } ?? false
+        case "guard-split":
+            return target(of: move, by: index).map {
+                battlers[$0].spec.stats.defense + battlers[$0].spec.stats.specialDefense
+                    > b.spec.stats.defense + b.spec.stats.specialDefense
+            } ?? false
+        case "topsy-turvy": return target(of: move, by: index).map { battlers[$0].stages.values.reduce(0, +) > 0 } ?? false
+        case "power-trick": return b.spec.stats.defense > b.spec.stats.attack
+        case "power-shift":
+            return b.spec.stats.defense + b.spec.stats.specialDefense > b.spec.stats.attack + b.spec.stats.specialAttack
+        case "acupressure": return BattleStat.allCases.contains { b.stage($0) < 6 }
+        case "soak": return target(of: move, by: index).map { battlers[$0].types != [.water] } ?? false
+        case "magic-powder": return target(of: move, by: index).map { battlers[$0].types != [.psychic] } ?? false
+        case "forests-curse": return target(of: move, by: index).map { !battlers[$0].types.contains(.grass) } ?? false
+        case "trick-or-treat": return target(of: move, by: index).map { !battlers[$0].types.contains(.ghost) } ?? false
+        case "reflect-type": return target(of: move, by: index).map { battlers[$0].types != b.types } ?? false
+        case "conversion":
+            return b.spec.moves.first.flatMap(MoveTable.move).map { b.types != [$0.type] } ?? false
+        case "conversion-2": return target(of: move, by: index).map { battlers[$0].lastMove != nil } ?? false
+        case "camouflage": return !foes.isEmpty && b.types != [camouflageType]
+        case "electrify":
+            return target(of: move, by: index).map { t in
+                !battlers[t].electrified && battlers[t].castMove.flatMap(MoveTable.move).map { $0.isDamaging && $0.type != .electric } ?? false
+            } ?? false
+        case "simple-beam": return target(of: move, by: index).map { !["simple", "truant"].contains(battlers[$0].ability) } ?? false
+        case "worry-seed": return target(of: move, by: index).map { !["insomnia", "truant"].contains(battlers[$0].ability) } ?? false
+        case "entrainment", "role-play", "skill-swap":
+            return target(of: move, by: index).map { battlers[$0].ability != b.ability && !battlers[$0].ability.isEmpty } ?? false
+        case "gastro-acid": return target(of: move, by: index).map { !battlers[$0].ability.isEmpty } ?? false
         case "defog":
             return !hazards[b.side].isEmpty || ["reflect", "light-screen", "aurora-veil"].contains { sideHas(1 - b.side, $0) }
                 || foes.contains { battlers[$0].stage(.evasion) > -6 }
@@ -705,6 +750,17 @@ struct BattleSimulation {
         if b.tormented, slug == b.lastMove { return false }
         if b.healBlockedUntil > now, move.flags.contains("heal") || Self.statusKind(move) == .heal { return false }
         return !foes(of: index).contains { battlers[$0].imprisoning && battlers[$0].spec.moves.contains(slug) }
+    }
+
+    /// Camouflage's type: the terrain's, Normal without one.
+    private var camouflageType: PokemonType {
+        switch terrain {
+        case .electric?: .electric
+        case .grassy?: .grass
+        case .misty?: .fairy
+        case .psychic?: .psychic
+        case nil: .normal
+        }
     }
 
     /// The foe a move cast now would aim at.
@@ -861,6 +917,14 @@ struct BattleSimulation {
                 battlers[index][keyPath: path] = true
             }
             log(.volatile(battler: id, effect: move.slug))
+            return
+        case "power-swap", "guard-swap", "heart-swap", "speed-swap", "power-split", "guard-split", "psych-up",
+             "topsy-turvy", "soak", "magic-powder", "conversion-2", "reflect-type", "forests-curse", "trick-or-treat",
+             "electrify", "simple-beam", "worry-seed", "entrainment", "role-play", "skill-swap", "gastro-acid":
+            swap(move, by: index)
+            return
+        case "power-trick", "power-shift", "acupressure", "conversion", "camouflage":
+            selfSwap(move, by: index)
             return
         case "perish-song":
             for other in active where perishes(other) {
@@ -1260,6 +1324,123 @@ struct BattleSimulation {
         }
     }
 
+    // MARK: Swaps
+
+    /// Moves that swap or copy stats, stages, types and abilities with the target, or set them.
+    private mutating func swap(_ move: BattleMove, by index: Int) {
+        guard let aim = statusTargets(move, by: index).first else { return failed(move, by: index, .noTarget) }
+        guard let (target, source) = statusLands(move, by: index, on: aim) else { return }
+        if move.isPowder, battlers[target].types.contains(.grass) || battlers[target].ability == "overcoat" {
+            log(.noEffect(attacker: battlers[source].spec.id, target: battlers[target].spec.id, move: move.slug))
+            return
+        }
+        guard move.accuracy == 0 || hits(move, by: source, on: target) else {
+            log(.miss(attacker: battlers[source].spec.id, target: battlers[target].spec.id, move: move.slug))
+            return
+        }
+        let s = source, t = target
+        switch move.slug {
+        case "power-swap": swapStages(s, t, [.attack, .specialAttack])
+        case "guard-swap": swapStages(s, t, [.defense, .specialDefense])
+        case "heart-swap": swapStages(s, t, BattleStat.allCases)
+        case "speed-swap":
+            let mine = battlers[s].spec.stats.speed
+            battlers[s].spec.stats.speed = battlers[t].spec.stats.speed
+            battlers[t].spec.stats.speed = mine
+            log(.volatile(battler: battlers[t].spec.id, effect: move.slug))
+        case "power-split", "guard-split":
+            let paths: [WritableKeyPath<BattleStats, Int>] = move.slug == "power-split"
+                ? [\.attack, \.specialAttack] : [\.defense, \.specialDefense]
+            for path in paths {
+                let shared = (battlers[s].spec.stats[keyPath: path] + battlers[t].spec.stats[keyPath: path]) / 2
+                battlers[s].spec.stats[keyPath: path] = shared
+                battlers[t].spec.stats[keyPath: path] = shared
+            }
+            log(.volatile(battler: battlers[t].spec.id, effect: move.slug))
+        case "psych-up": setStages(s, to: battlers[t].stages)
+        case "topsy-turvy": setStages(t, to: battlers[t].stages.mapValues { -$0 })
+        case "soak": retype(t, [.water])
+        case "magic-powder": retype(t, [.psychic])
+        case "reflect-type": retype(s, battlers[t].types)
+        case "forests-curse": retype(t, battlers[t].types.filter { $0 != .grass } + [.grass])
+        case "trick-or-treat": retype(t, battlers[t].types.filter { $0 != .ghost } + [.ghost])
+        case "conversion-2":
+            // A type that resists the target's last move, at random.
+            guard let last = battlers[t].lastMove.flatMap(MoveTable.move) else { return failed(move, by: index) }
+            let resisting = PokemonType.allCases.filter { PokemonTypeData.effectiveness(attacking: last.type, defending: $0) < 1 }
+            guard !resisting.isEmpty else { return failed(move, by: index) }
+            retype(s, [resisting[random.below(resisting.count)]])
+        case "electrify":
+            battlers[t].electrified = true
+            log(.volatile(battler: battlers[t].spec.id, effect: move.slug))
+        case "simple-beam": setAbility(t, "simple")
+        case "worry-seed": setAbility(t, "insomnia")
+        case "entrainment": setAbility(t, battlers[s].ability)
+        case "role-play": setAbility(s, battlers[t].ability)
+        case "skill-swap":
+            let mine = battlers[s].ability
+            setAbility(s, battlers[t].ability)
+            setAbility(t, mine)
+        case "gastro-acid": setAbility(t, "")
+        default: break
+        }
+    }
+
+    /// Power Trick (Attack and Defense), Power Shift (both attacks and both defenses), Acupressure (+2 to a stat at
+    /// random), Conversion (its first move's type), Camouflage (the terrain's type, Normal without one).
+    private mutating func selfSwap(_ move: BattleMove, by index: Int) {
+        var stats = battlers[index].spec.stats
+        switch move.slug {
+        case "power-trick":
+            (stats.attack, stats.defense) = (stats.defense, stats.attack)
+        case "power-shift":
+            (stats.attack, stats.defense) = (stats.defense, stats.attack)
+            (stats.specialAttack, stats.specialDefense) = (stats.specialDefense, stats.specialAttack)
+        case "acupressure":
+            let open = BattleStat.allCases.filter { battlers[index].stage($0) < 6 }
+            guard !open.isEmpty else { return failed(move, by: index) }
+            changeStage(index, open[random.below(open.count)], by: 2, fromFoe: false)
+            return
+        case "conversion":
+            guard let first = battlers[index].spec.moves.first.flatMap(MoveTable.move) else { return failed(move, by: index) }
+            retype(index, [first.type])
+            return
+        case "camouflage":
+            retype(index, [camouflageType])
+            return
+        default:
+            return
+        }
+        battlers[index].spec.stats = stats
+        log(.volatile(battler: battlers[index].spec.id, effect: move.slug))
+    }
+
+    private mutating func swapStages(_ a: Int, _ b: Int, _ stats: [BattleStat]) {
+        var mine = battlers[a].stages, theirs = battlers[b].stages
+        for stat in stats { (mine[stat], theirs[stat]) = (theirs[stat], mine[stat]) }
+        setStages(a, to: mine)
+        setStages(b, to: theirs)
+    }
+
+    /// Sets a battler's stages, logging each change.
+    private mutating func setStages(_ index: Int, to stages: [BattleStat: Int]) {
+        for stat in BattleStat.allCases {
+            let before = battlers[index].stage(stat), after = stages[stat] ?? 0
+            if before != after { log(.stat(battler: battlers[index].spec.id, stat: stat, change: after - before)) }
+        }
+        battlers[index].stages = stages.filter { $0.value != 0 }
+    }
+
+    private mutating func retype(_ index: Int, _ types: [PokemonType]) {
+        battlers[index].types = types
+        log(.retype(battler: battlers[index].spec.id, types: types))
+    }
+
+    private mutating func setAbility(_ index: Int, _ ability: String) {
+        battlers[index].spec.ability = ability.isEmpty ? nil : ability
+        log(.abilityChange(battler: battlers[index].spec.id, ability: ability))
+    }
+
     // MARK: Sides and field
 
     /// Screens, Safeguard, Mist, Tailwind, Lucky Chant, hazards, Trick Room and the rooms, the sports, Ion Deluge,
@@ -1542,6 +1723,7 @@ struct BattleSimulation {
         }
         if battlers[index].ability == "normalize" { return .normal }
         if move.type == .normal, fieldHas("ion-deluge") { return .electric }
+        if battlers[index].electrified { return .electric }
         return move.type
     }
 
@@ -2301,7 +2483,11 @@ struct BattleSimulation {
         "wonder-room", "haze", "mud-sport", "water-sport", "fairy-lock", "ion-deluge", "court-change", "defog", "tidy-up",
         "taunt", "encore", "disable", "torment", "imprison", "heal-block", "embargo", "perish-song", "nightmare", "ingrain",
         "aqua-ring", "foresight", "odor-sleuth", "miracle-eye", "telekinesis", "magnet-rise", "curse", "spite", "grudge",
-        "lock-on", "mind-reader", "block", "mean-look", "spider-web", "octolock", "tar-shot", "no-retreat"])
+        "lock-on", "mind-reader", "block", "mean-look", "spider-web", "octolock", "tar-shot", "no-retreat",
+        "power-swap", "guard-swap", "heart-swap", "speed-swap", "power-split", "guard-split", "power-trick", "power-shift",
+        "psych-up", "topsy-turvy", "acupressure", "soak", "magic-powder", "conversion", "conversion-2", "reflect-type",
+        "camouflage", "forests-curse", "trick-or-treat", "electrify", "simple-beam", "worry-seed", "entrainment",
+        "role-play", "skill-swap", "gastro-acid"])
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }

@@ -974,4 +974,96 @@ final class BattleMovesTests: XCTestCase {
             XCTAssertTrue(has(none, .fail(battler: "lax", move: slug, reason: .nothing)), slug)
         }
     }
+
+    // MARK: Swaps
+
+    /// Psych Up copies the target's stages, Topsy-Turvy turns them around, Heart Swap trades them; Speed Swap trades
+    /// the Speed stats; Power Trick swaps its user's Attack and Defense.
+    func testStageAndStatSwaps() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let scizor = try mon("scizor", 212, level: 60, moves: ["swords-dance", "bullet-punch"])
+        let psych = battle([try mon("lax", 143, moves: ["psych-up"] + fillers)], [scizor])
+        XCTAssertTrue(psych.events.contains {
+            if case .stat("lax", .attack, let change) = $0.event { return change >= 2 }
+            return false
+        })
+        let topsy = battle([try mon("lax", 143, moves: ["topsy-turvy"] + fillers)], [scizor])
+        XCTAssertTrue(topsy.events.contains {
+            if case .stat("scizor", .attack, let change) = $0.event { return change <= -4 }
+            return false
+        })
+        let heart = battle([try mon("lax", 143, moves: ["heart-swap"] + fillers)], [scizor])
+        XCTAssertTrue(heart.events.contains {
+            if case .stat("lax", .attack, let change) = $0.event { return change >= 2 }
+            return false
+        })
+        let lax = try mon("lax", 143, moves: ["speed-swap"] + fillers)
+        let jolt = try mon("jolt", 135, moves: fillers)
+        let speed = battle([lax], [jolt])
+        let swapped = try XCTUnwrap(volatileAt(speed, "jolt", "speed-swap"))
+        let cast = try XCTUnwrap(speed.events.first {
+            if case .cast("lax", let move, _, _) = $0.event { return move != "speed-swap" && $0.time >= swapped }
+            return false
+        })
+        guard case .cast(_, _, _, let ends) = cast.event else { return XCTFail() }
+        XCTAssertEqual(ends - cast.time, Int((1200.0 * 300 / Double(100 + jolt.stats.speed) / 3).rounded()))
+        // Shuckle's Defense of 230 becomes its Attack: its Tackle hits far harder after the trick.
+        let tricked = battle([try mon("shuckle", 213, moves: ["power-trick", "tackle"])], [try mon("lax", 143, moves: fillers)])
+        let plain = battle([try mon("shuckle", 213, moves: ["tackle"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertGreaterThan(meanDamage(tricked, "tackle") / meanDamage(plain, "tackle"), 3)
+    }
+
+    /// Soak makes the target pure Water, Forest's Curse adds Grass, Reflect Type copies, Conversion takes its first
+    /// move's type, Camouflage the terrain's; Electrify makes the target's next move Electric.
+    func testTypeChanges() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let soak = battle([try mon("jolt", 135, moves: ["soak", "thunderbolt"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertTrue(has(soak, .retype(battler: "lax", types: [.water])))
+        XCTAssertTrue(soak.events.contains {
+            if case .hit("jolt", "lax", "thunderbolt", _, _, 2.0, _) = $0.event { return true }
+            return false
+        })
+        let curse = battle([try mon("zard", 6, moves: ["forests-curse", "flamethrower"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertTrue(has(curse, .retype(battler: "lax", types: [.normal, .grass])))
+        let reflect = battle([try mon("lax", 143, moves: ["reflect-type"] + fillers)], [try mon("zard", 6, moves: fillers)])
+        XCTAssertTrue(has(reflect, .retype(battler: "lax", types: [.fire, .flying])))
+        let conversion = battle([try mon("porygon", 137, moves: ["thunderbolt", "conversion"])], [try mon("lax", 143, moves: fillers)])
+        XCTAssertTrue(has(conversion, .retype(battler: "porygon", types: [.electric])), "its first move is Thunderbolt")
+        let camo = battle([try mon("kecleon", 352, moves: ["camouflage"] + fillers)],
+                          [try mon("koko", 785, moves: fillers, ability: "electric-surge")])
+        XCTAssertTrue(has(camo, .retype(battler: "kecleon", types: [.electric])))
+        let electrify = battle([try mon("chomp", 445, moves: ["electrify"] + fillers)], [try mon("lax", 143, level: 50, moves: ["body-slam"])])
+        XCTAssertNotNil(volatileAt(electrify, "lax", "electrify"))
+        XCTAssertTrue(electrify.events.contains {
+            if case .noEffect("lax", "chomp", "body-slam") = $0.event { return true }
+            return false
+        }, "an Electric Body Slam does nothing to Garchomp")
+    }
+
+    /// Worry Seed gives Insomnia (no more sleep), Gastro Acid takes the ability (Levitate: on the ground), Skill Swap
+    /// trades them, Simple Beam gives Simple.
+    func testAbilityChanges() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let worry = battle([try mon("shroom", 286, moves: ["worry-seed", "spore", "mach-punch"])], [try mon("lax", 143, moves: fillers)])
+        let seeded = try XCTUnwrap(worry.events.first { $0.event == .abilityChange(battler: "lax", ability: "insomnia") })
+        XCTAssertFalse(worry.events.contains {
+            if case .status("lax", .sleep) = $0.event { return $0.time > seeded.time }
+            return false
+        })
+        let gastro = battle([try mon("chomp", 445, moves: ["gastro-acid", "earthquake"])],
+                            [try mon("gengar", 94, level: 60, moves: fillers, ability: "levitate")])
+        XCTAssertTrue(has(gastro, .abilityChange(battler: "gengar", ability: "")))
+        XCTAssertTrue(hits(gastro).contains { $0.move == "earthquake" })
+        let skill = battle([try mon("lax", 143, moves: ["skill-swap"] + fillers, ability: "thick-fat")],
+                           [try mon("gyara", 130, moves: fillers, ability: "intimidate")])
+        XCTAssertTrue(has(skill, .abilityChange(battler: "lax", ability: "intimidate")))
+        XCTAssertTrue(has(skill, .abilityChange(battler: "gyara", ability: "thick-fat")))
+        let simple = battle([try mon("lax", 143, moves: ["simple-beam"] + fillers)],
+                            [try mon("scizor", 212, level: 60, moves: ["swords-dance", "bullet-punch"])])
+        let beamed = try XCTUnwrap(simple.events.first { $0.event == .abilityChange(battler: "scizor", ability: "simple") })
+        XCTAssertTrue(simple.events.contains {
+            if case .stat("scizor", .attack, 4) = $0.event { return $0.time > beamed.time }
+            return false
+        }, "Swords Dance raises Attack by four")
+    }
 }
