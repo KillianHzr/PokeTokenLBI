@@ -67,6 +67,16 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-03", entries: [
+            .new("2026-11-03-hatch-luck") { l in
+                l.t("오늘 사용한 토큰 카드에 클로버 버튼이 생겼어요. 모든 부화를 그때의 확률로 다시 돌려 운 지수, 항목별 결과, 추이, 가장 희박했던 뽑기를 보여 줘요.",
+                    "A clover on the Today's tokens card opens your hatch luck: every hatch replayed with the odds of its moment, a luck score, each criterion, its curves and your most unlikely draws.",
+                    "本日のトークンのカードにクローバーが加わりました。すべての孵化をその時の確率で振り返り、運スコア、項目別の結果、推移、最もありえなかった抽選を表示します。",
+                    "Un trébol en la tarjeta Tokens de hoy abre tu suerte al eclosionar: cada eclosión repasada con las probabilidades de su momento, un índice de suerte, cada criterio, sus curvas y tus sorteos más improbables.",
+                    "Un trèfle sur la carte Tokens du jour ouvre ta chance au tirage : chaque éclosion rejouée avec les chances de son moment, un indice de chance, chaque critère, ses courbes et tes tirages les plus improbables.",
+                    "Um trevo no cartão Tokens de hoje abre sua sorte nas eclosões: cada eclosão refeita com as chances do seu momento, um índice de sorte, cada critério, suas curvas e seus sorteios mais improváveis.",
+                    "Ein Kleeblatt auf der Karte Heute verbrauchte Tokens öffnet dein Schlüpfglück: jeder Schlupf mit den Chancen seines Moments nachgespielt, ein Glückswert, jedes Kriterium, sein Verlauf und deine unwahrscheinlichsten Ziehungen.",
+                    "Клевер на карточке \"Токены за сегодня\" открывает твою удачу при вылуплении: каждое вылупление пересчитано с шансами своего момента, индекс удачи, каждый критерий, графики и самые невероятные выпадения.")
+            },
             .improved("2026-11-03-arceus-later", { $0.t("아르세우스는 이제 알에서 태어나지 않아요. 다가올 큰 업데이트에서 다시 만나요.",
                                                      "Arceus no longer hatches from eggs: it's being kept for a big update to come.",
                                                      "アルセウスはタマゴから生まれなくなりました。今後の大型アップデートで再登場します。",

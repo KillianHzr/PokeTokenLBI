@@ -45,9 +45,9 @@ final class ArceusPoolTests: XCTestCase {
         let index = [BaseSpecies(id: 493, captureRate: 3, isLegendary: true),
                      BaseSpecies(id: 150, captureRate: 3, isLegendary: true), BaseSpecies(id: 16, captureRate: 255)]
         let s = try store(index: index) { _ in }
-        XCTAssertFalse(s.hatchPool(index, egg: CompanionStore.EggSpec()).contains { $0.base.id == 493 })
-        XCTAssertFalse(s.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 493 })
-        XCTAssertTrue(s.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 150 })
+        XCTAssertFalse(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec()).contains { $0.base.id == 493 })
+        XCTAssertFalse(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 493 })
+        XCTAssertTrue(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 150 })
         XCTAssertFalse(BirthdayGift.pool(index, graduated: []).lines.contains { $0.id == 493 })
     }
 

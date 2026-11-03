@@ -1185,6 +1185,8 @@ struct MonState: Codable, Sendable, Equatable {
     var fromRarityEgg = false
     /// Its raising record from its hatch on (`RaisingRecord`).
     var raising: RaisingRecord?
+    /// Its egg and the draw items its rolls met (`HatchRecord`), for a Pokémon hatched since the record is kept.
+    var hatch: HatchRecord?
     /// The costume this individual brought when it became a Pikachu: it wears that one rather than the equipped one.
     var pikachuCostume: PikachuCostume?
     // 메타몽 위장 — nil=일반. 값=정체 메타몽, 이 종으로 위장 중(위장 구간엔 baseID 와 동일, 리빌 후에도 원 위장체 보존).
@@ -1261,6 +1263,7 @@ struct MonState: Codable, Sendable, Equatable {
         fromStoneEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromStoneEgg)) ?? false
         fromRarityEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromRarityEgg)) ?? false
         raising = (try? c.decodeIfPresent(RaisingRecord.self, forKey: .raising)) ?? nil
+        hatch = (try? c.decodeIfPresent(HatchRecord.self, forKey: .hatch)) ?? nil
         // A costume this version doesn't know is dropped, not the whole individual.
         pikachuCostume = ((try? c.decodeIfPresent(String.self, forKey: .pikachuCostume)) ?? nil)
             .flatMap(PikachuCostume.init(rawValue:))
@@ -1305,9 +1308,13 @@ struct DexEntry: Codable, Sendable, Identifiable, Equatable {
     var hasNewForm = false
     /// What raised it (`RaisingRecord`), for a Pokémon hatched since the record is kept.
     var raising: RaisingRecord?
-    func withRaising(_ raising: RaisingRecord?) -> DexEntry {
+    /// How it hatched (`HatchRecord`), for a Pokémon hatched since the record is kept, or the egg its player chose.
+    var hatch: HatchRecord?
+    /// The records it carried while raised (`MonState.raising`, `MonState.hatch`).
+    func withRecords(of mon: MonState) -> DexEntry {
         var entry = self
-        entry.raising = raising
+        entry.raising = mon.raising
+        entry.hatch = mon.hatch
         return entry
     }
     /// 졸업이 아니라 놓아준 기록인가 — 포획 로그가 뱃지를 가르는 판정.
@@ -1357,6 +1364,7 @@ struct DexEntry: Codable, Sendable, Identifiable, Equatable {
         releasedAt = try c.decodeIfPresent(Date.self, forKey: .releasedAt)
         hasNewForm = (try? c.decodeIfPresent(Bool.self, forKey: .hasNewForm)) ?? false
         raising = (try? c.decodeIfPresent(RaisingRecord.self, forKey: .raising)) ?? nil
+        hatch = (try? c.decodeIfPresent(HatchRecord.self, forKey: .hatch)) ?? nil
         form = PokemonForm.resolved(baseID: baseID, form: PokemonForm.decoded(from: decoder, keys: "form", "unownForm"))
     }
 }
@@ -1441,6 +1449,22 @@ private extension KeyedDecodingContainer {
     }
 }
 
+/// The forms each species was graduated in, read in one pass over the Pokédex: a roll asks for them line after line.
+struct GraduatedForms: Sendable {
+    private var bySpecies: [Int: Set<PokemonForm>] = [:]
+
+    /// `includingReleased`: the rule until #89 of `HatchRules`, when a form counted once registered.
+    init(_ dex: [DexEntry], includingReleased: Bool = false) {
+        for entry in dex where includingReleased || !entry.isReleased {
+            for id in entry.chainOrder where PokemonForm.hasForms(speciesID: id) {
+                if let form = PokemonForm.resolved(speciesID: id, form: entry.form) { bySpecies[id, default: []].insert(form) }
+            }
+        }
+    }
+
+    subscript(speciesID: Int) -> Set<PokemonForm> { bySpecies[speciesID] ?? [] }
+}
+
 /// 영속 상태(Application Support JSON). 포켓몬 전환 — 이전 커스텀 캐릭터 상태는 폐기(새로 시작).
 struct CompanionState: Codable, Sendable, Equatable {
     // 토큰: 설치 이후만 측정
@@ -1513,6 +1537,8 @@ struct CompanionState: Codable, Sendable, Equatable {
     var pendingHatchID: Int?
     /// The form is chosen with the species so prefetch warms the exact sprite that will hatch.
     var pendingForm: PokemonForm?
+    /// The draw items owned when `pendingHatchID` was rolled (`HatchRecord.rollItems`); nil for an egg that rolls nothing.
+    var pendingHatchItems: Set<ItemKind>?
     /// 오늘 사용량 적립 기준값 — 프로바이더별로 독립 관리한다.
     ///
     /// `nil`은 aggregate `claimedTodayTokens`만 가지고 있던 구버전 세이브가 아직 첫 유효
@@ -1582,6 +1608,8 @@ struct CompanionState: Codable, Sendable, Equatable {
         pendingHatchID     = c.lenientOptional(Int.self, forKey: .pendingHatchID)
         pendingForm        = PokemonForm.resolved(baseID: pendingHatchID ?? 0,
             form: PokemonForm.decoded(from: decoder, keys: "pendingForm", "pendingUnownForm"))
+        pendingHatchItems = (try? c.decodeIfPresent([String].self, forKey: .pendingHatchItems))?
+            .map { Set($0.compactMap(ItemKind.init(rawValue:))) }
         if c.contains(.claimedTodayTokensByProvider) {
             claimedTodayTokensByProvider = c.lenient([String: Int].self,
                                                       forKey: .claimedTodayTokensByProvider,
@@ -1675,6 +1703,31 @@ struct CompanionState: Codable, Sendable, Equatable {
         }
     }
 
+    /// Species of the Pokémon raised to the end: graduated entries, never released ones nor the Pokémon being raised.
+    var graduatedSpeciesIDs: Set<Int> {
+        Set(dex.lazy.filter { !$0.isReleased }.flatMap(\.chainOrder))
+    }
+
+    /// Most graduated copies of a single legendary species (released copies excluded).
+    var registeredSpeciesIDs: Set<Int> {
+        var ids = Set<Int>()
+        for entry in dex { ids.formUnion(entry.chainOrder) }
+        if let active { ids.formUnion(active.pathIDs.prefix(active.stageIndex + 1)) }
+        return ids
+    }
+
+    var graduatedLegendaryCopies: Int {
+        let graduated = dex.filter { $0.rarity == .legendary && !$0.isReleased }
+        return Dictionary(grouping: graduated, by: \.finalID).values.map(\.count).max() ?? 0
+    }
+
+    /// The line the Friendship Egg brings back: the first catch's, unless it was a Ditto (`CompanionStore.companionLineID`).
+    var companionLineID: Int? {
+        dex.filter { $0.baseID != PokemonOdds.dittoSpeciesID }
+            .compactMap { e in e.caughtAt.map { (date: $0, baseID: e.baseID) } }
+            .min { $0.date < $1.date }?.baseID
+    }
+
     func hasCollectedFinal(forBaseID baseID: Int) -> Bool {
         collectedFinals.contains { $0.hasPrefix("\(baseID):") }
     }
@@ -1697,20 +1750,28 @@ struct CompanionState: Codable, Sendable, Equatable {
     /// `graduatedOnly`: only the Pokémon raised to the end, what achievements count (not the one being raised, nor
     /// those sent off).
     func collectedForms(speciesID: Int, graduatedOnly: Bool = false) -> Set<PokemonForm> {
+        if graduatedOnly { return graduatedForms(speciesID: speciesID, GraduatedForms(dex)) }
         guard PokemonForm.hasForms(speciesID: speciesID) else { return [] }
-        let entries = graduatedOnly ? dex.filter { !$0.isReleased } : dex
-        var forms = Set(entries.filter { $0.chainOrder.contains(speciesID) }.compactMap {
-            PokemonForm.resolved(speciesID: speciesID, form: $0.form)
-        })
-        if !graduatedOnly, let active, active.pathIDs.prefix(active.stageIndex + 1).contains(speciesID),
+        var forms = Set(dex.lazy.filter { $0.chainOrder.contains(speciesID) }
+            .compactMap { PokemonForm.resolved(speciesID: speciesID, form: $0.form) })
+        if let active, active.pathIDs.prefix(active.stageIndex + 1).contains(speciesID),
            let form = PokemonForm.resolved(speciesID: speciesID, form: active.form) {
             forms.insert(form)
         }
-        // Once in the Pokédex, Arceus has its default form and every form its Plates unlock.
-        if !forms.isEmpty, PokemonForm.unlockSource(speciesID: speciesID) != nil {
-            if let first = PokemonForm.forms(speciesID: speciesID).first { forms.insert(first) }
-            forms.formUnion(itemUnlockedForms(speciesID: speciesID, graduatedOnly: graduatedOnly))
-        }
+        return withItemForms(forms, speciesID: speciesID, graduatedOnly: false)
+    }
+
+    /// `collectedForms(graduatedOnly: true)`, from the forms the Pokédex was read for once.
+    func graduatedForms(speciesID: Int, _ graduated: GraduatedForms) -> Set<PokemonForm> {
+        withItemForms(graduated[speciesID], speciesID: speciesID, graduatedOnly: true)
+    }
+
+    /// Once in the Pokédex, Arceus has its default form and every form its Plates unlock.
+    private func withItemForms(_ forms: Set<PokemonForm>, speciesID: Int, graduatedOnly: Bool) -> Set<PokemonForm> {
+        guard !forms.isEmpty, PokemonForm.unlockSource(speciesID: speciesID) != nil else { return forms }
+        var forms = forms
+        if let first = PokemonForm.forms(speciesID: speciesID).first { forms.insert(first) }
+        forms.formUnion(itemUnlockedForms(speciesID: speciesID, graduatedOnly: graduatedOnly))
         return forms
     }
 
@@ -1769,22 +1830,22 @@ struct CompanionState: Codable, Sendable, Equatable {
     /// Whether the egg roll treats a line as collected (its weight halved): every final of the line graduated,
     /// branches and form-gated finals included, and every form of the line graduated. One graduated
     /// final is not enough: after a Vaporeon, Eevee keeps its full chance while seven evolutions are missing.
-    func isLineComplete(baseID: Int) -> Bool {
+    func isLineComplete(baseID: Int, forms: [PokemonForm]? = nil, graduated: GraduatedForms? = nil) -> Bool {
         let finals = PokemonEvolutionData.finals(from: baseID)
         guard finals.allSatisfy({ collectedFinals.contains("\(baseID):\($0)") }) else { return false }
-        let forms = PokemonForm.rollableLineForms(baseID: baseID)
-        return forms.isEmpty || Set(forms).isSubset(of: graduatedLineForms(baseID: baseID))
+        let forms = forms ?? PokemonForm.rollableLineForms(baseID: baseID)
+        return forms.isEmpty || Set(forms).isSubset(of: graduatedLineForms(baseID: baseID, graduated: graduated))
     }
 
     /// Whether an egg of `type` (a stone's) has nothing new to give from this line: the forms that hatch with its
     /// type and the finals they reach are all collected. A Galarian Stunfisk, Ground and Steel, never comes from a
     /// Thunder Stone, so it does not keep a Stunfisk line open for one, as it does for a plain egg.
-    func isLineComplete(baseID: Int, type: PokemonType) -> Bool {
+    func isLineComplete(baseID: Int, type: PokemonType, graduated: GraduatedForms? = nil) -> Bool {
         let forms = Self.eggForms(baseID: baseID, type: type)
         let finals = forms.isEmpty ? PokemonEvolutionData.finals(from: baseID)
             : Array(Set(forms.flatMap { PokemonEvolutionData.finals(from: baseID, form: $0, anyForm: false) }))
         guard finals.allSatisfy({ collectedFinals.contains("\(baseID):\($0)") }) else { return false }
-        return !lineMissesForms(baseID: baseID, type: type)
+        return !lineMissesForms(baseID: baseID, types: [type], graduated: graduated)
     }
 
     /// Hatch roll weights: a form counts as collected once every species of the line that shows it
@@ -1798,7 +1859,10 @@ struct CompanionState: Codable, Sendable, Equatable {
     /// The forms an egg whose Pokémon must have one of `types` can roll (a stone's type, a season's): every form
     /// when `types` is empty or no form has one.
     static func eggForms(baseID: Int, types: [PokemonType]) -> [PokemonForm] {
-        let forms = PokemonForm.rollableLineForms(baseID: baseID)
+        eggForms(among: PokemonForm.rollableLineForms(baseID: baseID), baseID: baseID, types: types)
+    }
+
+    static func eggForms(among forms: [PokemonForm], baseID: Int, types: [PokemonType]) -> [PokemonForm] {
         guard !types.isEmpty else { return forms }
         let typed = forms.filter { form in PokemonTypeData.types(forSpeciesID: baseID, form: form).contains(where: types.contains) }
         return typed.isEmpty ? forms : typed
@@ -1810,16 +1874,18 @@ struct CompanionState: Codable, Sendable, Equatable {
         lineMissesForms(baseID: baseID, types: type.map { [$0] } ?? [])
     }
 
-    func lineMissesForms(baseID: Int, types: [PokemonType]) -> Bool {
+    func lineMissesForms(baseID: Int, types: [PokemonType], graduated: GraduatedForms? = nil) -> Bool {
         let forms = Self.eggForms(baseID: baseID, types: types)
-        return !forms.isEmpty && !Set(forms).isSubset(of: graduatedLineForms(baseID: baseID))
+        return !forms.isEmpty && !Set(forms).isSubset(of: graduatedLineForms(baseID: baseID, graduated: graduated))
     }
 
     /// The line's forms every one of its species graduated in, what the game counts as had: the roll, the Oval
     /// Charm, a new form's bonuses, as the goals do. Neither a Pokémon sent off nor the one being raised: a form
     /// counts once a Pokémon of it is kept.
-    func graduatedLineForms(baseID: Int) -> Set<PokemonForm> {
-        let owned = PokemonForm.formSpecies(baseID: baseID).map { ($0, collectedForms(speciesID: $0, graduatedOnly: true)) }
+    /// `graduated`: the forms read once (`GraduatedForms`), for the many lines of a roll.
+    func graduatedLineForms(baseID: Int, graduated: GraduatedForms? = nil) -> Set<PokemonForm> {
+        let graduated = graduated ?? GraduatedForms(dex)
+        let owned = PokemonForm.formSpecies(baseID: baseID).map { ($0, graduatedForms(speciesID: $0, graduated)) }
         return Set(PokemonForm.lineForms(baseID: baseID).filter { form in
             owned.allSatisfy { speciesID, forms in
                 PokemonForm.ownForm(speciesID: speciesID, lineForm: form).map(forms.contains) ?? true
