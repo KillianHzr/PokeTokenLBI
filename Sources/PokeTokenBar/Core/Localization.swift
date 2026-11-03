@@ -1130,8 +1130,8 @@ struct L {
           "Croissance du Pokémon actuel", "Crescimento do Pokémon atual", "Wachstum des aktuellen Pokémon", "Рост текущего покемона")
     }
     var bonusRepeat: String {
-        t("중복 (이미 졸업)", "Repeat (already graduated)", "ダブり (卒業済み)", "Repetido (ya graduado)",
-          "Doublon (déjà diplômé)", "Repetido (já formado)", "Wiederholung (schon abgeschlossen)", "Повтор (уже выпущен)")
+        t("이미 졸업한 계열", "Line already graduated", "卒業済みの系統", "Línea ya graduada",
+          "Lignée déjà diplômée", "Linha já formada", "Linie schon abgeschlossen", "Линия уже выпущена")
     }
     /// Under the growth factors: the bonuses add up, and the repeat boost multiplies the result.
     func bonusSumNote(_ percent: String, repeatMultiplier m: String?) -> String {
@@ -1139,10 +1139,10 @@ struct L {
                     "Las bonificaciones se suman: +\(percent)%.", "Les bonus s'additionnent : +\(percent)%.",
                     "Os bônus se somam: +\(percent)%.", "Boni addieren sich: +\(percent)%.", "Бонусы складываются: +\(percent)%.")
         guard let m else { return sum }
-        return sum + t(" 중복이 전체를 \(m)배로 해요.", " The repeat boost then multiplies it all by \(m).",
-                       "ダブりで全体が\(m)倍になります。", " El repetido lo multiplica todo por \(m).",
-                       " Le doublon multiplie ensuite le tout par \(m).", " O repetido multiplica tudo por \(m).",
-                       " Die Wiederholung multipliziert dann alles mit \(m).", " Повтор затем умножает всё на \(m).")
+        return sum + t(" 이미 졸업한 계열이라 전체가 \(m)배가 돼요.", " The line already graduated then multiplies it all by \(m).",
+                       "卒業済みの系統なので全体が\(m)倍になります。", " La línea ya graduada lo multiplica todo por \(m).",
+                       " La lignée déjà diplômée multiplie ensuite le tout par \(m).", " A linha já formada multiplica tudo por \(m).",
+                       " Die schon abgeschlossene Linie multipliziert dann alles mit \(m).", " Уже выпущенная линия затем умножает всё на \(m).")
     }
     var bonusNoGrowth: String {
         t("이 포켓몬에 적용되는 성장 보너스가 없어요.", "No growth bonus applies to this Pokémon.",
@@ -1293,8 +1293,14 @@ struct L {
     }
     var activeNewBadge: String { t("신규", "New", "新規", "Nuevo", "Nouveau", "Novo", "Neu", "Новое") }
     /// What graduating the current Pokémon adds, for the hint of its New badge.
-    func activeNewHint(_ names: [String]) -> String {
+    func activeNewHint(_ names: [String], certain: Bool) -> String {
         let list = names.joined(separator: ", ")
+        guard certain else {
+            return t("졸업하면 진화에 따라 도감에 추가될 수 있어요: \(list)", "Graduating it can add to your Pokédex, depending on how it evolves: \(list)",
+                     "卒業すると、進化によっては図鑑に加わります：\(list)", "Al graduarse puede añadir a tu Pokédex, según cómo evolucione: \(list)",
+                     "Diplômé, il peut ajouter à ton Pokédex, selon son évolution : \(list)", "Ao se formar, pode adicionar à sua Pokédex, conforme a evolução: \(list)",
+                     "Mit seinem Abschied kann, je nach Entwicklung, in deinen Pokédex kommen: \(list)", "После выпуска в Покедекс может добавиться, в зависимости от эволюции: \(list)")
+        }
         return t("졸업하면 도감에 추가돼요: \(list)", "Graduating it adds to your Pokédex: \(list)",
                  "卒業すると図鑑に加わります：\(list)", "Al graduarse añade a tu Pokédex: \(list)",
                  "Diplômé, il ajoutera à ton Pokédex : \(list)", "Ao se formar, adiciona à sua Pokédex: \(list)",
@@ -2421,7 +2427,18 @@ struct L {
     /// brings in its form, for `.newForm`.
     func oakBubble(_ verdict: ActiveVerdict, name: String, newFormName: String) -> String {
         switch verdict {
-        case .lineToComplete(let n):
+        case .lineToComplete(let count) where count.lowerBound != count.upperBound:
+            let n = count.upperBound
+            return t("\(KoreanParticle.subject.attach(to: name)) 아직 도감에 없는 종을 최대 \(n)종까지 가져올 수 있단다! 절대 놓아주지 말거라.",
+                     "Your \(name) can bring \(n == 1 ? "a species" : "up to \(n) species") your Pokédex doesn't have yet! Whatever you do, don't release it.",
+                     "\(name)は図鑑にまだない種類を最大\(n)つ連れてくるかもしれんぞ！決して逃がしてはならんぞ。",
+                     "¡Tu \(name) puede traer \(n == 1 ? "una especie que aún no tienes" : "hasta \(n) especies que aún no tienes") en tu Pokédex! No lo sueltes por nada del mundo.",
+                     "Ton \(name) peut t'apporter \(n == 1 ? "une espèce qui manque" : "jusqu'à \(n) espèces qui manquent") à ton Pokédex ! Surtout, ne le relâche pas.",
+                     "Seu \(name) pode trazer \(n == 1 ? "uma espécie que ainda falta" : "até \(n) espécies que ainda faltam") na sua Pokédex! Não o solte de jeito nenhum.",
+                     "Dein \(name) kann \(n == 1 ? "eine Art bringen, die deinem Pokédex noch fehlt" : "bis zu \(n) Arten bringen, die deinem Pokédex noch fehlen")! Lass es auf keinen Fall frei.",
+                     "\(name) может принести в покедекс новые виды, до \(n)! Ни в коем случае не отпускайте его.")
+        case .lineToComplete(let count):
+            let n = count.upperBound
             return t("\(KoreanParticle.subject.attach(to: name)) 아직 도감에 없는 종을 \(n)종 가져올 거란다! 절대 놓아주지 말거라.",
                      "Your \(name) will bring \(n == 1 ? "a species" : "\(n) species") your Pokédex doesn't have yet! Whatever you do, don't release it.",
                      "\(name)は図鑑にまだない種類を\(n)つ連れてくるぞ！決して逃がしてはならんぞ。",
