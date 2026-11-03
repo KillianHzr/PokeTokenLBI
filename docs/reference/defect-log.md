@@ -515,6 +515,16 @@ read_when:
   and failed three identity assertions; locally the sprites come from disk at once, so nothing showed. Both
   classes now lift the cache limit in `setUp` and restore it in `tearDown`.
 
+- **A table read for one use is not checked for another: test every row the new use reads.** The daily and weekly
+  dungeons' bosses are battle forms (Megas, Gigantamax), and 82 of the 132 had no loop: PokéAPI gives the
+  Gigantamax and the Legends: Z-A Megas no learnset, so `generate-battle-data.py` looped nothing and `BattlerSpec.make`
+  fell back to Struggle. The challenge tests checked the boss's form, stats and reward, never its moves; the battle
+  tests built bosses from species with moves. A form without a learnset now takes its species' default variety's,
+  picked by its own types, and `testEverySpeciesLoopsAMove` checks that no variety of the table loops nothing (it
+  failed on the previous table: 83 varieties, 82 of them battle forms). Sweep: the pools came from the same
+  learnsets and were empty too; Metapod, Ditto, Wobbuffet, Smeargle and the other species whose moves the rules never
+  loop now loop what they know (the moves that knock out at once aside).
+
 - **A data key the code names must be read from the data, not guessed.** Bulletproof never stopped a ball or a bomb:
   `BattleMove.isBallistic` looked for a "ballistic" flag where PokéAPI writes "ballistics", and `absorbs` asked for
   Soundproof in the same condition (`d.ability == "soundproof", sound || bulletproof && ball`). No test played the

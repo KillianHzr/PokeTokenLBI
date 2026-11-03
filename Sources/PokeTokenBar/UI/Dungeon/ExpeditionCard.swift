@@ -254,6 +254,7 @@ struct ExpeditionTeamGrid: View {
                 HStack(spacing: 3) {
                     PokemonNameLabel(.pokemonSpecies, String(spec.speciesID), language: store.language)
                         .font(.caption2.weight(.semibold)).lineLimit(1)
+                    GenderGlyph(gender: spec.resolvedGender, l: store.l)
                     Spacer(minLength: 2)
                     if member.isFainted {
                         Text(store.l.battleKO).font(.caption2.weight(.bold)).foregroundStyle(.secondary)

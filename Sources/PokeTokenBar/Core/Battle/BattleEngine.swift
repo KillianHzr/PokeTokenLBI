@@ -135,6 +135,8 @@ struct BattleSimulation {
         var syrupLeft = 0
         var timesHit = 0
         var raisedAt = -1
+        /// Attract or Cute Charm: in love with this battler, it fails half its casts while that one stands.
+        var infatuatedBy: Int?
         /// Focus Energy (+2) and Dragon Cheer (+1, +2 for a Dragon) to its critical-hit stage; Laser Focus: its next
         /// move a critical hit; Powder: its next Fire move bursts.
         var critBoost = 0
@@ -561,6 +563,15 @@ struct BattleSimulation {
             advance(index, after: slug)
             return
         }
+        if let lover = battlers[index].infatuatedBy {
+            if battlers[lover].isFainted || battlers[lover].slot == nil {
+                battlers[index].infatuatedBy = nil
+            } else if random.below(2) == 0 {
+                log(.fail(battler: battlers[index].spec.id, move: slug, reason: .infatuation))
+                advance(index, after: slug)
+                return
+            }
+        }
         if battlers[index].status == .paralysis, random.below(4) == 0 {
             log(.fail(battler: battlers[index].spec.id, move: slug, reason: .paralysis))
             advance(index, after: slug)
@@ -744,6 +755,8 @@ struct BattleSimulation {
         case "no-retreat": return !b.noRetreat
         case "stockpile": return b.stockpile < 3
         case "splash", "celebrate", "hold-hands", "happy-hour": return !foes.isEmpty
+        case "attract": return target(of: move, by: index).map { falls($0, for: index) } ?? false
+        case "captivate": return foes.contains { opposite($0, index) && battlers[$0].stage(.specialAttack) > -6 }
         case "focus-energy": return b.critBoost < 2
         case "laser-focus": return !b.laserFocus && b.spec.moves.contains { MoveTable.move($0)?.isDamaging == true }
         case "dragon-cheer": return allies(of: index).contains { $0 != index && battlers[$0].critBoost == 0 }
@@ -1278,6 +1291,13 @@ struct BattleSimulation {
             }
             log(.heal(battler: revived.spec.id, amount: revived.hp, hp: revived.hp, cause: .move))
             return
+        case "attract":
+            guard let aim = statusTargets(move, by: index).first,
+                  let (target, source) = statusLands(move, by: index, on: aim) else { return }
+            guard falls(target, for: source) else { return failed(move, by: index) }
+            battlers[target].infatuatedBy = source
+            log(.volatile(battler: battlers[target].spec.id, effect: move.slug))
+            return
         case "splash", "celebrate", "hold-hands", "happy-hour":
             // Nothing happens, as in the games.
             return failed(move, by: index, .nothing)
@@ -1680,6 +1700,11 @@ struct BattleSimulation {
             } else {
                 for target in statusTargets(move, by: index) {
                     guard let (victim, source) = statusLands(move, by: index, on: target) else { continue }
+                    // Captivate only charms the opposite gender.
+                    if move.slug == "captivate", !opposite(victim, source) {
+                        log(.noEffect(attacker: battlers[source].spec.id, target: battlers[victim].spec.id, move: move.slug))
+                        continue
+                    }
                     guard hits(move, by: source, on: victim) else {
                         log(.miss(attacker: battlers[source].spec.id, target: battlers[victim].spec.id, move: move.slug))
                         continue
@@ -1863,6 +1888,20 @@ struct BattleSimulation {
         guard let hidden = battlers[index].semiInvulnerable, battlers[index].castMove == hidden else { return nil }
         let charge = 2000 * 300 / (100 + Double(effectiveSpeed(index))) / Double(BattleRules.speedUp)
         return Double(now) >= Double(battlers[index].castEnds) - charge ? hidden : nil
+    }
+
+    /// Whether `target` can fall in love with `source`: opposite genders, neither genderless, not Oblivious nor under
+    /// an Aroma Veil, not already in love.
+    private func falls(_ target: Int, for source: Int) -> Bool {
+        guard battlers[target].infatuatedBy == nil, !["oblivious", "aroma-veil"].contains(battlers[target].ability) else {
+            return false
+        }
+        return opposite(target, source)
+    }
+
+    private func opposite(_ a: Int, _ b: Int) -> Bool {
+        let first = battlers[a].spec.resolvedGender, second = battlers[b].spec.resolvedGender
+        return first == .male && second == .female || first == .female && second == .male
     }
 
     /// After Roost, its Flying type comes back.
@@ -2886,6 +2925,12 @@ struct BattleSimulation {
             log(.ability(battler: battlers[target].spec.id, ability: ability))
             hurt(index, max(1, battlers[index].maxHP / 8), .ability)
         case "static": if random.below(10) < 3 { inflict(.paralysis, on: index, by: target) }
+        case "cute-charm":
+            if falls(index, for: target), random.below(10) < 3 {
+                battlers[index].infatuatedBy = target
+                log(.ability(battler: battlers[target].spec.id, ability: ability))
+                log(.volatile(battler: battlers[index].spec.id, effect: "attract"))
+            }
         case "flame-body": if random.below(10) < 3 { inflict(.burn, on: index, by: target) }
         case "poison-point": if random.below(10) < 3 { inflict(.poison, on: index, by: target) }
         case "effect-spore":
@@ -3374,7 +3419,7 @@ struct BattleSimulation {
         "ally-switch", "follow-me", "rage-powder", "spotlight", "after-you", "quash", "helping-hand", "parting-shot",
         "trick", "switcheroo", "bestow", "recycle", "stuff-cheeks", "teatime", "corrosive-gas", "stockpile", "swallow",
         "memento", "healing-wish", "lunar-dance", "strength-sap", "purify", "jungle-healing", "lunar-blessing",
-        "heal-bell", "aromatherapy", "refresh", "roost", "revival-blessing", "focus-energy", "laser-focus",
+        "heal-bell", "aromatherapy", "refresh", "roost", "revival-blessing", "focus-energy", "laser-focus", "attract",
         "dragon-cheer", "shelter", "victory-dance", "take-heart", "powder", "psycho-shift", "doodle"])
     // Splash, Celebrate, Hold Hands and Happy Hour are played ("nothing happens") but do nothing, as in the games: the
     // loop editor shows them so and the suggestions never pick them.

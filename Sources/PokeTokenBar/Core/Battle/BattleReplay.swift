@@ -8,6 +8,7 @@ struct BattleFrame: Equatable, Sendable {
         var speciesID: Int
         var form: PokemonForm?
         let isShiny: Bool
+        var gender: PokemonGender? = nil
         let maxHP: Int
         var hp: Int
         var onField = false
@@ -38,7 +39,8 @@ struct BattleFrame: Equatable, Sendable {
         for (side, spec) in setup.sides.enumerated() {
             for battler in spec.battlers {
                 units.append(Unit(id: battler.id, side: side, speciesID: battler.speciesID, form: battler.form,
-                                  isShiny: battler.isShiny, maxHP: battler.stats.hp, hp: battler.hp))
+                                  isShiny: battler.isShiny, gender: battler.resolvedGender, maxHP: battler.stats.hp,
+                                  hp: battler.hp))
             }
         }
         var index: [String: Int] = [:]

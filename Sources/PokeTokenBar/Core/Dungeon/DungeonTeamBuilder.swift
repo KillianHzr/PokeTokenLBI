@@ -15,6 +15,10 @@ enum DungeonTeamBuilder {
         guard var spec = BattlerSpec.make(id: entry.id, speciesID: entry.finalID, form: entry.form, level: 100, ivs: ivs,
                                           nature: entry.nature, ability: ability, isShiny: entry.isShiny),
               let data = SpeciesBattleTable.data(speciesID: entry.finalID, form: entry.form) else { return nil }
+        // Its profile's gender, or the one its profile will draw once enriched.
+        spec.gender = entry.profile.flatMap { profile in
+            profile.gender ?? SpeciesInfo.all[entry.finalID]?.genderRate.map(profile.drawnGender)
+        }
         let chosen = (loop ?? []).filter { MoveTable.move($0) != nil }
         spec.moves = chosen.isEmpty
             ? MoveSuggester.suggest(data, stats: spec.stats, types: spec.types,

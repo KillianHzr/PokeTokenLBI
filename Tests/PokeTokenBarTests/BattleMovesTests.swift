@@ -1684,4 +1684,78 @@ final class BattleMovesTests: XCTestCase {
             }, "\(stat)")
         }
     }
+
+    // MARK: Genders, love and the rare moves
+
+    /// A foe's gender follows its species' rate and stays the same for the same Pokémon; a player's is its profile's,
+    /// or the one its profile will draw.
+    func testGendersInBattle() throws {
+        XCTAssertEqual(try mon("ditto", 132).resolvedGender, .genderless)
+        XCTAssertEqual(try mon("chansey", 113).resolvedGender, .female, "female only")
+        XCTAssertEqual(try mon("tauros", 128).resolvedGender, .male, "male only")
+        let rats = (0..<200).compactMap { BattlerSpec.make(id: "foe\($0)-19", speciesID: 19, level: 30 + $0 % 40)?.resolvedGender }
+        let females = rats.filter { $0 == .female }.count
+        XCTAssertTrue((70...130).contains(females), "about half of Rattata are female: \(females)")
+        XCTAssertEqual(try mon("rat", 19, level: 33).resolvedGender, try mon("rat", 19, level: 33).resolvedGender)
+        var entry = DexEntry(baseID: 19, finalID: 19, chainOrder: [19], rarity: .common, caughtAt: nil)
+        entry.profile = PokemonProfile.generate(seed: 42)
+        let drawn = try XCTUnwrap(entry.profile).drawnGender(rate: 4)
+        XCTAssertEqual(DungeonTeamBuilder.spec(for: entry)?.gender, drawn, "the profile's draw before it is enriched")
+        entry.profile?.gender = drawn == .male ? .female : .male
+        XCTAssertEqual(DungeonTeamBuilder.spec(for: entry)?.gender, entry.profile?.gender, "the profile's own once set")
+    }
+
+    /// Attract and Cute Charm make a foe of the other gender fall in love: it fails about half its casts while its
+    /// love stands; the same gender or a genderless one do not fall. Captivate charms the other gender only.
+    func testAttractCuteCharmAndCaptivate() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        func gendered(_ id: String, _ species: Int, _ moves: [String], _ gender: PokemonGender, ability: String? = nil) throws -> BattlerSpec {
+            var spec = try mon(id, species, moves: moves, ability: ability)
+            spec.gender = gender
+            return spec
+        }
+        let love = battle([try gendered("clef", 36, ["attract"] + fillers, .female)], [try gendered("lax", 143, ["body-slam"], .male)])
+        XCTAssertTrue(has(love, .volatile(battler: "lax", effect: "attract")))
+        let smitten = love.events.filter { $0.event == .fail(battler: "lax", move: "body-slam", reason: .infatuation) }.count
+        let slams = love.events.filter {
+            if case .cast("lax", "body-slam", _, _) = $0.event { return true }
+            return false
+        }.count
+        XCTAssertGreaterThan(smitten, slams / 4, "\(smitten) of \(slams)")
+        let same = battle([try gendered("clef", 36, ["attract"] + fillers, .male)], [try gendered("lax", 143, ["body-slam"], .male)])
+        XCTAssertFalse(has(same, .volatile(battler: "lax", effect: "attract")))
+        let ditto = battle([try gendered("clef", 36, ["attract"] + fillers, .female)], [try mon("ditto", 132, moves: ["tackle"])])
+        XCTAssertFalse(has(ditto, .volatile(battler: "ditto", effect: "attract")))
+        let charm = battle([try gendered("clef", 36, fillers, .female, ability: "cute-charm")], [try gendered("lax", 143, ["body-slam"], .male)])
+        XCTAssertTrue(has(charm, .volatile(battler: "lax", effect: "attract")))
+        let captivate = battle([try gendered("clef", 36, ["captivate"] + fillers, .female)], [try gendered("zard", 6, ["flamethrower"], .female)])
+        XCTAssertFalse(captivate.events.contains {
+            if case .stat("zard", .specialAttack, _) = $0.event { return true }
+            return false
+        })
+        XCTAssertFalse(captivate.events.contains {
+            if case .cast("clef", "captivate", _, _) = $0.event { return true }
+            return false
+        }, "the same gender: never cast")
+    }
+
+    /// The moves whose effect does not come from their user's stats wait for a Technical Capsule, like the strongest
+    /// (the owner, 2026-11-03).
+    func testRareMovesAreLocked() throws {
+        for slug in ["curse", "nightmare", "perish-song", "destiny-bond", "fissure", "super-fang", "endeavor", "counter", "bide"] {
+            XCTAssertTrue(try XCTUnwrap(MoveTable.move(slug)).isLocked, slug)
+        }
+        for slug in ["seismic-toss", "night-shade", "toxic", "leech-seed", "swords-dance", "tackle"] {
+            XCTAssertFalse(try XCTUnwrap(MoveTable.move(slug)).isLocked, slug)
+        }
+    }
+
+    /// Every species loops at least one move: Metapod Harden, Ditto Transform, Wobbuffet Counter, Smeargle Sketch.
+    func testEverySpeciesLoopsAMove() throws {
+        let empty = SpeciesBattleTable.all.values.filter { $0.loop.isEmpty }.map(\.pokemonID).sorted()
+        XCTAssertEqual(empty, [])
+        XCTAssertEqual(SpeciesBattleTable.data(speciesID: 132)?.loop, ["transform"])
+        XCTAssertTrue(SpeciesBattleTable.data(speciesID: 202)?.loop.contains("counter") ?? false)
+        XCTAssertEqual(SpeciesBattleTable.data(speciesID: 235)?.loop, ["sketch"])
+    }
 }

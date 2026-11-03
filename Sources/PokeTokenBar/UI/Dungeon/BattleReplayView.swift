@@ -98,6 +98,12 @@ private struct UnitRow: View {
             SpriteView(speciesID: unit.speciesID, size: 30, shiny: unit.isShiny, form: unit.form, sameScale: true)
                 .opacity(unit.fainted ? 0.35 : 1)
             VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 3) {
+                    PokemonNameLabel(.pokemonSpecies, String(unit.speciesID), language: store.language)
+                        .font(.caption2.weight(.semibold))
+                    GenderGlyph(gender: unit.gender, l: store.l)
+                }
+                .lineLimit(1)
                 bar(Double(unit.hp) / Double(max(1, unit.maxHP)), color: .blue)
                 bar(unit.castProgress(at: elapsed), color: .purple)
                 HStack(spacing: 4) {
@@ -123,5 +129,25 @@ private struct UnitRow: View {
             }
         }
         .frame(height: 4)
+    }
+}
+
+/// A Pokémon's gender beside its name: ♂ in blue, ♀ in orange, the glyph saying it without the color; nothing for a
+/// genderless one.
+@MainActor
+struct GenderGlyph: View {
+    let gender: PokemonGender?
+    let l: L
+
+    var body: some View {
+        switch gender {
+        case .male?:
+            Text("♂").font(.caption2.weight(.bold)).foregroundStyle(.blue).accessibilityLabel(l.genderLabel(gender))
+        case .female?:
+            Text("♀").font(.caption2.weight(.bold)).foregroundStyle(Color.readableOrange)
+                .accessibilityLabel(l.genderLabel(gender))
+        default:
+            EmptyView()
+        }
     }
 }

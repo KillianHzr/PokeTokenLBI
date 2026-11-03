@@ -101,14 +101,14 @@ enum Changelog {
             },
             .new("2026-11-02-dungeon-moves") { l in
                 let capsule = l.dungeonTechnicalCapsule
-                return l.t("졸업한 포켓몬의 상세에서 던전에서 쓸 기술 4개를 고르세요. 위력 100 이상의 기술은 던전에서 얻는 \(capsule)로 풀려요.",
-                           "On a graduated Pokémon's page, choose the four moves it uses in the dungeons. Moves of 100 power or more unlock with a \(capsule) won in the dungeons.",
-                           "卒業したポケモンの詳細で、ダンジョンで使う4つのわざを選ぼう。威力100以上のわざは、ダンジョンで手に入る\(capsule)で使えるようになります。",
-                           "En la ficha de un Pokémon graduado, elige los cuatro movimientos que usa en las mazmorras. Los de 100 de potencia o más se desbloquean con una \(capsule) ganada en ellas.",
-                           "Sur la fiche d'un Pokémon diplômé, choisis les quatre attaques qu'il utilise en donjon. Celles de puissance 100 ou plus se débloquent avec une \(capsule) gagnée en donjon.",
-                           "Na ficha de um Pokémon formado, escolha os quatro golpes que ele usa nas masmorras. Os de poder 100 ou mais se desbloqueiam com uma \(capsule) ganha nelas.",
-                           "Wähle auf der Seite eines verabschiedeten Pokémon die vier Attacken, die es in Dungeons nutzt. Attacken ab 100 Stärke schaltet eine in Dungeons gewonnene \(capsule) frei.",
-                           "На странице выпущенного покемона выберите четыре приёма, которые он использует в подземельях. Приёмы мощностью от 100 открывает \"\(capsule)\", добытая в подземельях.")
+                return l.t("졸업한 포켓몬의 상세에서 던전에서 쓸 기술 4개를 고르세요. 모든 기술이 게임과 똑같이 작동해요. 위력 100 이상의 기술과, 효과가 능력치에 좌우되지 않는 몇몇 기술은 던전에서 얻는 \(capsule)로 풀려요.",
+                           "On a graduated Pokémon's page, choose the four moves it uses in the dungeons: each works as in the games. Moves of 100 power or more, and the few whose effect does not depend on stats, unlock with a \(capsule) won in the dungeons.",
+                           "卒業したポケモンの詳細で、ダンジョンで使う4つのわざを選ぼう。どのわざもゲームと同じように働きます。威力100以上のわざと、効果が能力に左右されない一部のわざは、ダンジョンで手に入る\(capsule)で使えるようになります。",
+                           "En la ficha de un Pokémon graduado, elige los cuatro movimientos que usa en las mazmorras: todos funcionan como en los juegos. Los de 100 de potencia o más, y los pocos cuyo efecto no depende de las estadísticas, se desbloquean con una \(capsule) ganada en ellas.",
+                           "Sur la fiche d'un Pokémon diplômé, choisis les quatre attaques qu'il utilise en donjon : chacune marche comme dans les jeux. Celles de puissance 100 ou plus, et les quelques-unes dont l'effet ne dépend pas des stats, se débloquent avec une \(capsule) gagnée en donjon.",
+                           "Na ficha de um Pokémon formado, escolha os quatro golpes que ele usa nas masmorras: todos funcionam como nos jogos. Os de poder 100 ou mais, e os poucos cujo efeito não depende dos atributos, se desbloqueiam com uma \(capsule) ganha nelas.",
+                           "Wähle auf der Seite eines verabschiedeten Pokémon die vier Attacken, die es in Dungeons nutzt: Jede wirkt wie in den Spielen. Attacken ab 100 Stärke und die wenigen, deren Wirkung nicht von den Werten abhängt, schaltet eine in Dungeons gewonnene \(capsule) frei.",
+                           "На странице выпущенного покемона выберите четыре приёма, которые он использует в подземельях: каждый работает как в играх. Приёмы мощностью от 100 и немногие, чей эффект не зависит от характеристик, открывает \"\(capsule)\", добытая в подземельях.")
             },
             .new("2026-11-02-dungeon-items") { l in
                 let great = l.itemName(.greatBall), ultra = l.itemName(.ultraBall), key = l.itemName(.legendaryKey)

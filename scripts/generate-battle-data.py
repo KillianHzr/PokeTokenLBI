@@ -77,18 +77,19 @@ def fetch_pokemon():
 
 def fetch_species():
     data = query("""{ pokemonspecies(order_by: {id: asc}) {
-        id capture_rate is_legendary is_mythical evolves_from_species_id generation_id
+        id capture_rate is_legendary is_mythical evolves_from_species_id generation_id gender_rate
         pokemonegggroups { egggroup { name } } } }""")
     return data["pokemonspecies"]
 
 
 def species_line(s):
     """id|captureRate|legendary (1 for the unbreedable legendaries and mythicals, as `BaseSpecies` reads them)|
-    evolvesFrom|generation"""
+    evolvesFrom|generation|genderRate (female eighths, -1 genderless)"""
     groups = [row["egggroup"]["name"] for row in s["pokemonegggroups"]]
     legendary = (s["is_legendary"] or s["is_mythical"]) and not any(g != "no-eggs" for g in groups)
+    gender = s["gender_rate"] if s["gender_rate"] is not None else -1
     return "|".join(str(f) for f in [s["id"], s["capture_rate"] or 0, 1 if legendary else 0,
-                                     s["evolves_from_species_id"] or 0, s["generation_id"] or 0])
+                                     s["evolves_from_species_id"] or 0, s["generation_id"] or 0, gender])
 
 
 def fetch_learnsets(ids):
@@ -139,6 +140,11 @@ NEVER_LOOPED = {"explosion", "self-destruct", "memento", "final-gambit", "healin
                 "future-sight", "doom-desire", "sky-drop", "shadow-force", "phantom-force", "dig", "dive", "fly",
                 "bounce", "solar-blade", "meteor-beam", "electro-shot", "razor-wind", "skull-bash", "sky-attack",
                 "freeze-shock", "ice-burn", "dynamax-cannon", "behemoth-blade", "behemoth-bash", "eternabeam"}
+# A species with no move the rules above loop (Metapod, Ditto, Wobbuffet, Smeargle...) loops what it knows, but these:
+# the moves that knock their user or everyone out at once.
+FALLBACK_NEVER = {"explosion", "self-destruct", "misty-explosion", "memento", "healing-wish", "lunar-dance",
+                  "final-gambit", "perish-song", "destiny-bond", "guillotine", "horn-drill", "fissure", "sheer-cold",
+                  "struggle"}
 # Setup moves by the side they boost: a special attacker never loops Swords Dance.
 PHYSICAL_BOOSTS = {"swords-dance", "dragon-dance", "bulk-up", "coil", "shift-gear", "hone-claws", "howl",
                    "victory-dance", "tidy-up", "belly-drum"}
@@ -254,6 +260,12 @@ def loop_moves(pokemon, learnset, moves, types):
         options = [n for n in known if n in table and n in moves and fits(n)]
         if options:
             pool.append(max(options, key=lambda n: (table[n], n)))
+    if not chosen:
+        # Nothing the rules loop: what it knows, damaging moves first, the strongest first.
+        fallback = sorted((n for n in known if n in moves and n not in FALLBACK_NEVER),
+                          key=lambda n: (moves[n]["movedamageclass"]["name"] == "status", -(moves[n]["power"] or 0), n))
+        chosen = fallback[:4]
+        pool = pool or fallback[:18]
     return chosen[:4], pool[:18]
 
 
@@ -269,7 +281,10 @@ def main():
         stats = {row["stat"]["name"]: row["base_stat"] for row in p["pokemonstats"]}
         abilities = ",".join(f'{a["ability"]["name"]}{"*" if a["is_hidden"] else ""}' for a in p["pokemonabilities"])
         types = [t["type"]["name"] for t in p["pokemontypes"]]
-        loop, pool = loop_moves(p, learnsets.get(p["id"], []), by_name, types)
+        # A form PokéAPI gives no moves (the Gigantamax ones, the Legends: Z-A Megas) knows its species' default
+        # variety's, picked by its own types.
+        learnset = learnsets.get(p["id"]) or learnsets.get(p["pokemon_species_id"], [])
+        loop, pool = loop_moves(p, learnset, by_name, types)
         fields = [p["id"], p["pokemon_species_id"], ",".join(str(stats.get(k, 0)) for k in STAT_KEYS),
                   ",".join(types), abilities, ",".join(loop), ",".join(pool)]
         lines.append("|".join(str(f) for f in fields))

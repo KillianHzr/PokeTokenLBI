@@ -83,6 +83,20 @@ struct BattlerSpec: Codable, Sendable, Equatable {
     /// A boss never falls to a one-hit knock-out move, and loses only a share of its HP to the moves that do not
     /// read the damage formula (the owner, 2026-11-03: "on doit jamais pouvoir one shot des boss").
     var isBoss = false
+    /// A Pokémon of the player's has its profile's; nil for a foe, whose gender `resolvedGender` draws.
+    var gender: PokemonGender?
+
+    /// Its gender: its own, or for a foe one drawn by its species' rate, the same for the same Pokémon (its id and
+    /// stats), so a replay shows the same.
+    var resolvedGender: PokemonGender? {
+        if let gender { return gender }
+        guard let rate = SpeciesInfo.all[speciesID]?.genderRate else { return nil }
+        if rate < 0 { return .genderless }
+        var hash: UInt64 = 1_469_598_103_934_665_603
+        let key = "\(id)|\(stats.hp)|\(stats.attack)|\(stats.defense)|\(stats.specialAttack)|\(stats.specialDefense)|\(stats.speed)"
+        for byte in key.utf8 { hash = (hash ^ UInt64(byte)) &* 1_099_511_628_211 }
+        return Int(hash % 8) < rate ? .female : .male
+    }
 }
 
 /// Berries a side eats on its own when a Pokémon's HP drop (each Pokémon at most one per battle).
@@ -143,6 +157,8 @@ enum BattleFailReason: String, Codable, Sendable {
     case nothing
     /// Taunt, Encore, Disable, Torment, Imprison or Heal Block forbids the move now.
     case restrained
+    /// In love (Attract, Cute Charm), it would not attack.
+    case infatuation
 }
 
 /// Everything that happens, timed in milliseconds from the start: a replay replays these, a live view plays them at

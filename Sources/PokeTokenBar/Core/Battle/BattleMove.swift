@@ -112,8 +112,16 @@ struct BattleMove: Sendable, Equatable {
         "menacing-moonraze-maelstrom", "lets-snuggle-forever", "splintered-stormshards", "clangorous-soulblaze",
     ]
 
-    /// Offensive moves of 100 power or more are locked until a Technical Capsule unlocks them (validated 2026-10-30).
-    var isLocked: Bool { isDamaging && power >= 100 }
+    /// Offensive moves of 100 power or more are locked until a Technical Capsule unlocks them (validated 2026-10-30),
+    /// and so are the moves whose effect does not come from their user's stats (the owner, 2026-11-03: "ce genre
+    /// d'attaques doivent être bloquées dans les gains de donjon rares").
+    var isLocked: Bool { isDamaging && power >= 100 || Self.rareMoves.contains(slug) }
+
+    static let rareMoves: Set<String> = [
+        "curse", "nightmare", "perish-song", "destiny-bond", "guillotine", "horn-drill", "fissure", "sheer-cold",
+        "super-fang", "natures-madness", "ruination", "endeavor", "pain-split", "final-gambit", "counter", "mirror-coat",
+        "metal-burst", "comeuppance", "bide",
+    ]
 
     /// The time a move takes to cast before speed, in milliseconds (R1): priority moves are quick, status moves short,
     /// the stronger the slower, and a charge or a recharge adds two seconds.
@@ -229,14 +237,17 @@ struct SpeciesInfo: Sendable, Equatable {
     let isLegendary: Bool
     let evolvesFrom: Int?
     let generation: Int
+    /// Female eighths, -1 genderless; nil from a table generated before it was there.
+    var genderRate: Int? = nil
 
     static let all: [Int: SpeciesInfo] = {
         var table: [Int: SpeciesInfo] = [:]
         for line in BattleDataTables.speciesInfo.split(separator: "\n") {
             let f = line.split(separator: "|").compactMap { Int($0) }
-            guard f.count == 5 else { continue }
+            guard f.count >= 5 else { continue }
             table[f[0]] = SpeciesInfo(id: f[0], captureRate: f[1], isLegendary: f[2] == 1,
-                                      evolvesFrom: f[3] == 0 ? nil : f[3], generation: f[4])
+                                      evolvesFrom: f[3] == 0 ? nil : f[3], generation: f[4],
+                                      genderRate: f.count > 5 ? f[5] : nil)
         }
         return table
     }()
