@@ -62,6 +62,12 @@ extension L {
                            "O \(birthday) dá os míticos primeiro; também um \(legendary), ou raramente um ovo qualquer.",
                            "Das \(birthday) bringt zuerst mysteriöse Pokémon; auch ein \(legendary) oder selten ein gewöhnliches Ei.",
                            "\"\(birthday)\" сначала даёт мифических; также \"\(legendary)\" или изредка обычное яйцо."))
+        case .later:
+            lines.append(dexMissingHint(id))
+            lines.append(t("다가올 큰 업데이트에서 만날 수 있어요.", "Arrives with a big update to come.",
+                           "今後の大型アップデートで登場します。", "Llegará con una gran actualización futura.",
+                           "Arrivera avec une grosse mise à jour à venir.", "Chegará com uma grande atualização futura.",
+                           "Kommt mit einem großen Update, das noch folgt.", "Появится в одном из будущих больших обновлений."))
         case .egg:
             lines.append(dexMissingHint(id))
             lines.append(t("알에서 태어나요.", "Hatches from an egg.", "タマゴから生まれます。", "Sale de un huevo.",
