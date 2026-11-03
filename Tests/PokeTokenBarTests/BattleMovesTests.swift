@@ -1241,4 +1241,132 @@ final class BattleMovesTests: XCTestCase {
                          berries: [.sitrus: 1])
         XCTAssertTrue(has(gas, .berryTaken(battler: "lax", berry: .sitrus, by: nil)))
     }
+
+    // MARK: Two turns, locks, streaks
+
+    /// The (start, end) of each cast of `move` by `battler`.
+    private func castWindows(_ outcome: BattleOutcome, _ battler: String, _ move: String) -> [(start: Int, end: Int)] {
+        outcome.events.compactMap { timed in
+            guard case .cast(let who, let m, _, let ends) = timed.event, who == battler, m == move else { return nil }
+            return (timed.time, ends)
+        }
+    }
+
+    /// Digging, a Pokémon is out of reach for its charge, the two seconds (by its speed) before it strikes: Tackle
+    /// misses it then and hits it the rest of the time; Earthquake reaches it, at twice the power.
+    func testDigIsOutOfReachButForEarthquake() throws {
+        // Shuckle digs: its Defense keeps it standing through many hits, its Attack keeps the foe standing.
+        let chomp = try mon("chomp", 213, moves: ["dig"])
+        let charge = Int(2000.0 * 300 / Double(100 + chomp.stats.speed) / 3)
+        func underground(_ outcome: BattleOutcome) -> [(start: Int, end: Int)] {
+            castWindows(outcome, "chomp", "dig").map { ($0.end - charge + 1, $0.end) }
+        }
+        let dug = battle([chomp], [try mon("lax", 143, moves: ["tackle"])])
+        let hidden = underground(dug)
+        XCTAssertFalse(hits(dug).contains { $0.target == "chomp" && during($0.time, hidden) })
+        XCTAssertTrue(dug.events.contains {
+            if case .miss("lax", "chomp", "tackle") = $0.event { return during($0.time, hidden) }
+            return false
+        })
+        XCTAssertTrue(hits(dug).contains { $0.target == "chomp" }, "in sight the rest of the cast")
+        let quake = battle([chomp], [try mon("rhy", 112, level: 40, moves: ["earthquake"])])
+        let below = underground(quake)
+        func damages(_ inside: Bool) -> [Int] {
+            quake.events.compactMap { timed in
+                guard case .hit("rhy", "chomp", "earthquake", let damage, let hp, _, false) = timed.event, hp > 0,
+                      during(timed.time, below) == inside else { return nil }
+                return damage
+            }
+        }
+        let inside = damages(true), outside = damages(false)
+        XCTAssertFalse(inside.isEmpty)
+        XCTAssertFalse(outside.isEmpty)
+        let ratio = Double(inside.reduce(0, +)) / Double(inside.count) / (Double(outside.reduce(0, +)) / Double(outside.count))
+        XCTAssertEqual(ratio, 2, accuracy: 0.3)
+    }
+
+    /// Outrage locks its user for two or three casts, then confuses it.
+    func testOutrageLocksThenConfuses() throws {
+        // Skarmory, a Steel type, resists the Outrages and stands to the end of the lock.
+        let outcome = battle([try mon("chomp", 445, moves: ["outrage", "earthquake"])], [try mon("skarm", 227, moves: ["rain-dance", "sunny-day"])])
+        let casts = outcome.events.compactMap { timed -> String? in
+            if case .cast("chomp", let move, _, _) = timed.event { return move }
+            return nil
+        }
+        let run = casts.prefix { $0 == "outrage" }.count
+        XCTAssertTrue((2...3).contains(run), "\(casts.prefix(5))")
+        XCTAssertTrue(has(outcome, .status(battler: "chomp", ailment: .confusion)))
+    }
+
+    /// Rollout casts five times in a row, each twice as strong; against a boss it stops growing at 120 power.
+    func testRolloutDoublesButNotPastABossCap() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let rolls = battle([try mon("golem", 76, level: 20, moves: ["rollout"])], [try mon("bliss", 242, moves: fillers)])
+        let damages = hits(rolls).filter { $0.move == "rollout" }.prefix(5).map(\.damage)
+        XCTAssertEqual(damages.count, 5)
+        XCTAssertGreaterThan(Double(damages[4]) / Double(damages[0]), 8, "\(damages)")
+        let boss = battle([try mon("golem", 76, level: 20, moves: ["rollout"])],
+                          [try mon("boss", 242, moves: fillers, isBoss: true)])
+        let onBoss = hits(boss).filter { $0.move == "rollout" }.prefix(5).map(\.damage)
+        XCTAssertEqual(onBoss.count, 5)
+        XCTAssertLessThan(Double(onBoss[4]) / Double(onBoss[2]), 1.4, "\(onBoss)")
+    }
+
+    /// Fury Cutter doubles with each that landed before it, up to 160 power.
+    func testFuryCutterGrows() throws {
+        let outcome = battle([try mon("scizor", 212, level: 40, moves: ["fury-cutter"])], [try mon("bliss", 242, moves: ["rain-dance", "sunny-day"])])
+        let damages = hits(outcome).filter { $0.move == "fury-cutter" }.prefix(4).map(\.damage)
+        XCTAssertEqual(damages.count, 4)
+        XCTAssertGreaterThan(Double(damages[2]) / Double(damages[0]), 3, "\(damages)")
+        XCTAssertLessThan(Double(damages[3]) / Double(damages[2]), 1.3, "160 at most: \(damages)")
+    }
+
+    /// Uproar wakes the sleepers as it starts, and nobody falls asleep while it goes on.
+    func testUproarKeepsEveryoneAwake() throws {
+        let outcome = battle([try mon("loud", 295, moves: ["uproar"])], [try mon("shroom", 242, moves: ["mach-punch", "spore"])])
+        // The lock holds from the first Uproar that landed through the two casts after it.
+        let roars = castWindows(outcome, "loud", "uproar")
+        let first = try XCTUnwrap(hits(outcome).first { $0.move == "uproar" })
+        let after = roars.filter { $0.start >= first.time }.prefix(2)
+        XCTAssertEqual(after.count, 2)
+        let spans = [(start: first.time, end: after.last!.end)]
+        XCTAssertFalse(outcome.events.contains {
+            if case .status("loud", .sleep) = $0.event { return during($0.time, spans) }
+            return false
+        })
+    }
+
+    /// Future Sight lands two turns later, through Protect: over a few seeds, one lands while Snorlax's Protect holds.
+    func testFutureSightLandsTwoTurnsLater() throws {
+        var throughProtect = 0
+        for seed: UInt64 in 1...12 {
+            let outcome = battle([try mon("zam", 65, moves: ["future-sight", "psychic"])],
+                                 [try mon("lax", 143, moves: ["protect", "rain-dance", "sunny-day"])], seed: seed)
+            let foreseen = try XCTUnwrap(volatileAt(outcome, "lax", "future-sight"), "seed \(seed)")
+            let landed = try XCTUnwrap(hits(outcome).first { $0.move == "future-sight" }, "seed \(seed)")
+            XCTAssertEqual(landed.time, foreseen + 2 * BattleRules.turn, "seed \(seed)")
+            // A Protect that did not fail holds for 1.5 s from the end of its cast.
+            let shields = castWindows(outcome, "lax", "protect").filter { cast in
+                !outcome.events.contains { $0.time == cast.end && $0.event == .fail(battler: "lax", move: "protect", reason: .failed) }
+            }.map { (start: $0.end - 1, end: $0.end + 1500) }
+            if during(landed.time, shields) { throughProtect += 1 }
+        }
+        XCTAssertGreaterThan(throughProtect, 0)
+    }
+
+    /// Skull Bash raises Defense as it starts to charge; Electro Shot skips its charge in the rain.
+    func testChargesThatRaiseAndSkip() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let bash = battle([try mon("lax", 143, moves: ["skull-bash"])], [try mon("bliss", 242, moves: fillers)])
+        let cast = try XCTUnwrap(castWindows(bash, "lax", "skull-bash").first)
+        XCTAssertTrue(bash.events.contains {
+            if case .stat("lax", .defense, 1) = $0.event { return $0.time == cast.start }
+            return false
+        })
+        let dry = battle([try mon("zap", 145, moves: ["electro-shot"])], [try mon("bliss", 242, moves: ["growl"])])
+        let wet = battle([try mon("zap", 145, moves: ["electro-shot"])], [try mon("bliss", 242, moves: ["growl"], ability: "drizzle")])
+        let dryCast = try XCTUnwrap(castWindows(dry, "zap", "electro-shot").first)
+        let wetCast = try XCTUnwrap(castWindows(wet, "zap", "electro-shot").first)
+        XCTAssertLessThan(wetCast.end - wetCast.start, dryCast.end - dryCast.start)
+    }
 }

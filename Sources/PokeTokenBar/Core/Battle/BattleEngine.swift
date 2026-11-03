@@ -103,6 +103,16 @@ struct BattleSimulation {
         /// The berry it ate last (Belch, Recycle), and the one its Fling or Natural Gift is using.
         var consumedBerry: BattleBerry?
         var throwing: BattleBerry?
+        /// Fly, Dig, Dive, Bounce, Phantom Force, Shadow Force, Sky Drop: out of reach while it casts it.
+        var semiInvulnerable: String?
+        /// Outrage and its kin, Rollout, Ice Ball, Uproar: the move it is locked into, the casts left and done.
+        var lockedMove: String?
+        var lockedLeft = 0
+        var lockedDone = 0
+        /// Fury Cutter and Echoed Voice: how many landed in a row before this one. Defense Curl doubles Rollout.
+        var streak = 0
+        var lastLanded = false
+        var defenseCurl = false
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -136,6 +146,9 @@ struct BattleSimulation {
     private var winner: Int?
     /// The last move anyone used: Copycat's.
     private var lastMoveUsed: String?
+    /// Future Sight and Doom Desire on their way: when, the slot they land on, who sent them.
+    private var futureAttacks: [(time: Int, side: Int, slot: Int, attacker: Int, move: String)] = []
+    private var resolvingFuture = false
     /// Each side's Wide Guard, Quick Guard, Mat Block and Crafty Shield, to when they hold.
     private var sideGuards: [[String: Int]] = [[:], [:]]
     /// Each side's screens, Safeguard, Mist, Tailwind and Lucky Chant, to when they hold.
@@ -182,7 +195,7 @@ struct BattleSimulation {
     }
 
     private func nextTime() -> Int? {
-        var times: [Int] = pendingEntries.map(\.time) + wishes.map(\.time)
+        var times: [Int] = pendingEntries.map(\.time) + wishes.map(\.time) + futureAttacks.map(\.time)
         if weather != nil { times.append(weatherUntil) }
         if terrain != nil { times.append(terrainUntil) }
         times += sideConditions.flatMap(\.values) + fieldConditions.values
@@ -224,6 +237,15 @@ struct BattleSimulation {
         for entry in pendingEntries.filter({ $0.time <= now }).sorted(by: { ($0.side, $0.slot) < ($1.side, $1.slot) }) {
             pendingEntries.removeAll { $0.side == entry.side && $0.slot == entry.slot }
             sendIn(side: entry.side, slot: entry.slot)
+        }
+        for attack in futureAttacks.filter({ $0.time <= now }) {
+            futureAttacks.removeAll { $0.time == attack.time && $0.side == attack.side && $0.slot == attack.slot }
+            guard let target = field[attack.side][attack.slot], !battlers[target].isFainted,
+                  let move = MoveTable.move(attack.move) else { continue }
+            // It lands through Protect, from a user still in the battle or not.
+            resolvingFuture = true
+            _ = strike(move, by: attack.attacker, on: target, spread: false)
+            resolvingFuture = false
         }
         for wish in wishes.filter({ $0.time <= now }) {
             wishes.removeAll { $0.time == wish.time && $0.side == wish.side && $0.slot == wish.slot }
@@ -437,6 +459,9 @@ struct BattleSimulation {
         var chosen: String?
         if battlers[index].loafing {
             chosen = "_loaf"
+        } else if !asleep, let locked = battlers[index].lockedMove, battlers[index].lockedLeft > 0 {
+            // Outrage, Rollout, Uproar: the same move again until the lock is over.
+            chosen = canUse(locked, by: index) ? locked : nil
         } else if !asleep, battlers[index].encoreUntil > now, let encored = battlers[index].encoreMove {
             // Encore: its move again, useful or not; Struggle when it may not.
             chosen = canUse(encored, by: index) ? encored : nil
@@ -464,6 +489,13 @@ struct BattleSimulation {
         battlers[index].castMove = slug
         battlers[index].castTarget = target
         battlers[index].castEnds = now + castDuration(slug, by: index)
+        battlers[index].semiInvulnerable = Self.semiInvulnerableMoves.contains(slug) ? slug : nil
+        // Skull Bash, Meteor Beam and Electro Shot raise a stat as they start to charge.
+        switch slug {
+        case "skull-bash": changeStage(index, .defense, by: 1, fromFoe: false)
+        case "meteor-beam", "electro-shot": changeStage(index, .specialAttack, by: 1, fromFoe: false)
+        default: break
+        }
         log(.cast(battler: battlers[index].spec.id, move: slug, target: target.map { battlers[$0].spec.id },
                   ends: battlers[index].castEnds))
     }
@@ -477,12 +509,14 @@ struct BattleSimulation {
         let scale = 300 / (100 + Double(speed)) / Double(BattleRules.speedUp)
         var duration = Double(MoveTable.move(slug)?.castBase ?? 1200) * scale
         if slug == "solar-beam" || slug == "solar-blade", weather == .sun { duration -= 2000 * scale }
+        if slug == "electro-shot", weather == .rain { duration -= 2000 * scale }
         return max(100, Int(duration.rounded()))
     }
 
     private mutating func completeCast(_ index: Int) {
         guard let slug = battlers[index].castMove else { return }
         battlers[index].castMove = nil
+        battlers[index].semiInvulnerable = nil
         // Destiny Bond holds through the cast that follows it, to that cast's end.
         battlers[index].destinyBond = false
         if slug == "_loaf" {
@@ -515,6 +549,7 @@ struct BattleSimulation {
             return
         }
         if let move = MoveTable.move(slug) { use(move, by: index) }
+        if Self.lockingMoves[slug] != nil, !battlers[index].isFainted { lockStep(index, slug) }
         battlers[index].electrified = false
         battlers[index].helped = false
         battlers[index].castsSinceEntry += 1
@@ -550,6 +585,11 @@ struct BattleSimulation {
             if slug == "dream-eater" { return foes.contains { battlers[$0].status == .sleep } }
             if slug == "belch" { return b.consumedBerry != nil }
             if slug == "natural-gift" || slug == "fling" { return slug == "natural-gift" && heldBerry(index) != nil }
+            if slug == "future-sight" || slug == "doom-desire" {
+                // One foreseen attack on a slot at a time.
+                guard let foe = facingFoe(index), let slot = battlers[foe].slot else { return false }
+                return !futureAttacks.contains { $0.side == battlers[foe].side && $0.slot == slot }
+            }
             if ["explosion", "self-destruct", "misty-explosion", "final-gambit"].contains(slug) {
                 return allies(of: index).count + bench(b.side).count > 1 || foes.count == 1
             }
@@ -1094,6 +1134,7 @@ struct BattleSimulation {
             return
         }
         if fieldMove(move, by: index) { return }
+        if move.slug == "defense-curl" { battlers[index].defenseCurl = true }
         if !move.isDamaging {
             useStatus(move, by: index)
             return
@@ -1131,6 +1172,15 @@ struct BattleSimulation {
             battlers[index].throwing = berry
         }
         defer { battlers[index].throwing = nil }
+        if move.slug == "future-sight" || move.slug == "doom-desire" {
+            // Foreseen: it lands two turns later on whoever then stands in the target's place.
+            guard let target = targets.first, let slot = battlers[target].slot else { return }
+            futureAttacks.append((now + 2 * BattleRules.turn, battlers[target].side, slot, index, move.slug))
+            log(.volatile(battler: battlers[target].spec.id, effect: move.slug))
+            return
+        }
+        // Fury Cutter and Echoed Voice grow with each one that landed just before.
+        battlers[index].streak = previousMove == move.slug && battlers[index].lastLanded ? battlers[index].streak + 1 : 0
         if move.slug == "endeavor", let target = targets.first, battlers[target].hp <= battlers[index].hp {
             log(.fail(battler: id, move: move.slug, reason: .failed))
             return
@@ -1143,6 +1193,7 @@ struct BattleSimulation {
             if dealt > 0 { berryAfterHit(move, by: index, on: target) }
         }
         battlers[index].answering = nil
+        battlers[index].lastLanded = dealtTotal > 0
         if ["explosion", "self-destruct", "misty-explosion"].contains(move.slug)
             || move.slug == "final-gambit" && dealtTotal > 0 {
             hurt(index, battlers[index].hp, .recoil)
@@ -1254,7 +1305,7 @@ struct BattleSimulation {
     /// Whether a protection stops `move` against `target`: its own (Protect and kin; King's Shield, Obstruct, Silk
     /// Trap and Burning Bulwark only against damage), or its side's guard for the moves it guards against.
     private func isProtected(_ target: Int, from move: BattleMove) -> Bool {
-        guard move.isBlockedByProtect, !Self.protectionBreakers.contains(move.slug) else { return false }
+        guard move.isBlockedByProtect, !Self.protectionBreakers.contains(move.slug), !resolvingFuture else { return false }
         let t = battlers[target]
         if t.protectedUntil > now, move.isDamaging || !Self.damageOnlyShields.contains(t.protection ?? "") { return true }
         let guards = sideGuards[t.side]
@@ -1492,6 +1543,44 @@ struct BattleSimulation {
             }
             battlers[target] = t
             log(.volatile(battler: t.spec.id, effect: move.slug))
+        }
+    }
+
+    /// The move a Pokémon hides with, while it hides: Fly, Dig and the others keep it out of reach for their charge,
+    /// the two seconds (by its speed) before it strikes; the rest of the cast it is in sight, or a loop of Dig alone
+    /// would never be hit.
+    private func hiddenMove(_ index: Int) -> String? {
+        guard let hidden = battlers[index].semiInvulnerable, battlers[index].castMove == hidden else { return nil }
+        let charge = 2000 * 300 / (100 + Double(effectiveSpeed(index))) / Double(BattleRules.speedUp)
+        return Double(now) >= Double(battlers[index].castEnds) - charge ? hidden : nil
+    }
+
+    // MARK: Locked moves
+
+    /// Outrage, Thrash, Petal Dance, Raging Fury: two or three casts, then confusion. Rollout and Ice Ball: five,
+    /// ending on a miss. Uproar: three, waking the sleepers as it starts.
+    private mutating func lockStep(_ index: Int, _ slug: String) {
+        if battlers[index].lockedMove == slug, battlers[index].lockedLeft > 0 {
+            battlers[index].lockedLeft -= 1
+            battlers[index].lockedDone += 1
+        } else {
+            let casts = Self.lockingMoves[slug] == 0 ? random.between(2, 3) : Self.lockingMoves[slug] ?? 1
+            battlers[index].lockedMove = slug
+            battlers[index].lockedLeft = casts - 1
+            battlers[index].lockedDone = 1
+            if slug == "uproar" {
+                for other in active where battlers[other].status == .sleep {
+                    cure(other)
+                    startCast(other)
+                }
+            }
+        }
+        let rolling = slug == "rollout" || slug == "ice-ball"
+        if battlers[index].lockedLeft == 0 || rolling && !battlers[index].lastLanded {
+            battlers[index].lockedMove = nil
+            battlers[index].lockedLeft = 0
+            battlers[index].lockedDone = 0
+            if Self.lockingMoves[slug] == 0 { inflict(.confusion, on: index, by: nil) }
         }
     }
 
@@ -1914,13 +2003,14 @@ struct BattleSimulation {
     // MARK: Accuracy, criticals, type
 
     private mutating func hits(_ move: BattleMove, by index: Int, on target: Int) -> Bool {
-        if move.accuracy == 0 { return true }
+        if move.accuracy == 0, hiddenMove(target) == nil { return true }
         if let lock = battlers[index].lockOn, lock.target == target, lock.until > now {
             battlers[index].lockOn = nil
             return true
         }
         if battlers[target].telekinesisUntil > now, !Self.ohkoMoves.contains(move.slug) { return true }
         if battlers[index].ability == "no-guard" || battlers[target].ability == "no-guard" { return true }
+        if let hidden = hiddenMove(target), !(Self.reachesHidden[hidden] ?? []).contains(move.slug) { return false }
         if (move.slug == "thunder" || move.slug == "hurricane"), weather == .rain { return true }
         if move.slug == "blizzard", weather == .snow { return true }
         var accuracy = Double(move.accuracy)
@@ -2098,6 +2188,14 @@ struct BattleSimulation {
         case "solar-beam", "solar-blade": if weather == .rain || weather == .sand || weather == .snow { power /= 2 }
         case "low-kick", "grass-knot", "heavy-slam", "heat-crash": power = 80
         case "knock-off": if heldBerry(target) != nil { power *= 1.5 }
+        case "rollout", "ice-ball":
+            // Doubled at each cast in a row, and again after Defense Curl; on a boss, never past 120 (the owner's rule:
+            // a fifth Rollout at 480 would take a boss's share at once).
+            let done = a.lockedMove == move.slug ? a.lockedDone : 0
+            power *= pow(2, Double(done)) * (a.defenseCurl ? 2 : 1)
+            if d.spec.isBoss { power = min(power, 120) }
+        case "fury-cutter": power = min(160, power * pow(2, Double(a.streak)))
+        case "echoed-voice": power = min(200, power * Double(1 + a.streak))
         case "natural-gift": power = a.throwing == nil ? 0 : 80
         case "fling": power = a.throwing == nil ? 0 : 10
         case "punishment", "return", "frustration": power = 80
@@ -2137,6 +2235,8 @@ struct BattleSimulation {
         }
         if terrain == .misty, type == .dragon, isGrounded(target) { power *= 0.5 }
         if type == .electric && fieldHas("mud-sport") || type == .fire && fieldHas("water-sport") { power /= 3 }
+        // Earthquake on a digger, Surf on a diver, Gust and Twister on a flyer: twice as hard.
+        if let hidden = hiddenMove(target), (Self.doublesOnHidden[hidden] ?? []).contains(move.slug) { power *= 2 }
         return power * a.powerBoost * (a.helped ? 1.5 : 1)
     }
 
@@ -2402,11 +2502,15 @@ struct BattleSimulation {
         case .poison, .badPoison:
             return !d.types.contains(.poison) && !d.types.contains(.steel) && !["immunity", "pastel-veil"].contains(d.ability)
         case .paralysis: return !d.types.contains(.electric) && d.ability != "limber"
-        case .sleep: return !["insomnia", "vital-spirit", "sweet-veil"].contains(d.ability) && terrain != .electric
+        case .sleep:
+            return !["insomnia", "vital-spirit", "sweet-veil"].contains(d.ability) && terrain != .electric && !uproarHeard
         case .freeze: return !d.types.contains(.ice) && d.ability != "magma-armor" && weather != .sun
         default: return true
         }
     }
+
+    /// While a Pokémon on the field is locked into Uproar, nobody falls asleep.
+    private var uproarHeard: Bool { active.contains { battlers[$0].lockedMove == "uproar" } }
 
     private mutating func inflict(_ ailment: BattleAilment, on target: Int, by source: Int?, move: BattleMove? = nil) {
         var ailment = ailment
@@ -2428,9 +2532,11 @@ struct BattleSimulation {
             battlers[target].status = .sleep
             battlers[target].wakeAt = now + random.between(3000, 8000)
             battlers[target].castMove = nil
+            battlers[target].semiInvulnerable = nil
         case .freeze:
             battlers[target].status = .freeze
             battlers[target].castMove = nil
+            battlers[target].semiInvulnerable = nil
         case .badPoison:
             battlers[target].status = .badPoison
             battlers[target].toxicCount = 0
@@ -2737,6 +2843,23 @@ struct BattleSimulation {
         "electric-terrain": .electric, "grassy-terrain": .grassy, "misty-terrain": .misty, "psychic-terrain": .psychic,
     ]
     static let ohkoMoves: Set<String> = ["fissure", "guillotine", "horn-drill", "sheer-cold"]
+    static let semiInvulnerableMoves: Set<String> = ["fly", "dig", "dive", "bounce", "phantom-force", "shadow-force",
+                                                     "sky-drop"]
+    /// The moves that reach a Pokémon out of reach, by where it hides.
+    static let reachesHidden: [String: Set<String>] = [
+        "fly": ["thunder", "hurricane", "gust", "twister", "sky-uppercut", "smack-down", "thousand-arrows"],
+        "bounce": ["thunder", "hurricane", "gust", "twister", "sky-uppercut", "smack-down", "thousand-arrows"],
+        "sky-drop": ["thunder", "hurricane", "gust", "twister", "sky-uppercut", "smack-down", "thousand-arrows"],
+        "dig": ["earthquake", "magnitude", "fissure"],
+        "dive": ["surf", "whirlpool"],
+    ]
+    static let doublesOnHidden: [String: Set<String>] = [
+        "fly": ["gust", "twister"], "bounce": ["gust", "twister"], "sky-drop": ["gust", "twister"],
+        "dig": ["earthquake", "magnitude"], "dive": ["surf", "whirlpool"],
+    ]
+    /// The moves that lock their user in, and for how many casts (0: two or three, then confusion).
+    static let lockingMoves: [String: Int] = ["outrage": 0, "thrash": 0, "petal-dance": 0, "raging-fury": 0,
+                                              "rollout": 5, "ice-ball": 5, "uproar": 3]
     /// The moves that break Reflect, Light Screen and Aurora Veil before they hit.
     static let screenBreakers: Set<String> = ["brick-break", "psychic-fangs", "raging-bull"]
     /// The moves whose success falls when one follows another.
