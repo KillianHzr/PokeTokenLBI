@@ -27,7 +27,7 @@ struct ExpeditionCard: View {
 
     private func header(_ e: Expedition) -> some View {
         HStack(spacing: 8) {
-            DungeonIcon(id: e.dungeon, size: 30)
+            DungeonIcon(id: e.dungeon, size: 30, boss: e.boss)
             VStack(alignment: .leading, spacing: 1) {
                 Text(l.dungeonName(e.dungeon)).font(.callout.weight(.semibold))
                 Text(floorLine(e)).font(.caption).foregroundStyle(.secondary).monospacedDigit()
@@ -458,7 +458,7 @@ struct ExpeditionResultCard: View {
     private func content(_ r: ExpeditionResult, _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                DungeonIcon(id: r.dungeon, size: 30)
+                DungeonIcon(id: r.dungeon, size: 30, boss: r.boss)
                 Label(l.dungeonResultTitle(won: r.won, roped: r.roped),
                       systemImage: r.won ? "checkmark.seal.fill" : r.roped ? "arrow.uturn.left.circle.fill" : "xmark.seal.fill")
                     .font(.callout.weight(.semibold))

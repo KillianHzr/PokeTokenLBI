@@ -52,7 +52,7 @@ struct DungeonsView: View {
 
     private func underway(_ e: Expedition, _ l: L) -> some View {
         HStack(spacing: 8) {
-            DungeonIcon(id: e.dungeon, size: 28)
+            DungeonIcon(id: e.dungeon, size: 28, boss: e.boss)
             Text(l.dungeonUnderway(l.dungeonName(e.dungeon), floor: min(e.floor, e.floors), floors: e.floors))
                 .font(.caption.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
@@ -245,15 +245,19 @@ private struct ChallengeCard: View {
     }
 }
 
-/// A dungeon's icon (R15): its diorama, drawn in code.
+/// A dungeon's icon (R15): its diorama, drawn in code; a daily or weekly dungeon's boss instead, known from the start
+/// (the owner, 2026-11-03: "on doit voir le boss pas un décor").
 @MainActor
 struct DungeonIcon: View {
     let id: DungeonID
     var size: CGFloat = 32
+    var boss: ExpeditionBoss?
 
     var body: some View {
         Group {
-            if let image = DungeonSprites.image(id) {
+            if id.isChallenge, let boss {
+                SpriteView(speciesID: boss.speciesID, size: size, form: boss.form, sameScale: true)
+            } else if let image = DungeonSprites.image(id) {
                 Image(decorative: image, scale: 1).resizable().interpolation(size.truncatingRemainder(dividingBy: 32) == 0 ? .none : .high)
             } else {
                 Color.clear

@@ -26,7 +26,8 @@ struct DungeonTeamScreen: View {
                     .buttonStyle(.borderless)
                     .keyboardShortcut(.cancelAction)
                 Spacer(minLength: 4)
-                DungeonIcon(id: dungeon, size: 20)
+                DungeonIcon(id: dungeon, size: 20,
+                            boss: store.challengeBoss(dungeon).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
                 Text(l.dungeonName(dungeon)).font(.headline)
             }
             rulesBox(size: size, rules: rules, team: candidates, l)

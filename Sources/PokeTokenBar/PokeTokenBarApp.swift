@@ -359,8 +359,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             needsSpriteLayout = true
         }
         let still = mode == .still
-        // Q30 C: while a team explores, its dungeon stands in for the Pokémon whose growth it pauses.
-        if let dungeon = companion.expedition?.dungeon, let diorama = DungeonSprites.trimmedImage(dungeon) {
+        // Q30 C: while a team explores, its dungeon stands in for the Pokémon whose growth it pauses; a daily or weekly
+        // dungeon's boss stands in for it, as on its cards.
+        if let dungeon = companion.expedition?.dungeon, !dungeon.isChallenge, let diorama = DungeonSprites.trimmedImage(dungeon) {
             let key = "dungeon-\(dungeon.rawValue)"
             if key == menuSpriteKey, !menuFrames.isEmpty { return }
             menuLoadTask?.cancel()
@@ -372,9 +373,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
         let subject = companion.representativeSubject
-        let id = subject.speciesID
-        let shiny = subject.isShiny
-        let form = subject.form
+        let challengeBoss = companion.expedition.flatMap { $0.dungeon.isChallenge ? $0.boss : nil }
+        let id = challengeBoss?.speciesID ?? subject.speciesID
+        let shiny = challengeBoss == nil && subject.isShiny
+        let form = challengeBoss.map(\.form) ?? subject.form
         let egg = companion.eggKind
         let key = (id.map { Self.menuSpriteKey(id: $0, shiny: shiny, floor: menuFrameFloor, form: form) }
             ?? "egg-\(egg)-\(menuFrameFloor)") + (still ? "-still" : "")
