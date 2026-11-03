@@ -73,13 +73,13 @@ final class HatchLuckTests: XCTestCase {
         let open = luck([entry(60, [60, 61, 62], day: 1), entry(60, day: 2)], active: true, index: index)
         XCTAssertTrue(open.hatches[1].isActive)
         XCTAssertEqual(open.hatches[1].judged[.new]?.hit, true)
-        let done = luck([entry(60, [60, 61, 62], day: 1), entry(60, [60, 61, 186], day: 2), entry(60, day: 3)],
-                        active: true, index: index)
-        XCTAssertEqual(done.hatches[1].judged[.new]?.hit, true)
-        XCTAssertEqual(done.hatches[2].judged[.new]?.hit, false)
-        let odds = try XCTUnwrap(done.hatches[2].judged[.new]?.odds)
-        XCTAssertEqual(odds, 467.0 / 573, accuracy: 1e-12, "all but Poliwag, halved")
-        XCTAssertEqual(done.hatches[2].newOdds, .init(low: 1 - odds, high: 1 - odds), "the odds of nothing new")
+        let done = luck([entry(60, [60, 61, 62], day: 1), entry(10, day: 1.5), entry(60, [60, 61, 186], day: 2),
+                         entry(10, day: 2.5), entry(60, day: 3)], active: true, index: index)
+        XCTAssertEqual(done.hatches[2].judged[.new]?.hit, true)
+        XCTAssertEqual(done.hatches[4].judged[.new]?.hit, false)
+        let odds = try XCTUnwrap(done.hatches[4].judged[.new]?.odds)
+        XCTAssertEqual(odds, 255.0 / 361, accuracy: 1e-12, "all but Poliwag, halved, without Caterpie, hatched last")
+        XCTAssertEqual(done.hatches[4].newOdds, .init(low: 1 - odds, high: 1 - odds), "the odds of nothing new")
     }
 
     /// After a release, the egg the record does not name is unknown: only the shiny judges it, and its odds span the

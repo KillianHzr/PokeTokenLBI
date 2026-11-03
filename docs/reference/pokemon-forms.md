@@ -12,7 +12,10 @@ forms included. Gen 1 to 5 forms animate with the Black/White GIFs; Gen 6 to 9
 species and regional forms use the Showdown GIFs. The catalog lives in
 `PokemonForm.catalog`, default form first. A form on an evolved species is only
 rolled when `lineBaseIDs` maps that species to the base of its line
-(`PokemonFormLineTests` checks every catalogued species against PokéAPI):
+(`PokemonFormLineTests` checks every catalogued species against PokéAPI). The Luck
+screen replays past eggs with the forms they could roll: a new line with forms gets
+its arrival in `HatchRules.formArrivals` (`testEveryLineWithFormsHasItsArrival`), and
+any other change to what an egg rolls gets a `HatchRules.Change`:
 
 | Species | Forms |
 | --- | --- |

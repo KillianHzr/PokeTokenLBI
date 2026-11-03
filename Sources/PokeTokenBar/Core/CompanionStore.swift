@@ -3716,7 +3716,8 @@ final class CompanionStore {
         state.active?.raising = RaisingRecord(hatchedAt: clock())
         state.active?.fromStoneEgg = typeGuarantee != nil && event == nil
         state.active?.fromRarityEgg = fromRarityEgg
-        state.active?.hatch = HatchRecord(egg: hatchEgg, rollItems: rollItems ?? draw.items, hatchItems: draw.items)
+        state.active?.hatch = HatchRecord(egg: hatchEgg, rollItems: rollItems ?? draw.items, hatchItems: draw.items,
+                                          rolledBaseID: dittoDisguise == nil ? nil : line.baseID)
         // What the Old Amber kept, short of the first evolution: the amber alone never evolves it as it hatches.
         if state.amberCarry > 0, let mon = state.active {
             let given = min(state.amberCarry, max(0, stageThreshold(for: mon) - 1))
@@ -3942,7 +3943,7 @@ final class CompanionStore {
     }
 
     var luckInputs: LuckInputs {
-        LuckInputs(entries: dexEntries, drawItems: ItemKind.drawItems.filter { itemCount($0) > 0 })
+        LuckInputs(entries: dexEntries, drawItems: (ItemKind.drawItems + ItemKind.formerDrawItems).filter { itemCount($0) > 0 })
     }
 
     /// Replays every hatch off the main thread once the species index is loaded, again only when its inputs changed.
@@ -3987,7 +3988,7 @@ final class CompanionStore {
     /// `shinyCharmForEveryone`.
     func drawItemSince(_ item: ItemKind) -> Date? {
         guard itemCount(item) > 0 else { return nil }
-        guard let arrival = HatchRules.Change.arrival(of: item)?.start() else { return Self.shinyCharmForEveryone }
+        guard let arrival = HatchRules.Change.arrival(of: item)?.publishedAt else { return Self.shinyCharmForEveryone }
         return max(arrival, unlockedAt(item) ?? arrival)
     }
 

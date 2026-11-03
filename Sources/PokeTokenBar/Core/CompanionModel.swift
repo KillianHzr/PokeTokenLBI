@@ -1451,8 +1451,9 @@ private extension KeyedDecodingContainer {
 struct GraduatedForms: Sendable {
     private var bySpecies: [Int: Set<PokemonForm>] = [:]
 
-    init(_ dex: [DexEntry]) {
-        for entry in dex where !entry.isReleased {
+    /// `includingReleased`: the rule until #89 of `HatchRules`, when a form counted once registered.
+    init(_ dex: [DexEntry], includingReleased: Bool = false) {
+        for entry in dex where includingReleased || !entry.isReleased {
             for id in entry.chainOrder where PokemonForm.hasForms(speciesID: id) {
                 if let form = PokemonForm.resolved(speciesID: id, form: entry.form) { bySpecies[id, default: []].insert(form) }
             }
@@ -1820,10 +1821,10 @@ struct CompanionState: Codable, Sendable, Equatable {
     /// Whether the egg roll treats a line as collected (its weight halved): every final of the line graduated,
     /// branches and form-gated finals included, and every form of the line graduated. One graduated
     /// final is not enough: after a Vaporeon, Eevee keeps its full chance while seven evolutions are missing.
-    func isLineComplete(baseID: Int, graduated: GraduatedForms? = nil) -> Bool {
+    func isLineComplete(baseID: Int, forms: [PokemonForm]? = nil, graduated: GraduatedForms? = nil) -> Bool {
         let finals = PokemonEvolutionData.finals(from: baseID)
         guard finals.allSatisfy({ collectedFinals.contains("\(baseID):\($0)") }) else { return false }
-        let forms = PokemonForm.rollableLineForms(baseID: baseID)
+        let forms = forms ?? PokemonForm.rollableLineForms(baseID: baseID)
         return forms.isEmpty || Set(forms).isSubset(of: graduatedLineForms(baseID: baseID, graduated: graduated))
     }
 
@@ -1849,7 +1850,10 @@ struct CompanionState: Codable, Sendable, Equatable {
     /// The forms an egg whose Pokémon must have one of `types` can roll (a stone's type, a season's): every form
     /// when `types` is empty or no form has one.
     static func eggForms(baseID: Int, types: [PokemonType]) -> [PokemonForm] {
-        let forms = PokemonForm.rollableLineForms(baseID: baseID)
+        eggForms(among: PokemonForm.rollableLineForms(baseID: baseID), baseID: baseID, types: types)
+    }
+
+    static func eggForms(among forms: [PokemonForm], baseID: Int, types: [PokemonType]) -> [PokemonForm] {
         guard !types.isEmpty else { return forms }
         let typed = forms.filter { form in PokemonTypeData.types(forSpeciesID: baseID, form: form).contains(where: types.contains) }
         return typed.isEmpty ? forms : typed

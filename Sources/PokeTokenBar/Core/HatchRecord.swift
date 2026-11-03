@@ -51,12 +51,16 @@ struct HatchRecord: Codable, Sendable, Equatable {
     var hatchItems: Set<ItemKind> = []
     /// The egg was chosen by the player, for a hatch from before the record: its draw items then come from their dates.
     var chosenByPlayer = false
+    /// The line its egg rolled when it became something else: a Ditto's disguise, the next egg's line hatched last.
+    var rolledBaseID: Int?
 
-    init(egg: HatchEgg, rollItems: Set<ItemKind> = [], hatchItems: Set<ItemKind> = [], chosenByPlayer: Bool = false) {
+    init(egg: HatchEgg, rollItems: Set<ItemKind> = [], hatchItems: Set<ItemKind> = [], chosenByPlayer: Bool = false,
+         rolledBaseID: Int? = nil) {
         self.egg = egg
         self.rollItems = rollItems
         self.hatchItems = hatchItems
         self.chosenByPlayer = chosenByPlayer
+        self.rolledBaseID = rolledBaseID
     }
 
     /// An item a later build added is left out, not the record.
@@ -69,6 +73,7 @@ struct HatchRecord: Codable, Sendable, Equatable {
         rollItems = items(.rollItems)
         hatchItems = items(.hatchItems)
         chosenByPlayer = (try? c.decodeIfPresent(Bool.self, forKey: .chosenByPlayer)) ?? false
+        rolledBaseID = (try? c.decodeIfPresent(Int.self, forKey: .rolledBaseID)) ?? nil
     }
 }
 

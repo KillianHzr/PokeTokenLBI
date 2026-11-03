@@ -72,6 +72,7 @@ final class HatchLuckLoadingTests: XCTestCase {
     func testTheShinyCharmCountsFromTheTenPercentShop() async throws {
         let clock = Clock()
         XCTAssertNil(try store(clock: clock).drawItemSince(.shinyCharm), "not owned")
+        XCTAssertEqual(try store(clock: clock, items: [.clearBell]).luckInputs.drawItems, [.clearBell], "weighed for a while")
         let s = try store(clock: clock, items: [.shinyCharm])
         XCTAssertEqual(CompanionStore.shinyCharmForEveryone, ISO8601DateFormatter().date(from: "2026-09-12T14:23:56Z"))
         XCTAssertEqual(s.drawItemSince(.shinyCharm), CompanionStore.shinyCharmForEveryone)
@@ -82,7 +83,7 @@ final class HatchLuckLoadingTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(hatches[2].judged[.shiny]?.odds), 1.0 / 48, accuracy: 1e-12)
     }
 
-    /// An achievement's draw item is owned from the What's New day of the update that brought it, or from the
+    /// An achievement's draw item is owned from the publication of the update that brought it, or from the
     /// graduation that met its condition when later: never a date to ask the player.
     func testADrawItemCountsFromItsUpdateOrFromTheGraduationThatEarnedIt() throws {
         func at(_ text: String) -> Date {
@@ -104,7 +105,7 @@ final class HatchLuckLoadingTests: XCTestCase {
         XCTAssertEqual(try since(.legendCharm, flute), at("2026-10-27 11:00"), "the second Articuno")
         XCTAssertNil(try store(clock: clock, dex: flute).drawItemSince(.legendCharm), "not owned")
         XCTAssertEqual(try since(.legendCharm, [legendary(144, "2026-10-02 09:00"), legendary(144, "2026-10-03 09:00")]),
-                       at("2026-10-20 00:00"), "earned before the update that brought it")
+                       HatchRules.Change.collectorItems.publishedAt, "earned before the update that brought it")
         XCTAssertEqual(try since(.legendCharm, [legendary(144, "2026-10-24 09:00"), legendary(144, "2026-10-26 09:00", released: true),
                                                 legendary(144, "2026-10-28 09:00")]),
                        at("2026-10-28 09:00"), "a released copy was never raised to the end")
@@ -112,10 +113,10 @@ final class HatchLuckLoadingTests: XCTestCase {
                       legendary(645, "2026-10-24 09:00"), legendary(642, "2026-10-25 09:00")]
         XCTAssertEqual(try since(.revealGlass, forces), at("2026-10-24 09:00"), "three Forces of Nature")
         XCTAssertEqual(try since(.revealGlass, [legendary(641, "2026-10-02 09:00"), legendary(642, "2026-10-03 09:00"),
-                                                legendary(645, "2026-10-04 09:00")]), at("2026-10-20 00:00"))
-        XCTAssertEqual(try since(.ovalCharm, forces), at("2026-10-21 00:00"),
+                                                legendary(645, "2026-10-04 09:00")]), HatchRules.Change.collectorItems.publishedAt)
+        XCTAssertEqual(try since(.ovalCharm, forces), HatchRules.Change.charms.publishedAt,
                        "owned, from a Pokédex smaller than today's")
-        XCTAssertEqual(try since(.glimmeringCharm, forces), at("2026-10-21 00:00"))
+        XCTAssertEqual(try since(.glimmeringCharm, forces), HatchRules.Change.charms.publishedAt)
         let everySpecies = PokemonAssets.animatedSpeciesIDs.sorted().enumerated().map { i, id in
             DexEntry(baseID: id, finalID: id, chainOrder: [id], rarity: .common,
                      caughtAt: at("2026-10-22 09:00").addingTimeInterval(Double(i) * 60))

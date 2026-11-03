@@ -68,35 +68,16 @@ struct HatchLuck: Sendable {
     init(entries: [DexEntry], includesActive: Bool, today: CompanionState, index: [BaseSpecies],
          itemsSince: [ItemKind: Date] = [:], now: Date) {
         let rarities = Dictionary(index.map { ($0.id, $0.rarity) }, uniquingKeysWith: { a, _ in a })
-        var collection = today
-        collection.active = nil
-        collection.dex = []
-        collection.collectedFinals = []
         var hatches: [Hatch] = []
-        for (i, entry) in entries.enumerated() {
-            let previous = i > 0 ? entries[i - 1] : nil
-            // A history from before the app kept a line from hatching twice in a row.
-            collection.lastHatchedBaseID = previous.map(\.baseID) == entry.baseID ? nil : previous?.baseID
-            let record = entry.hatch
+        for (i, moment) in Self.moments(entries: entries, today: today, itemsSince: itemsSince).enumerated() {
+            let entry = moment.entry, record = entry.hatch, previous = moment.previous
             let egg = record?.egg ?? (previous?.isReleased == true ? nil : .tier(nil))
-            let rollItems: Set<ItemKind>, hatchItems: Set<ItemKind>
-            if let record, !record.chosenByPlayer {
-                (rollItems, hatchItems) = (record.rollItems, record.hatchItems)
-            } else {
-                let started = previous?.caughtAt
-                let owned = Set(itemsSince.filter { since in started.map { since.value < $0 } ?? false }.keys)
-                (rollItems, hatchItems) = (owned, owned)
-            }
             let previousEgg = hatches.last?.egg
-            let rules = HatchRules(rolledAt: previous?.caughtAt ?? entry.caughtAt)
             hatches.append(Self.hatch(number: i + 1, entry: entry, isActive: includesActive && i == entries.count - 1,
                                       egg: egg, chosen: record?.chosenByPlayer ?? false,
                                       asked: record?.chosenByPlayer ?? (previous?.isReleased == true),
-                                      roll: HatchDraw(collection: collection, items: rollItems, rules: rules),
-                                      hatch: HatchDraw(collection: collection, items: hatchItems),
+                                      roll: moment.roll, hatch: moment.hatch,
                                       afterFossilEgg: previousEgg == .fossil, index: index, rarities: rarities))
-            if !entry.isReleased { collection.collectedFinals.insert("\(entry.baseID):\(entry.finalID)") }
-            collection.dex.append(entry)
         }
         var runs = Criterion.allCases.map { _ in (odds: [Double](), hits: 0) }
         var distributions = Criterion.allCases.map { _ in [1.0] }
@@ -132,6 +113,47 @@ struct HatchLuck: Sendable {
         } else {
             hatchesPerWeek = nil
         }
+    }
+
+    /// A Pokémon's egg in the replay: the draws its species and its hatch were rolled with.
+    struct Moment: Sendable {
+        let entry: DexEntry
+        let previous: DexEntry?
+        let roll: HatchDraw
+        let hatch: HatchDraw
+    }
+
+    /// Every egg against the Pokédex, draw items and rules of its rolls. Its species and form are rolled as the Pokémon
+    /// before it leaves, its shiny and Ditto as it hatches.
+    static func moments(entries: [DexEntry], today: CompanionState, itemsSince: [ItemKind: Date]) -> [Moment] {
+        var collection = today
+        collection.active = nil
+        collection.dex = []
+        collection.collectedFinals = []
+        var moments: [Moment] = []
+        let firstHatch = entries.first.flatMap { $0.raising?.hatchedAt ?? $0.caughtAt }
+        for (i, entry) in entries.enumerated() {
+            let previous = i > 0 ? entries[i - 1] : nil
+            collection.lastHatchedBaseID = previous?.hatch?.rolledBaseID ?? previous?.baseID
+            let rollItems: Set<ItemKind>, hatchItems: Set<ItemKind>
+            if let record = entry.hatch, !record.chosenByPlayer {
+                (rollItems, hatchItems) = (record.rollItems, record.hatchItems)
+            } else {
+                let started = previous?.caughtAt
+                let owned = Set(itemsSince.filter { since in started.map { since.value < $0 } ?? false }.keys)
+                (rollItems, hatchItems) = (owned, owned)
+            }
+            let hatchedAt = entry.raising?.hatchedAt ?? previous?.caughtAt ?? entry.caughtAt
+            let rolledAt = previous?.caughtAt ?? hatchedAt
+            moments.append(Moment(entry: entry, previous: previous,
+                                  roll: HatchDraw(collection: collection, items: rollItems,
+                                                  rules: HatchRules(rolledAt: rolledAt, firstHatch: firstHatch)),
+                                  hatch: HatchDraw(collection: collection, items: hatchItems,
+                                                   rules: HatchRules(rolledAt: hatchedAt, firstHatch: firstHatch))))
+            if !entry.isReleased { collection.collectedFinals.insert("\(entry.baseID):\(entry.finalID)") }
+            collection.dex.append(entry)
+        }
+        return moments
     }
 
     /// Every egg the Bag can hold, which a hatch whose egg is unknown may have come from.
