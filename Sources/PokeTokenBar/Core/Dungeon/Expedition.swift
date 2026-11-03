@@ -427,7 +427,7 @@ enum ExpeditionEngine {
     private static func fightBoss(_ e: inout Expedition, dungeon: Dungeon, random: inout BattleRandom,
                                   context: ExpeditionContext) {
         append(&e, .bossReached(speciesID: e.boss.speciesID, isShiny: e.boss.isShiny), rare: true, context: context)
-        let boss = bossSpec(e.boss, tier: dungeon.tier, random: &random)
+        let boss = bossSpec(e.boss, tier: dungeon.tier, challenge: dungeon.id.isChallenge ? dungeon.id : nil, random: &random)
         let alive = e.team.filter { !$0.isFainted }
         guard let boss, !alive.isEmpty else {
             finish(&e, won: false, context: context)
@@ -458,12 +458,17 @@ enum ExpeditionEngine {
     }
 
     /// R13: level 100, IVs of 20 to 31, its HP and stats raised: deeper, the more (balanced 2026-11-02 so a full
-    /// Pokédex still has a fight), a legendary four times the HP and ×1.18, Arceus ×4.5 and ×1.2.
-    static func bossSpec(_ boss: ExpeditionBoss, tier: DungeonTier, random: inout BattleRandom) -> BattlerSpec? {
+    /// Pokédex still has a fight), a legendary four times the HP and ×1.18, Arceus ×4.5 and ×1.2, a challenge's boss
+    /// the most (`challengeFactors`).
+    static func bossSpec(_ boss: ExpeditionBoss, tier: DungeonTier, challenge: DungeonID? = nil,
+                         random: inout BattleRandom) -> BattlerSpec? {
         let ivs = (0..<6).map { _ in 20 + random.below(12) }
         let legendary = SpeciesInfo.all[boss.speciesID]?.isLegendary ?? false
         let (hp, stats): (Double, Double)
-        if boss.speciesID == DungeonCatalog.arceusID {
+        if let challenge, let data = SpeciesBattleTable.data(speciesID: boss.speciesID, form: boss.form),
+           let factors = challengeFactors(challenge, baseTotal: data.baseStats.reduce(0, +)) {
+            (hp, stats) = factors
+        } else if boss.speciesID == DungeonCatalog.arceusID {
             (hp, stats) = (4.5, 1.2)
         } else if legendary {
             (hp, stats) = (4, 1.18)
@@ -477,6 +482,24 @@ enum ExpeditionEngine {
         return BattlerSpec.make(id: "boss-\(boss.speciesID)", speciesID: boss.speciesID, form: boss.form, level: 100,
                                 ivs: ivs, isShiny: boss.isShiny, isBoss: true, hpFactor: hp, statFactor: stats)
     }
+
+    /// The daily and weekly bosses' HP and stats, hard on purpose (the owner, 2026-11-03): a full Pokédex wins about
+    /// one daily try in two and one weekly try in three (`DungeonSimulatorTests`). Measured against the form's base
+    /// stat total, so that a Gigantamax Pikachu (320) stands as long as a Primal Groudon (770): one factor for all
+    /// left the first a walkover and the second out of reach, the week's chances drawn with its boss.
+    static func challengeFactors(_ id: DungeonID, baseTotal: Int) -> (hp: Double, stats: Double)? {
+        let (hp, stats): (Double, Double)
+        switch id {
+        case .daily: (hp, stats) = (5.75, 1.375)
+        case .weekly: (hp, stats) = (6.5, 1.5)
+        default: return nil
+        }
+        let scale = challengeReferenceTotal / Double(max(1, baseTotal))
+        return (hp * scale, stats * scale.squareRoot())
+    }
+
+    /// The base stat total the challenges' factors are set for.
+    static let challengeReferenceTotal = 600.0
 
     // MARK: Loot
 

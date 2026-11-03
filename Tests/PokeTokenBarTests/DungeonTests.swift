@@ -14,6 +14,60 @@ final class DungeonTests: XCTestCase {
         ExpeditionMember(entryID: "m\(species)", spec: try XCTUnwrap(BattlerSpec.make(id: "m\(species)", speciesID: species, level: level)))
     }
 
+    // MARK: Challenge bosses
+
+    /// The daily and weekly bosses (the owner, 2026-11-03): stronger than the same Pokémon anywhere else, the weekly's the
+    /// most, and measured against their form's base stats, so that a Gigantamax Pikachu (320) stands about as long as a
+    /// Primal Groudon (770). One factor for all left the first a walkover and the second out of reach.
+    func testChallengeBossesAreTheStrongestAndEvenedByTheirBaseStats() throws {
+        XCTAssertNil(ExpeditionEngine.challengeFactors(.ceruleanCave, baseTotal: 600))
+        let daily = try XCTUnwrap(ExpeditionEngine.challengeFactors(.daily, baseTotal: 600))
+        let weekly = try XCTUnwrap(ExpeditionEngine.challengeFactors(.weekly, baseTotal: 600))
+        XCTAssertGreaterThan(weekly.hp, daily.hp)
+        XCTAssertGreaterThan(weekly.stats, daily.stats)
+        func spec(_ speciesID: Int, challenge: DungeonID?) throws -> BattlerSpec {
+            let form = try XCTUnwrap(BattleForms.weekly.first { $0.speciesID == speciesID })
+            var random = BattleRandom(seed: 1)
+            return try XCTUnwrap(ExpeditionEngine.bossSpec(ExpeditionBoss(speciesID: speciesID, form: form.form, isShiny: false),
+                                                           tier: .t5, challenge: challenge, random: &random))
+        }
+        let groudon = try spec(383, challenge: .weekly), pikachu = try spec(25, challenge: .weekly)
+        let plainGroudon = try spec(383, challenge: nil), plainPikachu = try spec(25, challenge: nil)
+        XCTAssertGreaterThan(groudon.stats.hp, plainGroudon.stats.hp, "a challenge's boss outlasts the same one elsewhere")
+        XCTAssertGreaterThan(pikachu.stats.attack, plainPikachu.stats.attack)
+        // The gap between the weakest and the strongest form narrows: Pikachu's HP against Groudon's.
+        XCTAssertGreaterThan(Double(pikachu.stats.hp) / Double(groudon.stats.hp),
+                             1.5 * Double(plainPikachu.stats.hp) / Double(plainGroudon.stats.hp))
+    }
+
+    /// The boss a daily expedition really meets takes the challenge's factors: more than Arceus's ×4.5 HP.
+    func testADailyExpeditionMeetsTheChallengeBoss() throws {
+        let dungeon = DungeonCatalog.dungeon(.daily)
+        let team = try [150, 384, 383, 382, 487, 483].map { try member($0) }
+        let mega = try XCTUnwrap(BattleForms.daily.first { $0.speciesID == 6 })
+        let context = ExpeditionContext(tier: dungeon.tier, shinyDenominator: 64, now: Date(timeIntervalSince1970: 0))
+        for seed in UInt64(1)...20 {
+            var e = ExpeditionEngine.start(dungeon: dungeon, team: team, rules: [], teamSize: 6, seed: seed,
+                                           cost: dungeon.floors * 1000, berries: [:], revives: [:], context: context,
+                                           boss: ExpeditionBoss(speciesID: 6, form: mega.form, isShiny: false))
+            while !e.isOver, case .exploring = e.phase {
+                ExpeditionEngine.feed(&e, tokens: e.floorCost, context: context)
+                if case .awaitingHeal = e.phase { ExpeditionEngine.answerHeal(&e, paid: false, context: context) }
+            }
+            let bossBattle = e.log.compactMap { entry -> ExpeditionBattle? in
+                if case .battle(let battle) = entry.kind, battle.kind == .boss { return battle }
+                return nil
+            }.last
+            guard let boss = bossBattle?.setup.sides[1].battlers.first else { continue }
+            let data = try XCTUnwrap(SpeciesBattleTable.data(speciesID: 6, form: mega.form))
+            let plain = BattleStats.computed(base: data.baseStats, ivs: Array(repeating: 31, count: 6), level: 100,
+                                             nature: nil, speciesID: 6)
+            XCTAssertGreaterThan(Double(boss.stats.hp), 4.6 * Double(plain.hp))
+            return
+        }
+        XCTFail("no run reached the boss")
+    }
+
     // MARK: Catalog
 
     func testThirteenDungeonsOverFiveTiers() {
