@@ -104,9 +104,11 @@ final class DittoPromiseTests: XCTestCase {
         let plain = try store(",\"dex\":[]", provider: DittoTestProvider(), seed: seed)
         await plain.hatch(baseID: 1)
         XCTAssertNotNil(plain.state.active?.dittoDisguise, "the control: this roll hides a Ditto")
+        XCTAssertEqual(plain.state.active?.hatch?.rolledBaseID, 1, "the line it hid in, for the next egg's roll")
         let stone = try store(",\"dex\":[],\"eggTypeGuarantee\":\"grass\"", provider: DittoTestProvider(), seed: seed)
         await stone.hatch(baseID: 1)
         XCTAssertNil(stone.state.active?.dittoDisguise, "a Grass Stone egg keeps its Grass Pokémon")
+        XCTAssertNil(stone.state.active?.hatch?.rolledBaseID)
         XCTAssertEqual(stone.state.active?.nature, plain.state.active?.nature, "the rolls after it stay the same")
     }
 

@@ -23,6 +23,18 @@ final class PopoverNavigationTests: XCTestCase {
         XCTAssertTrue(nav.showingCollectionLog, "일반 재진입은 사용자가 보던 컬렉션 세그먼트를 유지")
     }
 
+    /// The Luck screen takes over the popover, and reopens on its summary.
+    func testLuckScreenClosesAndReopensOnItsSummary() {
+        let nav = PopoverNavigation()
+        nav.openDexEntry(collectionID: "25")
+        nav.showingLuck = true
+        XCTAssertNil(nav.dexDetailCollectionID)
+        nav.luckTab = .hatches
+        nav.reset()
+        XCTAssertFalse(nav.showingLuck)
+        XCTAssertEqual(nav.luckTab, .summary)
+    }
+
     func testOpenRepresentativeDexLeavesSettingsForCollection() {
         let nav = PopoverNavigation()
         nav.showSettings = true
