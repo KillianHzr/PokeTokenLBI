@@ -66,7 +66,11 @@ struct BattleFrame: Equatable, Sendable {
                 hits.append((timed.time, attacker, move, target, damage))
                 if hits.count > keepHits { hits.removeFirst() }
             case .hurt(let id, _, let hp, _), .heal(let id, _, let hp, _):
-                if let i = index[id] { units[i].hp = hp }
+                if let i = index[id] {
+                    units[i].hp = hp
+                    // Revival Blessing: back from a knock-out, on the bench.
+                    if units[i].fainted, hp > 0 { units[i].fainted = false }
+                }
             case .faint(let id):
                 if let i = index[id] {
                     units[i].hp = 0

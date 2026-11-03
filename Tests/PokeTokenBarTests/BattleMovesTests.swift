@@ -1070,63 +1070,82 @@ final class BattleMovesTests: XCTestCase {
 
     // MARK: Switching
 
-    /// U-turn takes its user out after the hit, the next of its bench stepping in at once; it may come back later.
-    /// The replay shows it off the field. (The users stand on the foes' side, which keeps its order.)
+    /// U-turn takes its user out after the hit, the best of its bench stepping in at once; it may come back later.
+    /// The replay shows it off the field. A foe's U-turn hits and it stays: the foes never leave.
     func testUTurnSwitchesItsUserOut() throws {
-        let outcome = battle([try mon("champ", 68, moves: ["rain-dance", "sunny-day"])],
-                             [try mon("scizor", 212, moves: ["u-turn"]), try mon("lax", 143, moves: ["body-slam"])])
+        let outcome = battle([try mon("scizor", 212, moves: ["u-turn"]), try mon("lax", 143, level: 20, moves: ["body-slam"])],
+                             [try mon("champ", 68, moves: ["rain-dance", "sunny-day"])])
         let turn = try XCTUnwrap(hits(outcome).first { $0.move == "u-turn" })
         XCTAssertTrue(outcome.events.contains { $0.event == .leave(battler: "scizor") && $0.time == turn.time })
         XCTAssertTrue(outcome.events.contains {
-            if case .enter(1, 0, "lax") = $0.event { return $0.time == turn.time }
+            if case .enter(0, 0, "lax") = $0.event { return $0.time == turn.time }
             return false
         })
         let frame = BattleFrame.at(turn.time, setup: outcome.setup, events: outcome.events)
         XCTAssertEqual(frame.units.first { $0.id == "scizor" }?.onField, false)
-        let alone = battle([try mon("champ", 68, moves: ["rain-dance", "sunny-day"])], [try mon("scizor", 212, moves: ["u-turn"])])
+        let alone = battle([try mon("scizor", 212, moves: ["u-turn"])], [try mon("champ", 68, moves: ["rain-dance", "sunny-day"])])
         XCTAssertFalse(alone.events.contains { $0.event == .leave(battler: "scizor") }, "without a bench it stays")
+        let foe = battle([try mon("champ", 68, moves: ["rain-dance", "sunny-day"])],
+                         [try mon("scizor", 212, moves: ["u-turn"]), try mon("next", 143, moves: ["body-slam"])])
+        XCTAssertTrue(hits(foe).contains { $0.move == "u-turn" })
+        XCTAssertFalse(foe.events.contains { $0.event == .leave(battler: "scizor") }, "a foe never leaves")
     }
 
     /// Baton Pass hands its stages to the one that comes in; Shed Tail leaves it a substitute for half the HP; Parting
-    /// Shot lowers the foe's attacks on the way out.
+    /// Shot lowers the foe's attacks on the way out. The bench members stand low so the movers enter first.
     func testBatonPassShedTailPartingShot() throws {
         let foe = try mon("champ", 68, level: 60, moves: ["rain-dance", "sunny-day"])
         let sturdy = try mon("champ", 68, moves: ["rain-dance", "sunny-day"])
-        let baton = battle([sturdy], [try mon("ninjask", 291, moves: ["swords-dance", "baton-pass"]), try mon("lax", 143, moves: ["body-slam"])])
+        let baton = battle([try mon("ninjask", 291, moves: ["swords-dance", "baton-pass", "x-scissor"]),
+                            try mon("lax", 143, level: 20, moves: ["body-slam"])], [sturdy])
         let passed = try XCTUnwrap(baton.events.firstIndex { $0.event == .leave(battler: "ninjask") })
         XCTAssertTrue(baton.events[passed...].contains {
             if case .stat("lax", .attack, let change) = $0.event { return change >= 2 }
             return false
         })
         // The Attack it got is real: its Body Slams hit about twice as hard as after a passed Agility.
-        let control = battle([sturdy], [try mon("ninjask", 291, moves: ["agility", "baton-pass"]), try mon("lax", 143, moves: ["body-slam"])])
+        let control = battle([try mon("ninjask", 291, moves: ["agility", "baton-pass", "x-scissor"]),
+                              try mon("lax", 143, level: 20, moves: ["body-slam"])], [sturdy])
         XCTAssertGreaterThan(meanDamage(baton, "body-slam") / meanDamage(control, "body-slam"), 1.6)
-        let shed = try mon("cyclizar", 967, moves: ["shed-tail"])
-        let tail = battle([foe], [shed, try mon("lax", 143, moves: ["body-slam"])])
+        let shed = try mon("cyclizar", 967, moves: ["shed-tail", "dragon-claw"])
+        let tail = battle([shed, try mon("lax", 143, level: 20, moves: ["body-slam"])], [foe])
         XCTAssertTrue(has(tail, .hurt(battler: "cyclizar", amount: (shed.stats.hp + 1) / 2, hp: shed.stats.hp - (shed.stats.hp + 1) / 2,
                                       cause: .substitute)))
         XCTAssertTrue(has(tail, .substitute(battler: "lax", hp: shed.stats.hp / 4)), "a quarter of Cyclizar's HP")
-        let shot = battle([foe], [try mon("panda", 675, moves: ["parting-shot"]), try mon("lax", 143, moves: ["body-slam"])])
+        let shot = battle([try mon("panda", 675, moves: ["parting-shot", "crunch"]), try mon("lax", 143, level: 20, moves: ["body-slam"])],
+                          [foe])
         XCTAssertTrue(shot.events.contains {
             if case .stat("champ", .specialAttack, -1) = $0.event { return true }
             return false
         })
         XCTAssertTrue(shot.events.contains { $0.event == .leave(battler: "panda") })
+        let theirs = battle([foe], [try mon("ninjask", 291, moves: ["swords-dance", "baton-pass", "x-scissor"]),
+                                    try mon("lax", 143, moves: ["body-slam"])])
+        XCTAssertFalse(theirs.events.contains { $0.event == .leave(battler: "ninjask") }, "a foe never passes")
     }
 
-    /// Roar sends out a foe holding boosts, one of its bench coming in at random; Dragon Tail does it after the hit.
-    func testRoarAndDragonTailForceTheFoeOut() throws {
-        let roar = battle([try mon("lax", 143, moves: ["roar", "body-slam"])],
-                          [try mon("scizor", 212, level: 60, moves: ["swords-dance", "bullet-punch"]), try mon("next", 130, level: 50, moves: ["splash"])])
+    /// Roar sends out a Pokémon holding boosts, one of its bench coming in at random; Dragon Tail does it after the
+    /// hit. Only ours: the foes never leave the field.
+    func testRoarAndDragonTailForceOut() throws {
+        let roar = battle([try mon("scizor", 212, level: 60, moves: ["swords-dance", "bullet-punch"]),
+                           try mon("next", 130, level: 50, moves: ["splash"])],
+                          [try mon("lax", 143, moves: ["roar", "body-slam"])])
         XCTAssertTrue(roar.events.contains { $0.event == .leave(battler: "scizor") })
         XCTAssertTrue(roar.events.contains {
-            if case .enter(1, 0, "next") = $0.event { return true }
+            if case .enter(0, 0, "next") = $0.event { return true }
             return false
         })
-        let tail = battle([try mon("chomp", 445, moves: ["dragon-tail"])],
-                          [try mon("lax", 143, moves: ["growl"]), try mon("next", 130, level: 50, moves: ["splash"])])
+        let tail = battle([try mon("lax", 143, moves: ["growl"]), try mon("next", 130, level: 50, moves: ["splash"])],
+                          [try mon("chomp", 445, moves: ["dragon-tail"])])
         let hit = try XCTUnwrap(hits(tail).first { $0.move == "dragon-tail" && $0.hp > 0 })
         XCTAssertTrue(tail.events.contains { $0.event == .leave(battler: hit.target) && $0.time == hit.time })
+        let foes = battle([try mon("lax", 143, moves: ["roar", "dragon-tail"])],
+                          [try mon("scizor", 212, level: 60, moves: ["swords-dance", "bullet-punch"]),
+                           try mon("next", 130, level: 50, moves: ["splash"])])
+        XCTAssertFalse(foes.events.contains {
+            if case .leave = $0.event { return true }
+            return false
+        }, "no foe is ever sent out")
     }
 
     /// Follow Me draws the foes' single-target moves; Helping Hand gives the ally's next move 1.5x; After You makes the
@@ -1454,5 +1473,91 @@ final class BattleMovesTests: XCTestCase {
                              [try mon("skarm", 227, moves: ["rain-dance", "sunny-day"])])
         let grounded = try XCTUnwrap(volatileAt(outcome, "skarm", "smack-down"))
         XCTAssertTrue(hits(outcome).contains { $0.move == "earthquake" && $0.time > grounded })
+    }
+
+    // MARK: Sacrifices and healing
+
+    /// Memento lowers the foe's attacks by two and knocks its user out; Healing Wish knocks its user out and the next
+    /// to step into its place comes in whole.
+    func testMementoAndHealingWish() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let memento = battle([try mon("lax", 143, moves: fillers)],
+                             [try mon("drif", 426, moves: ["memento"], hp: 50), try mon("next", 130, moves: fillers)])
+        XCTAssertTrue(memento.events.contains {
+            if case .stat("lax", .attack, -2) = $0.event { return true }
+            return false
+        })
+        XCTAssertTrue(memento.events.contains {
+            if case .hurt("drif", _, 0, .recoil) = $0.event { return true }
+            return false
+        })
+        let next = try mon("next", 130, moves: fillers, hp: 40)
+        let wish = battle([try mon("lax", 143, moves: fillers)], [try mon("clef", 36, moves: ["healing-wish"], hp: 50), next])
+        XCTAssertTrue(has(wish, .volatile(battler: "next", effect: "healing-wish")))
+        XCTAssertTrue(has(wish, .heal(battler: "next", amount: next.stats.hp - 40, hp: next.stats.hp, cause: .move)))
+    }
+
+    /// Strength Sap heals by the target's Attack and lowers it; Purify cures the target and heals the user; Shore Up
+    /// heals two thirds in a sandstorm.
+    func testStrengthSapPurifyShoreUp() throws {
+        let fillers = ["rain-dance", "sunny-day"]
+        let champ = try mon("champ", 68, moves: fillers)
+        let sap = battle([try mon("shiinotic", 756, moves: ["strength-sap"], hp: 50)], [champ])
+        XCTAssertTrue(sap.events.contains {
+            if case .heal("shiinotic", let amount, _, .move) = $0.event { return amount == min(champ.stats.attack, 1000) || amount > 100 }
+            return false
+        })
+        XCTAssertTrue(sap.events.contains {
+            if case .stat("champ", .attack, -1) = $0.event { return true }
+            return false
+        })
+        let purify = battle([try mon("pyuku", 771, moves: ["toxic", "purify"], hp: 50)], [try mon("lax", 143, moves: fillers, ability: "thick-fat")])
+        XCTAssertTrue(has(purify, .cure(battler: "lax", ailment: .badPoison)))
+        let sandy = try mon("palossand", 770, moves: ["shore-up"], hp: 10)
+        let shore = battle([sandy], [try mon("ttar", 248, level: 50, moves: fillers, ability: "sand-stream")])
+        XCTAssertTrue(has(shore, .heal(battler: "palossand", amount: sandy.stats.hp * 67 / 100, hp: 10 + sandy.stats.hp * 67 / 100,
+                                       cause: .move)))
+    }
+
+    /// Heal Bell cures the whole side, the bench too; Refresh its user's burn; Jungle Healing heals and cures the side.
+    func testHealBellRefreshJungleHealing() throws {
+        let burnt = try mon("lax", 143, moves: ["rain-dance", "sunny-day"])
+        let bell = battle([try mon("bliss", 242, moves: ["heal-bell", "rain-dance"]), burnt],
+                          [try mon("zard", 6, level: 50, moves: ["will-o-wisp", "rain-dance"])])
+        XCTAssertTrue(bell.events.contains {
+            if case .cure(_, .burn) = $0.event { return true }
+            return false
+        })
+        let refresh = battle([try mon("lax", 143, moves: ["refresh", "body-slam"], ability: "thick-fat")],
+                             [try mon("zard", 6, level: 50, moves: ["will-o-wisp", "rain-dance"])])
+        XCTAssertTrue(has(refresh, .cure(battler: "lax", ailment: .burn)))
+        let jungle = battle([try mon("zarude", 893, moves: ["jungle-healing", "power-whip"], hp: 100)],
+                            [try mon("lax", 143, moves: ["rain-dance", "sunny-day"])])
+        XCTAssertTrue(jungle.events.contains {
+            if case .heal("zarude", _, _, .move) = $0.event { return true }
+            return false
+        })
+    }
+
+    /// Roost heals half and sets the Flying type aside until the next cast ends.
+    func testRoostSetsFlyingAside() throws {
+        let outcome = battle([try mon("skarm", 227, moves: ["roost", "rain-dance", "sunny-day"], hp: 100)],
+                             [try mon("chomp", 445, level: 40, moves: ["rain-dance", "sunny-day"])])
+        let aside = try XCTUnwrap(outcome.events.firstIndex { $0.event == .retype(battler: "skarm", types: [.steel]) })
+        XCTAssertTrue(outcome.events[aside...].contains { $0.event == .retype(battler: "skarm", types: [.steel, .flying]) },
+                      "back after the next cast")
+    }
+
+    /// Revival Blessing brings a fainted Pokémon of the side back to half its HP, on the bench: it fights again.
+    func testRevivalBlessingBringsOneBack() throws {
+        let fallen = try mon("weak", 10, level: 5, moves: ["tackle"])
+        let outcome = battle([try mon("lax", 143, moves: ["body-slam"])],
+                             [fallen, try mon("paw", 923, moves: ["revival-blessing", "rain-dance", "sunny-day"])])
+        XCTAssertTrue(has(outcome, .heal(battler: "weak", amount: fallen.stats.hp / 2, hp: fallen.stats.hp / 2, cause: .move)))
+        let enters = outcome.events.filter {
+            if case .enter(1, _, "weak") = $0.event { return true }
+            return false
+        }
+        XCTAssertGreaterThanOrEqual(enters.count, 2, "it steps in again")
     }
 }

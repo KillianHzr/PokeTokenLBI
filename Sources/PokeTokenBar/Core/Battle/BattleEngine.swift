@@ -126,6 +126,8 @@ struct BattleSimulation {
         var smackedDown = false
         /// Magnitude's, Present's or Beat Up's power for the hit being dealt.
         var rolledPower: Double?
+        /// Roost: its Flying type is set aside until its next cast ends.
+        var roosting = false
 
         var maxHP: Int { spec.stats.hp }
         var isFainted: Bool { hp <= 0 }
@@ -162,6 +164,8 @@ struct BattleSimulation {
     /// Future Sight and Doom Desire on their way: when, the slot they land on, who sent them.
     private var futureAttacks: [(time: Int, side: Int, slot: Int, attacker: Int, move: String)] = []
     private var resolvingFuture = false
+    /// Healing Wish and Lunar Dance: the next Pokémon to step into these slots comes in whole and cured.
+    private var healingWishes: Set<[Int]> = []
     /// Each side's Wide Guard, Quick Guard, Mat Block and Crafty Shield, to when they hold.
     private var sideGuards: [[String: Int]] = [[:], [:]]
     /// Each side's screens, Safeguard, Mist, Tailwind and Lucky Chant, to when they hold.
@@ -341,6 +345,11 @@ struct BattleSimulation {
         guard field[side][slot] == nil || battlers[field[side][slot]!].isFainted,
               let pick = bestEntrant(side: side, slot: slot, ordered: side == 1) else { return }
         place(pick, side: side, slot: slot)
+        if healingWishes.remove([side, slot]) != nil {
+            heal(pick, battlers[pick].maxHP, .move)
+            cure(pick)
+            log(.volatile(battler: battlers[pick].spec.id, effect: "healing-wish"))
+        }
         stepOnHazards(pick)
         guard !battlers[pick].isFainted else { return }
         entryAbility(pick)
@@ -568,6 +577,7 @@ struct BattleSimulation {
         if Self.lockingMoves[slug] != nil, !battlers[index].isFainted { lockStep(index, slug) }
         battlers[index].electrified = false
         battlers[index].helped = false
+        if battlers[index].roosting, slug != "roost" { endRoost(index) }
         battlers[index].castsSinceEntry += 1
         if !battlers[index].isFainted, battlers[index].slot != nil { advance(index, after: slug) }
     }
@@ -715,6 +725,17 @@ struct BattleSimulation {
         case "tar-shot": return target(of: move, by: index).map { !battlers[$0].tarred || battlers[$0].stage(.speed) > -6 } ?? false
         case "no-retreat": return !b.noRetreat
         case "stockpile": return b.stockpile < 3
+        case "memento": return b.hp * 4 < b.maxHP && !bench(b.side).isEmpty && !foes.isEmpty
+        case "healing-wish", "lunar-dance":
+            return b.hp * 4 < b.maxHP && bench(b.side).contains { battlers[$0].hp * 2 < battlers[$0].maxHP || battlers[$0].status != nil }
+        case "strength-sap": return b.hp < b.maxHP && target(of: move, by: index).map { battlers[$0].stage(.attack) > -6 } ?? false
+        case "purify": return b.hp < b.maxHP && target(of: move, by: index).map { battlers[$0].status != nil } ?? false
+        case "jungle-healing", "lunar-blessing":
+            return allies(of: index).contains { battlers[$0].hp < battlers[$0].maxHP || battlers[$0].status != nil }
+        case "heal-bell", "aromatherapy":
+            return battlers.contains { $0.side == b.side && !$0.isFainted && $0.status != nil }
+        case "refresh": return [.burn, .poison, .badPoison, .paralysis].contains(b.status)
+        case "revival-blessing": return battlers.contains { $0.side == b.side && $0.isFainted }
         case "swallow": return b.stockpile > 0 && b.hp < b.maxHP
         case "trick", "switcheroo":
             return heldBerry(index) == nil && target(of: move, by: index).map { heldBerry($0) != nil } ?? false
@@ -724,16 +745,19 @@ struct BattleSimulation {
         case "teatime": return active.contains { heldBerry($0) != nil && battlers[$0].side == b.side }
         case "corrosive-gas": return foes.contains { heldBerry($0) != nil }
         case "baton-pass":
-            return !bench(b.side).isEmpty && (b.stages.values.reduce(0, +) > 0 || b.substituteHP > 0)
-        case "shed-tail": return !bench(b.side).isEmpty && b.hp * 2 > b.maxHP + 1 && b.substituteHP == 0
+            return !staysOnField(index) && !bench(b.side).isEmpty && (b.stages.values.reduce(0, +) > 0 || b.substituteHP > 0)
+        case "shed-tail":
+            return !staysOnField(index) && !bench(b.side).isEmpty && b.hp * 2 > b.maxHP + 1 && b.substituteHP == 0
         case "teleport":
+            guard !staysOnField(index) else { return false }
             // Only for a bench member that fares better against the foe in front.
             guard let foe = facingFoe(index) else { return false }
             let mine = BattleMatchup.score(b.spec, against: battlers[foe].spec)
             return bench(b.side).contains { BattleMatchup.score(battlers[$0].spec, against: battlers[foe].spec) > mine }
         case "roar", "whirlwind":
             return target(of: move, by: index).map { t in
-                !bench(battlers[t].side).isEmpty && (battlers[t].stages.values.reduce(0, +) > 0 || battlers[t].substituteHP > 0)
+                !staysOnField(t) && !bench(battlers[t].side).isEmpty
+                    && (battlers[t].stages.values.reduce(0, +) > 0 || battlers[t].substituteHP > 0)
             } ?? false
         case "ally-switch", "follow-me", "rage-powder", "helping-hand": return allies(of: index).count > 1 && !foes.isEmpty
         case "spotlight": return foes.count > 1
@@ -1071,7 +1095,9 @@ struct BattleSimulation {
         case "shed-tail":
             // Half its HP for a substitute a quarter strong, left to the Pokémon that comes in.
             let cost = (battlers[index].maxHP + 1) / 2
-            guard battlers[index].hp > cost, !bench(battlers[index].side).isEmpty else { return failed(move, by: index) }
+            guard battlers[index].hp > cost, !bench(battlers[index].side).isEmpty, !staysOnField(index) else {
+                return failed(move, by: index)
+            }
             hurt(index, cost, .substitute)
             if !battlers[index].isFainted { _ = switchOut(index, substitute: battlers[index].maxHP / 4) }
             return
@@ -1134,6 +1160,81 @@ struct BattleSimulation {
                 battlers[other].perishAt = now + 3 * BattleRules.turn
                 log(.volatile(battler: battlers[other].spec.id, effect: move.slug))
             }
+            return
+        case "memento":
+            // The foe's attacks fall by two, and the user faints.
+            guard let aim = statusTargets(move, by: index).first,
+                  let (target, _) = statusLands(move, by: index, on: aim) else { return }
+            changeStage(target, .attack, by: -2, fromFoe: true)
+            changeStage(target, .specialAttack, by: -2, fromFoe: true)
+            hurt(index, battlers[index].hp, .recoil)
+            return
+        case "healing-wish", "lunar-dance":
+            // The user faints; the next to step into its place comes in whole and cured.
+            guard let slot = battlers[index].slot, !bench(battlers[index].side).isEmpty else { return failed(move, by: index) }
+            healingWishes.insert([battlers[index].side, slot])
+            hurt(index, battlers[index].hp, .recoil)
+            return
+        case "strength-sap":
+            // It heals by the target's Attack, which then falls by one.
+            guard let aim = statusTargets(move, by: index).first,
+                  let (target, _) = statusLands(move, by: index, on: aim), battlers[target].stage(.attack) > -6 else {
+                return failed(move, by: index)
+            }
+            let attack = Double(battlers[target].spec.stats.attack) * stageMultiplier(battlers[target].stage(.attack))
+            changeStage(target, .attack, by: -1, fromFoe: true)
+            heal(index, Int(attack), .move)
+            return
+        case "purify":
+            guard let aim = statusTargets(move, by: index).first,
+                  let (target, _) = statusLands(move, by: index, on: aim), battlers[target].status != nil else {
+                return failed(move, by: index)
+            }
+            cure(target)
+            heal(index, battlers[index].maxHP / 2, .move)
+            return
+        case "jungle-healing", "lunar-blessing":
+            for ally in allies(of: index) {
+                heal(ally, battlers[ally].maxHP / 4, .move)
+                cure(ally)
+            }
+            return
+        case "heal-bell", "aromatherapy":
+            // Every status of the side goes, the bench's too.
+            for member in battlers.indices where battlers[member].side == battlers[index].side && !battlers[member].isFainted {
+                cure(member)
+            }
+            return
+        case "refresh":
+            guard [.burn, .poison, .badPoison, .paralysis].contains(battlers[index].status) else { return failed(move, by: index) }
+            cure(index)
+            return
+        case "roost":
+            heal(index, battlers[index].maxHP / 2, .move)
+            if battlers[index].types.contains(.flying) {
+                battlers[index].roosting = true
+                battlers[index].types = battlers[index].types.count == 1 ? [.normal] : battlers[index].types.filter { $0 != .flying }
+                log(.retype(battler: id, types: battlers[index].types))
+            }
+            return
+        case "revival-blessing":
+            // A fainted Pokémon of the side comes back to its bench at half its HP.
+            guard let fallen = battlers.indices.first(where: { battlers[$0].side == battlers[index].side && battlers[$0].isFainted })
+            else { return failed(move, by: index) }
+            let old = battlers[fallen]
+            let spec = old.originalSpec ?? old.spec
+            var revived = Battler(spec: spec, side: old.side, hp: max(1, spec.stats.hp / 2), types: spec.types,
+                                  originalSpec: old.originalSpec)
+            revived.lostMoves = old.lostMoves
+            battlers[fallen] = revived
+            // A place it left empty, with no bench then, takes the next one in.
+            for slot in field[old.side].indices where field[old.side][slot] == fallen {
+                field[old.side][slot] = nil
+                if !pendingEntries.contains(where: { $0.side == old.side && $0.slot == slot }) {
+                    pendingEntries.append((now + BattleRules.benchDelay, old.side, slot))
+                }
+            }
+            log(.heal(battler: revived.spec.id, amount: revived.hp, hp: revived.hp, cause: .move))
             return
         case "stockpile":
             guard battlers[index].stockpile < 3 else { return failed(move, by: index) }
@@ -1457,7 +1558,7 @@ struct BattleSimulation {
                 for ally in allies(of: index) { heal(ally, battlers[ally].maxHP * move.healing / 100, .move) }
             } else if let ally = allies(of: index).filter({ $0 != index || allies(of: index).count == 1 })
                 .min(by: { (battlers[$0].hp * 1000 / battlers[$0].maxHP, $0) < (battlers[$1].hp * 1000 / battlers[$1].maxHP, $1) }) {
-                heal(ally, battlers[ally].maxHP * max(25, move.healing) / 100, .move)
+                heal(ally, battlers[ally].maxHP * max(25, healShare(move)) / 100, .move)
             }
         case .netGoodStats:
             if move.targetsOwnSide {
@@ -1650,6 +1751,15 @@ struct BattleSimulation {
         return Double(now) >= Double(battlers[index].castEnds) - charge ? hidden : nil
     }
 
+    /// After Roost, its Flying type comes back.
+    private mutating func endRoost(_ index: Int) {
+        battlers[index].roosting = false
+        let original = battlers[index].originalSpec?.types ?? battlers[index].spec.types
+        guard original.contains(.flying) else { return }
+        battlers[index].types = original
+        log(.retype(battler: battlers[index].spec.id, types: original))
+    }
+
     /// Spit Up and Swallow spend the Stockpile, and the Defenses it raised fall back.
     private mutating func releaseStockpile(_ index: Int) {
         let stored = battlers[index].stockpile
@@ -1699,6 +1809,7 @@ struct BattleSimulation {
     /// confusion, Leech Seed, Ingrain, Aqua Ring, Curse, Perish Song and Magnet Rise. False without a bench.
     private mutating func switchOut(_ index: Int, baton: Bool = false, substitute: Int? = nil) -> Bool {
         let side = battlers[index].side
+        guard !staysOnField(index) else { return false }
         guard let slot = battlers[index].slot, let next = bestEntrant(side: side, slot: slot, ordered: side == 1) else {
             return false
         }
@@ -1731,6 +1842,7 @@ struct BattleSimulation {
     /// has no bench, nor when it is rooted or holds on with Suction Cups.
     private mutating func forceOut(_ target: Int) -> Bool {
         let side = battlers[target].side
+        guard !staysOnField(target) else { return false }
         let others = bench(side)
         guard let slot = battlers[target].slot, !others.isEmpty, !battlers[target].ingrained,
               battlers[target].ability != "suction-cups" else { return false }
@@ -1740,6 +1852,10 @@ struct BattleSimulation {
         enterAfterSwitch(next)
         return true
     }
+
+    /// The foes never leave the field but knocked out (the owner, 2026-11-03: "les ennemis ne peuvent JAMAIS fuir"):
+    /// no Roar nor Dragon Tail sends them out, no U-turn, Teleport or Baton Pass of theirs takes them out.
+    private func staysOnField(_ index: Int) -> Bool { battlers[index].side == 1 }
 
     private mutating func enterAfterSwitch(_ index: Int) {
         stepOnHazards(index)
@@ -2101,6 +2217,8 @@ struct BattleSimulation {
 
     /// Moonlight, Synthesis and Morning Sun heal two thirds in the sun and a quarter in other weather.
     private func healShare(_ move: BattleMove) -> Int {
+        if move.slug == "shore-up", weather == .sand { return 67 }
+        if move.slug == "floral-healing", terrain == .grassy { return 67 }
         guard ["moonlight", "synthesis", "morning-sun"].contains(move.slug) else { return move.healing }
         switch weather {
         case .sun: return 67
@@ -2322,6 +2440,7 @@ struct BattleSimulation {
         case "expanding-force": if terrain == .psychic, isGrounded(index) { power *= 1.5 }
         case "rising-voltage": if terrain == .electric, isGrounded(target) { power *= 2 }
         case "grav-apple": if fieldHas("gravity") { power *= 1.5 }
+        case "misty-explosion": if terrain == .misty, isGrounded(index) { power *= 1.5 }
         case "stored-power", "power-trip":
             power = 20 + 20 * Double(a.stages.values.filter { $0 > 0 }.reduce(0, +))
         case "weather-ball": if weather != nil { power = 100 }
@@ -3061,7 +3180,9 @@ struct BattleSimulation {
         "camouflage", "forests-curse", "trick-or-treat", "electrify", "simple-beam", "worry-seed", "entrainment",
         "role-play", "skill-swap", "gastro-acid", "baton-pass", "shed-tail", "teleport", "roar", "whirlwind",
         "ally-switch", "follow-me", "rage-powder", "spotlight", "after-you", "quash", "helping-hand", "parting-shot",
-        "trick", "switcheroo", "bestow", "recycle", "stuff-cheeks", "teatime", "corrosive-gas", "stockpile", "swallow"])
+        "trick", "switcheroo", "bestow", "recycle", "stuff-cheeks", "teatime", "corrosive-gas", "stockpile", "swallow",
+        "memento", "healing-wish", "lunar-dance", "strength-sap", "purify", "jungle-healing", "lunar-blessing",
+        "heal-bell", "aromatherapy", "refresh", "roost", "revival-blessing"])
         .union(callers)
         .union(weatherMoves.keys).union(terrainMoves.keys)
 }
