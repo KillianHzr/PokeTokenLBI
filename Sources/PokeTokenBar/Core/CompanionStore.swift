@@ -2304,12 +2304,7 @@ final class CompanionStore {
 
     /// Species registered in the Pokédex: the set the Pokédex grid shows (`dexSpecies`). Graduated and
     /// released chains, plus the stages the current Pokémon has reached. Never `plannedPathIDs`.
-    var registeredSpeciesIDs: Set<Int> {
-        var ids = Set<Int>()
-        for entry in state.dex { ids.formUnion(entry.chainOrder) }
-        if let active = state.active { ids.formUnion(active.pathIDs.prefix(active.stageIndex + 1)) }
-        return ids
-    }
+    var registeredSpeciesIDs: Set<Int> { state.registeredSpeciesIDs }
 
     /// Species of the Pokémon raised to the end: graduated entries, never released ones nor the Pokémon being raised.
     /// What achievements count, so that a Pokémon cannot earn one while raised and then be sent off.
@@ -2343,7 +2338,7 @@ final class CompanionStore {
 
     private func collectionProgress(graduatedOnly: Bool, of s: CompanionState? = nil) -> CollectionProgress {
         let s = s ?? state
-        let ids = graduatedOnly ? s.graduatedSpeciesIDs : registeredSpeciesIDs
+        let ids = graduatedOnly ? s.graduatedSpeciesIDs : s.registeredSpeciesIDs
         let species = ids.filter(PokemonAssets.animatedSpeciesIDs.contains)
         let graduated = graduatedOnly ? GraduatedForms(s.dex) : nil
         let forms = species.reduce(0) { total, id in
@@ -2473,40 +2468,68 @@ final class CompanionStore {
 
     /// Whether this item's achievement goal is met, counting graduated Pokémon only, in the save or in `s`. Items
     /// without a Pokédex condition are always unlocked. For a regional achievement: one of its regional tiers is complete.
-    func isUnlocked(_ kind: ItemKind, registered: Set<Int>? = nil, in s: CompanionState? = nil) -> Bool {
+    func isUnlocked(_ kind: ItemKind, registered: Set<Int>? = nil, in s: CompanionState? = nil,
+                    graduatedOnly: Bool = true) -> Bool {
         let s = s ?? state
         switch kind.unlock {
         case nil: return true
         case .duplicateLegendary: return s.graduatedLegendaryCopies >= 2
         case .silvallyMemories: return s.graduatedSilvallyMemoryTypes.count >= PokemonForm.memoryTypes.count
         case .allSpecies:
-            let progress = collectionProgress(graduatedOnly: true, of: s)
+            let progress = collectionProgress(graduatedOnly: graduatedOnly, of: s)
             return progress.species >= progress.speciesTotal
         case .allForms:
-            let progress = collectionProgress(graduatedOnly: true, of: s)
+            let progress = collectionProgress(graduatedOnly: graduatedOnly, of: s)
             return progress.forms >= progress.formsTotal
         case .allPikachuCostumes: return s.pikachuCostumes.count >= PikachuCostume.allCases.count
         case .forms(let goal): return formProgress(goal, of: s).isMet
         case .species:
-            return unlockProgress(of: kind, registered: registered ?? s.graduatedSpeciesIDs).contains(where: \.isMet)
+            let counted = registered ?? (graduatedOnly ? s.graduatedSpeciesIDs : s.registeredSpeciesIDs)
+            return unlockProgress(of: kind, registered: counted).contains(where: \.isMet)
         }
     }
 
-    /// The graduation that first met an item's condition, the Pokédex read back to each date; nil while unmet.
-    func unlockedAt(_ kind: ItemKind) -> Date? {
-        let dates = Set(state.dex.compactMap(\.caughtAt)).sorted()
-        func met(_ i: Int) -> Bool {
-            var s = state
-            s.dex = state.dex.filter { $0.caughtAt.map { $0 <= dates[i] } ?? false }
-            return isUnlocked(kind, in: s)
+    /// The first moment since `arrival` that met the item's condition of the time; nil if none did. Within an era of
+    /// that condition a Pokédex only fills and a goal only loosens, so one met stays met.
+    func unlockedAt(_ kind: ItemKind, since arrival: Date) -> Date? {
+        var previous: DexEntry?
+        let hatches = dexEntries.map { entry -> (entry: DexEntry, hatchedAt: Date?) in
+            defer { previous = entry }
+            return (entry, HatchLuck.hatchedAt(of: entry, after: previous))
         }
-        guard !dates.isEmpty, met(dates.count - 1) else { return nil }
-        var (low, high) = (0, dates.count - 1)
-        while low < high {
-            let mid = (low + high) / 2
-            if met(mid) { high = mid } else { low = mid + 1 }
+        let moments = Set(hatches.flatMap { [$0.entry.caughtAt, $0.hatchedAt] }.compactMap { $0 }
+            + [arrival, HatchRules.Change.onlyFluteWeighs.publishedAt]).filter { $0 >= arrival }.sorted()
+        let graduatedOnly = HatchRules.Change.rarityWeights.publishedAt
+        for era in [moments.filter { $0 < graduatedOnly }, moments.filter { $0 >= graduatedOnly }] {
+            guard let last = era.last, wasUnlocked(kind, at: last, among: hatches) else { continue }
+            var (low, high) = (0, era.count - 1)
+            while low < high {
+                let mid = (low + high) / 2
+                if wasUnlocked(kind, at: era[mid], among: hatches) { high = mid } else { low = mid + 1 }
+            }
+            return era[low]
         }
-        return dates[low]
+        return nil
+    }
+
+    /// Whether the item's condition of the time was met at `date`, the Pokédex read back to it. A Pokémon then being
+    /// raised reads like one sent off, registered and not graduated, on its base species: its stages have no date.
+    private func wasUnlocked(_ kind: ItemKind, at date: Date, among hatches: [(entry: DexEntry, hatchedAt: Date?)]) -> Bool {
+        var s = state
+        s.active = nil
+        s.dex = hatches.compactMap { entry, hatchedAt in
+            if let caughtAt = entry.caughtAt, caughtAt <= date { return entry }
+            guard let hatchedAt, hatchedAt <= date else { return nil }
+            var raised = entry
+            raised.chainOrder = [entry.baseID]
+            raised.releasedAt = date
+            return raised
+        }
+        let rules = HatchRules(rolledAt: date)
+        if kind == .revealGlass, !rules.has(.onlyFluteWeighs) {
+            return HatchRules.formerRevealGlassSpecies.allSatisfy(s.registeredSpeciesIDs.contains)
+        }
+        return isUnlocked(kind, in: s, graduatedOnly: rules.has(.rarityWeights))
     }
 
     /// The forms of a forms achievement graduated, in the goal's order.
@@ -3983,13 +4006,13 @@ final class CompanionStore {
     /// PokeTokenBar v2.5.4, the release that let Shop prices go down to 10%: every player had the Shiny Charm from then.
     static let shinyCharmForEveryone = Date(timeIntervalSince1970: 1_789_223_036)   // 2026-09-12 14:23:56 UTC
 
-    /// Since when the player has a draw item they own, for the hatches from before the record: from the update that
-    /// brought it, or from the graduation that met its condition when later. The Shiny Charm, sold in the Shop, from
-    /// `shinyCharmForEveryone`.
+    /// Since when the player has a draw item they own, for the hatches from before the record: from the first moment
+    /// that met its condition of the time, or from the update that brought it if none did. The Shiny Charm, sold in the
+    /// Shop, from `shinyCharmForEveryone`.
     func drawItemSince(_ item: ItemKind) -> Date? {
         guard itemCount(item) > 0 else { return nil }
         guard let arrival = HatchRules.Change.arrival(of: item)?.publishedAt else { return Self.shinyCharmForEveryone }
-        return max(arrival, unlockedAt(item) ?? arrival)
+        return unlockedAt(item, since: arrival) ?? arrival
     }
 
     /// One rarity's share of an egg's pool, by weight.

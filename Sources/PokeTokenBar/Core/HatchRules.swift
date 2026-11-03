@@ -18,7 +18,8 @@ struct HatchRules: Sendable, Equatable {
         case stoneEggsByFormType = "2026-10-20T20:22:12Z"
         /// #20: the forms of lines where only an evolved species has them.
         case evolvedSpeciesForms = "2026-10-20T20:43:19Z"
-        /// #21: the Clear Bell, Griseous Orb and badges stop weighing on the roll.
+        /// #21: the Clear Bell, Griseous Orb and badges stop weighing on the roll; the Reveal Glass takes three Forces
+        /// of Nature of four.
         case onlyFluteWeighs = "2026-10-20T22:33:19Z"
         /// #26: the species index cached before generation 6 is fetched again.
         case indexReloaded = "2026-10-21T07:06:41Z"
@@ -35,7 +36,8 @@ struct HatchRules: Sendable, Equatable {
         case ovalCharmEggForms = "2026-10-21T13:42:55Z"
         /// #40: the Flute goes from ×4 to ×2.
         case fluteTimesTwo = "2026-10-21T13:53:18Z"
-        /// #64: one weight per rarity; eggs admit by rarity; the Flute lifts every legendary; the Legendary Egg.
+        /// #64: one weight per rarity; eggs admit by rarity; the Flute lifts every legendary; the Legendary Egg; an
+        /// achievement counts graduated Pokémon, not registered ones.
         case rarityWeights = "2026-10-26T07:10:49Z"
         /// #67: no Ditto in an egg that keeps a promise.
         case dittoKeepsPromises = "2026-10-26T07:40:01Z"
@@ -71,6 +73,9 @@ struct HatchRules: Sendable, Equatable {
             }
         }
     }
+
+    /// The Reveal Glass's goal until `Change.onlyFluteWeighs`.
+    static let formerRevealGlassSpecies = [641, 642, 645]
 
     let changes: Set<Change>
     /// Installed before generation 6: its cached species index holds the pool to the first five until `indexReloaded`.

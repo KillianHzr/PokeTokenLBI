@@ -1707,6 +1707,13 @@ struct CompanionState: Codable, Sendable, Equatable {
     }
 
     /// Most graduated copies of a single legendary species (released copies excluded).
+    var registeredSpeciesIDs: Set<Int> {
+        var ids = Set<Int>()
+        for entry in dex { ids.formUnion(entry.chainOrder) }
+        if let active { ids.formUnion(active.pathIDs.prefix(active.stageIndex + 1)) }
+        return ids
+    }
+
     var graduatedLegendaryCopies: Int {
         let graduated = dex.filter { $0.rarity == .legendary && !$0.isReleased }
         return Dictionary(grouping: graduated, by: \.finalID).values.map(\.count).max() ?? 0

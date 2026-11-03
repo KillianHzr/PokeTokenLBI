@@ -123,6 +123,11 @@ struct HatchLuck: Sendable {
         let hatch: HatchDraw
     }
 
+    /// When a Pokémon hatched, or when the one before it left for a save that kept no hatch.
+    static func hatchedAt(of entry: DexEntry, after previous: DexEntry?) -> Date? {
+        entry.raising?.hatchedAt ?? previous?.caughtAt ?? entry.caughtAt
+    }
+
     /// Every egg against the Pokédex, draw items and rules of its rolls. Its species and form are rolled as the Pokémon
     /// before it leaves, its shiny and Ditto as it hatches.
     static func moments(entries: [DexEntry], today: CompanionState, itemsSince: [ItemKind: Date]) -> [Moment] {
@@ -143,7 +148,7 @@ struct HatchLuck: Sendable {
                 let owned = Set(itemsSince.filter { since in started.map { since.value < $0 } ?? false }.keys)
                 (rollItems, hatchItems) = (owned, owned)
             }
-            let hatchedAt = entry.raising?.hatchedAt ?? previous?.caughtAt ?? entry.caughtAt
+            let hatchedAt = hatchedAt(of: entry, after: previous)
             let rolledAt = previous?.caughtAt ?? hatchedAt
             moments.append(Moment(entry: entry, previous: previous,
                                   roll: HatchDraw(collection: collection, items: rollItems,
