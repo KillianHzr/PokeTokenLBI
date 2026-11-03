@@ -515,6 +515,14 @@ read_when:
   and failed three identity assertions; locally the sprites come from disk at once, so nothing showed. Both
   classes now lift the cache limit in `setUp` and restore it in `tearDown`.
 
+- **Lifting a cache's limit in a test means every limit it has.** The guard above lifted the entry count only; the
+  cache gained a 64 MB cost limit later (`e6683cd`, 2026-10-29) and nothing updated the guard. A full suite on the
+  dungeons branch failed 25 identity checks once, the next run passing: other tests' loads, real sprites read from
+  the disk cache, pushed the cache over its bytes. Both classes now lift and restore `totalCostLimit` too; with the
+  cost limit set to one byte the old guard fails 60 times and the new one passes. Sweep: no other test changes the
+  cache's limits (`CatchLogRenderingTests`, `DexColorRenderingTests`, `SnapshotHistoryRenderingTests` only seed
+  entries and put them back).
+
 - **A cache keyed by age only outlives a change of what it covers.** The hatch index (`base-index.json`) was
   reused for 30 days whatever species range it was fetched for. One cached hours before the Gen 6 to 9 PRs
   merged stopped at #649, so no Gen 6 to 9 species hatched for up to a month; only Gen 1 to 5 species and their
