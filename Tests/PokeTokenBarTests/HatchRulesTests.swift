@@ -204,6 +204,14 @@ final class HatchRulesTests: XCTestCase {
         XCTAssertEqual(draw(at(.plainEggWithoutEventPool)).hatchPool([pidgey], egg: valentine).map(\.base.id), [16])
     }
 
+    func testArceusHatchedFromEggsUntil112() {
+        let arceus = BaseSpecies(id: 493, captureRate: 3, isLegendary: true), plain = CompanionStore.EggSpec()
+        XCTAssertEqual(draw(before(.arceusKeptForLater)).hatchPool([arceus], egg: plain).map(\.base.id), [493])
+        XCTAssertEqual(draw(at(.arceusKeptForLater)).hatchPool([arceus], egg: plain).count, 0)
+        XCTAssertEqual(draw(before(.arceusKeptForLater)).birthdayDraw([arceus]).lines.map(\.base.id), [493])
+        XCTAssertEqual(draw(at(.arceusKeptForLater)).birthdayDraw([arceus]).lines.count, 0)
+    }
+
     /// Season's eggs Uncommon or better, and Pokémon Day's babies, from #97.
     func testSeasonEggsAndPokemonDayBabies() {
         let sewaddle = BaseSpecies(id: 540, captureRate: 255)

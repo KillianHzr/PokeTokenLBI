@@ -148,7 +148,8 @@ struct HatchDraw: Sendable {
         let friendship = rules.has(.graduatedForms) && egg.event == .companion ? collection.companionLineID : nil
         let tier = rules.tier(of: egg)
         return { base in
-            (!rules.has(.eventAndFossilEggs) || !FossilDig.isFossilLine(base.id)
+            !(rules.has(.arceusKeptForLater) && PokemonOdds.dungeonOnly.contains(base.id))
+                && (!rules.has(.eventAndFossilEggs) || !FossilDig.isFossilLine(base.id)
                 || (rules.has(.graduatedFossilsEverywhere) && graduatedSpecies.contains(base.id))
                 || base.id == friendship)
                 && (tier.map { rules.admits(base, tier: $0) } ?? true)
@@ -209,7 +210,8 @@ struct HatchDraw: Sendable {
     /// with its weight: a mythical line not graduated yet, else a legendary one, each as likely; once every one
     /// graduated, any of them by its hatch weight, shiny.
     func birthdayDraw(_ index: [BaseSpecies]) -> (lines: [(base: BaseSpecies, weight: Int)], shiny: Bool) {
-        let (pool, byWeight) = BirthdayGift.pool(index, graduated: collection.graduatedSpeciesIDs)
+        let (pool, byWeight) = BirthdayGift.pool(index, graduated: collection.graduatedSpeciesIDs,
+                                                 without: rules.has(.arceusKeptForLater) ? PokemonOdds.dungeonOnly : [])
         let lines = rules.has(.stoneEggDuplicates) ? CompanionStore.withoutLastHatched(pool, last: collection.lastHatchedBaseID) : pool
         return (lines.map { ($0, byWeight ? hatchWeight(for: $0) : 1) }, byWeight)
     }

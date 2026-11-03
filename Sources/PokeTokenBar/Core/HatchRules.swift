@@ -56,6 +56,8 @@ struct HatchRules: Sendable, Equatable {
         case plainEggWithoutEventPool = "2026-10-29T07:22:40Z"
         /// #97: season's eggs Uncommon or better; Pokémon Day's babies.
         case seasonEggsAndBabies = "2026-10-29T11:25:11Z"
+        /// #112: Arceus hatches from no egg. Its merge into `release`, until `release` reaches `main`.
+        case arceusKeptForLater = "2026-11-03T12:09:04Z"
 
         private static let instants: [Change: Date] = {
             let formatter = ISO8601DateFormatter()
