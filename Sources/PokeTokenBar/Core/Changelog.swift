@@ -67,6 +67,22 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-04", entries: [
+            .new("2026-11-04-dex-rarity-totals", { $0.t("도감의 희귀도마다 몇 종을 모았는지 전체 중에서 보여 줘요(120/430).",
+                                                         "Each rarity in the Pokédex shows how many of its species you have out of all of them (120/430).",
+                                                         "図鑑のレア度ごとに、全種類のうち何種類集めたかが分かります（120/430）。",
+                                                         "Cada rareza de la Pokédex muestra cuántas de sus especies tienes sobre el total (120/430).",
+                                                         "Chaque rareté du Pokédex montre combien de ses espèces tu as sur le total (120/430).",
+                                                         "Cada raridade da Pokédex mostra quantas espécies dela você tem do total (120/430).",
+                                                         "Jede Seltenheit im Pokédex zeigt, wie viele ihrer Arten du von allen hast (120/430).",
+                                                         "Каждая редкость в Покедексе показывает, сколько её видов у тебя из всех (120/430).") }),
+            .new("2026-11-04-dex-counts", { $0.t("도감이 각 포켓몬을 몇 마리 가졌는지 보여 줘요(×8). \"많이 잡은 순\"으로 정렬할 수 있고, 포획 기록의 중복은 몇 번째인지 알려 줘요(중복 ×8).",
+                                                  "The Pokédex shows how many of each Pokémon you have (×8) and sorts by \"Most caught\", and a duplicate in the catch log says which one it is (Duplicate ×8).",
+                                                  "図鑑で各ポケモンを何匹持っているかが分かります（×8）。「捕まえた数順」で並べられ、捕獲記録の重複は何匹目かを示します（重複 ×8）。",
+                                                  "La Pokédex muestra cuántos tienes de cada Pokémon (×8) y se ordena por \"Más capturados\", y un duplicado del registro dice cuál es (Duplicado ×8).",
+                                                  "Le Pokédex montre combien tu as de chaque Pokémon (×8) et se trie par \"Les plus capturés\", et un doublon du journal dit lequel c'est (Doublon ×8).",
+                                                  "A Pokédex mostra quantos você tem de cada Pokémon (×8) e ordena por \"Mais capturados\", e um duplicado do registro diz qual é (Duplicado ×8).",
+                                                  "Der Pokédex zeigt, wie viele du von jedem Pokémon hast (×8), sortiert nach \"Am häufigsten gefangen\", und ein Duplikat im Fangprotokoll sagt, das wievielte es ist (Duplikat ×8).",
+                                                  "Покедекс показывает, сколько у тебя каждого покемона (×8), сортирует по \"Чаще пойманные\", а дубликат в журнале говорит, какой он по счёту (Дубликат ×8).") }),
             .fixed("2026-11-04-luck-ditto", { $0.t("부화 운: 첫 진화 전에 떠나보냈거나 아직 키우는 포켓몬은 메타몽 항목에 세지 않아요. 메타몽인지 드러날 수 없었으니까요.",
                                                    "Hatch luck: a Pokémon sent off or still raised before its first evolution no longer counts for Ditto, since nothing could have shown one.",
                                                    "孵化の運: 最初の進化の前に手放した、またはまだ育てているポケモンはメタモンの項目に数えません。メタモンだと分かることがなかったからです。",
