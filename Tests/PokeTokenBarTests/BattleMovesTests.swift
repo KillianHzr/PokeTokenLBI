@@ -811,6 +811,102 @@ final class BattleMovesTests: XCTestCase {
         XCTAssertEqual(meanDamage(sharp, "psycho-cut") / meanDamage(steady, "psycho-cut"), 1.5, accuracy: 0.2)
     }
 
+    /// Every variety weighs something: Eternamax Eternatus, which PokéAPI weighs 0, takes its species' weight.
+    func testEveryVarietyWeighs() {
+        XCTAssertTrue(SpeciesBattleTable.all.values.allSatisfy { $0.weight > 0 },
+                      "\(SpeciesBattleTable.all.values.filter { $0.weight == 0 }.map(\.pokemonID))")
+        XCTAssertEqual(BattleSimulation.weight(kilograms: 550, autotomized: 0, ability: ""), 550)
+        XCTAssertEqual(BattleSimulation.weight(kilograms: 550, autotomized: 4, ability: ""), 150)
+        XCTAssertEqual(BattleSimulation.weight(kilograms: 60, autotomized: 1, ability: ""), 0.1)
+        XCTAssertEqual(BattleSimulation.weight(kilograms: 100, autotomized: 0, ability: "heavy-metal"), 200)
+        XCTAssertEqual(BattleSimulation.weight(kilograms: 100, autotomized: 0, ability: "light-metal"), 50)
+    }
+
+    /// Minimize: Body Slam and the others hit twice as hard and never miss. Autotomize: 100 kg lighter each time, so a
+    /// 187 kg Bronzong soon takes Low Kick's least.
+    func testMinimizeAndAutotomize() throws {
+        let slammer = try mon("lax", 143, moves: ["body-slam"])
+        let small = battle([slammer], [try mon("steelix", 208, moves: ["minimize"], isBoss: true)])
+        let plain = battle([slammer], [try mon("steelix", 208, moves: ["splash"], isBoss: true)])
+        XCTAssertGreaterThan(meanDamage(small, "body-slam") / meanDamage(plain, "body-slam"), 1.6)
+        XCTAssertFalse(small.events.contains { if case .miss(_, _, "body-slam") = $0.event { return true } else { return false } },
+                       "never a miss on a minimized target")
+        let kicker = try mon("lee", 106, moves: ["low-kick"])
+        let lighter = battle([kicker], [try mon("bronzong", 437, moves: ["autotomize"], ability: "levitate", isBoss: true)])
+        let heavy = battle([kicker], [try mon("bronzong", 437, moves: ["splash"], ability: "levitate", isBoss: true)])
+        XCTAssertLessThan(meanDamage(lighter, "low-kick") / meanDamage(heavy, "low-kick"), 0.6)
+    }
+
+    /// Wind Rider takes Whirlwind too (it stays on the field), and Tailwind on its side raises its Attack; Wind Power
+    /// charges under its side's Tailwind.
+    func testWindAbilitiesAndTailwind() throws {
+        // Swords Dance: Whirlwind is only worth it on raised stats.
+        let blown = battle([try mon("bramble", 947, moves: ["swords-dance"], ability: "wind-rider"), try mon("lax", 143, moves: ["splash"])],
+                           [try mon("pidgeot", 18, moves: ["whirlwind"], isBoss: true)])
+        XCTAssertTrue(has(blown, .ability(battler: "bramble", ability: "wind-rider")))
+        XCTAssertFalse(has(blown, .leave(battler: "bramble")), "Whirlwind does not blow it away")
+        let tailwind = battle([try mon("bramble", 947, moves: ["tailwind", "splash"], ability: "wind-rider")],
+                              [try mon("lax", 143, moves: ["splash"], isBoss: true)])
+        XCTAssertTrue(has(tailwind, .ability(battler: "bramble", ability: "wind-rider")))
+        let power = battle([try mon("kilo", 941, moves: ["tailwind", "splash"], ability: "wind-power")],
+                           [try mon("lax", 143, moves: ["splash"], isBoss: true)])
+        XCTAssertTrue(has(power, .ability(battler: "kilo", ability: "wind-power")))
+    }
+
+    /// Protect stops a move with the "protect" flag alone: every move but the Z-Moves has Showdown's flags now, so a
+    /// move without it, Transform or Future Sight, goes through.
+    func testProtectReadsItsFlag() throws {
+        XCTAssertTrue(try XCTUnwrap(MoveTable.move("tackle")).isBlockedByProtect)
+        XCTAssertTrue(try XCTUnwrap(MoveTable.move("wave-crash")).isBlockedByProtect, "a newest move, from Showdown")
+        XCTAssertFalse(try XCTUnwrap(MoveTable.move("transform")).isBlockedByProtect)
+        XCTAssertFalse(try XCTUnwrap(MoveTable.move("future-sight")).isBlockedByProtect)
+    }
+
+    /// Pursuit strikes a foe leaving by U-turn as it goes, twice as hard, when its user is casting it; on a foe that
+    /// stays, it hits as usual.
+    func testPursuitCatchesAFoeLeaving() throws {
+        let outcome = battle([try mon("scizor", 212, moves: ["u-turn"]), try mon("scizor2", 212, moves: ["splash"])],
+                             [try mon("tar", 248, moves: ["pursuit"], isBoss: true)])
+        let pursuits = hits(outcome).filter { $0.move == "pursuit" }
+        let leaves = outcome.events.compactMap { timed -> Int? in
+            if case .leave(battler: "scizor") = timed.event { return timed.time } else { return nil }
+        }
+        let caught = pursuits.filter { $0.target == "scizor" && leaves.contains($0.time) && $0.hp > 0 }
+        let usual = pursuits.filter { $0.target == "scizor2" && !leaves.contains($0.time) && $0.hp > 0 }
+        XCTAssertFalse(caught.isEmpty, "Pursuit as Scizor leaves")
+        XCTAssertFalse(usual.isEmpty)
+        let ratio = Double(caught.map(\.damage).reduce(0, +)) / Double(caught.count)
+            / (Double(usual.map(\.damage).reduce(0, +)) / Double(usual.count))
+        XCTAssertEqual(ratio, 2, accuracy: 0.3)
+    }
+
+    /// Hidden Power takes its type from the IVs' parity; Judgment its Plate's, Techno Blast its Drive's, Raging Bull its
+    /// breed's, as the move row shows them; Normalize leaves them theirs and turns the others Normal.
+    func testMovesWhoseTypeIsTheirPokemons() throws {
+        XCTAssertEqual(BattlerSpec.hiddenPowerType(ivs: [31, 31, 31, 31, 31, 31]), .dark)
+        XCTAssertEqual(BattlerSpec.hiddenPowerType(ivs: [30, 30, 30, 30, 30, 30]), .fighting)
+        XCTAssertEqual(BattlerSpec.hiddenPowerType(ivs: [31, 30, 31, 30, 31, 30]), .fire, "the classic Hidden Power Fire")
+        XCTAssertEqual(BattlerSpec.hiddenPowerType(ivs: [31, 30, 30, 31, 31, 31]), .ice, "the classic Hidden Power Ice")
+        let fireIVs = [31, 30, 31, 30, 31, 30]
+        let hidden = try XCTUnwrap(MoveTable.move("hidden-power"))
+        let caster = try XCTUnwrap(BattlerSpec.make(id: "eevee", speciesID: 133, level: 100, ivs: fireIVs, moves: ["hidden-power"]))
+        XCTAssertEqual(hidden.type(for: caster), .fire)
+        func spec(_ species: Int, _ form: String) throws -> BattlerSpec {
+            try XCTUnwrap(BattlerSpec.make(id: "f", speciesID: species, form: PokemonForm(form), level: 100))
+        }
+        XCTAssertEqual(try XCTUnwrap(MoveTable.move("judgment")).type(for: try spec(493, "fire")), .fire)
+        XCTAssertEqual(try XCTUnwrap(MoveTable.move("techno-blast")).type(for: try spec(649, "douse")), .water)
+        XCTAssertEqual(try XCTUnwrap(MoveTable.move("raging-bull")).type(for: try spec(128, "paldea-aqua")), .water)
+        XCTAssertEqual(try XCTUnwrap(MoveTable.move("tackle")).type(for: caster), .normal)
+        // Normalize: Hidden Power stays Fire and reaches a Gengar; Ember turns Normal and does not.
+        let gengar = try mon("gengar", 94, moves: ["splash"], isBoss: true)
+        var normalized = try XCTUnwrap(BattlerSpec.make(id: "eevee", speciesID: 133, level: 100, ivs: fireIVs,
+                                                        ability: "normalize", moves: ["hidden-power"]))
+        XCTAssertTrue(hits(battle([normalized], [gengar])).contains { $0.move == "hidden-power" })
+        normalized.moves = ["ember"]
+        XCTAssertFalse(hits(battle([normalized], [gengar])).contains { $0.move == "ember" })
+    }
+
     // MARK: Restraints
 
     /// When `effect` first landed on `battler`.

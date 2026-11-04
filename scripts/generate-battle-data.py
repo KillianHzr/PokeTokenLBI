@@ -313,6 +313,8 @@ def main():
     pokemon = [p for p in fetch_pokemon() if p["pokemonstats"]]
     print(f"{len(pokemon)} varieties", file=sys.stderr)
     learnsets = fetch_learnsets([p["id"] for p in pokemon])
+    # A variety PokéAPI weighs 0 (Eternamax Eternatus) weighs as its species' default one.
+    default_weight = {p["pokemon_species_id"]: p["weight"] for p in pokemon if p["is_default"]}
     lines = []
     for p in pokemon:
         stats = {row["stat"]["name"]: row["base_stat"] for row in p["pokemonstats"]}
@@ -323,7 +325,8 @@ def main():
         learnset = learnsets.get(p["id"]) or learnsets.get(p["pokemon_species_id"], [])
         loop, pool = loop_moves(p, learnset, by_name, types)
         fields = [p["id"], p["pokemon_species_id"], ",".join(str(stats.get(k, 0)) for k in STAT_KEYS),
-                  ",".join(types), abilities, ",".join(loop), ",".join(pool), p["weight"] or 0]
+                  ",".join(types), abilities, ",".join(loop), ",".join(pool),
+                  p["weight"] or default_weight.get(p["pokemon_species_id"]) or 0]
         lines.append("|".join(str(f) for f in fields))
     move_lines = [move_line(m) for m in moves]
     species_lines = [species_line(s) for s in fetch_species()]

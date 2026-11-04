@@ -70,11 +70,34 @@ struct BattleMove: Sendable, Equatable {
     /// PokéAPI's name for the ball and bomb moves Bulletproof stops.
     var isBallistic: Bool { flags.contains("ballistics") }
     var isPowder: Bool { flags.contains("powder") }
+    /// Its type for this Pokémon, as the games give it: Hidden Power's from its IVs; Judgment and Multi-Attack its
+    /// form's (a Plate's, a Memory's), Raging Bull and Ivy Cudgel its breed's or mask's, Techno Blast its Drive's,
+    /// Revelation Dance its first type. The others keep theirs.
+    func type(for spec: BattlerSpec) -> PokemonType {
+        type(types: spec.types, form: spec.form, hiddenPower: spec.hiddenPowerType)
+    }
+
+    func type(types: [PokemonType], form: PokemonForm?, hiddenPower: PokemonType?) -> PokemonType {
+        switch slug {
+        case "hidden-power": return hiddenPower ?? type
+        case "judgment", "multi-attack", "revelation-dance": return types.first ?? type
+        case "raging-bull", "ivy-cudgel": return types.last ?? type
+        case "techno-blast":
+            return ["douse": .water, "shock": .electric, "burn": .fire, "chill": .ice][form?.rawValue ?? ""] ?? type
+        default: return type
+        }
+    }
+
+    /// The moves whose type is their own whatever Normalize says.
+    static let typeKeptUnderNormalize: Set<String> = ["hidden-power", "weather-ball", "natural-gift", "judgment",
+                                                      "techno-blast", "multi-attack", "terrain-pulse"]
+
     /// Showdown's flags (2026-11-03): PokéAPI has neither.
     var isSlicing: Bool { flags.contains("slicing") }
     var isWind: Bool { flags.contains("wind") }
-    /// Protect stops it: PokéAPI's flag, or no flag at all, as its newest moves come (2026-11-03).
-    var isBlockedByProtect: Bool { flags.isEmpty || flags.contains("protect") }
+    /// Protect stops it: its "protect" flag, PokéAPI's or Showdown's. Every move but the Z-Moves has Showdown's, so a move
+    /// without it goes through, as Future Sight does (2026-11-04).
+    var isBlockedByProtect: Bool { flags.contains("protect") }
     /// Sound moves and those PokéAPI marks "authentic" go through a substitute.
     var bypassesSubstitute: Bool { isSound || flags.contains("authentic") }
     var hasSecondaryEffect: Bool {

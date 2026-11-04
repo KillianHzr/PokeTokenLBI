@@ -117,6 +117,12 @@ struct BattleSimulation {
         var charged = false
         /// The species and form it weighs as: its own, or its target's after Transform.
         var weighsAs: (speciesID: Int, form: PokemonForm?)?
+        /// Autotomize's uses: 100 kg lighter each.
+        var autotomized = 0
+        /// Minimize used: Stomp, Body Slam, Heavy Slam and the others hit it twice as hard, and never miss.
+        var minimized = false
+        /// The foe it strikes with Pursuit as that foe leaves: twice the power, never a miss.
+        var pursuing: Int?
         /// When its cast started, when it last acted, last took damage, last had a stat lowered, and when each foe
         /// last hit it: what Payback, Avalanche, Assurance, Focus Punch, Bolt Beak and Lash Out read.
         var castStartedAt = 0
@@ -428,6 +434,8 @@ struct BattleSimulation {
 
     private mutating func entryAbility(_ index: Int) {
         let b = battlers[index]
+        // Wind Rider arriving under its side's Tailwind raises its Attack.
+        if b.ability == "wind-rider", sideHas(b.side, "tailwind") { feelsTailwind(index) }
         switch b.ability {
         case "intimidate":
             log(.ability(battler: b.spec.id, ability: b.ability))
@@ -877,7 +885,6 @@ struct BattleSimulation {
         case "belly-drum": return b.hp * 2 > b.maxHP && b.stage(.attack) < 6
         // Worth it while it is not charged, its Special Defense raised or not.
         case "charge": return !b.charged || b.stage(.specialDefense) < 6
-        case "nightmare": return false
         case "sunny-day": return weather != .sun
         case "rain-dance": return weather != .rain
         case "sandstorm": return weather != .sand
@@ -991,7 +998,7 @@ struct BattleSimulation {
         battlers[index].lastMove = move.slug
         lastMoveUsed = move.slug
         // Powdered, a Pokémon whose Fire move goes off takes a quarter of its HP instead.
-        if battlers[index].powdered, move.type == .fire {
+        if battlers[index].powdered, moveType(move, by: index) == .fire {
             battlers[index].powdered = false
             log(.fail(battler: id, move: move.slug, reason: .failed))
             hurt(index, max(1, battlers[index].maxHP / 4), .ability)
@@ -1391,6 +1398,8 @@ struct BattleSimulation {
         if fieldMove(move, by: index) { return }
         if move.slug == "defense-curl" { battlers[index].defenseCurl = true }
         if move.slug == "charge" { battlers[index].charged = true }
+        if move.slug == "minimize" { battlers[index].minimized = true }
+        if move.slug == "autotomize" { battlers[index].autotomized += 1 }
         if !move.isDamaging {
             useStatus(move, by: index)
             return
@@ -1765,6 +1774,13 @@ struct BattleSimulation {
             log(.fail(battler: id, move: move.slug, reason: .substitute))
             return nil
         }
+        // Wind Rider takes a wind move aimed at it, Whirlwind too, and raises its Attack.
+        if battlers[target].ability == "wind-rider", move.isWind, battlers[target].side != battlers[index].side,
+           !["mold-breaker", "teravolt", "turboblaze"].contains(battlers[index].ability) {
+            log(.ability(battler: battlers[target].spec.id, ability: "wind-rider"))
+            changeStage(target, .attack, by: 1, fromFoe: false)
+            return nil
+        }
         return (target, index)
     }
 
@@ -2019,6 +2035,15 @@ struct BattleSimulation {
         guard !staysOnField(index) else { return false }
         guard let slot = battlers[index].slot, let next = bestEntrant(side: side, slot: slot, ordered: side == 1) else {
             return false
+        }
+        // Pursuit: a foe casting it strikes now, twice as hard and surely, before this one leaves (as Showdown has it, a
+        // switching move included; a forced switch does not call it).
+        for foe in foes(of: index) where battlers[foe].castMove == "pursuit" {
+            battlers[foe].castTarget = index
+            battlers[foe].pursuing = index
+            completeCast(foe)
+            battlers[foe].pursuing = nil
+            if battlers[index].isFainted { return false }
         }
         let passed = battlers[index]
         leaveField(index)
@@ -2295,6 +2320,24 @@ struct BattleSimulation {
     private mutating func startSideCondition(_ side: Int, _ condition: String, turns: Int) {
         sideConditions[side][condition] = now + turns * BattleRules.turn
         log(.sideCondition(side: side, condition: condition, active: true))
+        // Tailwind on its side: Wind Rider raises its Attack, Wind Power charges.
+        if condition == "tailwind" {
+            for member in field[side].compactMap({ $0 }) where !battlers[member].isFainted { feelsTailwind(member) }
+        }
+    }
+
+    private mutating func feelsTailwind(_ index: Int) {
+        let b = battlers[index]
+        switch b.ability {
+        case "wind-rider":
+            log(.ability(battler: b.spec.id, ability: b.ability))
+            changeStage(index, .attack, by: 1, fromFoe: false)
+        case "wind-power":
+            guard !b.charged else { return }
+            battlers[index].charged = true
+            log(.ability(battler: b.spec.id, ability: b.ability))
+        default: break
+        }
     }
 
     private mutating func endSideCondition(_ side: Int, _ condition: String) {
@@ -2420,10 +2463,21 @@ struct BattleSimulation {
     private func weight(_ index: Int) -> Double {
         let b = battlers[index]
         let who = b.weighsAs ?? (b.spec.speciesID, b.spec.form)
-        var kg = Double(SpeciesBattleTable.data(speciesID: who.speciesID, form: who.form)?.weight ?? 0) / 10
-        if b.ability == "heavy-metal" { kg *= 2 } else if b.ability == "light-metal" { kg /= 2 }
+        return Self.weight(kilograms: Double(SpeciesBattleTable.data(speciesID: who.speciesID, form: who.form)?.weight ?? 0) / 10,
+                           autotomized: b.autotomized, ability: b.ability)
+    }
+
+    /// 100 kg lighter for each Autotomize, then Heavy Metal doubles and Light Metal halves; never under 0.1 kg.
+    static func weight(kilograms: Double, autotomized: Int, ability: String) -> Double {
+        var kg = max(0.1, kilograms - 100 * Double(autotomized))
+        if ability == "heavy-metal" { kg *= 2 } else if ability == "light-metal" { kg /= 2 }
         return max(0.1, kg)
     }
+
+    /// The moves that punish Minimize: twice the damage, never a miss.
+    static let punishMinimize: Set<String> = ["stomp", "body-slam", "dragon-rush", "steamroller", "heat-crash",
+                                              "heavy-slam", "flying-press", "malicious-moonsault", "double-iron-bash",
+                                              "supercell-slam"]
 
     private mutating func transform(_ index: Int, into target: Int) {
         let t = battlers[target]
@@ -2467,6 +2521,8 @@ struct BattleSimulation {
         if battlers[target].telekinesisUntil > now, !Self.ohkoMoves.contains(move.slug) { return true }
         if battlers[index].ability == "no-guard" || battlers[target].ability == "no-guard" { return true }
         if let hidden = hiddenMove(target), !(Self.reachesHidden[hidden] ?? []).contains(move.slug) { return false }
+        if battlers[target].minimized, Self.punishMinimize.contains(move.slug) { return true }
+        if move.slug == "pursuit", battlers[index].pursuing == target { return true }
         if (move.slug == "thunder" || move.slug == "hurricane"), weather == .rain { return true }
         if ["bleakwind-storm", "wildbolt-storm", "sandsear-storm"].contains(move.slug), weather == .rain { return true }
         if battlers[target].exposed { return true }
@@ -2503,6 +2559,9 @@ struct BattleSimulation {
 
     /// The move's type once abilities have changed it.
     private func moveType(_ move: BattleMove, by index: Int) -> PokemonType {
+        // Revelation Dance reads the types it has now (Soak, Burn Up); the others their Pokémon's (`BattleMove.type(for:)`).
+        let own = move.slug == "revelation-dance" ? (battlers[index].types.first ?? move.type)
+            : move.type(for: battlers[index].spec)
         if move.slug == "weather-ball" {
             switch weather {
             case .sun: return .fire
@@ -2512,7 +2571,7 @@ struct BattleSimulation {
             case nil: return .normal
             }
         }
-        if move.type == .normal {
+        if own == .normal {
             switch battlers[index].ability {
             case "aerilate": return .flying
             case "pixilate": return .fairy
@@ -2521,8 +2580,8 @@ struct BattleSimulation {
             default: break
             }
         }
-        if battlers[index].ability == "normalize" { return .normal }
-        if move.type == .normal, fieldHas("ion-deluge") { return .electric }
+        if battlers[index].ability == "normalize", !BattleMove.typeKeptUnderNormalize.contains(move.slug) { return .normal }
+        if own == .normal, fieldHas("ion-deluge") { return .electric }
         if battlers[index].electrified { return .electric }
         if move.slug == "natural-gift", let berry = battlers[index].throwing { return berry == .oran ? .poison : .psychic }
         if move.slug == "terrain-pulse", isGrounded(index) {
@@ -2534,7 +2593,7 @@ struct BattleSimulation {
             case nil: break
             }
         }
-        return move.type
+        return own
     }
 
     private func effectiveness(_ move: BattleMove, by index: Int, on target: Int) -> Double {
@@ -2711,6 +2770,8 @@ struct BattleSimulation {
         }
         let type = moveType(move, by: index)
         if a.charged, type == .electric { power *= 2 }
+        if d.minimized, Self.punishMinimize.contains(move.slug) { power *= 2 }
+        if move.slug == "pursuit", a.pursuing == target { power *= 2 }
         switch a.ability {
         case "technician": if move.power > 0, move.power <= 60 { power *= 1.5 }
         case "iron-fist": if move.isPunch { power *= 1.2 }
@@ -2720,7 +2781,7 @@ struct BattleSimulation {
         case "sharpness": if move.isSlicing { power *= 1.5 }
         case "reckless": if move.drain < 0 { power *= 1.2 }
         case "sheer-force": if move.hasSecondaryEffect { power *= 1.3 }
-        case "aerilate", "pixilate", "refrigerate", "galvanize": if move.type == .normal { power *= 1.2 }
+        case "aerilate", "pixilate", "refrigerate", "galvanize": if move.type(for: a.spec) == .normal { power *= 1.2 }
         case "sand-force": if weather == .sand, [.rock, .ground, .steel].contains(type) { power *= 1.3 }
         case "steelworker": if type == .steel { power *= 1.5 }
         case "transistor": if type == .electric { power *= 1.3 }

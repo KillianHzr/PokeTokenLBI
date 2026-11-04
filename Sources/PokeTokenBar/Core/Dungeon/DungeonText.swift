@@ -200,9 +200,10 @@ extension L {
           "Attackenschleife", "Цикл атак")
     }
 
-    /// A move's card on hover: what the engine plays of it (R4: descriptions and stats on hover).
-    func moveDetails(_ move: BattleMove, unlocked: Set<String>) -> String {
-        var parts: [String] = [typeName(move.type)]
+    /// A move's card on hover: what the engine plays of it (R4: descriptions and stats on hover). `type`: its type for
+    /// the Pokémon it is shown for (`BattleMove.type(for:)`).
+    func moveDetails(_ move: BattleMove, unlocked: Set<String>, type: PokemonType? = nil) -> String {
+        var parts: [String] = [typeName(type ?? move.type)]
         switch move.moveClass {
         case .physical: parts.append(t("물리", "Physical", "ぶつり", "Físico", "Physique", "Físico", "Physisch", "Физическая"))
         case .special: parts.append(t("특수", "Special", "とくしゅ", "Especial", "Spéciale", "Especial", "Speziell", "Специальная"))

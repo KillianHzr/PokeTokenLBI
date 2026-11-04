@@ -15,7 +15,7 @@ enum BattleMatchup {
         let rate = 300 / (100 + Double(attacker.stats.speed)) / Double(BattleRules.speedUp)
         return moves.map { move -> Double in
             let effectiveness = defender.types.reduce(1.0) {
-                $0 * PokemonTypeData.effectiveness(attacking: move.type, defending: $1)
+                $0 * PokemonTypeData.effectiveness(attacking: move.type(for: attacker), defending: $1)
             }
             let physical = move.moveClass == .physical
             let attack = Double(physical ? attacker.stats.attack : attacker.stats.specialAttack)

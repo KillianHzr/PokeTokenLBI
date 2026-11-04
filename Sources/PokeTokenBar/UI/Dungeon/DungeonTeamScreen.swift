@@ -212,7 +212,7 @@ struct LoopEditor: View {
             ForEach(Array(loop.enumerated()), id: \.offset) { index, slug in
                 Button { editingSlot = editingSlot == index ? nil : index } label: {
                     MoveRow(store: store, slug: slug, speed: spec?.stats.speed ?? 100, number: index + 1,
-                            selected: editingSlot == index)
+                            selected: editingSlot == index, spec: spec)
                 }
                 .buttonStyle(.plain)
                 .disabled(frozen)
@@ -245,7 +245,8 @@ struct LoopEditor: View {
                         store.setMoveLoop(next, for: entry.id)
                         editingSlot = nil
                     } label: {
-                        MoveRow(store: store, slug: move.slug, speed: spec?.stats.speed ?? 100, number: nil, selected: false)
+                        MoveRow(store: store, slug: move.slug, speed: spec?.stats.speed ?? 100, number: nil, selected: false,
+                                spec: spec)
                             .opacity(locked || !move.hasEffect ? 0.4 : 1)
                     }
                     .buttonStyle(.plain)
@@ -279,17 +280,20 @@ struct MoveRow: View {
     let speed: Int
     let number: Int?
     let selected: Bool
+    /// The Pokémon it is shown for: Hidden Power, Judgment and the others take their type from it.
+    var spec: BattlerSpec?
 
     var body: some View {
         let l = store.l
         let move = MoveTable.move(slug)
+        let type = move.map { move in spec.map { move.type(for: $0) } ?? move.type }
         HStack(spacing: 6) {
             if let number {
                 Text("\(number)").font(.caption2.weight(.bold)).monospacedDigit().frame(width: 14)
             }
             PokemonNameLabel(.move, slug, language: store.language).font(.caption.weight(.semibold))
-            if let move {
-                Badge(l.typeName(move.type).uppercased(), tint: .type(move.type))
+            if let type {
+                Badge(l.typeName(type).uppercased(), tint: .type(type))
             }
             Spacer(minLength: 4)
             if let move {
@@ -304,7 +308,7 @@ struct MoveRow: View {
         .padding(.vertical, 2).padding(.horizontal, 4)
         .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Design.actionColor.opacity(0.2) : .clear))
         .contentShape(Rectangle())
-        .hoverTip(move.map { HoverTip(id: "move:\(slug)", title: l.moveDetails($0, unlocked: store.dungeonProgress.unlockedMoves)) })
+        .hoverTip(move.map { HoverTip(id: "move:\(slug)", title: l.moveDetails($0, unlocked: store.dungeonProgress.unlockedMoves, type: type)) })
     }
 }
 

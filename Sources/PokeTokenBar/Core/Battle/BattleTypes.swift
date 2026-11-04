@@ -85,6 +85,19 @@ struct BattlerSpec: Codable, Sendable, Equatable {
     var isBoss = false
     /// A Pokémon of the player's has its profile's; nil for a foe, whose gender `resolvedGender` draws.
     var gender: PokemonGender?
+    /// Hidden Power's type, from its IVs (`hiddenPowerType(ivs:)`); nil in a battle saved before it.
+    var hiddenPowerType: PokemonType?
+
+    /// Hidden Power's type as the games read it from the IVs' parity: HP, Attack, Defense, Speed, Special Attack and
+    /// Special Defense, the sixteen types from Fighting to Dark. `ivs`: HP, Attack, Defense, Special Attack, Special
+    /// Defense, Speed.
+    static func hiddenPowerType(ivs: [Int]) -> PokemonType {
+        guard ivs.count == 6 else { return .normal }
+        let bits = [ivs[0], ivs[1], ivs[2], ivs[5], ivs[3], ivs[4]].enumerated().reduce(0) { $0 + ($1.element & 1) << $1.offset }
+        let order: [PokemonType] = [.fighting, .flying, .poison, .ground, .rock, .bug, .ghost, .steel, .fire, .water,
+                                    .grass, .electric, .psychic, .ice, .dragon, .dark]
+        return order[bits * 15 / 63]
+    }
 
     /// Its gender: its own, or for a foe one drawn by its species' rate, the same for the same Pokémon (its id and
     /// stats), so a replay shows the same.

@@ -10,10 +10,12 @@ extension BattlerSpec {
         var stats = BattleStats.computed(base: data.baseStats, ivs: ivs, level: level, nature: nature, speciesID: speciesID)
         if hpFactor != 1 || statFactor != 1 { stats = stats.scaled(hp: hpFactor, stats: statFactor) }
         let loop = (moves ?? data.loop).filter { MoveTable.move($0) != nil }
-        return BattlerSpec(id: id, speciesID: speciesID, form: form, level: level,
-                           types: PokemonTypeData.types(forSpeciesID: speciesID, form: form).isEmpty
-                               ? data.types : PokemonTypeData.types(forSpeciesID: speciesID, form: form),
-                           stats: stats, hp: stats.hp, ability: ability ?? data.abilities.first?.slug,
-                           moves: loop.isEmpty ? ["struggle"] : Array(loop.prefix(4)), isShiny: isShiny, isBoss: isBoss)
+        var spec = BattlerSpec(id: id, speciesID: speciesID, form: form, level: level,
+                               types: PokemonTypeData.types(forSpeciesID: speciesID, form: form).isEmpty
+                                   ? data.types : PokemonTypeData.types(forSpeciesID: speciesID, form: form),
+                               stats: stats, hp: stats.hp, ability: ability ?? data.abilities.first?.slug,
+                               moves: loop.isEmpty ? ["struggle"] : Array(loop.prefix(4)), isShiny: isShiny, isBoss: isBoss)
+        spec.hiddenPowerType = BattlerSpec.hiddenPowerType(ivs: ivs)
+        return spec
     }
 }

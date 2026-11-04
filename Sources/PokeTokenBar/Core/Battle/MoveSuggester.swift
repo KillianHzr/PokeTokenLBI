@@ -17,10 +17,11 @@ enum MoveSuggester {
             if move.category == .damageRaise, move.statChanges.contains(where: { $0.change < 0 }) { power *= 0.6 }
             let hits = move.maxHits > 1 ? Double(move.minHits + move.maxHits) / 2 : 1
             let accuracy = Double(move.accuracy == 0 ? 100 : move.accuracy) / 100
-            let own = types.contains(move.type) ? 1.5 : 1
+            let type = move.type(types: types, form: nil, hiddenPower: nil)
+            let own = types.contains(type) ? 1.5 : 1
             let fits = (move.moveClass == .physical) == physical ? 1 : 0.55
             let coverage = theme.isEmpty ? 1 : theme.reduce(0.0) {
-                $0 + PokemonTypeData.effectiveness(attacking: move.type, defending: $1)
+                $0 + PokemonTypeData.effectiveness(attacking: type, defending: $1)
             } / Double(theme.count)
             return power * hits * accuracy * own * fits * coverage
         }
