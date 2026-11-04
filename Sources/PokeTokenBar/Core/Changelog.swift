@@ -67,6 +67,22 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-04", entries: [
+            .improved("2026-11-04-unseen-evolution-name", { $0.t("아직 본 적 없는 진화는 실루엣뿐 아니라 이름도 비밀이에요.",
+                                                                 "An evolution you have never seen keeps its name secret too, not just its silhouette.",
+                                                                 "まだ見たことのない進化は、シルエットだけでなく名前も秘密です。",
+                                                                 "Una evolución que nunca has visto también guarda su nombre en secreto, no solo su silueta.",
+                                                                 "Une évolution que tu n'as jamais vue garde aussi son nom secret, pas seulement sa silhouette.",
+                                                                 "Uma evolução que você nunca viu também mantém o nome em segredo, não só a silhueta.",
+                                                                 "Eine Entwicklung, die du noch nie gesehen hast, hält auch ihren Namen geheim, nicht nur ihre Silhouette.",
+                                                                 "Эволюция, которую вы ещё не видели, скрывает не только силуэт, но и имя.") }),
+            .new("2026-11-04-form-suspense", { $0.t("진화해야 보이는 폼은 그때까지 비밀이에요. 모든 후보가 실루엣으로 보이고, 새로운 것을 가져올 진짜 확률도 알 수 있어요. 오박사는 기다리라고 해요.",
+                                                    "A form that only shows after an evolution stays a secret until then: every form it could be shows as a silhouette, you see the real odds it brings something new, and Prof. Oak tells you to wait.",
+                                                    "進化しないと見えないフォルムは、それまで秘密です。候補はすべてシルエットで表示され、新しいものをもたらす本当の確率もわかります。オーキド博士は待つように言います。",
+                                                    "Una forma que solo se ve tras una evolución sigue en secreto hasta entonces: cada forma posible aparece como silueta, ves las probabilidades reales de que traiga algo nuevo y el Prof. Oak te dice que esperes.",
+                                                    "Une forme qui ne se voit qu'après une évolution reste un secret jusque-là : chaque forme possible apparaît en silhouette, tu vois les vraies chances qu'elle apporte du nouveau, et le Prof. Chen te dit d'attendre.",
+                                                    "Uma forma que só aparece depois de uma evolução fica em segredo até lá: cada forma possível aparece como silhueta, você vê as chances reais de ela trazer algo novo e o Prof. Carvalho diz para esperar.",
+                                                    "Eine Form, die sich erst nach einer Entwicklung zeigt, bleibt bis dahin geheim: Jede mögliche Form erscheint als Silhouette, du siehst die echte Chance auf etwas Neues, und Prof. Eich rät dir zu warten.",
+                                                    "Форма, которая видна только после эволюции, до этого остаётся тайной: все возможные формы показаны силуэтами, виден настоящий шанс получить что-то новое, а профессор Оук советует подождать.") }),
             .fixed("2026-11-04-paste", { $0.t("이제 앱의 입력 칸에서 ⌘V로 붙여 넣을 수 있어요. 설정의 세션 키 칸도요.",
                                              "You can now paste with ⌘V in the app's text fields, the session key's in Settings too.",
                                              "アプリの入力欄で⌘Vで貼り付けられるようになりました。設定のセッションキーの欄も同様です。",

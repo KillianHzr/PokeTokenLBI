@@ -526,6 +526,12 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
         return Array(forms.prefix(1))
     }
 
+    /// Its line has forms and no stage reached shows one yet: which it carries stays to be seen.
+    static func isFormHidden(baseID: Int, reached: some Sequence<Int>) -> Bool {
+        let showing = formSpecies(baseID: baseID)
+        return !showing.isEmpty && !reached.contains(where: showing.contains)
+    }
+
     /// Base of the line a catalogued species belongs to.
     static func lineBase(of speciesID: Int) -> Int { lineBaseIDs[speciesID] ?? speciesID }
 

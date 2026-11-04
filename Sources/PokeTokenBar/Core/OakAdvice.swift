@@ -12,6 +12,8 @@ enum ActiveVerdict: Equatable, Sendable {
     case shinyToKeep
     /// A Spare whose graduation unlocks an achievement that counts copies.
     case keptForAchievement(ItemKind)
+    /// Its form is still hidden and decides what it brings: wait for the stage that shows it.
+    case formMystery(FormMystery)
     /// It brings nothing new (`CompanionStore.ActiveNews.isDuplicate`).
     case spare
 }
@@ -98,6 +100,7 @@ extension CompanionStore {
     /// Nil for an egg.
     var activeVerdict: ActiveVerdict? {
         guard let news = activeNews else { return nil }
+        if let mystery = news.mystery { return .formMystery(mystery) }
         let unseen = Set(news.newSpecies.filter { !graduatedSpeciesIDs.contains($0) })
         if !unseen.isEmpty {
             let counts = activeWays.map { unseen.intersection($0).count }
@@ -113,7 +116,7 @@ extension CompanionStore {
     /// The Rare Candies to give the Pokémon being raised, those the balance buys included: as many as its growth to
     /// graduation takes whole, a last one losing a tenth of its XP at most, the rest kept for the next one.
     /// `maxRareCandyUseCount` rounds up, and graduation loses the XP over. None to a Spare sent off, now or once its egg
-    /// is affordable: it would lose them with its growth.
+    /// is affordable: it would lose them with its growth. None while its form is a mystery either.
     var candiesToGive: Int {
         let release = oakRelease
         return candiesToGive(after: release, budget: oakBudget(after: release))
@@ -142,7 +145,9 @@ extension CompanionStore {
         if let budget, budget.egg != nil, budget.buyAhead > 0 || budget.reserve > 0 { steps.append(.stock(budget)) }
         let buy = budget?.candies ?? 0
         let held = rareCandyCount + buy
-        if held > 0 {
+        var waitsForReveal = false
+        if case .formMystery? = verdict { waitsForReveal = true }
+        if held > 0, !waitsForReveal {
             let give = candiesToGive(after: release, budget: budget)
             steps.append(.candies(buy: buy, give: give, keep: held - give))
         }

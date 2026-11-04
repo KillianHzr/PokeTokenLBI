@@ -1292,6 +1292,40 @@ struct L {
           "Ничего нового: его виды, формы, сияющий вариант и костюмы уже в покедексе, отпустив его, вы ничего не потеряете.")
     }
     var activeNewBadge: String { t("신규", "New", "新規", "Nuevo", "Nouveau", "Novo", "Neu", "Новое") }
+    var formMysteryBadge: String {
+        t("미스터리 폼", "Mystery form", "謎のフォルム", "Forma misteriosa", "Forme mystère", "Forma misteriosa", "Geheime Form", "Тайная форма")
+    }
+    /// The real odds a form still hidden brings something new (`FormMystery`).
+    func formMysteryOdds(_ mystery: FormMystery) -> String {
+        guard !mystery.isCertain else {
+            return t("어떤 폼이든 새로운 것을 가져와요", "Something new whatever its form", "どのフォルムでも新しいものをもたらします",
+                     "Algo nuevo sea cual sea su forma", "Du nouveau quelle que soit sa forme", "Algo novo qualquer que seja a forma",
+                     "Etwas Neues, egal in welcher Form", "Что-то новое при любой форме")
+        }
+        let c = mystery.chances, n = mystery.outOf
+        let ru = c % 10 == 1 && c % 100 != 11 ? "шанс" : (2...4).contains(c % 10) && !(12...14).contains(c % 100) ? "шанса" : "шансов"
+        return t("\(n)번 중 \(c)번은 새로운 것을 가져와요", "\(c) \(c == 1 ? "chance" : "chances") in \(n) of bringing something new",
+                 "\(n)分の\(c)の確率で新しいものをもたらします", "\(c) \(c == 1 ? "posibilidad" : "posibilidades") de \(n) de traer algo nuevo",
+                 "\(c) \(c == 1 ? "chance" : "chances") sur \(n) d'apporter du nouveau", "\(c) \(c == 1 ? "chance" : "chances") em \(n) de trazer algo novo",
+                 "\(c) von \(n) Chancen auf etwas Neues", "\(c) \(ru) из \(n) принести что-то новое")
+    }
+    /// The hint of the Mystery form badge: `reveal` is the stage that shows the form.
+    func formMysteryHint(_ reveal: String, _ mystery: FormMystery) -> String {
+        let odds = formMysteryOdds(mystery)
+        return t("\(KoreanParticle.direction.attach(to: reveal)) 진화하면 폼이 드러나요. \(odds).", "It shows when it becomes \(reveal). \(odds).",
+                 "\(reveal)に進化するとフォルムが明らかになります。\(odds)。", "Se revela cuando se convierte en \(reveal). \(odds).",
+                 "Elle se révèle quand il devient \(reveal). \(odds).", "Ela se revela quando ele vira \(reveal). \(odds).",
+                 "Sie zeigt sich, wenn es zu \(reveal) wird. \(odds).", "Форма откроется, когда он станет \(reveal). \(odds).")
+    }
+    /// After the evolution's message, at the stage that shows a form that was a mystery.
+    var formRevealBringsNew: String {
+        t("이 폼은 새로운 것을 가져와요!", "Its form brings something new!", "このフォルムは新しいものをもたらします！", "¡Su forma trae algo nuevo!",
+          "Sa forme apporte du nouveau !", "A forma dele traz algo novo!", "Seine Form bringt etwas Neues!", "Эта форма приносит что-то новое!")
+    }
+    var formRevealNothingNew: String {
+        t("이 폼은 이미 도감에 있어요.", "Its form is already in your Pokédex.", "このフォルムはすでに図鑑にあります。", "Su forma ya está en tu Pokédex.",
+          "Sa forme est déjà dans ton Pokédex.", "A forma dele já está na sua Pokédex.", "Seine Form ist schon in deinem Pokédex.", "Эта форма уже есть в покедексе.")
+    }
     /// What graduating the current Pokémon adds, for the hint of its New badge.
     func activeNewHint(_ names: [String], certain: Bool) -> String {
         let list = names.joined(separator: ", ")
@@ -2397,6 +2431,8 @@ struct L {
     }
     func oakVerdictLabel(_ verdict: ActiveVerdict) -> String {
         switch verdict {
+        case .formMystery:
+            return formMysteryBadge
         case .lineToComplete:
             return t("채울 계열", "Line to complete", "未完成の系統", "Línea por completar", "Ligne à compléter", "Linha a completar",
                      "Linie offen", "Линия не собрана")
@@ -2425,8 +2461,14 @@ struct L {
     }
     /// Prof. Oak's bubble on the Pokémon being raised. `name`: its name in its form; `newFormName`: the species it
     /// brings in its form, for `.newForm`.
-    func oakBubble(_ verdict: ActiveVerdict, name: String, newFormName: String) -> String {
+    func oakBubble(_ verdict: ActiveVerdict, name: String, newFormName: String, revealName: String = "") -> String {
         switch verdict {
+        case .formMystery(let mystery):
+            let odds = formMysteryOdds(mystery)
+            return t("\(odds). \(KoreanParticle.direction.attach(to: revealName)) 진화할 때까지 기다려 보거라!", "\(odds), wait until it becomes \(revealName)!",
+                     "\(odds)。\(revealName)に進化するまで待つのじゃ！", "\(odds), ¡espera a que se convierta en \(revealName)!",
+                     "\(odds), attends qu'il devienne \(revealName) !", "\(odds), espere até ele virar \(revealName)!",
+                     "\(odds), warte, bis es zu \(revealName) wird!", "\(odds), подождите, пока он не станет \(revealName)!")
         case .lineToComplete(let count) where count.lowerBound != count.upperBound:
             let n = count.upperBound
             return t("\(KoreanParticle.subject.attach(to: name)) 아직 도감에 없는 종을 최대 \(n)종까지 가져올 수 있단다! 절대 놓아주지 말거라.",

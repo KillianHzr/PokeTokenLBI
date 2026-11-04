@@ -39,6 +39,9 @@ struct HatchLuck: Sendable {
         /// Whether it brought something new (`HatchDraw.bringsNew`), and the odds of that outcome; nil for a Ditto.
         let bringsNew: Bool
         let newOdds: OddsRange?
+        /// Its form is still hidden and decides whether it brings something: not judged on it, then or ever if it is
+        /// sent off before a stage shows it.
+        let isFormMystery: Bool
         /// The odds of its line, of a Ditto for one, when its egg is known.
         let lineOdds: Double?
         let judged: [Criterion: Judgement]
@@ -254,6 +257,8 @@ struct HatchLuck: Sendable {
         let rarity = rarities[entry.baseID] ?? entry.rarity
         let bringsNew = roll.bringsNew()
         let new = !isDitto && bringsNew(entry.baseID, entry.form)
+        let isFormMystery = PokemonForm.isFormHidden(baseID: entry.baseID, reached: entry.chainOrder)
+            && Set(roll.lineFormDraw(baseID: entry.baseID, types: []).forms.map { bringsNew(entry.baseID, $0) }).count > 1
         func measure(_ candidate: HatchEgg) -> EggOdds {
             odds(of: candidate, base: entry.baseID, roll: roll, hatch: hatch, index: index, bringsNew: bringsNew)
         }
@@ -271,7 +276,7 @@ struct HatchLuck: Sendable {
             }
             judged[.shiny] = Judgement(odds: o.shiny, hit: entry.isShiny)
             judged[.ditto] = Judgement(odds: o.ditto, hit: isDitto)
-            if !isDitto { judged[.new] = Judgement(odds: o.new, hit: new) }
+            if !isDitto, !isFormMystery { judged[.new] = Judgement(odds: o.new, hit: new) }
         } else {
             judged[.shiny] = Judgement(odds: hatch.shinyChance, hit: entry.isShiny)
         }
@@ -283,7 +288,8 @@ struct HatchLuck: Sendable {
                                                uniquingKeysWith: { a, _ in a }),
                      rarityOdds: rarityOdds,
                      bringsNew: new,
-                     newOdds: isDitto ? nil : range { new ? $0.new : 1 - $0.new },
+                     newOdds: isDitto || isFormMystery ? nil : range { new ? $0.new : 1 - $0.new },
+                     isFormMystery: isFormMystery,
                      lineOdds: known == nil ? nil : all.first.map { isDitto ? $0.ditto : $0.line }, judged: judged)
     }
 
