@@ -84,12 +84,12 @@ b, strong { font-weight: 600; }
 .prize { padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); font-weight: 700; font-size: var(--small); }
 
 /* Guide body. */
-.guide { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 48px; padding-block: 40px 80px; }
+.guide { max-width: 900px; padding-block: 40px 80px; }
 .toc { position: sticky; top: max(20px, env(safe-area-inset-top, 0px)); align-self: start; display: grid; gap: 2px; }
 .toc p { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mist); margin-bottom: 8px; }
 .toc a { color: var(--bone); text-decoration: none; padding: 6px 10px; border-radius: 8px; font-size: 0.95rem; }
 .toc a:hover { background: var(--cave-2); color: var(--torch); }
-.content { display: grid; gap: 64px; min-width: 0; }
+.content { display: grid; gap: 52px; min-width: 0; }
 .content section { display: grid; gap: 18px; min-width: 0; }
 .content h2 {
   font: 700 clamp(1.6rem, 1.3rem + 1.2vw, 2.1rem)/1.1 var(--display);
@@ -191,214 +191,64 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
 </header>
 
 <div class="page guide">
-  <nav class="toc" aria-label="Sommaire">
-    <p>Sommaire</p>
-    <a href="#deroulement">Déroulement</a>
-    <a href="#paliers">Paliers et accès</a>
-    <a href="#etages">Les étages</a>
-    <a href="#boss">Boss et capture</a>
-    <a href="#butin">Butin</a>
-    <a href="#combats">Combats</a>
-    <a href="#defis">Défis et formes</a>
-  </nav>
-
   <main class="content">
     <section id="deroulement">
-      <h2>Déroulement d'une expédition</h2>
+      <h2>Comment ça marche</h2>
       <ol>
-        <li><b>Choisir un donjon</b> ouvert dans l'onglet Donjons (voir <a href="#paliers">Paliers et accès</a>). Les donjons des paliers 4 et 5 consomment des Clés Légendaires à l'entrée.</li>
-        <li><b>Composer l'équipe</b> : le nombre de Pokémon fixé par le donjon (3 à 6), uniquement des Pokémon diplômés qui respectent ses règles. Le bouton "Composer pour moi" la remplit. L'écran affiche les chances d'atteindre le boss avant le départ. Les baies, Rappels et Rappels Max du Sac partent avec l'équipe.</li>
-        <li><b>Dépenser des tokens</b> : ils vont à l'équipe. Un étage coûte le prix du donjon divisé par son nombre d'étages (Forêt de Jade : 75M sur 5 étages, soit 15M par étage).</li>
-        <li><b>Chaque étage joue un événement</b> : un combat, un coffre, un piège, une source ou une rencontre (voir <a href="#etages">Les étages</a>). Le journal est sur l'Accueil, et chaque combat peut être revu.</li>
-        <li><b>Au dernier étage, le boss.</b> Battu : le butin est gagné et tu as trois lancers pour le capturer (voir <a href="#boss">Boss et capture</a>). Si toute l'équipe est K.O. avant, c'est une défaite et le butin est perdu.</li>
-        <li><b>Au retour</b>, le butin va dans le Sac, ce qui n'a pas servi revient au Sac, et ton Pokémon en cours reprend sa croissance. Les tokens dépensés au-delà du dernier étage lui reviennent.</li>
+        <li>Tu choisis un donjon et tu formes une équipe de 3 à 6 Pokémon diplômés qui respectent ses règles.</li>
+        <li>Tes tokens font avancer l'équipe d'un étage à l'autre. Pendant ce temps, ton Pokémon en cours ne grandit pas.</li>
+        <li>Chaque étage a un événement : un combat (Pokémon sauvages, horde ou dresseur), un coffre, un piège ou une source. Les combats se jouent en temps réel, avec les attaques et les talents des jeux.</li>
+        <li>Au dernier étage, le boss. Tu ne sais pas lequel avant d'y arriver. Battu, il donne le butin et tu as trois lancers pour l'attraper : son œuf va dans ton Sac.</li>
+        <li>Si toute l'équipe est K.O., le butin est perdu. Une fois par expédition, un soin d'urgence remet l'équipe sur pied pour un quart du prix du donjon.</li>
       </ol>
-      <h3>En cours de route</h3>
-      <ul>
-        <li><b>Soin d'urgence</b> : quand l'équipe passe sous 25 % de ses PV, l'expédition s'arrête et propose un soin, une seule fois par expédition. Il coûte un quart du prix du donjon en tokens, remet toute l'équipe à 100 % et relève les K.O. Refusé, l'équipe continue telle quelle.</li>
-        <li><b>Rappels</b> : après un combat, chaque Pokémon K.O. est relevé automatiquement, par un Rappel Max (100 % des PV) en priorité, sinon un Rappel (50 %).</li>
-        <li><b>Baies</b> : pendant un combat, un Pokémon sous la moitié de ses PV mange une Baie Oran (+25 % de ses PV) ou, sous un quart, une Baie Sitrus (+50 %). Une baie par Pokémon et par combat.</li>
-        <li><b>Abandonner</b> : possible jusqu'au boss. Le butin est perdu, sauf si tu as une Corde Sortie : elle le ramène.</li>
-      </ul>
       <div class="shots">
-        <figure><img src="img/team-top.png" alt=""><figcaption>L'écran d'équipe : les règles, les places, les Pokémon diplômés qui peuvent venir.</figcaption></figure>
-        <figure><img src="img/expedition.png" alt=""><figcaption>L'Accueil pendant l'expédition : l'étage, les tokens avant le suivant, les PV de l'équipe, le journal.</figcaption></figure>
+        <figure><img src="img/team-top.png" alt=""><figcaption>L'écran d'équipe.</figcaption></figure>
+        <figure><img src="img/expedition.png" alt=""><figcaption>L'Accueil pendant l'expédition.</figcaption></figure>
       </div>
     </section>
 
     <section id="paliers">
       <h2>Paliers et accès</h2>
-      <p>Pour entrer dans un donjon, il faut remplir toutes ses conditions. "Finir" un donjon veut dire en battre le boss au moins une fois. Le niveau des adversaires et le prix montent avec le palier.</p>
+      <p>Finir un donjon, c'est en battre le boss une fois. C'est ce qui ouvre les suivants.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Donjon</th><th class="n">Équipe</th><th>Règles</th><th>Thème</th><th>Pour entrer</th></tr></thead>
+          <thead><tr><th>Donjon</th><th class="n">Équipe</th><th>Règle</th><th>Pour entrer</th></tr></thead>
           <tbody>
-            <tr class="tier"><td colspan="5"><span class="t">T1</span>5 étages · <span class="num">75M</span> de tokens <span class="m">(<span class="num">15M</span> par étage) · adversaires niveau <span class="num">55-65</span></span></td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-viridianForest.png" alt="">Forêt de Jade</div></td><td class="n">3</td><td class="rules-cell">Que des communs</td><td><div class="types"><span style="background:#91a119;color:#fff">Insecte</span><span style="background:#3fa129;color:#fff">Plante</span></div></td><td class="access">Avoir 6 Pokémon diplômés</td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-diglettsCave.png" alt="">Grotte Taupiqueur</div></td><td class="n">3</td><td class="rules-cell">Aucun légendaire</td><td><div class="types"><span style="background:#915121;color:#fff">Sol</span><span style="background:#afa981;color:#1b1b1b">Roche</span></div></td><td class="access">Avoir 6 Pokémon diplômés</td></tr>
-            <tr class="tier"><td colspan="5"><span class="t">T2</span>8 étages · <span class="num">187.5M</span> de tokens <span class="m">(<span class="num">23.4M</span> par étage) · adversaires niveau <span class="num">70-80</span></span></td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-mtMoon.png" alt="">Mont Sélénite</div></td><td class="n">4</td><td class="rules-cell">Une seule région</td><td><div class="types"><span style="background:#ef70ef;color:#1b1b1b">Fée</span><span style="background:#afa981;color:#1b1b1b">Roche</span></div></td><td class="access">Finir Forêt de Jade</td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-mtEmber.png" alt="">Mont Braise</div></td><td class="n">4</td><td class="rules-cell">Type Eau interdit</td><td><div class="types"><span style="background:#e62829;color:#fff">Feu</span></div></td><td class="access">Finir Grotte Taupiqueur</td></tr>
-            <tr class="tier"><td colspan="5"><span class="t">T3</span>10 étages · <span class="num">300M</span> de tokens <span class="m">(<span class="num">30M</span> par étage) · adversaires niveau <span class="num">85-95</span></span></td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-victoryRoad.png" alt="">Route Victoire</div></td><td class="n">6</td><td class="rules-cell">Que des starters</td><td><div class="types"><span style="background:#3fa129;color:#fff">Plante</span><span style="background:#e62829;color:#fff">Feu</span><span style="background:#2980ef;color:#fff">Eau</span></div></td><td class="access">Finir Mont Sélénite et finir Mont Braise</td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-pokemonTower.png" alt="">Tour Pokémon</div></td><td class="n">5</td><td class="rules-cell">Au plus Peu commun</td><td><div class="types"><span style="background:#704170;color:#fff">Spectre</span></div></td><td class="access">Finir Mont Braise</td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-dragonsDen.png" alt="">Antre du Dragon</div></td><td class="n">6</td><td class="rules-cell">1 légendaire au plus</td><td><div class="types"><span style="background:#5060e1;color:#fff">Dragon</span></div></td><td class="access">Finir Tour Pokémon</td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-powerPlant.png" alt="">Centrale</div></td><td class="n">5</td><td class="rules-cell">Un type en commun</td><td><div class="types"><span style="background:#fac000;color:#1b1b1b">Électrik</span><span style="background:#60a1b8;color:#1b1b1b">Acier</span></div></td><td class="access">Finir Mont Sélénite</td></tr>
-            <tr class="tier"><td colspan="5"><span class="t">T4</span>12 étages · <span class="num">600M</span> de tokens <span class="m">(<span class="num">50M</span> par étage) · adversaires niveau <span class="num">95-100</span></span></td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-seafoamIslands.png" alt="">Îles Écume</div></td><td class="n">6</td><td class="rules-cell">Aucun légendaire, Au plus Rare</td><td><div class="types"><span style="background:#3dcef3;color:#1b1b1b">Glace</span><span style="background:#2980ef;color:#fff">Eau</span></div></td><td class="access">Finir Antre du Dragon<br><span class="muted">Entrée : 1 Clé Légendaire</span></td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-ceruleanCave.png" alt="">Caverne Azurée</div></td><td class="n">6</td><td class="rules-cell">Aucun légendaire, Type Psy interdit</td><td><div class="types"><span style="background:#ef4179;color:#fff">Psy</span></div></td><td class="access">Finir Îles Écume et avoir 100 lignées diplômées<br><span class="muted">Entrée : 1 Clé Légendaire</span></td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-mtCoronet.png" alt="">Mont Couronné</div></td><td class="n">6</td><td class="rules-cell">Que des légendaires</td><td><div class="types"><span style="background:#60a1b8;color:#1b1b1b">Acier</span><span style="background:#2980ef;color:#fff">Eau</span><span style="background:#704170;color:#fff">Spectre</span><span style="background:#5060e1;color:#fff">Dragon</span></div></td><td class="access">Finir Caverne Azurée et avoir 10 légendaires diplômés<br><span class="muted">Entrée : 1 Clé Légendaire</span></td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-ruinsOfAlph.png" alt="">Ruines d&#x27;Alpha</div></td><td class="n">4</td><td class="rules-cell">Tirées au hasard</td><td><div class="types"><span style="background:#ef4179;color:#fff">Psy</span></div></td><td class="access">Une Carte au trésor, consommée à l&#x27;entrée. Le donjon n&#x27;apparaît qu&#x27;une fois la carte trouvée.</td></tr>
-            <tr class="tier"><td colspan="5"><span class="t">T5</span>15 étages · <span class="num">900M</span> de tokens <span class="m">(<span class="num">60M</span> par étage) · adversaires niveau <span class="num">90-100</span></span></td></tr>
-            <tr><td><div class="dname"><img class="pixel" src="img/d-hallOfOrigin.png" alt="">Salle Originelle</div></td><td class="n">6</td><td class="rules-cell">Que des chromatiques</td><td><div class="types"><span style="background:#9fa19f;color:#1b1b1b">Normal</span></div></td><td class="access">Battre les trois boss du Mont Couronné<br><span class="muted">Entrée : 3 Clés Légendaires</span></td></tr>
+            <tr class="tier"><td colspan="4"><span class="t">T1</span>5 étages · <span class="num">75M</span> de tokens</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-viridianForest.png" alt="">Forêt de Jade</div></td><td class="n">3</td><td class="rules-cell">Que des communs</td><td class="access">Avoir 6 Pokémon diplômés</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-diglettsCave.png" alt="">Grotte Taupiqueur</div></td><td class="n">3</td><td class="rules-cell">Aucun légendaire</td><td class="access">Avoir 6 Pokémon diplômés</td></tr>
+            <tr class="tier"><td colspan="4"><span class="t">T2</span>8 étages · <span class="num">187.5M</span> de tokens</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-mtMoon.png" alt="">Mont Sélénite</div></td><td class="n">4</td><td class="rules-cell">Une seule région</td><td class="access">Finir Forêt de Jade</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-mtEmber.png" alt="">Mont Braise</div></td><td class="n">4</td><td class="rules-cell">Type Eau interdit</td><td class="access">Finir Grotte Taupiqueur</td></tr>
+            <tr class="tier"><td colspan="4"><span class="t">T3</span>10 étages · <span class="num">300M</span> de tokens</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-victoryRoad.png" alt="">Route Victoire</div></td><td class="n">6</td><td class="rules-cell">Que des starters</td><td class="access">Finir Mont Sélénite et finir Mont Braise</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-pokemonTower.png" alt="">Tour Pokémon</div></td><td class="n">5</td><td class="rules-cell">Au plus Peu commun</td><td class="access">Finir Mont Braise</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-dragonsDen.png" alt="">Antre du Dragon</div></td><td class="n">6</td><td class="rules-cell">1 légendaire au plus</td><td class="access">Finir Tour Pokémon</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-powerPlant.png" alt="">Centrale</div></td><td class="n">5</td><td class="rules-cell">Un type en commun</td><td class="access">Finir Mont Sélénite</td></tr>
+            <tr class="tier"><td colspan="4"><span class="t">T4</span>12 étages · <span class="num">600M</span> de tokens</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-seafoamIslands.png" alt="">Îles Écume</div></td><td class="n">6</td><td class="rules-cell">Aucun légendaire, Au plus Rare</td><td class="access">Finir Antre du Dragon<br><span class="muted">Entrée : 1 Clé Légendaire</span></td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-ceruleanCave.png" alt="">Caverne Azurée</div></td><td class="n">6</td><td class="rules-cell">Aucun légendaire, Type Psy interdit</td><td class="access">Finir Îles Écume et avoir 100 lignées diplômées<br><span class="muted">Entrée : 1 Clé Légendaire</span></td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-mtCoronet.png" alt="">Mont Couronné</div></td><td class="n">6</td><td class="rules-cell">Que des légendaires</td><td class="access">Finir Caverne Azurée et avoir 10 légendaires diplômés<br><span class="muted">Entrée : 1 Clé Légendaire</span></td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-ruinsOfAlph.png" alt="">Ruines d&#x27;Alpha</div></td><td class="n">4</td><td class="rules-cell">Tirées au hasard</td><td class="access">Une Carte au trésor (donjon secret)</td></tr>
+            <tr class="tier"><td colspan="4"><span class="t">T5</span>15 étages · <span class="num">900M</span> de tokens</td></tr>
+            <tr><td><div class="dname"><img class="pixel" src="img/d-hallOfOrigin.png" alt="">Salle Originelle</div></td><td class="n">6</td><td class="rules-cell">Que des chromatiques</td><td class="access">Battre les trois boss du Mont Couronné<br><span class="muted">Entrée : 3 Clés Légendaires</span></td></tr>
           </tbody>
         </table>
-      </div>
-    </section>
-
-    <section id="etages">
-      <h2>Les étages</h2>
-      <p>Chaque étage tire un événement. Les chances ci-dessous sont celles du chemin sûr.</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Événement</th><th>Ce qui se passe</th><th class="n">T1</th><th class="n">T2 à T5</th></tr></thead>
-          <tbody>
-            <tr><td><b>Pokémon sauvage</b></td><td>Combat contre 1 à 3 Pokémon du thème du donjon (2 ou 3 en palier 4).</td><td class="n">55 %</td><td class="n">40 %</td></tr>
-            <tr><td><b>Dresseur</b></td><td>3 Pokémon au niveau maximum du palier, un à la fois. Battu, il donne un coffre du palier au-dessus.</td><td class="n">0</td><td class="n">14 %</td></tr>
-            <tr><td><b>Horde</b></td><td>3 à 5 Pokémon en même temps, 8 niveaux plus bas.</td><td class="n">0</td><td class="n">12 %</td></tr>
-            <tr><td><b>Coffre</b></td><td>Des Super Bonbons et souvent un objet du palier (voir <a href="#butin">Butin</a>).</td><td class="n">16 %</td><td class="n">12 %</td></tr>
-            <tr><td><b>Piège</b></td><td>3 fois sur 10, un objet du butin est perdu. Sinon, chaque Pokémon perd 10 à 25 % de ses PV.</td><td class="n">11 %</td><td class="n">8 %</td></tr>
-            <tr><td><b>Source</b></td><td>Chaque Pokémon récupère 50 % de ses PV.</td><td class="n">10 %</td><td class="n">7 %</td></tr>
-            <tr><td><b>Pokémon égaré</b></td><td>L'équipe le raccompagne (10 à 20 % de PV en moins) et reçoit un objet, ou un Œuf 3 fois sur 10.</td><td class="n">8 %</td><td class="n">6 %</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <ul>
-        <li><b>Embranchement</b> : tous les 3 étages, un dé est lancé. Sur 4, 5 ou 6, l'équipe prend le chemin risqué jusqu'au suivant : 40 % de combats en plus et des pièges plus fréquents.</li>
-        <li><b>Rencontre chromatique</b> : à partir du palier 3, 1 étage sur 100. Il est capturé avec la chance d'une Poké Ball sur un boss de sa rareté, et son œuf chromatique rejoint le butin.</li>
-        <li>Niveaux des adversaires : <span class="num">55-65</span> en T1, <span class="num">70-80</span> en T2, <span class="num">85-95</span> en T3, <span class="num">95-100</span> en T4, <span class="num">90-100</span> en T5.</li>
-      </ul>
-    </section>
-
-    <section id="boss">
-      <h2>Boss et capture</h2>
-      <ul>
-        <li>Le boss est tiré au hasard à l'entrée parmi ceux du donjon. Tu ne sais pas lequel avant d'arriver au dernier étage. Sur la carte du donjon, un boss déjà atteint apparaît en silhouette, un boss déjà battu en entier.</li>
-        <li>Un boss est chromatique 1 fois sur 64 (1 sur 48 avec le Charme Chroma).</li>
-        <li>Battu, il laisse trois lancers pour le capturer. Capturé, il donne son œuf, qui éclot en Pokémon de sa lignée, chromatique si le boss l'était.</li>
-      </ul>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Rareté de la lignée du boss</th><th class="n">Poké Ball</th><th class="n">Super Ball</th><th class="n">Hyper Ball</th><th class="n">Master Ball</th></tr></thead>
-          <tbody>
-            <tr><td>Commune</td><td class="n">60 %</td><td class="n">90 %</td><td class="n">100 %</td><td class="n">100 %</td></tr>
-            <tr><td>Peu commune</td><td class="n">45 %</td><td class="n">68 %</td><td class="n">90 %</td><td class="n">100 %</td></tr>
-            <tr><td>Rare</td><td class="n">30 %</td><td class="n">45 %</td><td class="n">60 %</td><td class="n">100 %</td></tr>
-            <tr><td>Légendaire</td><td class="n">12 %</td><td class="n">18 %</td><td class="n">24 %</td><td class="n">100 %</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="muted">La Poké Ball est gratuite et illimitée. Les autres se prennent dans le Sac, une par lancer.</p>
-    </section>
-
-    <section id="butin">
-      <h2>Butin</h2>
-      <p>Le butin se gagne étage après étage, puis s'ajoute la récompense de victoire. Il n'est gardé que si le boss tombe ou si une Corde Sortie ramène l'équipe.</p>
-      <h3>Super Bonbons par expédition</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Palier</th><th class="n">T1</th><th class="n">T2</th><th class="n">T3</th><th class="n">T4</th><th class="n">T5</th></tr></thead>
-          <tbody><tr><td>Super Bonbons (dans les coffres)</td><td class="n">0-1</td><td class="n">0-2</td><td class="n">1-3</td><td class="n">2-5</td><td class="n">4-8</td></tr></tbody>
-        </table>
-      </div>
-      <h3>Objets des coffres</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Palier</th><th>Objets possibles</th></tr></thead>
-          <tbody>
-            <tr><td>T1</td><td>Baie Oran, Super Ball</td></tr>
-            <tr><td>T2</td><td>Baie Sitrus, Baie Oran, Rappel, Hyper Ball</td></tr>
-            <tr><td>T3</td><td>Baie Sitrus, Rappel, Corde Sortie, Hyper Ball, Capsule d'Argent</td></tr>
-            <tr><td>T4</td><td>Baie Sitrus, Rappel, Rappel Max, Hyper Ball, Capsule d'Argent, Capsule d'Or</td></tr>
-            <tr><td>T5</td><td>Rappel Max, Hyper Ball, Baie Sitrus, Capsule d'Argent, Capsule d'Or</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <h3>Récompense de victoire</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Palier</th><th>En plus du butin, si le boss est battu</th><th class="n">Capsule Technique</th></tr></thead>
-          <tbody>
-            <tr><td>T1</td><td>Œuf 10 %</td><td class="n">10 %</td></tr>
-            <tr><td>T2</td><td>Œuf peu commun 10 %</td><td class="n">20 %</td></tr>
-            <tr><td>T3</td><td>Œuf rare 10 %, Clé Légendaire (sûre à la première victoire en T3, puis 10 %), Carte au trésor 5 %, Coffre d'explorateur 0,5 %</td><td class="n">35 %</td></tr>
-            <tr><td>T4</td><td>Œuf rare 25 %, Œuf légendaire 1 %, Master Ball 2 %, Coffre d'explorateur 1 %</td><td class="n">20 %</td></tr>
-            <tr><td>T5</td><td>Œuf légendaire 5 %, Master Ball 10 %</td><td class="n">15 %</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <ul>
-        <li>La première victoire dans un donjon double le butin et ajoute un objet du palier.</li>
-        <li>Les Médailles Donjons, dans les Artefacts, donnent une récompense par donjon fini et une par palier complet.</li>
-      </ul>
-      <h3>Les objets</h3>
-      <div class="table-wrap">
-        <table>
-          <tbody>
-            <tr><td><b>Super Bonbon</b></td><td>Vaut 100M de croissance.</td></tr>
-            <tr><td><b>Baie Oran, Baie Sitrus</b></td><td>Mangées en combat : +25 % et +50 % des PV.</td></tr>
-            <tr><td><b>Rappel, Rappel Max</b></td><td>Relèvent un Pokémon K.O. après un combat, à 50 % ou 100 % de ses PV.</td></tr>
-            <tr><td><b>Corde Sortie</b></td><td>Garde le butin quand tu abandonnes.</td></tr>
-            <tr><td><b>Super Ball, Hyper Ball, Master Ball</b></td><td>Chance de capture ×1,5, ×2, ou capture sûre. Super et Hyper Ball sont aussi en Boutique.</td></tr>
-            <tr><td><b>Capsule d'Argent</b></td><td>Monte un IV d'un Pokémon diplômé à 31.</td></tr>
-            <tr><td><b>Capsule d'Or</b></td><td>Monte ses six IV à 31.</td></tr>
-            <tr><td><b>Capsule Technique</b></td><td>Débloque une attaque rare pour les boucles d'attaques.</td></tr>
-            <tr><td><b>Clé Légendaire</b></td><td>Entrée des paliers 4 (1 clé) et 5 (3 clés).</td></tr>
-            <tr><td><b>Carte au trésor</b></td><td>Ouvre les Ruines d'Alpha, consommée à l'entrée.</td></tr>
-            <tr><td><b>Coffre d'explorateur</b></td><td>S'ouvre dans le Sac : un trésor tiré au hasard.</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="eggs">
-        <img class="pixel" src="img/legend-eggs.gif" alt="Huit œufs animés">
-        <p>Chaque boss légendaire a son propre dessin d'œuf. Les autres boss donnent l'œuf du type de leur lignée.</p>
-      </div>
-    </section>
-
-    <section id="combats">
-      <h2>Combats</h2>
-      <ul>
-        <li>En temps réel : un tour dure 4 secondes. Chaque Pokémon lance en boucle les quatre attaques de sa boucle, réglée sur sa fiche dans le Pokédex.</li>
-        <li>Il y a autant de Pokémon actifs de ton côté que d'adversaires en face. Les autres attendent et entrent après un K.O.</li>
-        <li>Dégâts et effets des jeux : types, bonus de même type, coups critiques, précision, statuts, météo, terrains, environ 80 talents et les baies.</li>
-        <li>Les 919 attaques fonctionnent comme dans les jeux, sauf les Capacités Z et les attaques Dynamax. Les plus rares sont verrouillées : une Capsule Technique en débloque une.</li>
-        <li>Chaque Pokémon a un genre (♂ ♀), et les attaques comme Attraction en tiennent compte.</li>
-      </ul>
-      <div class="shots">
-        <figure><img src="img/replay.png" alt=""><figcaption>Un combat revu : PV, attaque en cours, dégâts au fil du temps.</figcaption></figure>
       </div>
     </section>
 
     <section id="defis">
-      <h2>Défis et formes de combat</h2>
-      <p>Deux donjons à part font gagner les 132 formes de combat : Méga-Évolutions, Primo-Résurgences et formes Gigamax. Leur boss est connu dès le départ et plus fort qu'un boss normal. Le battre donne sa forme pour de bon : un Pokémon de cette espèce peut la prendre dans les donjons.</p>
+      <h2>Défis : les formes de combat</h2>
+      <p>Deux donjons à part font gagner les Méga-Évolutions, Primo-Résurgences et formes Gigamax (132 en tout). Leur boss est connu d'avance. Le battre donne sa forme pour de bon.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th></th><th>Donjon du jour</th><th>Donjon de la semaine</th></tr></thead>
+          <thead><tr><th></th><th>Pour entrer</th><th>Étages et prix</th><th>Essais</th><th>Boss</th></tr></thead>
           <tbody>
-            <tr><td><b>Pour entrer</b></td><td>Avoir fini un donjon du palier 3</td><td>Avoir fini un donjon du palier 4</td></tr>
-            <tr><td><b>Étages</b></td><td class="num">8</td><td class="num">12</td></tr>
-            <tr><td><b>Prix</b></td><td class="num">200M de tokens</td><td class="num">600M de tokens</td></tr>
-            <tr><td><b>Essais</b></td><td>Un par jour</td><td>Un par semaine (du lundi au dimanche)</td></tr>
-            <tr><td><b>Boss</b></td><td>La Méga-Évolution d'une espèce que tu as diplômée et dont tu n'as pas la forme</td><td>Une forme Gigamax, une Primo-Résurgence ou une Méga légendaire</td></tr>
-            <tr><td><b>Récompense</b></td><td colspan="2">La forme du boss et le butin des étages. Pas de capture, pas de récompense de victoire.</td></tr>
+            <tr><td><b>Donjon du jour</b></td><td>Avoir fini un donjon T3</td><td><span class="num">8</span> étages, <span class="num">200M</span></td><td>Un par jour</td><td>Une Méga d'une espèce que tu as diplômée</td></tr>
+            <tr><td><b>Donjon de la semaine</b></td><td>Avoir fini un donjon T4</td><td><span class="num">12</span> étages, <span class="num">600M</span></td><td>Un par semaine</td><td>Un Gigamax, une Primo ou une Méga légendaire</td></tr>
           </tbody>
         </table>
       </div>
-      <ul>
-        <li>Une expédition partie avant minuit (ou avant lundi pour la semaine) garde son boss jusqu'au bout, et l'essai de la nouvelle période reste disponible.</li>
-        <li>La Médaille des formes de combat, dans les Artefacts, a une étape à 5, 15, 30, 60, 100 formes, puis à toutes.</li>
-      </ul>
       <div class="forms">
         <figure><img src="img/s-6-mega-x.gif" alt=""><figcaption>Méga-Dracaufeu X</figcaption></figure>
         <figure><img src="img/s-143-gmax.gif" alt=""><figcaption>Ronflex Gigamax</figcaption></figure>
@@ -406,6 +256,18 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
         <figure><img src="img/s-6-gmax.gif" alt=""><figcaption>Dracaufeu Gigamax</figcaption></figure>
         <figure><img src="img/s-94-mega.gif" alt=""><figcaption>Méga-Ectoplasma</figcaption></figure>
       </div>
+    </section>
+
+    <section id="butin">
+      <h2>Le butin</h2>
+      <ul>
+        <li>Super Bonbons, baies, Rappels, Super et Hyper Balls.</li>
+        <li>Capsules d'Argent et d'Or : un IV ou les six d'un Pokémon diplômé à 31.</li>
+        <li>Capsules Techniques : débloquent des attaques rares.</li>
+        <li>Clés Légendaires (à partir du palier 3) : il en faut pour entrer en T4 et T5.</li>
+        <li>L'œuf du boss capturé. Les boss légendaires ont chacun leur œuf :</li>
+      </ul>
+      <div class="eggs"><img class="pixel" src="img/legend-eggs.gif" alt="Huit œufs animés"></div>
     </section>
   </main>
 </div>
