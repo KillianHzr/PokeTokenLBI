@@ -18,6 +18,8 @@ struct LocalClaudeProvider: UsageProvider {
             modifiedSince: LocalUsageReader.enrichmentScanStart(now: now))
         return .local(entries: entries, now: now)
     }
+
+    func watchedRoots() async -> [URL] { await LocalUsageCache.shared.claudeScanRoots() }
 }
 
 /// 로컬 로그 직접 파싱 기반 Gemini CLI provider.
@@ -39,6 +41,8 @@ struct LocalGeminiProvider: UsageProvider {
             modifiedSince: LocalUsageReader.enrichmentScanStart(now: now))
         return .local(entries: entries, now: now)
     }
+
+    func watchedRoots() async -> [URL] { await LocalUsageCache.shared.geminiScanRoots() }
 }
 
 /// 로컬 대화 DB 직접 파싱 기반 Antigravity CLI provider.
@@ -80,6 +84,8 @@ struct LocalGrokProvider: UsageProvider {
             modifiedSince: LocalUsageReader.enrichmentScanStart(now: now))
         return .local(entries: entries, now: now)
     }
+
+    func watchedRoots() async -> [URL] { await LocalUsageCache.shared.grokScanRoots() }
 }
 
 /// 로컬 로그 직접 파싱 기반 Codex provider. (주간 = 일별 합산)
@@ -100,6 +106,8 @@ struct LocalCodexProvider: UsageProvider {
             modifiedSince: LocalUsageReader.enrichmentScanStart(now: now))
         return .local(entries: entries, now: now)
     }
+
+    func watchedRoots() async -> [URL] { await cache.codexScanRoots() }
 }
 
 /// Local pi agent session usage. Reasoning is folded into output.
@@ -124,6 +132,8 @@ struct LocalPiProvider: UsageProvider {
             modifiedSince: LocalUsageReader.enrichmentScanStart(now: now))
         return .local(entries: entries, now: now)
     }
+
+    func watchedRoots() async -> [URL] { await cache.piScanRoots() }
 }
 
 /// Local-log parsing based omp (oh-my-pi) provider.
@@ -151,6 +161,8 @@ struct LocalOmpProvider: UsageProvider {
             modifiedSince: LocalUsageReader.enrichmentScanStart(now: now))
         return .local(entries: entries, now: now)
     }
+
+    func watchedRoots() async -> [URL] { await cache.ompScanRoots() }
 }
 
 /// Local-log parsing based Kimi Code provider (CLI `~/.kimi-code` and the Kimi desktop runtime).
@@ -178,4 +190,6 @@ struct LocalKimiCodeProvider: UsageProvider {
             modifiedSince: LocalUsageReader.enrichmentScanStart(now: now))
         return .local(entries: entries, now: now)
     }
+
+    func watchedRoots() async -> [URL] { await cache.kimiScanRoots() }
 }

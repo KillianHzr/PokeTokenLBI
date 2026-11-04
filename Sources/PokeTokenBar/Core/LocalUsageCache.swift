@@ -210,13 +210,51 @@ actor LocalUsageCache {
         return dir.appendingPathComponent("usage-cache.json")
     }()
 
+    // MARK: Roots
+
+    // The folders each reader scans, one source for the reading and for the live watch (`UsageProvider.watchedRoots`).
+
+    func claudeScanRoots() -> [URL] { claudeRoots ?? claudeRoot.map { [$0] } ?? LocalUsageReader.claudeProjectRoots }
+
+    func codexScanRoots() -> [URL] {
+        codexRoots ?? codexRoot.map { [$0] } ?? LocalUsageReader.codexSessionRoots(
+            customRootsValue: CustomScanRoots.storedValue(for: "codex"))
+    }
+
+    func geminiScanRoots() -> [URL] {
+        geminiRoots ?? geminiRoot.map { [$0] } ?? LocalUsageReader.geminiScanRoots(
+            customRootsValue: CustomScanRoots.storedValue(for: "gemini"))
+    }
+
+    func grokScanRoots() -> [URL] {
+        grokRoots ?? grokRoot.map { [$0] } ?? LocalUsageReader.grokSessionRoots(
+            customRootsValue: CustomScanRoots.storedValue(for: "grok"))
+    }
+
+    func piScanRoots() -> [URL] {
+        piRoots ?? CustomScanRoots.union(defaults: LocalUsageReader.piSessionRoots,
+                                         extraRaw: CustomScanRoots.storedValue(for: "pi"))
+    }
+
+    func ompScanRoots() -> [URL] {
+        ompRoots ?? CustomScanRoots.union(defaults: LocalUsageReader.ompSessionRoots,
+                                          extraRaw: CustomScanRoots.storedValue(for: "omp"))
+    }
+
+    func kimiScanRoots() -> [URL] {
+        kimiRoots ?? CustomScanRoots.union(defaults: LocalUsageReader.kimiSessionRoots,
+                                           extraRaw: CustomScanRoots.storedValue(for: "kimi_code"))
+    }
+
+    // MARK: Entries
+
     func claudeEntries(modifiedSince: Date) -> [LocalUsageReader.Entry] {
         ensureLoaded()
         let fmt = LocalUsageReader.localDayFormatter()
         // 루트가 여럿이다(CLI 기본 위치 + CLAUDE_CONFIG_DIR + Claude Desktop 임베디드 세션).
         // blob 캐시 키가 절대경로라 루트가 늘어도 캐시는 그대로 재사용되고, 같은 턴이 여러 루트에
         // 복사돼 있어도 전역 dedup 이 한 번만 센다.
-        let roots = claudeRoots ?? claudeRoot.map { [$0] } ?? LocalUsageReader.claudeProjectRoots
+        let roots = claudeScanRoots()
         var all: [LocalUsageReader.Entry] = []
         for root in roots {
             // Blobs cached before `Entry.sessionID` existed get it from their path, without a re-parse.
@@ -242,8 +280,7 @@ actor LocalUsageCache {
     func codexEntries(modifiedSince: Date) -> [LocalUsageReader.Entry] {
         ensureLoaded()
         let fmt = LocalUsageReader.localDayFormatter()
-        let roots = codexRoots ?? codexRoot.map { [$0] } ?? LocalUsageReader.codexSessionRoots(
-            customRootsValue: CustomScanRoots.storedValue(for: "codex"))
+        let roots = codexScanRoots()
         let (rollouts, includedPaths) = collectCodexRollouts(
             roots: roots,
             since: modifiedSince,
@@ -263,8 +300,7 @@ actor LocalUsageCache {
     func geminiEntries(modifiedSince: Date) -> [LocalUsageReader.Entry] {
         ensureLoaded()
         let fmt = LocalUsageReader.localDayFormatter()
-        let roots = geminiRoots ?? geminiRoot.map { [$0] } ?? LocalUsageReader.geminiScanRoots(
-            customRootsValue: CustomScanRoots.storedValue(for: "gemini"))
+        let roots = geminiScanRoots()
         var all: [LocalUsageReader.Entry] = []
         for root in roots {
             all += collect(root: root, since: modifiedSince,
@@ -283,8 +319,7 @@ actor LocalUsageCache {
         // 파싱 캐시 **앞**에 있어야 한다 — blob 은 updates.jsonl 의 mtime·size 로만 무효화되는데
         // 서브에이전트 판정 근거는 옆 파일(summary.json)이라, 파싱 안에서 걸러내면 늦게 쓰인
         // session_kind 가 blob 에 굳어 이중집계가 영구화된다.
-        let roots = grokRoots ?? grokRoot.map { [$0] } ?? LocalUsageReader.grokSessionRoots(
-            customRootsValue: CustomScanRoots.storedValue(for: "grok"))
+        let roots = grokScanRoots()
         var all: [LocalUsageReader.Entry] = []
         for root in roots {
             all += collect(root: root, since: modifiedSince,
@@ -300,9 +335,7 @@ actor LocalUsageCache {
     func piEntries(modifiedSince: Date) -> [LocalUsageReader.Entry] {
         ensureLoaded()
         let fmt = LocalUsageReader.localDayFormatter()
-        let roots = piRoots ?? CustomScanRoots.union(
-            defaults: LocalUsageReader.piSessionRoots,
-            extraRaw: CustomScanRoots.storedValue(for: "pi"))
+        let roots = piScanRoots()
         var all: [LocalUsageReader.Entry] = []
         for root in roots {
             all += collect(root: root, since: modifiedSince, cache: &piCache) {
@@ -316,9 +349,7 @@ actor LocalUsageCache {
     func ompEntries(modifiedSince: Date) -> [LocalUsageReader.Entry] {
         ensureLoaded()
         let fmt = LocalUsageReader.localDayFormatter()
-        let roots = ompRoots ?? CustomScanRoots.union(
-            defaults: LocalUsageReader.ompSessionRoots,
-            extraRaw: CustomScanRoots.storedValue(for: "omp"))
+        let roots = ompScanRoots()
         var all: [LocalUsageReader.Entry] = []
         for root in roots {
             all += collect(root: root, since: modifiedSince, cache: &ompCache,
@@ -333,9 +364,7 @@ actor LocalUsageCache {
     func kimiEntries(modifiedSince: Date) -> [LocalUsageReader.Entry] {
         ensureLoaded()
         let fmt = LocalUsageReader.localDayFormatter()
-        let roots = kimiRoots ?? CustomScanRoots.union(
-            defaults: LocalUsageReader.kimiSessionRoots,
-            extraRaw: CustomScanRoots.storedValue(for: "kimi_code"))
+        let roots = kimiScanRoots()
         var all: [LocalUsageReader.Entry] = []
         for root in roots {
             all += collect(root: root, since: modifiedSince, cache: &kimiCache,
