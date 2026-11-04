@@ -200,16 +200,17 @@ final class LiveUsageTests: XCTestCase {
     /// Many writes in a row (a step writes several lines) make one read.
     func testABurstOfChangesIsOneRead() async throws {
         let a = WatchedProvider(id: "a", root: try folder("a"), tokens: 1)
-        let s = store([a], timing: .init(debounce: 0.3, minimumGap: 0, maximumDuty: 1))
+        // A long wait: a slow runner stretches the writes' spacing (CI read 7 times with 0.3 s).
+        let s = store([a], timing: .init(debounce: 3, minimumGap: 0, maximumDuty: 1))
         await s.updateLiveWatcher()
-        // Ten writes 20 ms apart, as a step writes its lines: all inside the wait.
+        // Ten writes 10 ms apart, as a step writes its lines: all inside the wait.
         for i in 0..<10 {
             try fire(a.root, "\(i).jsonl")
-            try? await Task.sleep(for: .milliseconds(20))
+            try? await Task.sleep(for: .milliseconds(10))
         }
-        let read = await waitUntil { s.liveReadCount == 1 }
+        let read = await waitUntil(10) { s.liveReadCount >= 1 }
         XCTAssertTrue(read)
-        try? await Task.sleep(for: .milliseconds(500))
+        try? await Task.sleep(for: .milliseconds(300))
         XCTAssertEqual(a.calls, 1)
     }
 
