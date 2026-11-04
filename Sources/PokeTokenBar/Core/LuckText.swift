@@ -19,8 +19,12 @@ extension L {
 
     func luckCriterion(_ criterion: HatchLuck.Criterion) -> String {
         switch criterion {
-        case .uncommon: t("고급", "Uncommon", "アンコモン", "Poco comunes", "Peu communs", "Incomuns", "Ungewöhnliche", "Необычные")
-        case .rare: t("희귀", "Rare", "レア", "Raros", "Rares", "Raros", "Seltene", "Редкие")
+        case .uncommon:
+            t("고급 이상", "Uncommon or better", "アンコモン以上", "Poco comunes o más", "Peu communs ou mieux", "Incomuns ou melhor",
+              "Ungewöhnliche oder besser", "Необычные и выше")
+        case .rare:
+            t("희귀 이상", "Rare or better", "レア以上", "Raros o más", "Rares ou mieux", "Raros ou melhor", "Seltene oder besser",
+              "Редкие и выше")
         case .legendary: t("전설", "Legendary", "伝説", "Legendarios", "Légendaires", "Lendários", "Legendäre", "Легендарные")
         case .shiny: bonusThemeTitle(.shiny)
         case .new: t("새로움", "Something new", "新しいもの", "Algo nuevo", "Du nouveau", "Algo novo", "Etwas Neues", "Новое")
@@ -91,14 +95,14 @@ extension L {
           "Kriterium für Kriterium", "По критериям")
     }
     var luckByCriterionHint: String {
-        t("매 부화마다 나와 똑같은 확률을 가진 트레이너 중 나보다 결과가 나빴을 비율이에요. 50%가 평균이에요.",
-          "The share of trainers who, with exactly your odds at every hatch, would have done worse. 50% is average.",
-          "毎回の孵化であなたとまったく同じ確率だったトレーナーのうち、あなたより結果が悪かった割合です。50%が平均です。",
-          "La parte de entrenadores que, con exactamente tus probabilidades en cada eclosión, lo habría hecho peor. 50% es la media.",
-          "La part des dresseurs, avec exactement tes chances à chaque éclosion, qui aurait fait moins bien. 50\u{00A0}%, c'est la moyenne.",
-          "A parte dos treinadores que, com exatamente as suas chances em cada eclosão, teria se saído pior. 50% é a média.",
-          "Der Anteil der Trainer, die mit genau deinen Chancen bei jedem Schlüpfen schlechter abgeschnitten hätten. 50% ist der Schnitt.",
-          "Доля тренеров, которые с точно такими же шансами при каждом вылуплении справились бы хуже. 50% это середина.")
+        t("매 부화마다 나와 똑같은 확률을 가진 트레이너 중 나보다 결과가 나빴을 비율이에요. 50%가 평균이에요. 확정된 결과는 세지 않아요.",
+          "The share of trainers who, with exactly your odds at every hatch, would have done worse. 50% is average. A guaranteed draw doesn't count.",
+          "毎回の孵化であなたとまったく同じ確率だったトレーナーのうち、あなたより結果が悪かった割合です。50%が平均です。確定した結果は数えません。",
+          "La parte de entrenadores que, con exactamente tus probabilidades en cada eclosión, lo habría hecho peor. 50% es la media. Un resultado garantizado no cuenta.",
+          "La part des dresseurs, avec exactement tes chances à chaque éclosion, qui aurait fait moins bien. 50\u{00A0}%, c'est la moyenne. Un tirage garanti ne compte pas.",
+          "A parte dos treinadores que, com exatamente as suas chances em cada eclosão, teria se saído pior. 50% é a média. Um resultado garantido não conta.",
+          "Der Anteil der Trainer, die mit genau deinen Chancen bei jedem Schlüpfen schlechter abgeschnitten hätten. 50% ist der Schnitt. Ein garantiertes Ergebnis zählt nicht.",
+          "Доля тренеров, которые с точно такими же шансами при каждом вылуплении справились бы хуже. 50% это середина. Гарантированный результат не считается.")
     }
 
     /// Hits and expected hits of a criterion: two decimals for an expectation under one.

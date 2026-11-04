@@ -1002,14 +1002,15 @@ struct CompanionHeader: View {
         let total = store.currentGrowthTotal
         if total > 1.0001 {
             let isRepeat = store.activeIsRepeat
-            let badge = Badge(isRepeat ? store.l.repeatGrowthBoost(total) : store.l.growthBoost(total),
+            let label = isRepeat ? store.l.repeatGrowthBoost(total, rank: store.activeCatchRank) : store.l.growthBoost(total)
+            let badge = Badge(label,
                               tint: isRepeat ? .orange : .blue, style: .tinted).fixedSize()
             let breakdown = store.currentGrowthFactors.map(store.growthFactorLine).joined(separator: " · ")
             if let onOpenBonuses {
                 Button(action: onOpenBonuses) { badge }
                     .buttonStyle(.plain)
                     .hoverTip(breakdown)
-                    .accessibilityLabel(isRepeat ? store.l.repeatGrowthBoost(total) : store.l.growthBoost(total))
+                    .accessibilityLabel(label)
                     .accessibilityHint(breakdown)
             } else {
                 badge.hoverTip(breakdown)
@@ -1364,13 +1365,15 @@ struct CompanionHeader: View {
 struct RarityTally: View {
     let label: String
     let count: Int
+    /// The rarity's species in all: "120/430". Nil where the count is of individuals, or before the index loads.
+    var total: Int? = nil
     let color: Color
     var isSelected: Bool = false      // 이 희귀도로 필터 활성 → 원색 링 + 체크
     var body: some View {
         HStack(spacing: 3) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text(label).font(.system(size: 11, weight: isSelected ? .semibold : .medium))
-            Text("\(count)").font(.system(size: 11, weight: .bold))
+            Text(total.map { "\(count)/\($0)" } ?? "\(count)").font(.system(size: 11, weight: .bold)).monospacedDigit()
             if isSelected {
                 Image(systemName: "checkmark")
                     .font(.system(size: 9, weight: .bold)).foregroundStyle(color)
@@ -1667,6 +1670,7 @@ struct CollectionView: View {
         let dexLinks = store.dexLinkTargets   // once for all rows, not per row
         // Once for the list too: each row sorted and walked the whole Pokédex for its own badge (n² to scroll it).
         let duplicates = store.duplicateCatchEntryIDs
+        let ranks = store.dexCatchRanks
         // Filtered and sorted once: the empty check and the list each did it.
         let entries = visibleEntries
         return VStack(alignment: .leading, spacing: 6) {
@@ -1685,7 +1689,7 @@ struct CollectionView: View {
                             ForEach(entries) { entry in
                                 // Keeps the segment, so Back from the detail page returns to the log.
                                 DexEntryRow(store: store, entry: entry, dexLinks: dexLinks,
-                                            isDuplicate: duplicates.contains(entry.id)) {
+                                            isDuplicate: duplicates.contains(entry.id), catchRank: ranks[entry.id]) {
                                     logReturnAnchor = entry.id
                                     navigation.dexDetailCollectionID = $0
                                 }
@@ -2203,6 +2207,8 @@ private struct DexGridView: View {
         .onChange(of: sortOption) { page = 0; selectedID = nil }
         .onChange(of: selectedRarity) { page = 0; selectedID = nil }
         .task { await store.backfillMissingDexNames() }
+        // The rarities' totals ("120/430") read the hatch index, cached once loaded.
+        .task { await store.loadHatchIndex() }
         // The other pages' stills, made in the background so turning a page shows its Pokémon at once (each
         // still comes from a GIF download the first time). Restarts when the page or the filters change.
         .task(id: StillPrefetchKey(page: current, ids: visible.map(\.collectionID)), priority: .utility) {
@@ -2243,6 +2249,7 @@ private struct DexGridView: View {
             // games' Owned, and how many more were only seen (raised, or released), as their Seen.
             let owned = store.graduatedCollectionProgress
             let seen = store.collectionProgress.species - owned.species
+            let totals = store.speciesTotalsByRarity
             HStack(spacing: 6) {
                 Text(store.l.dexTitle).font(.callout.weight(.semibold)).foregroundStyle(.primary)
                 Spacer(minLength: 4)
@@ -2268,7 +2275,7 @@ private struct DexGridView: View {
                                 selectedID = nil
                             }
                         } label: {
-                            RarityTally(label: store.l.rarityLabel(r), count: count,
+                            RarityTally(label: store.l.rarityLabel(r), count: count, total: totals?[r],
                                         color: rarityColor(r), isSelected: selectedRarity == r)
                         }
                         .buttonStyle(.plain)
@@ -2287,6 +2294,7 @@ private struct DexGridView: View {
             .filter { PokemonForm.hasForms(speciesID: $0.id) }
             .map { ($0.id, store.state.collectedForms(speciesID: $0.id).count) })
         let graduated = store.graduatedSpeciesIDs
+        let catchCounts = store.dexCatchCounts
         return VStack(spacing: Self.spacing) {
             ForEach(0..<Self.rows, id: \.self) { row in
                 HStack(spacing: Self.spacing) {
@@ -2298,7 +2306,8 @@ private struct DexGridView: View {
                                            isSelected: selectedID == sp.collectionID,
                                            isRepresentative: store.isRepresentative(sp),
                                            formCount: formCounts[sp.id],
-                                           isSeenOnly: !graduated.contains(sp.id)) {
+                                           isSeenOnly: !graduated.contains(sp.id),
+                                           catchCount: catchCounts[sp.id] ?? 0) {
                                 selectedID = sp.collectionID
                                 onSelectSpecies(sp)
                             }
@@ -2930,6 +2939,8 @@ private struct DexSpeciesCell: View {
     let formCount: Int?
     /// Seen (raised, or released) but never graduated: it counts for no achievement yet.
     var isSeenOnly = false
+    /// How many records reached this species (`CompanionStore.dexCatchCounts`): "×N" from two.
+    var catchCount = 0
     let onTap: () -> Void
     @State private var isHovered = false
 
@@ -3027,11 +3038,21 @@ private struct DexSpeciesCell: View {
                 // Seen only: faded, but the one being raised keeps its badge instead.
                 sprite(50).opacity(isSeenOnly && !species.isRaising ? 0.45 : 1)
                     .overlay(alignment: .bottom) { if species.isRaising { raisingBadge.fixedSize() } }
+                    .overlay(alignment: .topTrailing) { if catchCount > 1 { countBadge.fixedSize() } }
                 Text(displayName).font(.system(size: 11, weight: .semibold, design: .rounded))
                     .lineLimit(1).minimumScaleFactor(0.8)
             }
             .padding(5)
         }
+    }
+
+    /// "×8": the duplicates show at a glance, on every page of the grid.
+    private var countBadge: some View {
+        Text(store.l.catchCount(catchCount))
+            .font(.system(size: 9, weight: .bold, design: .rounded)).monospacedDigit()
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4).padding(.vertical, 1)
+            .background(.regularMaterial, in: Capsule())
     }
 
     /// "키우는 중"은 현재 개체의 현재 형태 한 칸에만 표시한다. accent 틴트는 반투명이라
@@ -3048,6 +3069,7 @@ private struct DexSpeciesCell: View {
         if let formCount { parts.append(store.l.formsCollected(formCount, of: formTotal)) }
         if species.isShiny { parts.append(store.l.dexShinyLabel) }
         if species.isRaising { parts.append(store.l.dexRaising) }
+        if catchCount > 1 { parts.append(store.l.dexCaughtTimes(catchCount)) }
         if isSeenOnly { parts.append(store.l.dexSeenNotGraduated) }
         if isRepresentative { parts.append(store.l.representativeBadge) }
         return parts.joined(separator: " · ")
@@ -3063,8 +3085,17 @@ private struct DexEntryRow: View {
     let dexLinks: [Int: String]
     /// `CompanionStore.duplicateCatchEntryIDs`, read once by the list.
     let isDuplicate: Bool
+    /// Which one of its species this record is (`CompanionStore.dexCatchRanks`): a duplicate's "×N".
+    var catchRank: Int? = nil
     let onOpenDexEntry: (String) -> Void
     @State private var resolved: [Int: String] = [:]
+
+    /// "DUPLICATE ×8" from the second of its species.
+    private var duplicateLabel: String {
+        let word = store.l.dexDuplicate.uppercased()
+        guard let catchRank, catchRank > 1 else { return word }
+        return "\(word) \(store.l.catchCount(catchRank))"
+    }
 
     /// 카드 안쪽 여백. 진화 라인이 쓸 수 있는 폭 계산과 단일 소스를 공유한다.
     private static let cardPadding: CGFloat = 8
@@ -3089,7 +3120,7 @@ private struct DexEntryRow: View {
                         Badge(store.l.newFormBadge.uppercased(), tint: .blue, style: .tinted, size: 10)
                     }
                     if isDuplicate {
-                        Text(store.l.dexDuplicate.uppercased())
+                        Text(duplicateLabel)
                             .font(.system(size: 10, weight: .bold))
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Color.secondary.opacity(0.14))

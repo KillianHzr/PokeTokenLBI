@@ -1116,9 +1116,11 @@ struct L {
         return t("\(m)× 성장", "\(m)× growth", "成長 \(m)倍", "Crecimiento ×\(m)", "Croissance ×\(m)", "Crescimento ×\(m)", "\(m)× Wachstum", "Рост ×\(m)")
     }
     /// The Home growth badge of a repeat: the word says why it is orange ("Repeat · 5.25× growth").
-    func repeatGrowthBoost(_ multiplier: Double) -> String {
+    func repeatGrowthBoost(_ multiplier: Double, rank: Int? = nil) -> String {
         let word = t("중복", "Repeat", "ダブり", "Repetido", "Doublon", "Repetido", "Wiederholung", "Повтор")
-        return "\(word) · \(growthBoost(multiplier))"
+        // "Repeat ×8": the eighth of its species.
+        let counted = rank.map { $0 > 1 ? "\(word) \(catchCount($0))" : word } ?? word
+        return "\(counted) · \(growthBoost(multiplier))"
     }
     var bonusTitle: String { t("보너스", "Bonuses", "ボーナス", "Bonificaciones", "Bonus", "Bônus", "Boni", "Бонусы") }
     var bonusOpen: String {
@@ -1348,7 +1350,18 @@ struct L {
         case .nameAsc: return sortNameAsc
         case .nameDesc: return sortNameDesc
         case .rarityDesc: return sortRarity
+        case .countDesc: return sortMostCaught
         }
+    }
+    var sortMostCaught: String {
+        t("많이 잡은 순", "Most caught", "捕まえた数順", "Más capturados", "Les plus capturés", "Mais capturados", "Am häufigsten gefangen",
+          "Чаще пойманные")
+    }
+    /// "×8": how many of this Pokémon the Pokédex holds, or which one this record is.
+    func catchCount(_ n: Int) -> String { "×\(n)" }
+    func dexCaughtTimes(_ n: Int) -> String {
+        t("\(n)번 잡았어요", "Caught \(n) times", "\(n)回捕まえた", "Capturado \(n) veces", "Capturé \(n) fois", "Capturado \(n) vezes",
+          "\(n)-mal gefangen", "Поймано \(n) раз")
     }
     func label(for option: CompanionStore.CatchLogSortOption) -> String {
         switch option {
@@ -1359,6 +1372,7 @@ struct L {
         case .nameAsc: return sortNameAsc
         case .nameDesc: return sortNameDesc
         case .rarityDesc: return sortRarity
+        case .countDesc: return sortMostCaught
         }
     }
     var dexNormalLabel: String { t("일반", "Normal", "通常", "Normal", "Normal", "Normal", "Normal", "Обычный") }
