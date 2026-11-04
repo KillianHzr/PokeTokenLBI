@@ -120,6 +120,12 @@ tr.tier td .m { color: var(--mist); font-weight: 400; }
 .types { display: flex; flex-wrap: wrap; gap: 4px; }
 .types span { font: 700 0.64rem/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 7px; border-radius: 999px; }
 
+.split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.box { padding: 16px 18px; border-radius: 14px; background: var(--cave-2); border: 1px solid var(--stone); display: grid; gap: 10px; align-content: start; min-width: 0; }
+.box h3 { margin-top: 0; color: var(--torch); }
+.box.auto h3 { color: var(--crystal); }
+.box ul { gap: 6px; }
+@media (max-width: 640px) { .split { grid-template-columns: minmax(0, 1fr); } }
 .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 16px; }
 .shots figure { margin: 0; display: grid; gap: 8px; align-content: start; }
 .shots img { width: 100%; border-radius: 14px; border: 1px solid var(--stone); }
@@ -155,7 +161,7 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
   <div class="page">
     <div>
       <h1>Les <span>Donjons</span></h1>
-      <p class="what">Un nouvel onglet de PokeTokenLBI. Tu envoies une équipe de Pokémon diplômés dans un donjon. Les tokens que tu dépenses la font avancer d'un étage à l'autre, et un boss l'attend au dernier étage.</p>
+      <p class="what">Un nouvel onglet de PokeTokenLBI. Tu envoies une équipe de Pokémon diplômés dans un donjon, et elle avance toute seule : les tokens que tu dépenses en codant la font passer d'un étage à l'autre, combats compris, jusqu'au boss du dernier étage.</p>
       <p class="what">Pendant l'expédition, ton Pokémon en cours et ton œuf ne grandissent pas. Une seule expédition à la fois.</p>
       <div class="facts-line">
         <span>13 donjons en 5 paliers</span>
@@ -194,12 +200,31 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
   <main class="content">
     <section id="deroulement">
       <h2>Comment ça marche</h2>
+      <div class="split">
+        <div class="box">
+          <h3>Ce que tu fais</h3>
+          <ul>
+            <li>Choisir un donjon et composer l'équipe, ou cliquer sur "Composer pour moi".</li>
+            <li>Si l'équipe passe sous 25 % de ses PV : accepter ou non le soin d'urgence.</li>
+            <li>Si le boss tombe : lancer tes balls pour l'attraper (trois lancers).</li>
+          </ul>
+        </div>
+        <div class="box auto">
+          <h3>Ce qui se fait tout seul</h3>
+          <ul>
+            <li>L'avancée d'étage en étage, avec les tokens que tu dépenses.</li>
+            <li>Tous les combats : chaque Pokémon lance ses quatre attaques en boucle jusqu'à la victoire ou au K.O.</li>
+            <li>Les baies et les Rappels, utilisés quand il le faut.</li>
+          </ul>
+        </div>
+      </div>
+      <p>Tu n'as pas besoin de regarder. Quand l'expédition attend ta réponse (le soin, la capture, le retour), un "!" s'affiche dans la barre de menus, et rien n'est perdu en attendant : pendant le soin, tes tokens sont gardés pour l'équipe, et pendant la capture, ton Pokémon en cours a déjà repris sa croissance.</p>
       <ol>
         <li>Tu choisis un donjon et tu formes une équipe de 3 à 6 Pokémon diplômés qui respectent ses règles.</li>
         <li>Tes tokens font avancer l'équipe d'un étage à l'autre. Pendant ce temps, ton Pokémon en cours ne grandit pas.</li>
-        <li>Chaque étage a un événement : un combat (Pokémon sauvages, horde ou dresseur), un coffre, un piège ou une source. Les combats se jouent en temps réel, avec les attaques et les talents des jeux.</li>
-        <li>Au dernier étage, le boss. Tu ne sais pas lequel avant d'y arriver. Battu, il donne le butin et tu as trois lancers pour l'attraper : son œuf va dans ton Sac.</li>
-        <li>Si toute l'équipe est K.O., le butin est perdu. Une fois par expédition, un soin d'urgence remet l'équipe sur pied pour un quart du prix du donjon.</li>
+        <li>Chaque étage a un événement : un combat (Pokémon sauvages, horde ou dresseur), un coffre, un piège ou une source. Les combats se jouent tout seuls, en temps réel, avec les attaques et les talents des jeux.</li>
+        <li>Au dernier étage, le boss. Tu ne sais pas lequel avant d'y arriver. S'il tombe, le butin est gagné et c'est à toi : trois lancers pour l'attraper, et son œuf va dans ton Sac.</li>
+        <li>Si toute l'équipe est K.O. avant, le butin est perdu.</li>
       </ol>
       <div class="shots">
         <figure><img src="img/team-top.png" alt=""><figcaption>L'écran d'équipe.</figcaption></figure>
