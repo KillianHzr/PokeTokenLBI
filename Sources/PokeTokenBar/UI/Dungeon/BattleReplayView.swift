@@ -106,18 +106,30 @@ private struct UnitRow: View {
                 .lineLimit(1)
                 bar(Double(unit.hp) / Double(max(1, unit.maxHP)), color: .blue)
                 bar(unit.castProgress(at: elapsed), color: .purple)
-                HStack(spacing: 4) {
-                    if unit.fainted {
-                        Text(store.l.battleKO).font(.caption2.weight(.bold))
-                    } else if let move = unit.castMove {
-                        PokemonNameLabel(.move, move, language: store.language).font(.caption2)
-                    }
-                    if let status = unit.status {
-                        Text(store.l.ailmentName(status)).font(.caption2).foregroundStyle(.secondary)
-                    }
+                // The move and the status on one line when they fit, else the status under it: "Abgrundsklinge
+                // Verbrennung" cut the status to "Verbre…".
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 4) { castLine(unit); statusLine(unit) }
+                    VStack(alignment: .leading, spacing: 1) { castLine(unit); statusLine(unit) }
                 }
                 .lineLimit(1)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func castLine(_ unit: BattleFrame.Unit) -> some View {
+        if unit.fainted {
+            Text(store.l.battleKO).font(.caption2.weight(.bold))
+        } else if let move = unit.castMove {
+            PokemonNameLabel(.move, move, language: store.language).font(.caption2)
+        }
+    }
+
+    @ViewBuilder
+    private func statusLine(_ unit: BattleFrame.Unit) -> some View {
+        if let status = unit.status {
+            Text(store.l.ailmentName(status)).font(.caption2).foregroundStyle(.secondary)
         }
     }
 

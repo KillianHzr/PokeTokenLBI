@@ -702,7 +702,11 @@ extension PokemonForm {
         guard let form = resolved(speciesID: speciesID, form: form) else { return nil }
         if speciesID == unownSpeciesID { return form.symbol }
         // PokéAPI names few of them outside English, French and German: the app names them in every language.
-        if let battle = BattleForms.form(speciesID: speciesID, form: form) { return L(language).battleFormLabel(battle) }
+        if let battle = BattleForms.form(speciesID: speciesID, form: form) {
+            let own = L(language).battleFormLabel(battle)
+            return battleBase(battle).flatMap { label(speciesID: speciesID, form: $0, language: language, names: names) }
+                .map { "\(own) (\($0))" } ?? own
+        }
         if hasUnnamedDefault(speciesID: speciesID, form: form) { return L(language).normalForm }
         if let name = appName(speciesID: speciesID, form: form, language: language, names: names) { return name }
         let translations = nameResource(speciesID: speciesID, form: form).flatMap { names.names[$0] }
@@ -735,11 +739,24 @@ extension PokemonForm {
         }
     }
 
+    /// The species' own form a battle form grows from, when it has several: "curly" for Tatsugiri's "curly-mega",
+    /// "rapid-strike" for Urshifu's Gigantamax. What tells its battle forms apart: three Megas read "Mega" alike.
+    static func battleBase(_ battle: BattleForm) -> PokemonForm? {
+        let raw = battle.form.rawValue
+        for suffix in ["-mega", "-gmax", "-primal"] where raw.hasSuffix(suffix) {
+            let base = PokemonForm(String(raw.dropLast(suffix.count)))
+            return forms(speciesID: battle.speciesID).contains(base) ? base : nil
+        }
+        return nil
+    }
+
     @MainActor
     static func displayName(_ name: String, speciesID: Int, form: PokemonForm?, language: AppLanguage) -> String {
         // "Mega Charizard X", "Gigantamax Pikachu": the form's own name holds the species'.
         if let battle = BattleForms.form(speciesID: speciesID, form: form) {
-            return L(language).battleFormName(battle, species: name)
+            let full = L(language).battleFormName(battle, species: name)
+            return battleBase(battle).flatMap { label(speciesID: speciesID, form: $0, language: language) }
+                .map { "\(full) (\($0))" } ?? full
         }
         return displayName(name, speciesID: speciesID, form: form,
                            label: label(speciesID: speciesID, form: form, language: language))

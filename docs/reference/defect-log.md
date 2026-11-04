@@ -752,6 +752,23 @@ read_when:
   **Why missed:** the test's Larvitar line has no branch. A goal counts the branch that advances it most
   (`testABranchedLineCountsOneBranch`).
 
+- **Every path that ends or clears a cast says who starts the next.** The battle engine restarts a Pokémon's cast
+  when its cast completes; the review of 2026-11-04 found six other ways out that left one idle for good: cured of its
+  sleep by an ally's Heal Bell (the sleep had cleared its cast), a Rest stolen with Snatch (asleep with its Tackle still
+  under way, which landed), Disable on the move Outrage locked (Struggle for the rest of the battle), Revival Blessing
+  bringing back the first to fall while the fallen one that took its place still held it (on the bench for good), and
+  two casts ending in the same step where the first flinches the second. A pass after the casting loop now starts a
+  cast for every active, awake Pokémon without one. **Why it was missed:** the engine's tests played each move against
+  a fresh foe; none had the cure, the theft or the lock land on a Pokémon whose cast was already gone. Guards:
+  `BattleEngineEdgeTests`, each played from the situation that triggers it and checked to fail with its fix removed.
+- **A cost in HP checks there is HP to pay.** Shedinja has 1 HP: Substitute (a quarter) and Belly Drum (a half) cost
+  it nothing and still worked, Curse cost it 0. Each cost needs a non-zero share, Curse costs at least 1
+  (`testShedinjaPaysForWhatCostsHP`). Sweep: every move that pays HP goes through `isUseful` and `use`.
+- **A departure checks the boss the screen showed.** The daily and weekly challenges draw their boss for the day: a
+  team screen opened before midnight showed one boss and set off against the next day's. The screen keeps the boss it
+  showed (`shownBoss`) and `startExpedition(_:team:expectedBoss:)` refuses when the draw changed, refreshing the screen
+  (`DungeonStoreTests.testAChallengeDepartureWaitsForTheBossItShowed`).
+
 ## 외부 로그·사용량 소스
 
 - **토큰 파일 파서는 외부 도구의 실제 직렬화 구조체(중첩 객체)를 반영해야 한다.** `jetski-standalone-oauth-token`
@@ -1307,6 +1324,12 @@ read_when:
   is computed into a local first. **Sweep:** no other optional-chained write of `CompanionStore` reads `state` on its
   right (`grep -nE 'state\.active\?\.[A-Za-z]+ (=|\+=) '`).
 
+- **Deep recursion runs on a thread whose stack size it sets.** A battle ran in `Task.detached`, on a secondary thread
+  of 512 KB: a debug build overflowed it in `faint` (`___chkstk_darwin`) on a long battle, where the main thread's 8 MB
+  had never been short. `BattleEngine.offMain` runs the work on a `Thread` of 16 MB. **Why it was missed:** the tests
+  run the engine on the test's own main thread. Guards: `BattleThreadTests` plays a battle on that thread and scans the
+  sources for `Task.detached` around `BattleEngine.run`, the team screen's estimate or `ExpeditionEngine`.
+
 ## 프로세스·인스턴스
 
 - **로그인 실행을 LaunchAgent 로 등록하면 "등록하는 순간" 앱이 한 번 더 뜬다.** plist 의 `RunAtLoad` 는
@@ -1345,6 +1368,12 @@ read_when:
   `writeAndFlush` 로 묶는다. `AppLog.writeAndFlush` 는 테스트된 `backend.writeAndFlush` 를
   타야 한다 — `write()`+`flush()` 두 번째 쌍은 가드가 안 되고, `flush()` 만 빼면 스위트가
   초록인데 #174 가 다시 산다. (#174)
+
+- **A step that crashed once is not played again at launch.** A dungeon step that trapped (the stack overflow below,
+  an engine edge case) left the expedition as it was, so each launch played the same step and crashed again: the app
+  could not open. The store marks a step in flight in UserDefaults (`dungeonStepInFlight`) around
+  `ExpeditionEngine.feed` and `answerHeal`; a launch that finds the mark ends that expedition (abandoned, its tokens
+  back to growth) instead of replaying it (`DungeonStoreTests.testAStepThatNeverCameBackEndsItsExpedition`).
 
 ## 표시·UI
 
@@ -1847,6 +1876,23 @@ read_when:
   form of a coming stage: a silhouette of an Alolan Marowak above a Kanto Cubone that Home called a duplicate. Screens that
   judge an individual and screens that preview its future must read the same `form`.
 
+- **A word that must not break is fixed, so a width test sees it.** The review of 2026-11-04 rendered the dungeon
+  screens in every language: the Ruins of Alph's bosses (every final species, one sprite each) pushed the popover wider;
+  a German entry ("3 Legendary Keys" and its button) beside the bosses broke its text in two; Tatsugiri's three Megas
+  beside "Usual" broke their labels; "Ebene 6 von 12 · pausiert" broke at its dot. The bosses show the last four and a
+  count, the entry goes under them and the options one under the other when they do not fit (`ViewThatFits`), "paused"
+  has its own line. **Why a width test missed three of them:** a text that may wrap takes the width it is given, so a
+  row too wide breaks its words and still measures in. The entry, the options and the type badges are now
+  `fixedSize`: too wide, they overflow. Guard: `DungeonLayoutTests` asks each view its size in the popover's width
+  (`sizeThatFits`), every dungeon open and every boss met, in every language; without its fallback, each of the three
+  rows fails. Measured before adding a fallback: Mt. Coronet's four types in Russian leave 3 points, the boss's floor
+  beside the longest name 7, so neither has one; the test fails the day a translation takes them.
+- **The labels of one species' forms read apart.** Tatsugiri's three Megas all read "Mega" and Urshifu's two Gigantamax
+  "Gigantamax": the team screen's chooser offered the same button three times. A battle form grown from one of the
+  species' forms adds that form's name ("Mega (Curly Form)"), in the chooser, the Pokédex and the boss's name
+  (`PokemonForm.battleBase`). Guard: `BattleFormLabelTests` checks every species' battle forms read apart in every
+  language.
+
 ## 에너지 (상시 표시 애니메이션)
 
 - **절전용 정지 상태는 짝 알림 하나에만 복구를 맡기지 마라.** `screensDidSleep` 이 폴링 타이머를 끄고
@@ -2081,6 +2127,13 @@ read_when:
   launch. Item and treasure counts are capped at `SaveTransfer.maxItemCount`, far above any real one, no item dropped
   (`testAHandEditedCountNoLongerTraps`).
 
+- **An imported expedition is checked for what the app can close and replay.** A save brought from another device or
+  edited by hand could hold an expedition already `.finished` (no screen closes it), a boss the app has no battle data
+  for, more than three throws, or a battle with no side, seven battlers or stats of zero: each one stuck the Home card or
+  trapped the replay. `SaveTransfer.sanitize` drops what cannot be closed and clamps the rest
+  (`SaveTransferTests.testAnImportedExpeditionTheAppCannotCloseOrReplayIsMended`). A format fixture of the expedition
+  as saved today (`DungeonSaveFormatTests`) fails when a new non-optional field would make older saves fail to decode.
+
 ## 렌더 기하 (스프라이트·이미지)
 
 - **`.resizable()` + `.frame(w:h:)` 는 "맞춤"이 아니라 "늘여 채움"이다.** 대조 없이 정사각 프레임에 넣으면
@@ -2127,6 +2180,12 @@ read_when:
   runners. Thresholds measured locally failed on CI with a quarter of the pixels. **Why it was missed:** the local
   run and the fault injections all drew at 2×. Capture into an explicit 2× `NSBitmapImageRep` and compare shares of
   the box, not counts. The other render tests' absolute thresholds (`DrawnEggTests`' "an egg is drawn") hold at 1×.
+
+- **A drawing cached by its look, not by who asks for it.** Each dungeon's egg was rendered and cached under its
+  dungeon, while most dungeons without their own design share one look by type: the same egg drawn several times.
+  `EggDesigns.renderKey` maps such a dungeon to its look before both renderers cache (`DungeonEggRenderTests`).
+  In the same review, Gigantamax Pikachu wore its cap: `PikachuCostume.displayForm` now keeps a battle form as it is
+  (`PikachuCostumeTests`).
 
 ## 프로세스 제어·업데이트
 

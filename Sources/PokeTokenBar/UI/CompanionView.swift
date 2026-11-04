@@ -2498,7 +2498,9 @@ struct PokemonDetailView: View {
                     battleCell(label: l.battleFormUsual, form: nil, owned: true, selected: battleSelected == nil, hint: nil)
                 }
                 ForEach(forms, id: \.key) { form in
-                    battleCell(label: l.battleFormLabel(form), form: form.form, owned: won.contains(form.key),
+                    // Its own form named when the species has several: Tatsugiri's three Megas.
+                    battleCell(label: PokemonForm.label(speciesID: species.id, form: form.form, language: store.language)
+                                   ?? l.battleFormLabel(form), form: form.form, owned: won.contains(form.key),
                                selected: battleSelected == form, hint: won.contains(form.key) ? nil : l.battleFormSource(form))
                 }
             }
@@ -2513,7 +2515,8 @@ struct PokemonDetailView: View {
         } label: {
             VStack(spacing: 1) {
                 SpriteView(speciesID: species.id, size: 36, form: form).frame(width: 36, height: 36)
-                Text(label).font(.system(size: 11, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                Text(label).font(.system(size: 11, weight: .semibold)).lineLimit(2).minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.center)
                 if let hint {
                     Text(hint).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.center)
                 }

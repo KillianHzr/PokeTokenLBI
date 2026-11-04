@@ -115,13 +115,17 @@ extension L {
         t("보스: 아직 못 봄", "Boss: never seen", "ボス：まだ見ていない", "Jefe: nunca visto", "Boss : jamais vu",
           "Chefe: nunca visto", "Boss: nie gesehen", "Босс: не встречен")
     }
+    /// The count and the item stay together on a line, never "1 ×" at the end of one and the item on the next.
     func dungeonEntryKeys(_ n: Int, key: String) -> String {
-        t("입장: \(key) \(n)개", "Entry: \(n) × \(key)", "入場：\(key)×\(n)", "Entrada: \(n) × \(key)",
-          "Entrée : \(n) × \(key)", "Entrada: \(n) × \(key)", "Eintritt: \(n) × \(key)", "Вход: \(key) ×\(n)")
+        let key = key.replacingOccurrences(of: " ", with: "\u{00A0}")
+        return t("입장: \(key)\u{00A0}\(n)개", "Entry: \(n)\u{00A0}×\u{00A0}\(key)", "入場：\(key)×\(n)",
+                 "Entrada: \(n)\u{00A0}×\u{00A0}\(key)", "Entrée : \(n)\u{00A0}×\u{00A0}\(key)",
+                 "Entrada: \(n)\u{00A0}×\u{00A0}\(key)", "Eintritt: \(n)\u{00A0}×\u{00A0}\(key)", "Вход: \(key)\u{00A0}×\(n)")
     }
     func dungeonEntryMap(_ map: String) -> String {
-        t("입장: \(map) 1장", "Entry: a \(map)", "入場：\(map)1まい", "Entrada: un \(map)", "Entrée : une \(map)",
-          "Entrada: um \(map)", "Eintritt: eine \(map)", "Вход: \(map)")
+        let map = map.replacingOccurrences(of: " ", with: "\u{00A0}")
+        return t("입장: \(map) 1장", "Entry: a\u{00A0}\(map)", "入場：\(map)1まい", "Entrada: un\u{00A0}\(map)",
+                 "Entrée : une\u{00A0}\(map)", "Entrada: um\u{00A0}\(map)", "Eintritt: eine\u{00A0}\(map)", "Вход: \(map)")
     }
     func dungeonUnderway(_ dungeon: String, floor: Int, floors: Int) -> String {
         t("탐험 중: \(dungeon) · \(floor)/\(floors)층", "Exploring \(dungeon) · floor \(floor) of \(floors)",

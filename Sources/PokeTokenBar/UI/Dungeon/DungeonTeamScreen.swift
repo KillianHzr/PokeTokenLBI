@@ -35,10 +35,15 @@ struct DungeonTeamScreen: View {
             rulesBox(size: size, rules: rules, team: candidates, l)
             teamRow(picked, size: size)
             if let focus, let entry = picked.first(where: { $0.id == focus }) {
-                if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
-                    BattleFormChooser(store: store, entry: entry)
+                // The member's panel first: with the battle forms shown, the move picker shrank to a row and a half while
+                // the candidates kept their room. The candidates scroll instead.
+                VStack(alignment: .leading, spacing: 8) {
+                    if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
+                        BattleFormChooser(store: store, entry: entry)
+                    }
+                    LoopEditor(store: store, entry: entry, dungeon: dungeon, editingSlot: $editingSlot)
                 }
-                LoopEditor(store: store, entry: entry, dungeon: dungeon, editingSlot: $editingSlot)
+                .layoutPriority(1)
             } else {
                 // What to do next, said where it is done.
                 Text(picked.count < size ? l.dungeonTeamPickHint(compose: l.dungeonComposeForMe) : l.dungeonTeamEditHint)
@@ -49,6 +54,7 @@ struct DungeonTeamScreen: View {
                 candidateList(size: size, rules: rules, l)
                     .reservesScrollerLane()
             }
+            .frame(minHeight: 46)
             footer(size: size, rules: rules, team: candidates, l)
         }
         .padding(PopoverMetrics.padding)
@@ -344,12 +350,21 @@ struct BattleFormChooser: View {
         let chosen = store.battleFormChoice(for: entry)
         VStack(alignment: .leading, spacing: 4) {
             Text(l.battleFormPickTitle).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            HStack(spacing: 6) {
-                option(l.battleFormUsual, selected: chosen == nil) { store.setBattleForm(nil, for: entry.id) }
-                ForEach(store.wonBattleForms(speciesID: entry.finalID), id: \.key) { form in
-                    option(l.battleFormLabel(form), selected: chosen == form) { store.setBattleForm(form, for: entry.id) }
-                }
+            // On one line when they fit, else one under the other: "Mega (Curly Form)" thrice does not.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) { options(chosen, l) }
+                VStack(alignment: .leading, spacing: 3) { options(chosen, l) }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func options(_ chosen: BattleForm?, _ l: L) -> some View {
+        option(l.battleFormUsual, selected: chosen == nil) { store.setBattleForm(nil, for: entry.id) }
+        ForEach(store.wonBattleForms(speciesID: entry.finalID), id: \.key) { form in
+            // Its own form named when the species has several (Tatsugiri, Urshifu, Toxtricity).
+            option(PokemonForm.label(speciesID: form.speciesID, form: form.form, language: store.language) ?? l.battleFormLabel(form),
+                   selected: chosen == form) { store.setBattleForm(form, for: entry.id) }
         }
     }
 
@@ -358,6 +373,7 @@ struct BattleFormChooser: View {
             Label(title, systemImage: selected ? "checkmark.circle.fill" : "circle")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(selected ? AnyShapeStyle(Design.actionColor) : AnyShapeStyle(.secondary))
+                .fixedSize()
         }
         .buttonStyle(.plain)
         .disabled(store.isExploring(entry.id))

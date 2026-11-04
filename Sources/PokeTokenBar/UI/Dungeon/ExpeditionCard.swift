@@ -30,8 +30,14 @@ struct ExpeditionCard: View {
             DungeonIcon(id: e.dungeon, size: 30, boss: e.boss)
             VStack(alignment: .leading, spacing: 1) {
                 Text(l.dungeonName(e.dungeon)).font(.callout.weight(.semibold))
-                Text(floorLine(e)).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                Text(l.dungeonFloorOf(min(e.floor, e.floors), e.floors)).font(.caption).foregroundStyle(.secondary)
+                    .monospacedDigit()
+                // On its own line: "Ebene 6 von 12 · pausiert" broke at its dot.
+                if case .awaitingHeal = e.phase {
+                    Text(l.dungeonPaused).font(.caption).foregroundStyle(.secondary)
+                }
             }
+            .layoutPriority(1)
             Spacer(minLength: 4)
             if case .capture = e.phase {
                 EmptyView()
@@ -42,12 +48,6 @@ struct ExpeditionCard: View {
                     .hoverTip(l.dungeonBossHidden)
             }
         }
-    }
-
-    private func floorLine(_ e: Expedition) -> String {
-        let floor = l.dungeonFloorOf(min(e.floor, e.floors), e.floors)
-        if case .awaitingHeal = e.phase { return floor + " · " + l.dungeonPaused }
-        return floor
     }
 
     // MARK: Exploring (maquette 3)
@@ -252,18 +252,19 @@ struct ExpeditionTeamGrid: View {
                 .opacity(member.isFainted ? 0.35 : 1)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 3) {
+                    // A long name shrinks a little before it is cut; "Debilitado" and "Desmaiado" never break in two.
                     PokemonNameLabel(.pokemonSpecies, String(spec.speciesID), language: store.language)
-                        .font(.caption2.weight(.semibold)).lineLimit(1)
+                        .font(.caption2.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.75)
                     GenderGlyph(gender: spec.resolvedGender, l: store.l)
                     Spacer(minLength: 2)
                     if member.isFainted {
-                        Text(store.l.battleKO).font(.caption2.weight(.bold)).foregroundStyle(.secondary)
+                        Text(store.l.battleKO).font(.caption2.weight(.bold)).foregroundStyle(.secondary).fixedSize()
                     } else {
                         if share < ExpeditionEngine.healThreshold {
                             Text("!").font(.caption2.weight(.heavy)).foregroundStyle(Color.readableOrange)
                         }
                         Text("\(Int((share * 100).rounded()))%").font(.caption2).monospacedDigit()
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.secondary).fixedSize()
                     }
                 }
                 ExpeditionBar(value: share, color: .blue, height: 4)

@@ -73,10 +73,12 @@ struct DungeonsView: View {
 
 /// One dungeon's card.
 @MainActor
-private struct DungeonCard: View {
+struct DungeonCard: View {
     let store: CompanionStore
     let id: DungeonID
     let onPrepare: () -> Void
+    /// The bosses a card shows, the latest met; the others make a count.
+    static let bossesShown = 4
 
     var body: some View {
         let l = store.l
@@ -100,18 +102,26 @@ private struct DungeonCard: View {
                         .joined(separator: " · "))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    // Never broken in two: Mt. Coronet's four in Russian leave 3 points (`DungeonLayoutTests`).
                     HStack(spacing: 3) {
                         ForEach(dungeon.themeTypes, id: \.self) { type in
-                            Badge(l.typeName(type).uppercased(), tint: .type(type))
+                            Badge(l.typeName(type).uppercased(), tint: .type(type)).fixedSize()
                         }
                     }
                 }
             }
             if unmet.isEmpty {
-                HStack(spacing: 6) {
-                    bosses(dungeon, l)
-                    Spacer(minLength: 4)
-                    entry(l)
+                // The entry goes under the bosses when both do not fit on one line (a long entry text, a German button).
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) {
+                        bosses(dungeon, l)
+                        Spacer(minLength: 4)
+                        entry(l)
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        bosses(dungeon, l)
+                        HStack { Spacer(minLength: 0); entry(l) }
+                    }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 2) {
@@ -146,11 +156,17 @@ private struct DungeonCard: View {
         if met.isEmpty {
             Text(l.dungeonBossUnknown).font(.caption).foregroundStyle(.secondary)
         } else {
+            // The Ruins of Alph draw any final species: past a few, a count, or the row pushed the popover wider.
+            let shown = Array(met.suffix(Self.bossesShown))
             HStack(spacing: 2) {
-                ForEach(met, id: \.self) { species in
+                ForEach(shown, id: \.self) { species in
                     let beaten = progress.bossesBeaten.contains(DungeonProgress.bossKey(id, species))
                     SpriteView(speciesID: species, size: 28, isSilhouette: !beaten, sameScale: true)
                         .speciesNameTooltip(species, language: store.language)
+                }
+                if met.count > shown.count {
+                    Text("+\(met.count - shown.count)").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        .fixedSize()
                 }
             }
         }
@@ -161,9 +177,11 @@ private struct DungeonCard: View {
         let keys = store.keysToEnter(id)
         HStack(spacing: 6) {
             if keys > 0 {
+                // Never broken in two: the row puts the entry under the bosses instead.
                 Text(l.dungeonEntryKeys(keys, key: l.itemName(.legendaryKey))).font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize()
             } else if id == .ruinsOfAlph {
-                Text(l.dungeonEntryMap(l.itemName(.treasureMap))).font(.caption2).foregroundStyle(.secondary)
+                Text(l.dungeonEntryMap(l.itemName(.treasureMap))).font(.caption2).foregroundStyle(.secondary).fixedSize()
             }
             Button(store.dungeonProgress.wins(id) > 0 ? l.dungeonGoAgain : l.dungeonPrepare, action: onPrepare)
                 .buttonStyle(.pill(prominent: true))
