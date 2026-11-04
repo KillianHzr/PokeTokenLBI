@@ -463,7 +463,8 @@ final class FormSuspenseTests: XCTestCase {
 
     // MARK: Luck
 
-    private let luckIndex = [BaseSpecies(id: 16, captureRate: 255), BaseSpecies(id: 104, captureRate: 190)]
+    private let luckIndex = [BaseSpecies(id: 16, captureRate: 255), BaseSpecies(id: 19, captureRate: 255),
+                             BaseSpecies(id: 104, captureRate: 190)]
 
     private func hatch(_ chain: [Int], form: PokemonForm?, day: Double, released: Bool = false) -> DexEntry {
         let date = Date(timeIntervalSince1970: 1_793_600_000 + day * 86_400)
@@ -479,29 +480,33 @@ final class FormSuspenseTests: XCTestCase {
     }
 
     func testAMysteryIsNotJudgedOnNew() throws {
-        let l = luck([hatch([104, 105], form: normal, day: 1), hatch([104], form: alola, day: 2)], active: true)
-        XCTAssertTrue(l.hatches[1].isFormMystery)
-        XCTAssertNil(l.hatches[1].judged[.new])
-        XCTAssertNil(l.hatches[1].newOdds)
-        XCTAssertNotNil(l.hatches[1].judged[.shiny])
+        let l = luck([hatch([16, 17, 18], form: nil, day: 0), hatch([104, 105], form: normal, day: 1),
+                      hatch([104], form: alola, day: 2)], active: true)
+        XCTAssertTrue(l.hatches[2].isFormMystery)
+        XCTAssertNil(l.hatches[2].judged[.new])
+        XCTAssertNil(l.hatches[2].newOdds)
+        XCTAssertNotNil(l.hatches[2].judged[.shiny])
     }
 
     func testTheRevealBringsItIntoTheCounts() throws {
-        let l = luck([hatch([104, 105], form: normal, day: 1), hatch([104, 105], form: alola, day: 2)])
-        XCTAssertFalse(l.hatches[1].isFormMystery)
-        XCTAssertEqual(l.hatches[1].judged[.new]?.hit, true)
-        XCTAssertNotNil(l.hatches[1].newOdds)
+        let l = luck([hatch([16, 17, 18], form: nil, day: 0), hatch([104, 105], form: normal, day: 1),
+                      hatch([104, 105], form: alola, day: 2)])
+        XCTAssertFalse(l.hatches[2].isFormMystery)
+        XCTAssertEqual(l.hatches[2].judged[.new]?.hit, true)
+        XCTAssertNotNil(l.hatches[2].newOdds)
     }
 
     func testOneSentOffBeforeItShowedStaysOutOfTheCounts() throws {
-        let l = luck([hatch([104, 105], form: normal, day: 1), hatch([104], form: alola, day: 2, released: true)])
-        XCTAssertTrue(l.hatches[1].isFormMystery)
-        XCTAssertNil(l.hatches[1].judged[.new])
+        let l = luck([hatch([16, 17, 18], form: nil, day: 0), hatch([104, 105], form: normal, day: 1),
+                      hatch([104], form: alola, day: 2, released: true)])
+        XCTAssertTrue(l.hatches[2].isFormMystery)
+        XCTAssertNil(l.hatches[2].judged[.new])
     }
 
     func testAHiddenFormWithAKnownStatusIsStillJudged() throws {
-        let l = luck([hatch([104], form: alola, day: 1)], active: true)
-        XCTAssertFalse(l.hatches[0].isFormMystery)
-        XCTAssertEqual(l.hatches[0].judged[.new]?.hit, true)
+        let l = luck([hatch([16, 17, 18], form: nil, day: 0), hatch([19, 20], form: nil, day: 1),
+                      hatch([104], form: alola, day: 2)], active: true)
+        XCTAssertFalse(l.hatches[2].isFormMystery)
+        XCTAssertEqual(l.hatches[2].judged[.new]?.hit, true)
     }
 }
