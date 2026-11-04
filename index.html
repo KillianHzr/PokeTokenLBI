@@ -270,35 +270,10 @@ p { margin: 0; }
 .items li span { color: var(--mist); }
 
 /* Getting in. */
-.join { background: var(--cave-2); border-top: 1px solid var(--stone); }
-.join-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
-.code {
-  position: relative;
-  background: var(--cave);
-  border: 1px solid var(--stone);
-  border-radius: 16px;
-  padding: 18px 18px 18px 20px;
-  overflow-x: auto;
-}
-.code pre { margin: 0; font: 500 0.92rem/1.75 var(--mono); color: var(--bone); white-space: pre; }
-.code pre .c { color: var(--mist); }
-.copy {
-  position: absolute; top: 10px; right: 10px;
-  font: 600 var(--step--1)/1 var(--body);
-  padding: 8px 12px; border-radius: 999px;
-  border: 1px solid var(--stone); background: var(--cave-2); color: var(--bone); cursor: pointer;
-}
-.copy:hover { border-color: var(--torch); }
-.notes { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
-.notes li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; color: var(--mist); }
-.notes li b { color: var(--bone); font-weight: 600; }
-.notes svg { width: 20px; height: 20px; margin-top: 3px; color: var(--torch); }
-.ask { margin-top: 28px; padding: 18px 20px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--torch) 55%, var(--stone)); background: color-mix(in srgb, var(--torch) 8%, var(--cave)); display: grid; gap: 8px; }
-.ask p { color: var(--mist); }
 footer { padding-block: 34px; color: var(--mist); font-size: var(--step--1); border-top: 1px solid var(--stone); }
 
 @media (max-width: 880px) {
-  .hero, .step, .fight-grid, .loot-grid, .join-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero, .step, .fight-grid, .loot-grid { grid-template-columns: minmax(0, 1fr); }
   .step:nth-child(even) .shot-col { order: 0; }
   .lede { max-width: none; }
 }
@@ -324,8 +299,8 @@ footer { padding-block: 34px; color: var(--mist); font-size: var(--step--1); bor
       <h1>Les <span>Donjons</span></h1>
       <p class="lede">Tes Pokémon diplômés partent en expédition. Pendant que tu codes, chaque token dépensé fait avancer l'équipe, étage par étage, jusqu'au boss.</p>
       <div class="actions">
-        <a class="btn primary" href="#avis">Essayer et donner ton avis</a>
-        <a class="btn ghost" href="#comment">Comment ça marche</a>
+        <a class="btn primary" href="#comment">Comment ça marche</a>
+        <a class="btn ghost" href="#donjons">Voir les donjons</a>
       </div>
       <div class="dioramas" aria-label="Les dioramas des 13 donjons">
         <img class="pixel" src="img/d-viridianForest.png" alt="Forêt de Jade" title="Forêt de Jade"><img class="pixel" src="img/d-diglettsCave.png" alt="Grotte Taupiqueur" title="Grotte Taupiqueur"><img class="pixel" src="img/d-mtMoon.png" alt="Mont Sélénite" title="Mont Sélénite"><img class="pixel" src="img/d-mtEmber.png" alt="Mont Braise" title="Mont Braise"><img class="pixel" src="img/d-victoryRoad.png" alt="Route Victoire" title="Route Victoire"><img class="pixel" src="img/d-pokemonTower.png" alt="Tour Pokémon" title="Tour Pokémon"><img class="pixel" src="img/d-dragonsDen.png" alt="Antre du Dragon" title="Antre du Dragon"><img class="pixel" src="img/d-powerPlant.png" alt="Centrale" title="Centrale"><img class="pixel" src="img/d-seafoamIslands.png" alt="Îles Écume" title="Îles Écume"><img class="pixel" src="img/d-ceruleanCave.png" alt="Caverne Azurée" title="Caverne Azurée"><img class="pixel" src="img/d-mtCoronet.png" alt="Mont Couronné" title="Mont Couronné"><img class="pixel" src="img/d-ruinsOfAlph.png" alt="Ruines d&#x27;Alpha" title="Ruines d&#x27;Alpha"><img class="pixel" src="img/d-hallOfOrigin.png" alt="Salle Originelle" title="Salle Originelle">
@@ -565,44 +540,6 @@ footer { padding-block: 34px; color: var(--mist); font-size: var(--step--1); bor
     </div>
   </section>
 
-  <section class="join" id="avis">
-    <div class="wrap join-grid">
-      <div>
-        <div class="head">
-          <p class="label">Avant la sortie</p>
-          <h2>À vous de valider</h2>
-          <p class="intro">Les donjons partiront dans la mise à jour automatique dès que vous les aurez validés. Pour les essayer d'ici là, construis l'app depuis leur branche (il faut Xcode). L'app se ferme pendant l'installation : relance-la ensuite.</p>
-        </div>
-        <div class="code">
-          <button class="copy" id="copy" type="button">Copier</button>
-<pre id="cmd">git clone https://github.com/KillianHzr/PokeTokenLBI.git
-cd PokeTokenLBI
-git switch feature/dungeons
-./scripts/build-app.sh</pre>
-        </div>
-      </div>
-      <div>
-        <ul class="notes">
-          <li>
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>
-            <span><b>Ta partie est gardée.</b> Ta collection, ton Sac et ton Pokémon en cours sont là, et l'onglet Donjons s'ajoute.</span>
-          </li>
-          <li>
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 6v4.5l3 2"/></svg>
-            <span><b>Pas de mises à jour en attendant.</b> Avec les donjons installés, l'app ne propose plus les mises à jour habituelles. Elles reviennent toutes seules quand les donjons sortent pour tout le monde.</span>
-          </li>
-          <li>
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3l8 14H2z"/><path d="M10 8v4M10 14.5v.5"/></svg>
-            <span><b>Garde les donjons jusqu'à la sortie.</b> Si tu reviens à l'app d'avant, ta progression dans les donjons risque d'être perdue.</span>
-          </li>
-        </ul>
-        <div class="ask">
-          <h3>Ton avis</h3>
-          <p>Dis-moi si c'est bon pour toi : ce qui est trop dur ou trop facile, ce qui n'est pas clair, et le moindre bug, avec une capture d'écran si tu peux. Une fois validés, les donjons sortent pour tout le monde.</p>
-        </div>
-      </div>
-    </div>
-  </section>
 </main>
 
 <footer>
@@ -611,23 +548,6 @@ git switch feature/dungeons
 
 <script>
 (() => {
-  const copy = document.getElementById("copy");
-  copy.addEventListener("click", async () => {
-    const text = document.getElementById("cmd").textContent;
-    try {
-      await navigator.clipboard.writeText(text);
-      copy.textContent = "Copié";
-    } catch {
-      const range = document.createRange();
-      range.selectNodeContents(document.getElementById("cmd"));
-      const selection = getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      copy.textContent = "Sélectionné";
-    }
-    setTimeout(() => { copy.textContent = "Copier"; }, 1800);
-  });
-
   // The demo: tokens walk the team to the boss, floor by floor, then it starts over.
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const run = document.getElementById("run");
