@@ -133,6 +133,9 @@ struct Expedition: Codable, Sendable, Equatable {
     var healUsed = false
     var phase: ExpeditionPhase = .exploring
     var battles = 0
+    /// True: the player kept the Master Ball out of this expedition at the departure; the automatic throws never take
+    /// it, even at a legendary boss. Nil from an expedition saved before the throws were automatic.
+    var keepsMasterBall: Bool?
 
     var floors: Int { DungeonCatalog.dungeon(dungeon).floors }
     var floorCost: Int { max(1, cost / floors) }

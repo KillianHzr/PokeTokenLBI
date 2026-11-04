@@ -7,7 +7,6 @@ struct ExpeditionCard: View {
     let store: CompanionStore
     let nav: PopoverNavigation
     @State private var confirmingAbandon = false
-    @State private var confirmingLetGo = false
 
     var body: some View {
         if let e = store.expedition {
@@ -15,7 +14,8 @@ struct ExpeditionCard: View {
                 header(e)
                 switch e.phase {
                 case .awaitingHeal(let price): heal(e, price: price)
-                case .capture(let left): capture(e, throwsLeft: left)
+                // The throws go by themselves as the boss falls (`throwAutomatically`): never waits here.
+                case .capture: exploring(e)
                 case .exploring, .finished: exploring(e)
                 }
             }
@@ -158,74 +158,6 @@ struct ExpeditionCard: View {
                 .font(.caption2).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    // MARK: The capture (Q18, maquette 6)
-
-    @ViewBuilder
-    private func capture(_ e: Expedition, throwsLeft: Int) -> some View {
-        let misses = e.log.filter { if case .capture(_, _, false) = $0.kind { return true }; return false }.count
-        Text(l.dungeonBossWas(e.floors)).font(.caption).foregroundStyle(.secondary)
-        HStack(spacing: 12) {
-            SpriteView(speciesID: e.boss.speciesID, size: 64, shiny: e.boss.isShiny, form: e.boss.form, sameScale: true)
-            VStack(alignment: .leading, spacing: 4) {
-                PokemonNameLabel(.pokemonSpecies, String(e.boss.speciesID), language: store.language)
-                    .font(.headline)
-                Text(l.dungeonBossBeatenThrow).font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if misses > 0 {
-                    HStack(spacing: 4) {
-                        ForEach(0..<misses, id: \.self) { _ in
-                            Badge("✗ " + l.dungeonMissed, tint: .orange, style: .tinted)
-                        }
-                    }
-                }
-            }
-        }
-        Text(l.dungeonThrowsLeft(throwsLeft)).font(.caption.weight(.semibold)).monospacedDigit()
-        VStack(alignment: .leading, spacing: 6) {
-            throwButton(e, ball: nil, name: l.dungeonPokeBall, count: nil)
-            ForEach([ItemKind.greatBall, .ultraBall, .masterBall], id: \.self) { ball in
-                let count = store.itemCount(ball)
-                if count > 0 { throwButton(e, ball: ball, name: l.itemName(ball), count: count) }
-            }
-        }
-        if confirmingLetGo {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(l.dungeonLetGoCost).font(.caption).foregroundStyle(Color.readableOrange)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
-                    Spacer(minLength: 0)
-                    Button(l.cancel) { confirmingLetGo = false }
-                        .buttonStyle(.borderless).controlSize(.small)
-                    Button(l.dungeonLetGo) {
-                        confirmingLetGo = false
-                        store.endCapture()
-                    }
-                    .buttonStyle(.pill(prominent: true))
-                }
-            }
-        } else {
-            HStack {
-                Spacer()
-                Button(l.dungeonLetGo) { confirmingLetGo = true }
-                    .buttonStyle(.borderless).controlSize(.small).font(.caption).foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func throwButton(_ e: Expedition, ball: ItemKind?, name: String, count: Int?) -> some View {
-        let percent = Int((ExpeditionEngine.throwOdds(e.boss, ball: ball) * 100).rounded())
-        return Button { store.throwAtBoss(ball) } label: {
-            HStack(spacing: 6) {
-                if let ball { ItemIconView(kind: ball, size: 18) } else { Image(systemName: "circle.circle.fill") }
-                Text(l.dungeonThrowOdds(name, percent)).monospacedDigit()
-                Spacer(minLength: 4)
-                if let count { Text("×\(count)").font(.caption).foregroundStyle(.secondary).monospacedDigit() }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered).controlSize(.regular)
     }
 }
 
@@ -481,13 +413,21 @@ struct ExpeditionResultCard: View {
                             .font(.caption.weight(.semibold))
                         Text(r.caught ? l.dungeonBossCaught : l.dungeonBossNotCaught)
                             .font(.caption2).foregroundStyle(.secondary)
+                        if let thrown = thrownBalls(r, l) {
+                            Text(l.dungeonThrowsUsed(thrown)).font(.caption2).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
             }
             if r.loot.isEmpty, !r.won {
-                Text(l.dungeonLootLost).font(.caption).foregroundStyle(.secondary)
+                // Lost only by leaving without a rope; a defeat keeps the floors' loot, here none.
+                Text(Self.leftWithoutRope(r) ? l.dungeonLootLost : l.dungeonNothingFound).font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
+                if !r.won, !r.roped {
+                    Text(l.dungeonLootKept).font(.caption.weight(.semibold))
+                }
                 lootRows(r, l)
             }
             if !r.unlocked.isEmpty {
@@ -527,6 +467,19 @@ struct ExpeditionResultCard: View {
             }
         }
         .designCard()
+    }
+
+    static func leftWithoutRope(_ r: ExpeditionResult) -> Bool {
+        r.log.contains { if case .abandon(rope: false) = $0.kind { return true } else { return false } }
+    }
+
+    /// The balls the automatic throws took, in order ("Ultra Ball, Ultra Ball, Poké Ball").
+    private func thrownBalls(_ r: ExpeditionResult, _ l: L) -> String? {
+        let balls = r.log.compactMap { entry -> String? in
+            guard case .capture(_, let ball, _) = entry.kind else { return nil }
+            return ball.flatMap(ItemKind.init(rawValue:)).map(l.itemName) ?? l.dungeonPokeBall
+        }
+        return balls.isEmpty ? nil : balls.joined(separator: ", ")
     }
 
     private func lootRows(_ r: ExpeditionResult, _ l: L) -> some View {

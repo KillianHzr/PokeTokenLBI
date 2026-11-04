@@ -215,7 +215,8 @@ extension CompanionStore {
     @discardableResult
     /// `expectedBoss`: the challenge boss the team screen showed. Past midnight (or the week's turn) the day's boss is
     /// another, and the new period's try is not spent on one the player never saw nor was shown the odds of.
-    func startExpedition(_ id: DungeonID, team ids: [String], expectedBoss: BattleForm? = nil) -> Bool {
+    func startExpedition(_ id: DungeonID, team ids: [String], expectedBoss: BattleForm? = nil,
+                         keepsMasterBall: Bool = false) -> Bool {
         guard canEnter(id) else { return false }
         if id.isChallenge, let expectedBoss {
             settleChallengeBosses()
@@ -243,9 +244,11 @@ extension CompanionStore {
         let started = ExpeditionEngine.start(dungeon: dungeon, team: members, rules: rules, teamSize: size, seed: seed,
                                              cost: dungeon.cost(difficulty: growthDifficulty), berries: berries,
                                              revives: revives, context: context, boss: challenge)
+        var expedition = started
+        if keepsMasterBall { expedition.keepsMasterBall = true }
         let period = challengePeriod(id)
         changeDungeons {
-            $0.expedition = started
+            $0.expedition = expedition
             $0.lastResult = nil
             $0.departures += 1
             // The one try is spent at the departure, whatever the end.
@@ -270,6 +273,7 @@ extension CompanionStore {
         let reached = e.bossReached
         let left = walkingTheDungeon { ExpeditionEngine.feed(&e, tokens: tokens, context: context) }
         store(e, bossNewlyReached: !reached && e.bossReached)
+        throwAutomatically()
         return left
     }
 
@@ -293,8 +297,8 @@ extension CompanionStore {
         if case .finished = e.phase { return }
         AppLog.write("dungeon: a step of \(e.dungeon.rawValue) did not come back last time, the expedition ends")
         let held = e.reserve
-        ExpeditionEngine.append(&e, .abandon(rope: false), context: context)
-        e.phase = .finished(won: false)
+        // A defeat, not a departure: the floors crossed keep their loot.
+        ExpeditionEngine.finish(&e, won: false, context: context)
         changeDungeons { $0.expedition = e }
         finishExpedition(roped: false)
         creditGrowthPastTheDungeon(held)
@@ -321,6 +325,7 @@ extension CompanionStore {
         }
         let left = walkingTheDungeon { ExpeditionEngine.answerHeal(&e, paid: pay, context: context) }
         store(e)
+        throwAutomatically()
         creditGrowthPastTheDungeon(left)
         return true
     }
@@ -351,6 +356,32 @@ extension CompanionStore {
         let caught = ExpeditionEngine.throwBall(&e, ball: ball, context: context)
         store(e)
         return caught
+    }
+
+    // MARK: The automatic capture
+
+    /// The boss fallen, the throws go by themselves (the owner, 2026-11-04: the player was not there to make them, and
+    /// the expedition waited): each takes the ball `automaticBall` picks, until one catches or none are left.
+    func throwAutomatically() {
+        while let e = expedition, case .capture(let left) = e.phase, left > 0 {
+            guard throwAtBoss(automaticBall(for: e)) != nil else { break }
+        }
+    }
+
+    /// The best ball the Bag has for this boss: the Master Ball at a legendary one, unless the player kept it out of
+    /// this expedition at the departure; else an Ultra Ball, a Great Ball, and last the free Poké Ball (nil).
+    func automaticBall(for e: Expedition) -> ItemKind? {
+        if SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary, e.keepsMasterBall != true, itemCount(.masterBall) > 0 {
+            return .masterBall
+        }
+        return [ItemKind.ultraBall, .greatBall].first { itemCount($0) > 0 }
+    }
+
+    /// Whether this dungeon's boss may be legendary: what the Master Ball box of the team screen is for. A challenge's
+    /// boss is the one shown.
+    func mayMeetALegendary(_ id: DungeonID, boss: BattleForm?) -> Bool {
+        if id.isChallenge { return boss.map { SpeciesInfo.lineRarity(of: $0.speciesID) == .legendary } ?? false }
+        return DungeonCatalog.dungeon(id).bosses.contains { SpeciesInfo.lineRarity(of: $0) == .legendary }
     }
 
     /// Lets the boss go without throwing again: the expedition ends, won.
@@ -475,7 +506,10 @@ extension CompanionStore {
         let openBefore = Set(DungeonID.allCases.filter(isDungeonOpen))
         let firstVictory = won && state.dungeons.wins(e.dungeon) == 0 && !e.dungeon.isChallenge
         let t3Victories = DungeonCatalog.all.filter { $0.tier == .t3 }.reduce(0) { $0 + state.dungeons.wins($1.id) }
-        var loot = won || roped ? e.loot : ExpeditionLoot()
+        // A defeat keeps what the floors crossed gave (the owner, 2026-11-04: their tokens are paid); the floor it fell
+        // on gave nothing, a battle lost bringing no loot. Leaving without an Escape Rope still loses it.
+        let leftWithoutRope = e.log.contains { if case .abandon(rope: false) = $0.kind { return true } else { return false } }
+        var loot = won || roped || !leftWithoutRope ? e.loot : ExpeditionLoot()
         var unlockedMove: String?
         // A challenge gives its battle form, and its floors' loot: no first-victory doubling, no extras.
         let battleForm = won && e.dungeon.isChallenge ? BattleForms.form(speciesID: e.boss.speciesID, form: e.boss.form) : nil

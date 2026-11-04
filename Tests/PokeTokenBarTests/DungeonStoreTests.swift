@@ -104,10 +104,11 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertTrue(s.growthPaused, "Prof. Oak reads the pause")
     }
 
-    /// The whole dungeon walked: the boss falls to a strong team, the throws end it, its loot goes to the Bag with
-    /// what was not used, a first victory doubles the candies, and Mt. Moon opens.
+    /// The whole dungeon walked: the boss falls to a strong team, the throws go by themselves with the best ball (an
+    /// Ultra Ball, sure at a common boss; the Master Ball stays for a legendary one), its loot goes to the Bag with what
+    /// was not used, a first victory doubles the candies, and Mt. Moon opens.
     func testAVictoryFillsTheBag() throws {
-        let s = try store(dex: strong, inventory: [.oranBerry: 3, .masterBall: 1])
+        let s = try store(dex: strong, inventory: [.oranBerry: 3, .masterBall: 1, .ultraBall: 3])
         XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
         let cost = DungeonTier.t1.cost(difficulty: 0.1)
         var total = 0
@@ -116,9 +117,7 @@ final class DungeonStoreTests: XCTestCase {
             credit(s, total: total)
             if case .awaitingHeal? = s.expedition?.phase { s.answerEmergencyHeal(pay: false) }
         }
-        guard case .capture? = s.expedition?.phase else { return XCTFail("the boss should fall: \(String(describing: s.expedition?.phase))") }
-        XCTAssertEqual(s.throwAtBoss(.masterBall), true)
-        XCTAssertNil(s.expedition)
+        XCTAssertNil(s.expedition, "the throws went by themselves: \(String(describing: s.expedition?.phase))")
         let result = try XCTUnwrap(s.dungeonProgress.lastResult)
         XCTAssertTrue(result.won)
         XCTAssertTrue(result.caught)
@@ -126,7 +125,8 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(result.loot.candies % 2, 0, "doubled")
         XCTAssertEqual(s.dungeonProgress.wins(.viridianForest), 1)
         XCTAssertTrue(result.unlocked.contains(.mtMoon))
-        XCTAssertEqual(s.itemCount(.masterBall), 0)
+        XCTAssertEqual(s.itemCount(.masterBall), 1, "never at a boss that is not legendary")
+        XCTAssertEqual(s.itemCount(.ultraBall), 2, "one Ultra Ball")
         XCTAssertEqual(s.dungeonProgress.eggs.count, result.loot.eggs.count)
         XCTAssertTrue(s.dungeonProgress.eggs.contains { $0.sourceSpeciesID == result.boss.speciesID })
         XCTAssertGreaterThanOrEqual(s.itemCount(.oranBerry), 0)
@@ -148,6 +148,91 @@ final class DungeonStoreTests: XCTestCase {
             XCTAssertEqual(s.dungeonProgress.lastResult?.roped, rope)
             XCTAssertEqual(s.dungeonProgress.wins(.viridianForest), 0)
         }
+    }
+
+    /// A defeat keeps what the floors crossed gave (the owner, 2026-11-04): their tokens are paid. Not the boss's
+    /// candies, which only its fall gives.
+    func testADefeatKeepsTheFloorsLoot() throws {
+        let s = try store(dex: strong)
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        s.changeDungeons {
+            $0.expedition?.loot.candies = 2
+            $0.expedition?.loot.add(.sitrusBerry)
+            $0.expedition?.candiesLeft = 5
+            for i in $0.expedition!.team.indices { $0.expedition!.team[i].spec.hp = 0 }
+        }
+        let candies = s.itemCount(.rareCandy)
+        let sitrus = s.itemCount(.sitrusBerry)
+        // One floor's tokens: none left over for the growth, which has candies of its own to give.
+        credit(s, total: DungeonTier.t1.cost(difficulty: 0.1) / 5)
+        XCTAssertNil(s.expedition)
+        let result = try XCTUnwrap(s.dungeonProgress.lastResult)
+        XCTAssertFalse(result.won)
+        XCTAssertEqual(result.loot.candies, 2)
+        XCTAssertEqual(s.itemCount(.rareCandy), candies + 2, "the floors' two candies, not the boss's five")
+        XCTAssertEqual(s.itemCount(.sitrusBerry), sitrus + 1)
+    }
+
+    /// A legendary boss, so a throw can miss: the expedition at its throws.
+    private func atALegendaryBoss(_ inventory: [ItemKind: Int], keepsMasterBall: Bool = false) throws -> CompanionStore {
+        let s = try store(dex: strong, inventory: inventory)
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id), keepsMasterBall: keepsMasterBall))
+        s.changeDungeons {
+            $0.expedition?.boss = ExpeditionBoss(speciesID: 144, form: nil, isShiny: false)
+            $0.expedition?.phase = .capture(throwsLeft: 3)
+        }
+        return s
+    }
+
+    private func thrownBalls(_ s: CompanionStore) -> [String?] {
+        var balls: [String?] = []
+        for entry in s.dungeonProgress.lastResult?.log ?? [] {
+            if case .capture(_, let ball, _) = entry.kind { balls.append(ball) }
+        }
+        return balls
+    }
+
+    /// The throws go by themselves (the owner, 2026-11-04), each with the best ball left: Ultra, Great, then the free
+    /// Poké Ball.
+    func testTheThrowsTakeTheBestBallFirst() throws {
+        let s = try atALegendaryBoss([.greatBall: 1, .ultraBall: 1])
+        s.throwAutomatically()
+        XCTAssertNil(s.expedition, "the throws ended it")
+        let balls = thrownBalls(s)
+        XCTAssertFalse(balls.isEmpty)
+        let order: [String?] = [ItemKind.ultraBall.rawValue, ItemKind.greatBall.rawValue, nil]
+        XCTAssertEqual(balls, Array(order.prefix(balls.count)))
+        XCTAssertEqual(s.itemCount(.ultraBall), 0)
+    }
+
+    /// At a legendary boss the Master Ball goes first, unless the player kept it home at the departure.
+    func testTheMasterBallGoesAtALegendaryUnlessKeptHome() throws {
+        for keep in [false, true] {
+            let s = try atALegendaryBoss([.masterBall: 1, .ultraBall: 3], keepsMasterBall: keep)
+            s.throwAutomatically()
+            XCTAssertEqual(s.itemCount(.masterBall), keep ? 1 : 0, "kept home: \(keep)")
+            XCTAssertEqual(thrownBalls(s).first ?? nil, keep ? ItemKind.ultraBall.rawValue : ItemKind.masterBall.rawValue)
+            if !keep { XCTAssertEqual(s.dungeonProgress.lastResult?.caught, true, "a Master Ball never misses") }
+        }
+        let common = try store(dex: strong, inventory: [.masterBall: 1])
+        XCTAssertTrue(common.mayMeetALegendary(.seafoamIslands, boss: nil))
+        XCTAssertFalse(common.mayMeetALegendary(.viridianForest, boss: nil), "no Master Ball box where it never goes")
+    }
+
+    /// A save left at the boss's throws, from before they were automatic, throws them as the app opens.
+    func testASaveWaitingAtTheThrowsThrowsThemAtLaunch() throws {
+        let s = try atALegendaryBoss([:])
+        var st = s.state
+        st.dungeons.expedition = s.expedition
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dungeon-throws-\(UUID().uuidString).json")
+        try JSONEncoder().encode(st).write(to: url)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        let reopened = CompanionStore(provider: StubProvider(value: EvoLine(baseID: 16, tree: EvoNode(speciesID: 16, children: []),
+                                                                           rarity: .common, names: [:])),
+                                      clock: { self.now }, fileURL: url, rng: SeededRNG(seed: 3), difficulty: 0.1)
+        XCTAssertNil(reopened.expedition)
+        XCTAssertEqual(reopened.dungeonProgress.lastResult?.won, true)
+        XCTAssertFalse(thrownBalls(reopened).isEmpty)
     }
 
     /// R5: the heal costs a quarter of the dungeon's cost, from the wallet; refused without the tokens.
@@ -661,6 +746,9 @@ final class DungeonStoreTests: XCTestCase {
         let relaunched = open()
         XCTAssertNil(relaunched.expedition, "the expedition ends instead of replaying the battle")
         XCTAssertEqual(relaunched.dungeonProgress.lastResult?.won, false)
+        XCTAssertFalse(relaunched.dungeonProgress.lastResult?.log.contains {
+            if case .abandon = $0.kind { return true } else { return false }
+        } ?? true, "a defeat, which keeps the floors' loot, not a departure without a rope")
         XCTAssertFalse(defaults.bool(forKey: CompanionStore.stepInFlightKey))
     }
 

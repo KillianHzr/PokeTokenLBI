@@ -16,6 +16,8 @@ struct DungeonTeamScreen: View {
     @State private var odds: Double?
     /// A challenge's boss as the screen opened: shown, estimated and set off against, even past midnight.
     @State private var shownBoss: BattleForm?
+    /// Checked: the automatic throws may take the Master Ball at a legendary boss (the owner, 2026-11-04).
+    @State private var useMasterBall = true
 
     var body: some View {
         let l = store.l
@@ -152,6 +154,13 @@ struct DungeonTeamScreen: View {
                     Text(l.dungeonTeamIncomplete).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 }
             }
+            // The automatic throws take the Master Ball at a legendary boss unless it stays home for this one.
+            if store.itemCount(.masterBall) > 0, store.mayMeetALegendary(dungeon, boss: shownBoss ?? store.challengeBoss(dungeon)) {
+                Toggle(isOn: $useMasterBall) {
+                    Text(l.dungeonUseMasterBall(l.itemName(.masterBall))).font(.caption)
+                }
+                .toggleStyle(.checkbox)
+            }
             HStack(spacing: 8) {
                 Button(l.dungeonComposeForMe) {
                     self.team = store.composeTeam(for: dungeon)
@@ -161,7 +170,7 @@ struct DungeonTeamScreen: View {
                 Spacer()
                 let keys = store.keysToEnter(dungeon)
                 Button(keys > 0 ? "\(l.dungeonSetOff) · 🗝️ \(keys)" : l.dungeonSetOff) {
-                    if store.startExpedition(dungeon, team: self.team, expectedBoss: shownBoss) {
+                    if store.startExpedition(dungeon, team: self.team, expectedBoss: shownBoss, keepsMasterBall: !useMasterBall) {
                         onDepart()
                     } else if dungeon.isChallenge {
                         // Midnight came: the new period's boss, shown and estimated before anything is spent.

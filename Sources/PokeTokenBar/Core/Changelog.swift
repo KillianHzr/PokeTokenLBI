@@ -152,14 +152,14 @@ enum Changelog {
                            "Новая вкладка \"\(tab)\": сумка и успехи в одном месте.")
             },
             .new("2026-11-02-dungeons") { l in
-                l.t("던전: 졸업한 포켓몬으로 팀을 꾸려 토큰으로 13개의 던전을 탐험하세요. 자동 전투와 전리품이 있고, 보스를 잡으면 그 알을 받아요.",
-                    "Dungeons: send a team of graduated Pokémon to explore 13 dungeons with your tokens. Automatic battles, loot, and a boss to catch for its egg.",
-                    "ダンジョン：卒業したポケモンでチームを組み、トークンで13のダンジョンを探検しよう。自動バトルと戦利品があり、ボスを捕まえるとそのタマゴがもらえます。",
-                    "Mazmorras: envía un equipo de Pokémon graduados a explorar 13 mazmorras con tus tokens. Combates automáticos, botín y un jefe que atrapar para conseguir su huevo.",
-                    "Donjons : envoie une équipe de Pokémon diplômés explorer 13 donjons avec tes tokens. Combats automatiques, butin, et un boss à capturer pour avoir son œuf.",
-                    "Masmorras: envie uma equipe de Pokémon formados para explorar 13 masmorras com seus tokens. Batalhas automáticas, espólios e um chefe para capturar e ganhar o ovo dele.",
-                    "Dungeons: Schicke ein Team verabschiedeter Pokémon mit deinen Tokens in 13 Dungeons. Automatische Kämpfe, Beute und ein Boss, den du für sein Ei fangen kannst.",
-                    "Подземелья: отправьте команду выпущенных покемонов исследовать 13 подземелий за ваши токены. Автоматические бои, добыча и босс, которого можно поймать ради его яйца.")
+                l.t("던전: 졸업한 포켓몬으로 팀을 꾸려 토큰으로 13개의 던전을 탐험하세요. 전투와 포획은 자동이고, 져도 지나온 층의 전리품은 지켜요. 보스를 잡으면 그 알을 받아요.",
+                    "Dungeons: send a team of graduated Pokémon to explore 13 dungeons with your tokens. Battles and the capture are automatic, the loot of the floors crossed stays yours even after a defeat, and a caught boss gives its egg.",
+                    "ダンジョン：卒業したポケモンでチームを組み、トークンで13のダンジョンを探検しよう。バトルも捕獲も自動で、負けても通った階の戦利品は残ります。ボスを捕まえるとそのタマゴがもらえます。",
+                    "Mazmorras: envía un equipo de Pokémon graduados a explorar 13 mazmorras con tus tokens. Los combates y la captura son automáticos, el botín de los pisos superados es tuyo aunque pierdas, y un jefe capturado da su huevo.",
+                    "Donjons : envoie une équipe de Pokémon diplômés explorer 13 donjons avec tes tokens. Combats et capture automatiques, le butin des étages franchis reste à toi même après une défaite, et un boss capturé donne son œuf.",
+                    "Masmorras: envie uma equipe de Pokémon formados para explorar 13 masmorras com seus tokens. Batalhas e captura são automáticas, o espólio dos andares vencidos fica com você mesmo após uma derrota, e um chefe capturado dá o ovo dele.",
+                    "Dungeons: Schicke ein Team verabschiedeter Pokémon mit deinen Tokens in 13 Dungeons. Kämpfe und Fang laufen automatisch, die Beute der geschafften Ebenen bleibt dir auch nach einer Niederlage, und ein gefangener Boss gibt sein Ei.",
+                    "Подземелья: отправьте команду выпущенных покемонов исследовать 13 подземелий за ваши токены. Бои и поимка автоматические, добыча пройденных этажей остаётся даже после поражения, а пойманный босс даёт своё яйцо.")
             },
             .new("2026-11-02-dungeon-moves") { l in
                 let capsule = l.dungeonTechnicalCapsule

@@ -110,6 +110,8 @@ final class CompanionStore {
         recordFossilLinesBeforeDigsIfNeeded()
         reconcileOverclaimedDigsIfNeeded()
         recoverFromACrashedDungeonStep()
+        // A save left waiting at the boss's throws, from before they were automatic, throws them now.
+        throwAutomatically()
         refreshRepresentativeSubject()
         refreshSnapshots()
         if state.active != nil { displayState = .idle }
