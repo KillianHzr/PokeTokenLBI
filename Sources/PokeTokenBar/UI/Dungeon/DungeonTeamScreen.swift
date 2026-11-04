@@ -14,6 +14,8 @@ struct DungeonTeamScreen: View {
     @State private var focus: String?
     @State private var editingSlot: Int?
     @State private var odds: Double?
+    /// A challenge's boss as the screen opened: shown, estimated and set off against, even past midnight.
+    @State private var shownBoss: BattleForm?
 
     var body: some View {
         let l = store.l
@@ -27,7 +29,7 @@ struct DungeonTeamScreen: View {
                     .keyboardShortcut(.cancelAction)
                 Spacer(minLength: 4)
                 DungeonIcon(id: dungeon, size: 20,
-                            boss: store.challengeBoss(dungeon).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
+                            boss: (shownBoss ?? store.challengeBoss(dungeon)).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
                 Text(l.dungeonName(dungeon)).font(.headline)
             }
             rulesBox(size: size, rules: rules, team: candidates, l)
@@ -51,6 +53,7 @@ struct DungeonTeamScreen: View {
         }
         .padding(PopoverMetrics.padding)
         .frame(height: 520, alignment: .top)
+        .onAppear { if dungeon.isChallenge, shownBoss == nil { shownBoss = store.challengeBoss(dungeon) } }
         // Again when a member changes form or moves: its spec changes with them, not the team's ids.
         .task(id: estimateKey) { await estimate() }
     }
@@ -152,7 +155,12 @@ struct DungeonTeamScreen: View {
                 Spacer()
                 let keys = store.keysToEnter(dungeon)
                 Button(keys > 0 ? "\(l.dungeonSetOff) · 🗝️ \(keys)" : l.dungeonSetOff) {
-                    if store.startExpedition(dungeon, team: self.team) { onDepart() }
+                    if store.startExpedition(dungeon, team: self.team, expectedBoss: shownBoss) {
+                        onDepart()
+                    } else if dungeon.isChallenge {
+                        // Midnight came: the new period's boss, shown and estimated before anything is spent.
+                        shownBoss = store.challengeBoss(dungeon)
+                    }
                 }
                 .buttonStyle(.pill(prominent: true))
                 .disabled(!valid || !store.canEnter(dungeon))
@@ -165,7 +173,7 @@ struct DungeonTeamScreen: View {
     private var estimateKey: [String] {
         team.map { id in
             "\(id)|\(store.dungeonProgress.battleFormChoice[id] ?? "")|\((store.dungeonProgress.moveLoops[id] ?? []).joined(separator: ","))"
-        }
+        } + [shownBoss?.key ?? ""]
     }
 
     private func estimate() async {
@@ -173,7 +181,7 @@ struct DungeonTeamScreen: View {
         let (size, rules) = store.teamRules(dungeon)
         let picked = team.compactMap { id in store.dungeonCandidates.first { $0.id == id } }
         guard DungeonTeamRules.isValid(picked.map(DungeonCandidate.init), size: size, rules: rules),
-              let estimate = store.reachEstimate(team: team, for: dungeon) else { return }
+              let estimate = store.reachEstimate(team: team, for: dungeon, boss: shownBoss) else { return }
         try? await Task.sleep(for: .milliseconds(250))
         guard !Task.isCancelled else { return }
         // The Bag's berries and Revives go along, as at the departure; a challenge's boss stands at the end.

@@ -62,6 +62,8 @@ final class CompanionStore {
     private(set) var loadingPokemonDetailIDs: Set<Int> = []
     private(set) var failedPokemonDetailIDs: Set<Int> = []
     private let defaults: UserDefaults
+    /// The dungeons' in-flight mark (`CompanionStore+Dungeons`).
+    var defaultsForDungeons: UserDefaults { defaults }
     /// 세션 내 활성 개체 교체 감지용. await 뒤 이전 개체의 결과가 새 개체를 덮지 않게 한다.
     private var activeGeneration = 0
     private var lastAutoSnapshotDate: Date?
@@ -107,6 +109,7 @@ final class CompanionStore {
         migrateLightBallToRewardsIfNeeded()
         recordFossilLinesBeforeDigsIfNeeded()
         reconcileOverclaimedDigsIfNeeded()
+        recoverFromACrashedDungeonStep()
         refreshRepresentativeSubject()
         refreshSnapshots()
         if state.active != nil { displayState = .idle }

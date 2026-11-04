@@ -190,12 +190,13 @@ extension CompanionStore {
 
     /// R7: what the odds that this team reaches the boss are run on, off the main thread: the team as it would set
     /// off (its battle forms, its loops), with the Bag's berries and Revives it takes along, and a challenge's boss.
-    func reachEstimate(team ids: [String], for id: DungeonID) -> DungeonTeamBuilder.ReachEstimate? {
+    /// `shown`: the challenge boss the team screen shows, which the odds are for.
+    func reachEstimate(team ids: [String], for id: DungeonID, boss shown: BattleForm? = nil) -> DungeonTeamBuilder.ReachEstimate? {
         let candidates = dungeonCandidates
         let members = ids.compactMap { id in candidates.first { $0.id == id } }
             .compactMap { entry in dungeonSpec(entry, for: id).map { ExpeditionMember(entryID: entry.id, spec: $0) } }
         guard members.count == ids.count, !members.isEmpty else { return nil }
-        let boss = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
+        let boss = (shown ?? challengeBoss(id)).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
         return .init(team: members, dungeon: DungeonCatalog.dungeon(id), berries: bagBerries, revives: bagRevives, boss: boss)
     }
 
@@ -212,8 +213,14 @@ extension CompanionStore {
 
     /// Sets the team off: the rules held, the keys or the map spent, the Bag's berries and Revives taken along.
     @discardableResult
-    func startExpedition(_ id: DungeonID, team ids: [String]) -> Bool {
+    /// `expectedBoss`: the challenge boss the team screen showed. Past midnight (or the week's turn) the day's boss is
+    /// another, and the new period's try is not spent on one the player never saw nor was shown the odds of.
+    func startExpedition(_ id: DungeonID, team ids: [String], expectedBoss: BattleForm? = nil) -> Bool {
         guard canEnter(id) else { return false }
+        if id.isChallenge, let expectedBoss {
+            settleChallengeBosses()
+            guard challengeBoss(id) == expectedBoss else { return false }
+        }
         let entries = ids.compactMap { id in dungeonCandidates.first { $0.id == id } }
         let (size, rules) = teamRules(id)
         guard entries.count == ids.count,
@@ -261,9 +268,36 @@ extension CompanionStore {
         case .capture, .finished: return nil
         }
         let reached = e.bossReached
-        let left = ExpeditionEngine.feed(&e, tokens: tokens, context: context)
+        let left = walkingTheDungeon { ExpeditionEngine.feed(&e, tokens: tokens, context: context) }
         store(e, bossNewlyReached: !reached && e.bossReached)
         return left
+    }
+
+    /// A battle that crashed the app would crash it at every launch: its seed, team and floor are saved, so the next
+    /// tokens replay the very same battle. A mark set while the engine plays a step and cleared once it returns tells
+    /// the next launch that the step never came back (`recoverFromACrashedDungeonStep`).
+    static let stepInFlightKey = "dungeonStepInFlight"
+
+    private func walkingTheDungeon<T>(_ step: () -> T) -> T {
+        defaultsForDungeons.set(true, forKey: Self.stepInFlightKey)
+        defer { defaultsForDungeons.removeObject(forKey: Self.stepInFlightKey) }
+        return step()
+    }
+
+    /// At launch: a step that never came back ends its expedition, as a defeat with nothing lost but the loot, rather
+    /// than replay what crashed. The tokens held for the heal go back to growth.
+    func recoverFromACrashedDungeonStep() {
+        guard defaultsForDungeons.bool(forKey: Self.stepInFlightKey) else { return }
+        defaultsForDungeons.removeObject(forKey: Self.stepInFlightKey)
+        guard var e = expedition, let context = expeditionContext else { return }
+        if case .finished = e.phase { return }
+        AppLog.write("dungeon: a step of \(e.dungeon.rawValue) did not come back last time, the expedition ends")
+        let held = e.reserve
+        ExpeditionEngine.append(&e, .abandon(rope: false), context: context)
+        e.phase = .finished(won: false)
+        changeDungeons { $0.expedition = e }
+        finishExpedition(roped: false)
+        creditGrowthPastTheDungeon(held)
     }
 
     /// Saves the expedition's step and ends it when it is over.
@@ -285,7 +319,7 @@ extension CompanionStore {
             guard availableTokens >= price else { return false }
             spendTokens(price)
         }
-        let left = ExpeditionEngine.answerHeal(&e, paid: pay, context: context)
+        let left = walkingTheDungeon { ExpeditionEngine.answerHeal(&e, paid: pay, context: context) }
         store(e)
         creditGrowthPastTheDungeon(left)
         return true
@@ -310,7 +344,7 @@ extension CompanionStore {
     /// no throw is possible.
     @discardableResult
     func throwAtBoss(_ ball: ItemKind?) -> Bool? {
-        guard var e = expedition, let context = expeditionContext, case .capture = e.phase else { return nil }
+        guard var e = expedition, let context = expeditionContext, case .capture(let left) = e.phase, left > 0 else { return nil }
         if let ball {
             guard [.greatBall, .ultraBall, .masterBall].contains(ball), changeBag(ball, by: -1) == -1 else { return nil }
         }

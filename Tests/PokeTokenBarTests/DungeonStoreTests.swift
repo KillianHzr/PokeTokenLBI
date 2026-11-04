@@ -593,6 +593,77 @@ final class DungeonStoreTests: XCTestCase {
                               clock: { clock.date }, fileURL: url, rng: SeededRNG(seed: 3), difficulty: 0.1)
     }
 
+    /// [Regression, review of 2026-11-04] Set off a minute past midnight from a screen opened before it, a challenge
+    /// fought the new day's boss, not the one shown and estimated, and spent the new day's try on it. The departure now
+    /// waits for the boss the screen showed.
+    func testAChallengeDepartureWaitsForTheBossItShowed() throws {
+        let calendar = Calendar(identifier: .iso8601)
+        let team = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        var played = false
+        for day in 8...14 {
+            var parts = DateComponents(year: 2026, month: 11, day: day, hour: 23, minute: 59)
+            parts.timeZone = .current
+            let clock = Clock(try XCTUnwrap(calendar.date(from: parts)))
+            let s = try store(dex: team, clock: clock) { $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1 }
+            let shown = try XCTUnwrap(s.challengeBoss(.daily))
+            clock.date = clock.date.addingTimeInterval(2 * 60)
+            let current = try XCTUnwrap(s.challengeBoss(.daily))
+            guard current != shown else { continue }
+            played = true
+            XCTAssertFalse(s.startExpedition(.daily, team: team.map(\.id), expectedBoss: shown))
+            XCTAssertNil(s.expedition)
+            XCTAssertFalse(s.challengeTried(.daily), "the new day's try is still there")
+            XCTAssertTrue(s.startExpedition(.daily, team: team.map(\.id), expectedBoss: current))
+            XCTAssertEqual(s.expedition?.boss.form, current.form)
+            break
+        }
+        XCTAssertTrue(played, "no midnight in the week changed the day's boss")
+    }
+
+    /// [Regression, review of 2026-11-04] Capture with no throw left (only an import makes one) took the ball and threw
+    /// nothing.
+    func testNoThrowLeftTakesNoBall() throws {
+        let s = try store(dex: strong, inventory: [.ultraBall: 2])
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 0) }
+        XCTAssertNil(s.throwAtBoss(.ultraBall))
+        XCTAssertEqual(s.itemCount(.ultraBall), 2)
+    }
+
+    /// [Regression, review of 2026-11-04] A battle that crashed the app replayed at every launch (its seed, team and
+    /// floor are saved). A step that never came back ends its expedition at the next launch; a step that comes back
+    /// leaves no mark.
+    func testAStepThatNeverCameBackEndsItsExpedition() throws {
+        let suite = "dungeon-step-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dungeon-step-\(UUID().uuidString).json")
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        func open() -> CompanionStore {
+            CompanionStore(provider: StubProvider(value: EvoLine(baseID: 16, tree: EvoNode(speciesID: 16, children: []),
+                                                                 rarity: .common, names: [:])),
+                           clock: { self.now }, fileURL: url, rng: SeededRNG(seed: 3), defaults: defaults, difficulty: 0.1)
+        }
+        var st = CompanionState()
+        st.installBaselineSet = true
+        st.lastDate = "d"
+        st.claimedTodayTokensByProvider = ["test": 0]
+        st.dex = strong
+        st.active = MonState(baseID: 16, pathIDs: [16, 17, 18], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 3)
+        try JSONEncoder().encode(st).write(to: url)
+        let s = open()
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        _ = s.feedExpedition(1_000_000)
+        XCTAssertFalse(defaults.bool(forKey: CompanionStore.stepInFlightKey), "a step that came back leaves no mark")
+        XCTAssertNotNil(s.expedition)
+        // The app died inside the next step: the mark stayed, the save is the step's before.
+        defaults.set(true, forKey: CompanionStore.stepInFlightKey)
+        let relaunched = open()
+        XCTAssertNil(relaunched.expedition, "the expedition ends instead of replaying the battle")
+        XCTAssertEqual(relaunched.dungeonProgress.lastResult?.won, false)
+        XCTAssertFalse(defaults.bool(forKey: CompanionStore.stepInFlightKey))
+    }
+
     /// A challenge set off before midnight (or before the week turns) goes on unchanged: its boss, its floors and the
     /// form it gives are the departure's, whatever the day's draw has become; the next try is the new period's.
     func testAChallengeGoesOnPastMidnightAndTheWeeksTurn() throws {

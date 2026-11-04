@@ -549,6 +549,57 @@ final class SaveTransferTests: XCTestCase {
 
     /// The dungeons travel with the save, and their counts are clamped there: a hand-edited floor, wins count or
     /// token count trapped at its next use.
+    /// [Regression, review of 2026-11-04] What an import could carry that no build writes: an expedition already over
+    /// (it locked the dungeons), a boss the app does not know (its egg never opened), no throw left (each ball was spent
+    /// for nothing), and journal battles past what the engine takes (their replay crashed).
+    func testAnImportedExpeditionTheAppCannotCloseOrReplayIsMended() throws {
+        func start() throws -> Expedition {
+            let spec = try XCTUnwrap(BattlerSpec.make(id: "e6", speciesID: 6, level: 100))
+            return ExpeditionEngine.start(dungeon: DungeonCatalog.dungeon(.viridianForest),
+                                          team: [ExpeditionMember(entryID: "e6", spec: spec)], rules: [], teamSize: 1, seed: 1,
+                                          cost: 75_000_000, berries: [:], revives: [:],
+                                          context: ExpeditionContext(tier: .t1, shinyDenominator: 64, now: transferNow))
+        }
+        func sanitized(_ e: Expedition) -> Expedition? {
+            var state = oldMacState(today: "2026-08-03")
+            state.dungeons.expedition = e
+            return SaveTransfer.sanitized(state).dungeons.expedition
+        }
+        var over = try start()
+        over.phase = .finished(won: true)
+        XCTAssertNil(sanitized(over), "an expedition already over does not travel")
+        var unknown = try start()
+        unknown.boss = ExpeditionBoss(speciesID: 99_999, form: nil, isShiny: false)
+        unknown.phase = .capture(throwsLeft: 3)
+        XCTAssertNil(sanitized(unknown), "nor one whose boss the app does not know")
+        var noThrow = try start()
+        noThrow.phase = .capture(throwsLeft: 0)
+        XCTAssertEqual(sanitized(noThrow)?.phase, .capture(throwsLeft: 1))
+
+        var replayed = try start()
+        var huge = try XCTUnwrap(BattlerSpec.make(id: "x", speciesID: 25, level: 100))
+        huge.level = Int.max
+        huge.stats.hp = 0
+        huge.stats.attack = Int.max
+        let good = BattleSetup(sides: [BattleSideSpec(battlers: [huge], active: 9), BattleSideSpec(battlers: [huge], active: 1)], seed: 1)
+        let lopsided = BattleSetup(sides: [BattleSideSpec(battlers: [huge], active: 1)], seed: 1)
+        let context = ExpeditionContext(tier: .t1, shinyDenominator: 64, now: transferNow)
+        for setup in [good, lopsided] {
+            ExpeditionEngine.append(&replayed, .battle(ExpeditionBattle(kind: .wild, setup: setup, won: true, duration: 1, foes: [25])),
+                                    context: context)
+        }
+        let battles = try XCTUnwrap(sanitized(replayed)).log.compactMap { entry -> ExpeditionBattle? in
+            if case .battle(let battle) = entry.kind { return battle } else { return nil }
+        }
+        XCTAssertEqual(battles.count, 1, "a battle without its two sides goes")
+        let kept = try XCTUnwrap(battles.first?.setup.sides.first)
+        XCTAssertEqual(kept.active, 1)
+        XCTAssertEqual(kept.battlers[0].level, 100)
+        XCTAssertEqual(kept.battlers[0].stats.hp, 1)
+        XCTAssertEqual(kept.battlers[0].stats.attack, 20_000)
+        _ = BattleEngine.run(try XCTUnwrap(battles.first?.setup))   // it replays
+    }
+
     func testTheDungeonsTravelAndAreClamped() throws {
         var state = oldMacState(today: "2026-08-03")
         var spec = try XCTUnwrap(BattlerSpec.make(id: "e6", speciesID: 6, level: 100))

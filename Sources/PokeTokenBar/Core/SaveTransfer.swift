@@ -241,10 +241,18 @@ enum SaveTransfer {
         p.challengeDraws = p.challengeDraws.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
         let battleForms = Set(BattleForms.all.map(\.form.rawValue))
         p.battleFormChoice = p.battleFormChoice.filter { battleForms.contains($0.value) }
+        // An expedition already over waits for nothing that would close it, and a boss the app does not know would give an
+        // egg that never opens: neither travels (it locked the dungeons, or the Pokémon raised).
+        if let e = p.expedition, case .finished = e.phase { p.expedition = nil }
+        if let e = p.expedition, SpeciesBattleTable.data(speciesID: e.boss.speciesID, form: e.boss.form) == nil
+            || SpeciesInfo.all[e.boss.speciesID] == nil {
+            p.expedition = nil
+        }
         if var e = p.expedition {
-            // Three throws at most and a price within the wallet's reach: past them, a throw counted backwards.
+            // One to three throws and a price within the wallet's reach: past them, a throw counted backwards, and none
+            // left spent the balls for nothing.
             switch e.phase {
-            case .capture(let left): e.phase = .capture(throwsLeft: min(max(0, left), 3))
+            case .capture(let left): e.phase = .capture(throwsLeft: min(max(1, left), 3))
             case .awaitingHeal(let price): e.phase = .awaitingHeal(price: clampToken(price))
             case .exploring, .finished: break
             }
@@ -260,15 +268,8 @@ enum SaveTransfer {
             e.berries = e.berries.mapValues(count)
             e.revives = e.revives.mapValues(count)
             // A battle multiplies stats and levels: a hand-edited one far past any real Pokémon's overflowed.
-            for i in e.team.indices {
-                var spec = e.team[i].spec
-                spec.level = min(max(1, spec.level), 100)
-                for path in [\BattleStats.hp, \.attack, \.defense, \.specialAttack, \.specialDefense, \.speed] {
-                    spec.stats[keyPath: path] = min(max(1, spec.stats[keyPath: path]), 20_000)
-                }
-                spec.hp = min(max(0, spec.hp), spec.stats.hp)
-                e.team[i].spec = spec
-            }
+            for i in e.team.indices { e.team[i].spec = clamped(e.team[i].spec) }
+            e.log = clamped(e.log)
             p.expedition = e
         }
         if var r = p.lastResult {
@@ -276,9 +277,38 @@ enum SaveTransfer {
             r.battles = count(r.battles)
             r.loot = loot(r.loot)
             r.loot.eggs = r.loot.eggs.filter(isHatchable)
+            r.log = clamped(r.log)
             p.lastResult = r
         }
         return p
+    }
+
+    /// A Pokémon a battle can take: a level of 1 to 100, stats of 1 to 20,000, HP within its maximum.
+    private static func clamped(_ spec: BattlerSpec) -> BattlerSpec {
+        var spec = spec
+        spec.level = min(max(1, spec.level), 100)
+        for path in [\BattleStats.hp, \.attack, \.defense, \.specialAttack, \.specialDefense, \.speed] {
+            spec.stats[keyPath: path] = min(max(1, spec.stats[keyPath: path]), 20_000)
+        }
+        spec.hp = min(max(0, spec.hp), spec.stats.hp)
+        return spec
+    }
+
+    /// The journal's battles, replayed by "Replay", within what the engine takes: two sides of one to six Pokémon, each
+    /// clamped as the team is; a battle that is not goes.
+    private static func clamped(_ log: [ExpeditionLogEntry]) -> [ExpeditionLogEntry] {
+        log.compactMap { entry in
+            guard case .battle(var battle) = entry.kind else { return entry }
+            guard battle.setup.sides.count == 2,
+                  battle.setup.sides.allSatisfy({ (1...6).contains($0.battlers.count) }) else { return nil }
+            for side in battle.setup.sides.indices {
+                battle.setup.sides[side].battlers = battle.setup.sides[side].battlers.map(clamped)
+                battle.setup.sides[side].active = min(max(1, battle.setup.sides[side].active), battle.setup.sides[side].battlers.count)
+            }
+            var kept = entry
+            kept.kind = .battle(battle)
+            return kept
+        }
     }
 
     /// 다른 기기에서 온 상태를 **이 기기 기준으로 재정렬**한다.
