@@ -771,7 +771,8 @@ final class UsageStore {
             windows += claudeCandyWindows(account, named: accounts.count > 1, l)
                 .filter { account.isDefault || armedCandyWindows.contains($0.key) }
         }
-        // Codex and Antigravity publish no ratio between their plans: their windows pay as a Pro plan's.
+        // Codex and Antigravity publish no ratio between their plans: their windows pay as a Pro plan's. Codex keeps
+        // going on credits past its limit: its windows carry no epoch, so only a sample seen back down rearms them (#434).
         for bucket in codexLimits?.visibleSnapshots ?? [] {
             let bucketName = bucket.bucketDisplayName
             if let primary = bucket.primary {
@@ -779,16 +780,14 @@ final class UsageStore {
                     key: Self.codexCandyKey(bucket, secondary: false),
                     name: "\(bucketName) \(l.codexWindow(primary.windowDurationMins))",
                     kind: Self.windowClass(minutes: primary.windowDurationMins),
-                    utilization: Double(primary.usedPercent),
-                    epoch: primary.resetsAt.map(String.init)))
+                    utilization: Double(primary.usedPercent)))
             }
             if let secondary = bucket.secondary {
                 windows.append(CandyWindow(
                     key: Self.codexCandyKey(bucket, secondary: true),
                     name: "\(bucketName) \(l.codexWindow(secondary.windowDurationMins))",
                     kind: Self.windowClass(minutes: secondary.windowDurationMins),
-                    utilization: Double(secondary.usedPercent),
-                    epoch: secondary.resetsAt.map(String.init)))
+                    utilization: Double(secondary.usedPercent)))
             }
         }
         for group in antigravityLimits?.groups ?? [] {
