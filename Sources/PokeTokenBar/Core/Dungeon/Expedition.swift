@@ -12,7 +12,7 @@ struct DungeonEgg: Codable, Sendable, Equatable, Identifiable {
     var sourceSpeciesID: Int
 }
 
-/// What an expedition has gathered, kept only if its boss falls (Q3) or an Escape Rope takes the team out (Q4).
+/// What an expedition has gathered, kept unless the team leaves without an Escape Rope (Q4, the owner 2026-11-04).
 struct ExpeditionLoot: Codable, Sendable, Equatable {
     var candies = 0
     var items: [String: Int] = [:]
@@ -136,6 +136,10 @@ struct Expedition: Codable, Sendable, Equatable {
     /// True: the player kept the Master Ball out of this expedition at the departure; the automatic throws never take
     /// it, even at a legendary boss. Nil from an expedition saved before the throws were automatic.
     var keepsMasterBall: Bool?
+    /// The boss's species was already the player's at the departure (`CompanionStore.hasCaughtBoss`): a legendary one
+    /// comes shiny, and catching another brings an egg of the tier's rarity in place of its own (2026-11-04). Nil from
+    /// an expedition saved before.
+    var bossAlreadyCaught: Bool?
 
     var floors: Int { DungeonCatalog.dungeon(dungeon).floors }
     var floorCost: Int { max(1, cost / floors) }
@@ -182,8 +186,9 @@ enum ExpeditionEngine {
         case .t1: 0...1
         case .t2: 0...2
         case .t3: 1...3
-        case .t4: 2...5
-        case .t5: 4...8
+        // T4 and T5 raised on 2026-11-04 (the owner): the dearest dungeons gave the least per token.
+        case .t4: 4...7
+        case .t5: 6...10
         }
     }
 
@@ -522,7 +527,8 @@ enum ExpeditionEngine {
     private static func chest(_ e: inout Expedition, tier: DungeonTier, better: Bool,
                               random: inout BattleRandom) -> ExpeditionLoot {
         var loot = ExpeditionLoot()
-        if e.candiesLeft > 0, random.below(10) < (better ? 8 : 6) {
+        // Most candies in the chests rather than with the boss (2026-11-04): a defeat keeps the floors' loot.
+        if e.candiesLeft > 0, random.below(10) < (better ? 10 : 8) {
             let give = min(e.candiesLeft, 1 + random.below(max(1, e.candiesLeft / 2)))
             loot.candies = give
             e.candiesLeft -= give
@@ -531,14 +537,47 @@ enum ExpeditionEngine {
             let table = itemTable(better && tier < .t5 ? DungeonTier(rawValue: tier.rawValue + 1)! : tier)
             loot.add(table[random.below(table.count)])
         }
+        // The dungeon's own tier for every chest, a trainer's too: its odds are the chest's (the owner, 2026-11-04).
+        if let egg = chestEgg(tier, random: &random) { loot.add(egg) }
         if loot.isEmpty { loot.add(itemTable(tier)[0]) }
         e.loot.add(loot)
         return loot
     }
 
+    /// The egg a chest may hold (the owner, 2026-11-04: once the bosses are caught, the dungeons are run again for
+    /// their loot): none in T1; an Uncommon Egg one chest in 8 in T2; a Rare Egg one in 10 in T3; in T4 a Legendary
+    /// Egg one in 50, else a Rare Egg 3 in 20; in T5 a Legendary Egg one in 15, else a Rare Egg one in 5.
+    static func chestEgg(_ tier: DungeonTier, random: inout BattleRandom) -> ItemKind? {
+        guard tier > .t1 else { return nil }
+        let roll = random.below(1000)
+        switch tier {
+        case .t1: return nil
+        case .t2: return roll < 125 ? .uncommonEgg : nil
+        case .t3: return roll < 100 ? .rareEgg : nil
+        case .t4: return roll < 20 ? .legendaryEgg : roll < 170 ? .rareEgg : nil
+        case .t5: return roll < 67 ? .legendaryEgg : roll < 267 ? .rareEgg : nil
+        }
+    }
+
+    /// Whether catching this boss gives `tierEgg` rather than its own: caught already, and no legendary (that one comes
+    /// shiny instead, `CompanionStore.startExpedition`).
+    static func givesTierEgg(_ e: Expedition) -> Bool {
+        e.bossAlreadyCaught == true && SpeciesInfo.lineRarity(of: e.boss.speciesID) != .legendary
+    }
+
+    /// The egg of the tier's rarity a boss already caught gives in place of its own (2026-11-04).
+    static func tierEgg(_ tier: DungeonTier) -> ItemKind {
+        switch tier {
+        case .t1: .pokemonEgg
+        case .t2: .uncommonEgg
+        case .t3, .t4: .rareEgg
+        case .t5: .legendaryEgg
+        }
+    }
+
     static func isRare(_ loot: ExpeditionLoot) -> Bool {
         !loot.eggs.isEmpty || [ItemKind.goldCapsule, .silverCapsule, .masterBall, .treasureMap, .explorerChest,
-                               .legendaryKey].contains { (loot.items[$0.rawValue] ?? 0) > 0 }
+                               .legendaryKey, .legendaryEgg, .rareEgg].contains { (loot.items[$0.rawValue] ?? 0) > 0 }
     }
 
     // MARK: The emergency heal
@@ -593,8 +632,14 @@ enum ExpeditionEngine {
         let caught = Double(random.below(1000)) / 1000 < throwOdds(e.boss, ball: ball)
         append(&e, .capture(attempt: 4 - left, ball: ball?.rawValue, caught: caught), rare: caught, context: context)
         if caught {
-            e.loot.eggs.append(DungeonEgg(id: "boss-\(e.seed)", baseID: SpeciesInfo.baseID(of: e.boss.speciesID),
-                                          form: e.boss.form, isShiny: e.boss.isShiny, sourceSpeciesID: e.boss.speciesID))
+            // A boss already caught gives an egg of the tier's rarity rather than a second of its own; a legendary one
+            // came shiny instead, and gives its shiny egg (2026-11-04).
+            if givesTierEgg(e) {
+                e.loot.add(tierEgg(context.tier))
+            } else {
+                e.loot.eggs.append(DungeonEgg(id: "boss-\(e.seed)", baseID: SpeciesInfo.baseID(of: e.boss.speciesID),
+                                              form: e.boss.form, isShiny: e.boss.isShiny, sourceSpeciesID: e.boss.speciesID))
+            }
             e.phase = .finished(won: true)
         } else if left > 1 {
             e.phase = .capture(throwsLeft: left - 1)

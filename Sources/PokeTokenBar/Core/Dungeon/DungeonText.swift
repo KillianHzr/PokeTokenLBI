@@ -542,6 +542,13 @@ extension L {
           "Capturado: su huevo está en la Bolsa", "Capturé : son œuf est dans le Sac", "Capturado: o ovo está na Mochila",
           "Gefangen: Sein Ei ist im Beutel", "Пойман: его яйцо в сумке")
     }
+    /// A boss already caught gives an egg of the dungeon's tier instead of its own.
+    func dungeonBossCaughtAgain(_ egg: String) -> String {
+        t("이미 잡은 포켓몬: 대신 가방에 \(egg) 1개", "Already caught: \(egg) in the Bag instead",
+          "つかまえ済み：かわりに\(egg)をバッグに", "Ya capturado: en su lugar, \(egg) en la Bolsa",
+          "Déjà capturé : à la place, \(egg) dans le Sac", "Já capturado: em vez disso, \(egg) na Mochila",
+          "Schon gefangen: stattdessen \(egg) im Beutel", "Уже пойман: вместо него \(egg) в сумке")
+    }
     var dungeonBossNotCaught: String {
         t("잡지 못했어요", "Not caught", "つかまえられなかった", "No capturado", "Pas capturé", "Não capturado", "Nicht gefangen", "Не пойман")
     }

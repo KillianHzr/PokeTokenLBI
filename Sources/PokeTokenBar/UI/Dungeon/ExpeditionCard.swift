@@ -411,8 +411,10 @@ struct ExpeditionResultCard: View {
                     VStack(alignment: .leading, spacing: 1) {
                         PokemonNameLabel(.pokemonSpecies, String(r.boss.speciesID), language: store.language)
                             .font(.caption.weight(.semibold))
-                        Text(r.caught ? l.dungeonBossCaught : l.dungeonBossNotCaught)
-                            .font(.caption2).foregroundStyle(.secondary)
+                        Text(!r.caught ? l.dungeonBossNotCaught
+                             : r.bossEgg.flatMap(ItemKind.init(rawValue:)).map { l.dungeonBossCaughtAgain(l.itemName($0)) }
+                             ?? l.dungeonBossCaught)
+                            .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         if let thrown = thrownBalls(r, l) {
                             Text(l.dungeonThrowsUsed(thrown)).font(.caption2).foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)

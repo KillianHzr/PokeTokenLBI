@@ -22,6 +22,8 @@ struct ExpeditionResult: Codable, Sendable, Equatable {
     var unlockedMove: String?
     /// The battle form a challenge won (`BattleForm.key`).
     var battleForm: String? = nil
+    /// The egg of the tier's rarity (`ItemKind`) a boss already caught gave in place of its own.
+    var bossEgg: String? = nil
     var log: [ExpeditionLogEntry]
 }
 

@@ -273,4 +273,42 @@ final class DungeonTests: XCTestCase {
         XCTAssertEqual(ExpeditionEngine.captureOdds(.rare), 0.30)
         XCTAssertEqual(ExpeditionEngine.captureOdds(.legendary), 0.12)
     }
+
+    /// The chests' eggs grow with the tier (the owner, 2026-11-04): none in T1, which draws nothing for them so its
+    /// walks stay what they were; an Uncommon Egg one chest in 8 in T2; a Rare Egg one in 10 in T3; a Legendary Egg one
+    /// in 50 in T4 (else a Rare Egg 3 in 20); one in 15 in T5 (else a Rare Egg one in 5).
+    func testTheChestsEggsGrowWithTheTier() {
+        let draws = 30_000
+        var found: [DungeonTier: [ItemKind: Int]] = [:]
+        for tier in DungeonTier.allCases {
+            var random = BattleRandom(seed: 7)
+            for _ in 0..<draws {
+                if let egg = ExpeditionEngine.chestEgg(tier, random: &random) { found[tier, default: [:]][egg, default: 0] += 1 }
+            }
+        }
+        XCTAssertNil(found[.t1], "no egg in T1")
+        var t1 = BattleRandom(seed: 7), untouched = BattleRandom(seed: 7)
+        _ = ExpeditionEngine.chestEgg(.t1, random: &t1)
+        XCTAssertEqual(t1.below(1_000_000), untouched.below(1_000_000), "T1 draws nothing")
+        func share(_ tier: DungeonTier, _ egg: ItemKind) -> Double { Double(found[tier]?[egg] ?? 0) / Double(draws) }
+        XCTAssertEqual(Set(found[.t2]?.keys ?? [:].keys), [.uncommonEgg])
+        XCTAssertEqual(share(.t2, .uncommonEgg), 1 / 8, accuracy: 0.01)
+        XCTAssertEqual(Set(found[.t3]?.keys ?? [:].keys), [.rareEgg])
+        XCTAssertEqual(share(.t3, .rareEgg), 1 / 10, accuracy: 0.01)
+        XCTAssertEqual(Set(found[.t4]?.keys ?? [:].keys), [.rareEgg, .legendaryEgg])
+        XCTAssertEqual(share(.t4, .legendaryEgg), 1 / 50, accuracy: 0.004)
+        XCTAssertEqual(share(.t4, .rareEgg), 0.15, accuracy: 0.01)
+        XCTAssertEqual(Set(found[.t5]?.keys ?? [:].keys), [.rareEgg, .legendaryEgg])
+        XCTAssertEqual(share(.t5, .legendaryEgg), 1 / 15, accuracy: 0.008)
+        XCTAssertEqual(share(.t5, .rareEgg), 0.2, accuracy: 0.01)
+        XCTAssertTrue(ExpeditionEngine.isRare({ var l = ExpeditionLoot(); l.add(.rareEgg); return l }()))
+        XCTAssertTrue(ExpeditionEngine.isRare({ var l = ExpeditionLoot(); l.add(.legendaryEgg); return l }()))
+        XCTAssertFalse(ExpeditionEngine.isRare({ var l = ExpeditionLoot(); l.add(.uncommonEgg); return l }()))
+    }
+
+    /// A boss already caught gives an egg of its tier's rarity (the owner, 2026-11-04).
+    func testABossCaughtAgainGivesItsTiersEgg() {
+        XCTAssertEqual(DungeonTier.allCases.map(ExpeditionEngine.tierEgg),
+                       [.pokemonEgg, .uncommonEgg, .rareEgg, .rareEgg, .legendaryEgg])
+    }
 }

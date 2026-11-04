@@ -246,6 +246,12 @@ extension CompanionStore {
                                              revives: revives, context: context, boss: challenge)
         var expedition = started
         if keepsMasterBall { expedition.keepsMasterBall = true }
+        // A boss already caught (2026-11-04): a legendary one comes shiny, for its shiny egg; another gives an egg of
+        // the tier's rarity once caught (`ExpeditionEngine.throwBall`). A challenge's boss gives its form, never shiny.
+        if !id.isChallenge, hasCaughtBoss(expedition.boss.speciesID) {
+            expedition.bossAlreadyCaught = true
+            if SpeciesInfo.lineRarity(of: expedition.boss.speciesID) == .legendary { expedition.boss.isShiny = true }
+        }
         let period = challengePeriod(id)
         changeDungeons {
             $0.expedition = expedition
@@ -356,6 +362,12 @@ extension CompanionStore {
         let caught = ExpeditionEngine.throwBall(&e, ball: ball, context: context)
         store(e)
         return caught
+    }
+
+    /// Whether a boss's species is already the player's: in the Pokédex (graduated, raised or sent off), or its egg
+    /// waiting in the Bag.
+    func hasCaughtBoss(_ speciesID: Int) -> Bool {
+        state.registeredSpeciesIDs.contains(speciesID) || state.dungeons.eggs.contains { $0.sourceSpeciesID == speciesID }
     }
 
     // MARK: The automatic capture
@@ -554,6 +566,8 @@ extension CompanionStore {
                                              endedAt: currentDate, tokens: e.tokensIn, battles: e.battles, boss: e.boss,
                                              caught: caught, loot: loot, firstVictory: firstVictory,
                                              unlocked: unlocked, unlockedMove: unlockedMove, battleForm: battleForm?.key,
+                                             bossEgg: caught && ExpeditionEngine.givesTierEgg(e)
+                                                 ? ExpeditionEngine.tierEgg(DungeonCatalog.dungeon(e.dungeon).tier).rawValue : nil,
                                              log: e.log)
         }
         AppLog.write("dungeon: \(e.dungeon.rawValue) over, won=\(won) roped=\(roped) caught=\(caught) candies=\(loot.candies)")
