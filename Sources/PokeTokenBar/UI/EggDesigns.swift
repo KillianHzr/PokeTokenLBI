@@ -1195,8 +1195,17 @@ enum EggDesigns {
     @MainActor private static var stillCache: [EggKind: NSImage] = [:]
     @MainActor private static var loopCache: [EggKind: [(image: NSImage, delay: TimeInterval)]] = [:]
 
+    /// The kind a render is kept under: a dungeon egg without a design of its own is its type's egg, drawn and kept once
+    /// for every species of that type, not once per species (about 400 KB each, on the main thread).
+    @MainActor
+    static func renderKey(_ kind: EggKind) -> EggKind {
+        if case .dungeon(let species) = kind, LegendEggArt.design(species) == nil { return EggKind.dungeonLook(species) }
+        return kind
+    }
+
     @MainActor
     static func still(_ kind: EggKind) -> NSImage? {
+        let kind = renderKey(kind)
         if let cached = stillCache[kind] { return cached }
         guard let design = design(for: kind), let image = render(design, phase: 0) else { return nil }
         let still = NSImage(cgImage: image, size: NSSize(width: pixels, height: pixels))
@@ -1206,6 +1215,7 @@ enum EggDesigns {
 
     @MainActor
     static func idleFrames(_ kind: EggKind) -> [(image: NSImage, delay: TimeInterval)]? {
+        let kind = renderKey(kind)
         if let cached = loopCache[kind] { return cached }
         guard let design = design(for: kind) else { return nil }
         let frames = (0..<EggRenderer.frameCount).compactMap { i -> (image: NSImage, delay: TimeInterval)? in

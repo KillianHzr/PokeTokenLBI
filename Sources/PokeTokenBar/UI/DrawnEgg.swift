@@ -141,6 +141,7 @@ enum EggRenderer {
     /// The egg at rest: the first frame of its loop. A kind with a design of its own is drawn by `EggDesigns`.
     @MainActor
     static func still(_ kind: EggKind) -> NSImage {
+        let kind = EggDesigns.renderKey(kind)
         if let designed = EggDesigns.still(kind) { return designed }
         if let cached = stills[kind] { return cached }
         let image = nsImage(render(kind, yaw: 0, tilt: 0, lift: 0))
@@ -151,6 +152,7 @@ enum EggRenderer {
     /// The idle loop: up and down by two pixels, turning ±30° on itself, rocking ±5°.
     @MainActor
     static func idleFrames(_ kind: EggKind) -> [(image: NSImage, delay: TimeInterval)] {
+        let kind = EggDesigns.renderKey(kind)
         if let designed = EggDesigns.idleFrames(kind) { return designed }
         if let cached = loops[kind] { return cached }
         let frames = (0..<frameCount).map { i -> (image: NSImage, delay: TimeInterval) in

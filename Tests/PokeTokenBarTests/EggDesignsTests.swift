@@ -130,3 +130,17 @@ final class EggDesignsTests: XCTestCase {
         }
     }
 }
+
+/// [Regression, review of 2026-11-04] Each dungeon egg of a species without a design of its own drew its type's egg again
+/// and kept it for good, about 400 KB a species, on the main thread: one render per type now.
+@MainActor
+final class DungeonEggRenderTests: XCTestCase {
+    func testADungeonEggIsItsTypesEggDrawnOnce() {
+        // Dratini and Dragonite: Dragon type, no egg of their own. Mewtwo has its own.
+        XCTAssertEqual(EggDesigns.renderKey(.dungeon(147)), EggKind.dungeonLook(147))
+        XCTAssertEqual(EggDesigns.renderKey(.dungeon(149)), EggDesigns.renderKey(.dungeon(147)))
+        XCTAssertEqual(EggDesigns.renderKey(.dungeon(150)), .dungeon(150))
+        XCTAssertTrue(EggRenderer.still(.dungeon(147)) === EggRenderer.still(.dungeon(149)), "the same image, kept once")
+        XCTAssertTrue(EggRenderer.still(.dungeon(147)) === EggRenderer.still(EggKind.dungeonLook(147)))
+    }
+}
