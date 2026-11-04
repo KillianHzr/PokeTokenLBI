@@ -530,8 +530,8 @@ read_when:
   Soundproof in the same condition (`d.ability == "soundproof", sound || bulletproof && ball`). No test played the
   ability, and the engine's tests only used flags that happened to be spelt right. `testEveryFlagTheEngineReadsExists`
   now checks each flag the engine reads against the move table, and plays Bulletproof against Shadow Ball (it fails with
-  either defect put back). Sweep of the flags read: all exist but "slicing", which PokéAPI does not have at all
-  (Sharpness waits for the generator to take Showdown's flags; noted in the moves plan).
+  either defect put back). Sweep of the flags read: all exist; "slicing" and "wind", which PokéAPI does not have at all,
+  since the generator takes Showdown's flags too (2026-11-03, `testEveryFlagTheEngineReadsExists` asks for both).
 
 - **An NSCache is no place to prove an object is kept: it lets entries go on its own.** The guard above lifted the
   entry count only, and the cache gained a 64 MB cost limit later (`e6683cd`, 2026-10-29); lifting that too

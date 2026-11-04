@@ -66,6 +66,16 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-04", entries: [
+            .fixed("2026-11-04-paste", { $0.t("이제 앱의 입력 칸에서 ⌘V로 붙여 넣을 수 있어요. 설정의 세션 키 칸도요.",
+                                             "You can now paste with ⌘V in the app's text fields, the session key's in Settings too.",
+                                             "アプリの入力欄で⌘Vで貼り付けられるようになりました。設定のセッションキーの欄も同様です。",
+                                             "Ya puedes pegar con ⌘V en los campos de texto de la app, también el de la clave de sesión en Ajustes.",
+                                             "Tu peux maintenant coller avec ⌘V dans les champs de l'app, celui de la clé de session des Réglages compris.",
+                                             "Agora você pode colar com ⌘V nos campos de texto do app, inclusive o da chave de sessão nos Ajustes.",
+                                             "Du kannst jetzt mit ⌘V in die Textfelder der App einfügen, auch in das Feld für den Sitzungsschlüssel in den Einstellungen.",
+                                             "Теперь в полях приложения можно вставлять через ⌘V, включая поле ключа сессии в настройках.") }),
+        ]),
         ChangelogDay(date: "2026-11-03", entries: [
             .fixed("2026-11-03-oak-one-way", { $0.t("오박사가 이제 분기 계열을 제대로 세요. 한 마리는 한 갈래만 가므로 종 수를 \"최대\"로 말해 줘요.",
                                                   "Prof. Oak now counts a branching line right: one Pokémon takes one branch, so he says \"up to\" that many species.",
