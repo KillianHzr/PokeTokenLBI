@@ -113,9 +113,10 @@ private final class FakeWatcher {
 
 @MainActor
 final class LiveUsageTests: XCTestCase {
-    private var base: URL!
-    private var defaults: UserDefaults!
-    private var suite = ""
+    // Set up and torn down outside the main actor on older toolchains (CI's Swift 6.1).
+    nonisolated(unsafe) private var base: URL!
+    nonisolated(unsafe) private var defaults: UserDefaults!
+    nonisolated(unsafe) private var suite = ""
 
     override func setUpWithError() throws {
         base = FileManager.default.temporaryDirectory.appendingPathComponent("LiveUsageTests-\(UUID().uuidString)")
