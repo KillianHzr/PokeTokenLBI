@@ -679,7 +679,7 @@ struct EvolutionTrackView: View {
     var pikachuCostume: PikachuCostume? = nil
     /// What is left, under the track ("95M to Charmeleon · 24%"); `amount` is drawn bold inside it.
     let remaining: String
-    let amount: String
+    let amount: String?
     /// The exact counts on hover ("60M / 187.5M · 32%").
     let detail: String
     let l: L
@@ -715,7 +715,7 @@ struct EvolutionTrackView: View {
 
     private var remainingText: AttributedString {
         var text = AttributedString(remaining)
-        if let range = text.range(of: amount) {
+        if let amount, let range = text.range(of: amount) {
             text[range].font = .system(size: 10, weight: .bold, design: .rounded)
             text[range].foregroundColor = .primary
         }
@@ -804,7 +804,6 @@ struct EvolutionTrackView: View {
             // Eevee's eight still fit on one line beside a stop and a stretch; more wrap.
             let size: CGFloat = paths.count > 6 ? 19 : 22
             if paths.count > Self.waysPerLine {
-                // A hidden form's twenty or sixty-three patterns would stack up the whole card.
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 1) { ForEach(paths.map { $0[0] }) { candidate($0, size: size) } }
                 }
@@ -1327,7 +1326,7 @@ struct CompanionHeader: View {
                                   remaining: Self.trackCaption(track, amount: amount, percent: percentText,
                                                                names: names, l: l,
                                                                eta: store.timeToNext.map { l.etaAbout(l.shortDuration($0)) }),
-                                  amount: amount ?? "",
+                                  amount: amount,
                                   detail: amount == nil ? percentText : Self.progressDetail(used: used, total: store.threshold), l: l,
                                   names: names, dexLinks: dexLinks, onOpenDexEntry: onOpenDexEntry)
     }
@@ -1369,7 +1368,7 @@ struct CompanionHeader: View {
         case .focus:   return l.statusFocus
         case .tired:   return l.statusTired
         case .sleep:   return l.statusSleep
-        case .levelUp: return store.justEvolvedTo.map { l.statusEvolved($0) } ?? l.statusGrew
+        case .levelUp: return store.evolvedStatus ?? l.statusGrew
         }
     }
 }

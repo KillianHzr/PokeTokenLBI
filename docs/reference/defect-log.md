@@ -1821,8 +1821,9 @@ read_when:
   Charmeleon" and the New badge's hover listed it. A name now follows the drawing: the caption asks `isCaught`, the hover
   says "???" for a species neither reached nor graduated. Prof. Oak only ever names a species already graduated.
 - **A rendered value that is hidden needs its hover hidden too.** Tokens left and time left leave the caption, but the track's
-  hover still carried the same counts in `progressDetail`, and so did the bar shown while the line loads: three places, one
-  rule (`hidesGrowthAmounts`).
+  hover still carried the same counts in `progressDetail`, and so did the bar shown while the line loads and the menu bar's
+  `↑`, which the sweep missed because it only read `UI/`: four places, one rule (`hidesGrowthAmounts`). Sweep a value by its
+  name across `Sources/`.
 - **A luck criterion is judged only where its outcome could be seen.** A hidden Ditto shows at its first evolution, but the
   replay counted Ditto odds for every hatch, Pokémon sent off or still raised before it included: their chance stayed in the
   expectation while a hit was impossible, and no test released a Pokémon on this criterion. `HatchLuckSimulationTests` now plays

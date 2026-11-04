@@ -368,6 +368,23 @@ final class FormSuspenseTests: XCTestCase {
         XCTAssertEqual(paths[1].map(\.form), [PokemonForm("galar"), PokemonForm("galar")])
     }
 
+    func testTheMenuBarKeepsAMysterysTokensToo() async throws {
+        let mystery = try await kantoCubone(form: normal)
+        XCTAssertNil(mystery.menuTokensToNext)
+        let known = try await store([963, 964], form: PokemonForm("hero"), newForm: true)
+        XCTAssertEqual(known.menuTokensToNext, known.tokensToNext)
+        XCTAssertGreaterThan(known.tokensToNext, 0)
+        let suite = "Suspense-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(suite).json")
+        addTeardownBlock { try? FileManager.default.removeItem(at: file) }
+        let egg = CompanionStore(provider: SuspenseLineProvider(), fileURL: file, defaults: defaults)
+        XCTAssertFalse(egg.hasActive)
+        XCTAssertEqual(egg.menuTokensToNext, egg.eggTokensToHatch)
+        XCTAssertGreaterThan(egg.eggTokensToHatch, 0)
+    }
+
     func testTheCaptionKeepsOnlyThePercentage() {
         let track: [CompanionStore.EvolutionTrackStop] = [.reached(104, isCurrent: true), .branch([])]
         XCTAssertEqual(CompanionHeader.trackCaption(track, amount: nil, percent: "24%", names: [:], l: L(.en), eta: "about 9 h"), "24%")
@@ -424,6 +441,25 @@ final class FormSuspenseTests: XCTestCase {
         XCTAssertEqual(alolan.evolutionBody("X", wasMystery: true), L(.en).notifEvolveBody("X") + " " + L(.en).formRevealBringsNew)
         let kanto = try await kantoCubone(form: normal, stage: 1)
         XCTAssertEqual(kanto.evolutionBody("X", wasMystery: true), L(.en).notifEvolveBody("X") + " " + L(.en).formRevealNothingNew)
+    }
+
+    func testHomeTellsTheRevealToo() async throws {
+        let threshold = try await kantoCubone(form: alola, boost: false, newForm: true).threshold
+        let s = try await kantoCubone(form: alola, boost: false, newForm: true, used: threshold)
+        s.update(todayTokensByProvider: [:], todayDate: "2026-10-22", monthTotal: 0, burnTier: .idle,
+                 limitWarning: false, hasUsageData: true)
+        XCTAssertEqual(s.state.active?.stageIndex, 1)
+        let name = try XCTUnwrap(s.justEvolvedTo)
+        XCTAssertEqual(s.evolvedStatus, s.l.statusEvolved(name) + " " + s.l.formRevealBringsNew)
+    }
+
+    func testHomeTellsOtherEvolutionsPlainly() async throws {
+        let threshold = try await store([963, 964], form: PokemonForm("hero"), newForm: true).threshold
+        let s = try await store([963, 964], form: PokemonForm("hero"), newForm: true, used: threshold)
+        s.update(todayTokensByProvider: [:], todayDate: "2026-10-22", monthTotal: 0, burnTier: .idle,
+                 limitWarning: false, hasUsageData: true)
+        let name = try XCTUnwrap(s.justEvolvedTo)
+        XCTAssertEqual(s.evolvedStatus, s.l.statusEvolved(name))
     }
 
     func testAnEvolutionThatRevealsNoMysteryStaysPlain() async throws {

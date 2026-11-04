@@ -116,7 +116,7 @@ extension CompanionStore {
     /// The Rare Candies to give the Pokémon being raised, those the balance buys included: as many as its growth to
     /// graduation takes whole, a last one losing a tenth of its XP at most, the rest kept for the next one.
     /// `maxRareCandyUseCount` rounds up, and graduation loses the XP over. None to a Spare sent off, now or once its egg
-    /// is affordable: it would lose them with its growth. None while its form is a mystery either.
+    /// is affordable: it would lose them with its growth.
     var candiesToGive: Int {
         let release = oakRelease
         return candiesToGive(after: release, budget: oakBudget(after: release))

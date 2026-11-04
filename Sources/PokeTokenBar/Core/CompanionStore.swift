@@ -35,6 +35,7 @@ final class CompanionStore {
     private(set) var isHatching = false
     private var isRevealingDitto = false   // 메타몽 리빌 비동기 중복 방지(isHatching 자매)
     private(set) var justEvolvedTo: String?     // 이름(연출/문구)
+    private var justRevealedForm: String?
     private(set) var justGraduated: String?
     private var eventUntil: Date?
 
@@ -637,13 +638,13 @@ final class CompanionStore {
         }
         func caught(_ id: Int, form: PokemonForm?) -> Bool { isEvolutionCollected(speciesID: id, baseID: a.baseID, form: form) }
         func caught(_ id: Int) -> Bool { caught(id, form: a.form) }
-        func paths(from node: EvoNode, form: PokemonForm?, named: Bool) -> [[BranchEvolutionItem]] {
+        func paths(from node: EvoNode, form: PokemonForm?) -> [[BranchEvolutionItem]] {
             let open = Self.openChildren(node, form: form)
             guard !open.isEmpty else { return [[]] }
             return open.flatMap { child in
-                paths(from: child, form: form, named: named).map {
+                paths(from: child, form: form).map {
                     [BranchEvolutionItem(speciesID: child.speciesID, isCollected: caught(child.speciesID, form: form),
-                                         form: named ? form : nil)] + $0
+                                         form: form)] + $0
                 }
             }
         }
@@ -655,7 +656,7 @@ final class CompanionStore {
                 node = child
             }
             stops.append(.branch(suspense.outcomes.flatMap { outcome in
-                paths(from: reveal, form: outcome.form, named: true).map {
+                paths(from: reveal, form: outcome.form).map {
                     [BranchEvolutionItem(speciesID: reveal.speciesID, isCollected: caught(reveal.speciesID, form: outcome.form),
                                          form: outcome.form)] + $0
                 }
@@ -665,7 +666,7 @@ final class CompanionStore {
         while true {
             let open = Self.openChildren(node, form: a.form)
             if open.count > 1 {
-                stops.append(.branch(paths(from: node, form: a.form, named: false)))
+                stops.append(.branch(paths(from: node, form: a.form)))
                 return stops
             }
             guard let child = open.first else { break }
@@ -916,7 +917,6 @@ final class CompanionStore {
                                                          shinyHeld: graduatedShinySpeciesForms))
         }
         var common: [ActiveGoal]?
-        // Sixty-three forms of a line ask the same goals: what tells them apart is what they bring and where they go.
         var seen = Set<[[Int]]>()
         for outcome in suspense.outcomes {
             let ways = ways(of: a, form: outcome.form)
@@ -1971,6 +1971,7 @@ final class CompanionStore {
                                               speciesID: next.speciesID, form: a.form)
                 let body = evolutionBody(newName, wasMystery: wasMystery)
                 justEvolvedTo = newName
+                justRevealedForm = formReveal(wasMystery: wasMystery)
                 fireCelebration(.evolve)
                 // 짧은 levelUp 창 — 진화 순간 "…(으)로 진화했어요" 문구 노출(hatch/graduate 와 동일 패턴).
                 // 이게 없으면 computeState 가 .levelUp 을 안 내 statusEvolved 가 도달 불가(dead code)였다.
@@ -1982,11 +1983,23 @@ final class CompanionStore {
         save()
     }
 
-    /// The evolution's message; the stage that shows a form still a mystery also says what that form brings.
+    /// What the menu bar tells of the next stage, or of the hatch: nothing while a form is a mystery (`hidesGrowthAmounts`).
+    var menuTokensToNext: Int? { hasActive ? (hidesGrowthAmounts ? nil : tokensToNext) : eggTokensToHatch }
+
+    /// Home's line just after an evolution, the reveal of a form included.
+    var evolvedStatus: String? {
+        justEvolvedTo.map { [l.statusEvolved($0), justRevealedForm].compactMap { $0 }.joined(separator: " ") }
+    }
+
+    /// What the stage that shows a form still a mystery says of that form.
+    private func formReveal(wasMystery: Bool) -> String? {
+        guard wasMystery, formSuspense == nil, let news = activeNews else { return nil }
+        return news.isDuplicate ? l.formRevealNothingNew : l.formRevealBringsNew
+    }
+
+    /// The evolution's message, the reveal of a form included.
     func evolutionBody(_ name: String, wasMystery: Bool) -> String {
-        let body = l.notifEvolveBody(name)
-        guard wasMystery, formSuspense == nil, let news = activeNews else { return body }
-        return body + " " + (news.isDuplicate ? l.formRevealNothingNew : l.formRevealBringsNew)
+        [l.notifEvolveBody(name), formReveal(wasMystery: wasMystery)].compactMap { $0 }.joined(separator: " ")
     }
 
     /// Whether this evolution graduated already, what the evolution plan avoids and Home's track shows as had: neither
