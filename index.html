@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Donjons PokeTokenLBI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a descent. The surface (hero, a live expedition), how it works, the fights, then the dungeons tier by tier
+   down a single path to the deepest one, the forms, the loot, and how to get in. One dark cave, lit by a torch. */
+:root {
+  --cave: #0c1220;
+  --cave-2: #131b2e;
+  --stone: #24304a;
+  --bone: #ede8dd;
+  --mist: #9ca8c2;
+  --torch: #ff9b3d;
+  --crystal: #4ea4ff;
+  --gold: #f4c656;
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --step--1: clamp(0.82rem, 0.79rem + 0.15vw, 0.9rem);
+  --step-0: clamp(1rem, 0.96rem + 0.2vw, 1.1rem);
+  --step-1: clamp(1.2rem, 1.1rem + 0.5vw, 1.45rem);
+  --step-2: clamp(1.6rem, 1.3rem + 1.3vw, 2.3rem);
+  --step-4: clamp(3.2rem, 2rem + 6vw, 6.4rem);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--cave);
+  color: var(--bone);
+  font: 400 var(--step-0)/1.6 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; }
+.pixel { image-rendering: pixelated; }
+a { color: var(--crystal); }
+:focus-visible { outline: 3px solid var(--torch); outline-offset: 3px; border-radius: 6px; }
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+section { padding-block: clamp(56px, 8vw, 104px); }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h2 {
+  font: 700 var(--step-2)/1.1 var(--display);
+  letter-spacing: 0.01em;
+}
+h3 { font: 700 var(--step-1)/1.25 var(--body); }
+p { margin: 0; }
+.lede { color: var(--mist); font-size: var(--step-1); line-height: 1.5; max-width: 34ch; }
+.intro { color: var(--mist); max-width: 62ch; }
+.head { display: grid; gap: 14px; margin-bottom: clamp(28px, 4vw, 48px); }
+.label {
+  font: 600 var(--step--1)/1 var(--body);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--torch);
+}
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* The cave's light: a torch glow up top, a cold glow lower down. */
+.surface {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--torch) 22%, transparent), transparent 70%),
+    radial-gradient(50rem 30rem at -10% 110%, color-mix(in srgb, var(--crystal) 16%, transparent), transparent 70%),
+    var(--cave);
+  border-bottom: 1px solid var(--stone);
+}
+.surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--bone) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--bone) 4%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+  pointer-events: none;
+}
+.hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
+  padding-block: clamp(48px, 8vw, 104px);
+}
+.hero h1 {
+  font: 700 var(--step-4)/0.95 var(--display);
+  letter-spacing: 0.005em;
+  margin-block: 14px 22px;
+}
+.hero h1 span { color: var(--torch); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font: 700 var(--step-0)/1 var(--body);
+  text-decoration: none;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn.primary { background: var(--torch); color: var(--cave); }
+.btn.ghost { color: var(--bone); border: 1px solid var(--stone); background: color-mix(in srgb, var(--cave-2) 70%, transparent); }
+.dioramas { display: flex; gap: 6px; margin-top: 36px; flex-wrap: wrap; }
+.dioramas img { width: 48px; height: 48px; }
+
+/* The live expedition, drawn like the app's card. */
+.run {
+  background: color-mix(in srgb, var(--cave-2) 92%, transparent);
+  border: 1px solid var(--stone);
+  border-radius: 22px;
+  padding: clamp(18px, 3vw, 28px);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.7);
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.run-top { display: flex; align-items: center; gap: 14px; }
+.run-top .boss { width: 76px; height: 76px; object-fit: contain; flex: none; }
+.run-top h3 { font-size: var(--step-1); }
+.run-top .sub { color: var(--mist); font-size: var(--step--1); }
+.floors { display: flex; align-items: center; gap: 5px; }
+.floors .seg { flex: 1; height: 9px; border-radius: 5px; background: var(--stone); overflow: hidden; }
+.floors .seg i { display: block; height: 100%; width: 0; background: var(--crystal); border-radius: 5px; }
+.floors .crown { flex: none; width: 22px; height: 18px; color: var(--mist); transition: color 0.3s; }
+.run.done .floors .crown { color: var(--gold); }
+.figures { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: var(--step--1); color: var(--mist); }
+.figures b { color: var(--bone); font-weight: 700; }
+.team { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; align-items: end; }
+.team img { width: 100%; max-height: 60px; object-fit: contain; }
+.journal { display: grid; gap: 6px; font-size: var(--step--1); min-height: 5.6em; }
+.journal div { display: flex; gap: 12px; color: var(--mist); }
+.journal div b { color: var(--bone); font-weight: 600; min-width: 5.2em; }
+.journal div.fresh { animation: drop 0.35s ease-out; }
+@keyframes drop { from { opacity: 0; transform: translateY(-6px); } }
+.prize {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 12px;
+  background: color-mix(in srgb, var(--gold) 14%, transparent);
+  color: var(--gold); font-weight: 700; font-size: var(--step--1);
+}
+.prize[hidden] { display: none; }
+
+/* How it works: four real steps. */
+.steps { display: grid; gap: clamp(36px, 6vw, 64px); }
+.step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
+}
+.step:nth-child(even) .shot-col { order: -1; }
+.step-num { font: 700 3.2rem/1 var(--display); color: var(--torch); }
+.step .text { display: grid; gap: 12px; min-width: 0; }
+.step .text p { color: var(--mist); max-width: 46ch; }
+.step .text p b { color: var(--bone); font-weight: 600; }
+.shot-col { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; min-width: 0; }
+.shot {
+  width: min(100%, 340px);
+  border-radius: 18px;
+  border: 1px solid var(--stone);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.75);
+}
+.shot.small { width: min(100%, 300px); }
+.rules { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: 600 var(--step--1)/1 var(--body);
+  padding: 7px 11px; border-radius: 999px;
+  background: var(--cave-2); border: 1px solid var(--stone); color: var(--bone);
+}
+
+/* Fights. */
+.fight { background: var(--cave-2); border-block: 1px solid var(--stone); }
+.fight-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
+.fact { padding: 16px; border-radius: 14px; background: var(--cave); border: 1px solid var(--stone); display: grid; gap: 6px; min-width: 0; }
+.fact strong { font: 700 var(--step-2)/1 var(--display); color: var(--crystal); }
+.fact span { color: var(--mist); font-size: var(--step--1); }
+.loop { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 22px; font-size: var(--step--1); color: var(--mist); }
+.loop .chip { color: var(--bone); }
+.loop svg { width: 18px; height: 18px; color: var(--torch); }
+
+/* The dungeons, tier by tier down one path. */
+.descent { position: relative; display: grid; gap: 34px; }
+.descent::before {
+  content: "";
+  position: absolute;
+  left: 27px; top: 10px; bottom: 10px;
+  border-left: 2px dashed var(--stone);
+}
+.tier { position: relative; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 18px; }
+.tier-badge {
+  width: 56px; height: 56px; border-radius: 14px;
+  display: grid; place-items: center;
+  font: 700 1.35rem/1 var(--display);
+  background: var(--cave-2); border: 2px solid var(--stone); color: var(--bone);
+  position: relative; z-index: 1;
+}
+.tier[data-t="4"] .tier-badge { border-color: var(--crystal); color: var(--crystal); }
+.tier[data-t="5"] .tier-badge { border-color: var(--gold); color: var(--gold); }
+.tier-body { display: grid; gap: 14px; min-width: 0; }
+.tier-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; padding-top: 6px; }
+.tier-meta h3 { font-size: var(--step-1); }
+.tier-meta span { color: var(--mist); font-size: var(--step--1); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+.card {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: start;
+  padding: 14px; border-radius: 16px; background: var(--cave-2); border: 1px solid var(--stone);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--torch) 60%, var(--stone)); }
+.card img { width: 64px; height: 64px; }
+.card:hover img { animation: bob 0.9s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-4px); } }
+.card h4 { margin: 0 0 4px; font: 700 1.02rem/1.25 var(--body); }
+.card .rule { font-size: var(--step--1); color: var(--bone); }
+.card .open { font-size: var(--step--1); color: var(--mist); margin-top: 6px; }
+.types { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.types span {
+  font: 700 0.66rem/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 7px; border-radius: 999px; background: var(--stone); color: var(--bone);
+}
+.card.secret { border-style: dashed; }
+.key { display: inline-flex; gap: 5px; align-items: center; color: var(--torch); font-size: var(--step--1); font-weight: 600; }
+
+/* Battle forms. */
+.forms-strip {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: end;
+  gap: clamp(10px, 3vw, 36px);
+  padding: 28px 16px;
+  border-radius: 22px;
+  background:
+    radial-gradient(30rem 12rem at 50% 100%, color-mix(in srgb, var(--torch) 20%, transparent), transparent 70%),
+    var(--cave-2);
+  border: 1px solid var(--stone);
+}
+.forms-strip figure { margin: 0; display: grid; justify-items: center; gap: 8px; }
+.forms-strip img { height: clamp(70px, 10vw, 118px); width: auto; }
+.forms-strip figcaption { font-size: var(--step--1); color: var(--mist); text-align: center; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
+.panel { padding: 20px; border-radius: 18px; background: var(--cave-2); border: 1px solid var(--stone); display: grid; gap: 10px; align-content: start; min-width: 0; }
+.panel p { color: var(--mist); }
+.panel .when { font: 600 var(--step--1)/1.3 var(--body); color: var(--torch); }
+
+/* Loot. */
+.loot-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
+.eggs { border-radius: 18px; background: var(--cave-2); border: 1px solid var(--stone); padding: 18px; display: grid; gap: 12px; }
+.eggs img { width: 100%; height: auto; }
+.eggs p { color: var(--mist); font-size: var(--step--1); }
+.items { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.items li { display: grid; grid-template-columns: 11.5em minmax(0, 1fr); gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--stone); }
+.items li b { font-weight: 600; }
+.items li span { color: var(--mist); }
+
+/* Getting in. */
+.join { background: var(--cave-2); border-top: 1px solid var(--stone); }
+.join-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
+.code {
+  position: relative;
+  background: var(--cave);
+  border: 1px solid var(--stone);
+  border-radius: 16px;
+  padding: 18px 18px 18px 20px;
+  overflow-x: auto;
+}
+.code pre { margin: 0; font: 500 0.92rem/1.75 var(--mono); color: var(--bone); white-space: pre; }
+.code pre .c { color: var(--mist); }
+.copy {
+  position: absolute; top: 10px; right: 10px;
+  font: 600 var(--step--1)/1 var(--body);
+  padding: 8px 12px; border-radius: 999px;
+  border: 1px solid var(--stone); background: var(--cave-2); color: var(--bone); cursor: pointer;
+}
+.copy:hover { border-color: var(--torch); }
+.notes { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.notes li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; color: var(--mist); }
+.notes li b { color: var(--bone); font-weight: 600; }
+.notes svg { width: 20px; height: 20px; margin-top: 3px; color: var(--torch); }
+.ask { margin-top: 28px; padding: 18px 20px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--torch) 55%, var(--stone)); background: color-mix(in srgb, var(--torch) 8%, var(--cave)); display: grid; gap: 8px; }
+.ask p { color: var(--mist); }
+footer { padding-block: 34px; color: var(--mist); font-size: var(--step--1); border-top: 1px solid var(--stone); }
+
+@media (max-width: 880px) {
+  .hero, .step, .fight-grid, .loot-grid, .join-grid { grid-template-columns: minmax(0, 1fr); }
+  .step:nth-child(even) .shot-col { order: 0; }
+  .lede { max-width: none; }
+}
+@media (max-width: 560px) {
+  .duo, .facts { grid-template-columns: minmax(0, 1fr); }
+  .items li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .descent::before { left: 21px; }
+  .tier { grid-template-columns: 44px minmax(0, 1fr); gap: 12px; }
+  .tier-badge { width: 44px; height: 44px; font-size: 1.1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="surface">
+  <div class="wrap hero">
+    <div>
+      <p class="label">PokeTokenLBI · version test</p>
+      <h1>Les <span>Donjons</span></h1>
+      <p class="lede">Tes Pokémon diplômés partent en expédition. Pendant que tu codes, chaque token dépensé fait avancer l'équipe, étage par étage, jusqu'au boss.</p>
+      <div class="actions">
+        <a class="btn primary" href="#tester">Installer la version test</a>
+        <a class="btn ghost" href="#comment">Comment ça marche</a>
+      </div>
+      <div class="dioramas" aria-label="Les dioramas des 13 donjons">
+        <img class="pixel" src="img/d-viridianForest.png" alt="Forêt de Jade" title="Forêt de Jade"><img class="pixel" src="img/d-diglettsCave.png" alt="Grotte Taupiqueur" title="Grotte Taupiqueur"><img class="pixel" src="img/d-mtMoon.png" alt="Mont Sélénite" title="Mont Sélénite"><img class="pixel" src="img/d-mtEmber.png" alt="Mont Braise" title="Mont Braise"><img class="pixel" src="img/d-victoryRoad.png" alt="Route Victoire" title="Route Victoire"><img class="pixel" src="img/d-pokemonTower.png" alt="Tour Pokémon" title="Tour Pokémon"><img class="pixel" src="img/d-dragonsDen.png" alt="Antre du Dragon" title="Antre du Dragon"><img class="pixel" src="img/d-powerPlant.png" alt="Centrale" title="Centrale"><img class="pixel" src="img/d-seafoamIslands.png" alt="Îles Écume" title="Îles Écume"><img class="pixel" src="img/d-ceruleanCave.png" alt="Caverne Azurée" title="Caverne Azurée"><img class="pixel" src="img/d-mtCoronet.png" alt="Mont Couronné" title="Mont Couronné"><img class="pixel" src="img/d-ruinsOfAlph.png" alt="Ruines d&#x27;Alpha" title="Ruines d&#x27;Alpha"><img class="pixel" src="img/d-hallOfOrigin.png" alt="Salle Originelle" title="Salle Originelle">
+      </div>
+    </div>
+
+    <div class="run" id="run" aria-label="Une expédition en cours, en démonstration">
+      <div class="run-top">
+        <img class="boss" src="img/s-248-mega.gif" alt="Méga-Tyranocif">
+        <div>
+          <h3>Donjon du jour</h3>
+          <p class="sub">Boss : Méga-Tyranocif · <span id="floorText">Étage 4 sur 8</span></p>
+        </div>
+      </div>
+      <div class="floors" id="floors" aria-hidden="true">
+        <div class="seg"><i style="width:100%"></i></div><div class="seg"><i style="width:100%"></i></div><div class="seg"><i style="width:100%"></i></div><div class="seg"><i style="width:40%"></i></div><div class="seg"><i></i></div><div class="seg"><i></i></div><div class="seg"><i></i></div><div class="seg"><i></i></div>
+        <svg class="crown" viewBox="0 0 22 18" fill="currentColor"><path d="M1 5l5 4 5-8 5 8 5-4-2 11H3z"/></svg>
+      </div>
+      <div class="figures">
+        <span><b class="mono" id="spent">85M</b> / 200M de tokens</span>
+        <span>Ton Pokémon en cours se repose</span>
+      </div>
+      <div class="team">
+        <img src="img/s-445.gif" alt="Carchacrok"><img src="img/s-635.gif" alt="Trioxhydre"><img src="img/s-94.gif" alt="Ectoplasma"><img src="img/s-373.gif" alt="Drattak"><img src="img/s-130.gif" alt="Léviator"><img src="img/s-143.gif" alt="Ronflex">
+      </div>
+      <div class="journal" id="journal">
+        <div><b>Étage 3</b>Dresseur battu</div>
+        <div><b>Étage 2</b>Coffre : Baie Sitrus</div>
+        <div><b>Étage 1</b>Pokémon sauvage battu</div>
+      </div>
+      <div class="prize" id="prize" hidden>
+        <svg width="18" height="15" viewBox="0 0 22 18" fill="currentColor" aria-hidden="true"><path d="M1 5l5 4 5-8 5 8 5-4-2 11H3z"/></svg>
+        Boss vaincu : nouvelle forme, Méga-Tyranocif
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="comment">
+    <div class="wrap">
+      <div class="head">
+        <p class="label">Comment ça marche</p>
+        <h2>Tu codes, ils explorent</h2>
+        <p class="intro">Rien ne change si tu ne vas pas en donjon : ton Pokémon grandit comme avant. Une expédition se lance en quatre temps.</p>
+      </div>
+      <div class="steps">
+        <article class="step">
+          <div class="text">
+            <span class="step-num">1</span>
+            <h3>Choisis un donjon</h3>
+            <p>Treize donjons sur cinq paliers, chacun avec son thème et ses règles. Plus tu en finis, plus il s'en ouvre.</p>
+            <div class="rules"><span class="chip">Que des communs</span><span class="chip">Type Eau interdit</span><span class="chip">Que des starters</span><span class="chip">Un type en commun</span><span class="chip">Que des chromatiques</span></div>
+          </div>
+          <div class="shot-col"><img class="shot" src="img/challenges-list.png" alt="L'onglet Donjons : le donjon du jour, celui de la semaine, puis Forêt de Jade et Grotte Taupiqueur"></div>
+        </article>
+        <article class="step">
+          <div class="text">
+            <span class="step-num">2</span>
+            <h3>Forme ton équipe</h3>
+            <p>De 3 à 6 Pokémon diplômés qui respectent les règles. <b>"Composer pour moi"</b> choisit pour toi, et l'écran te donne tes chances d'atteindre le boss avant de partir.</p>
+          </div>
+          <div class="shot-col"><img class="shot" src="img/team-top.png" alt="L'écran d'équipe : les règles du donjon, les places libres et les Pokémon diplômés qui peuvent venir"></div>
+        </article>
+        <article class="step">
+          <div class="text">
+            <span class="step-num">3</span>
+            <h3>Code comme d'habitude</h3>
+            <p>Tes tokens vont à l'équipe, et ton Pokémon en cours fait une pause. À chaque étage, un événement : un Pokémon sauvage, une horde, un dresseur, un coffre, un piège ou une source. L'accueil te montre tout, et tu peux revoir chaque combat.</p>
+            <p>Équipe en danger ? Une fois par expédition, un <b>soin d'urgence</b> remet tout le monde sur pied. Sans lui, une défaite coûte tout le butin.</p>
+          </div>
+          <div class="shot-col"><img class="shot" src="img/expedition.png" alt="L'expédition en cours sur l'accueil : l'étage, les tokens avant le suivant, l'équipe et ses PV, les derniers événements"></div>
+        </article>
+        <article class="step">
+          <div class="text">
+            <span class="step-num">4</span>
+            <h3>Affronte le boss</h3>
+            <p>Personne ne sait qui attend au dernier étage avant d'y être arrivé. Bats-le et le butin est à toi, puis tu as <b>trois lancers</b> pour l'attraper : son œuf rejoint ton Sac.</p>
+          </div>
+          <div class="shot-col">
+            <img class="shot small" src="img/capture.png" alt="La capture : le boss vaincu, les lancers restants et les chances de chaque ball">
+            <img class="shot small" src="img/result.png" alt="Le retour : boss capturé, butin, donjon débloqué">
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="fight">
+    <div class="wrap fight-grid">
+      <div>
+        <div class="head">
+          <p class="label">Les combats</p>
+          <h2>De vrais combats, en temps réel</h2>
+          <p class="intro">Pas de pierre-feuille-ciseaux : les dégâts se calculent comme dans les jeux, avec les types, le bonus de même type, les coups critiques et la précision. Chaque Pokémon répète en boucle les quatre attaques que tu lui choisis sur sa fiche.</p>
+        </div>
+        <div class="loop" aria-label="Une boucle d'attaques">
+          <span class="chip">Danse Draco</span>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4"/></svg>
+          <span class="chip">Séisme</span>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4"/></svg>
+          <span class="chip">Draco-Griffe</span>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4"/></svg>
+          <span class="chip">Abri</span>
+          <span>puis ça recommence</span>
+        </div>
+        <div class="facts">
+          <div class="fact"><strong class="mono">919</strong><span>attaques, et elles marchent toutes comme dans les jeux (hors Capacités Z et Dynamax)</span></div>
+          <div class="fact"><strong class="mono">~80</strong><span>talents, plus la météo, les terrains, les statuts et les baies</span></div>
+          <div class="fact"><strong class="mono">4 s</strong><span>pour un tour : Abri, Riposte, Métronome ou les pièges de terrain tombent au bon moment</span></div>
+          <div class="fact"><strong>♂ ♀</strong><span>chaque Pokémon a son genre, et Attraction s'en sert</span></div>
+        </div>
+      </div>
+      <div class="shot-col"><img class="shot" src="img/replay.png" alt="Un combat rejoué : chaque Pokémon, ses PV, l'attaque en cours et les dégâts"></div>
+    </div>
+  </section>
+
+  <section id="donjons">
+    <div class="wrap">
+      <div class="head">
+        <p class="label">La carte</p>
+        <h2>Treize donjons, cinq paliers</h2>
+        <p class="intro">Chaque palier demande plus de tokens et d'étages. Finir un donjon ouvre les suivants. À partir du palier 4, il faut une Clé Légendaire pour entrer.</p>
+      </div>
+      <div class="descent">
+        <div class="tier" data-t="1"><div class="tier-badge">T1</div>
+        <div class="tier-body"><div class="tier-meta"><h3>Premiers pas</h3><span class="mono">5 étages · 75M de tokens</span></div>
+        <div class="cards"><div class="card">
+            <img class="pixel" src="img/d-viridianForest.png" alt="">
+            <div><h4>Forêt de Jade</h4><p class="rule">3 Pokémon · Que des communs</p>
+            <p class="open">Pour entrer : 6 Pokémon diplômés</p><div class="types"><span style="background:#91a119;color:#fff">Insecte</span><span style="background:#3fa129;color:#fff">Plante</span></div></div></div><div class="card">
+            <img class="pixel" src="img/d-diglettsCave.png" alt="">
+            <div><h4>Grotte Taupiqueur</h4><p class="rule">3 Pokémon · Aucun légendaire</p>
+            <p class="open">Pour entrer : 6 Pokémon diplômés</p><div class="types"><span style="background:#915121;color:#fff">Sol</span><span style="background:#afa981;color:#1b1b1b">Roche</span></div></div></div></div></div></div>
+<div class="tier" data-t="2"><div class="tier-badge">T2</div>
+        <div class="tier-body"><div class="tier-meta"><h3>Ça se corse</h3><span class="mono">8 étages · 187.5M de tokens</span></div>
+        <div class="cards"><div class="card">
+            <img class="pixel" src="img/d-mtMoon.png" alt="">
+            <div><h4>Mont Sélénite</h4><p class="rule">4 Pokémon · Une seule région</p>
+            <p class="open">Pour entrer : finir Forêt de Jade</p><div class="types"><span style="background:#ef70ef;color:#1b1b1b">Fée</span><span style="background:#afa981;color:#1b1b1b">Roche</span></div></div></div><div class="card">
+            <img class="pixel" src="img/d-mtEmber.png" alt="">
+            <div><h4>Mont Braise</h4><p class="rule">4 Pokémon · Type Eau interdit</p>
+            <p class="open">Pour entrer : finir Grotte Taupiqueur</p><div class="types"><span style="background:#e62829;color:#fff">Feu</span></div></div></div></div></div></div>
+<div class="tier" data-t="3"><div class="tier-badge">T3</div>
+        <div class="tier-body"><div class="tier-meta"><h3>Équipes complètes</h3><span class="mono">10 étages · 300M de tokens</span></div>
+        <div class="cards"><div class="card">
+            <img class="pixel" src="img/d-victoryRoad.png" alt="">
+            <div><h4>Route Victoire</h4><p class="rule">6 Pokémon · Que des starters</p>
+            <p class="open">Pour entrer : finir Mont Sélénite et finir Mont Braise</p><div class="types"><span style="background:#3fa129;color:#fff">Plante</span><span style="background:#e62829;color:#fff">Feu</span><span style="background:#2980ef;color:#fff">Eau</span></div></div></div><div class="card">
+            <img class="pixel" src="img/d-pokemonTower.png" alt="">
+            <div><h4>Tour Pokémon</h4><p class="rule">5 Pokémon · Au plus Peu commun</p>
+            <p class="open">Pour entrer : finir Mont Braise</p><div class="types"><span style="background:#704170;color:#fff">Spectre</span></div></div></div><div class="card">
+            <img class="pixel" src="img/d-dragonsDen.png" alt="">
+            <div><h4>Antre du Dragon</h4><p class="rule">6 Pokémon · 1 légendaire au plus</p>
+            <p class="open">Pour entrer : finir Tour Pokémon</p><div class="types"><span style="background:#5060e1;color:#fff">Dragon</span></div></div></div><div class="card">
+            <img class="pixel" src="img/d-powerPlant.png" alt="">
+            <div><h4>Centrale</h4><p class="rule">5 Pokémon · Un type en commun</p>
+            <p class="open">Pour entrer : finir Mont Sélénite</p><div class="types"><span style="background:#fac000;color:#1b1b1b">Électrik</span><span style="background:#60a1b8;color:#1b1b1b">Acier</span></div></div></div></div></div></div>
+<div class="tier" data-t="4"><div class="tier-badge">T4</div>
+        <div class="tier-body"><div class="tier-meta"><h3>Les légendes</h3><span class="mono">12 étages · 600M de tokens · 1 Clé Légendaire</span></div>
+        <div class="cards"><div class="card">
+            <img class="pixel" src="img/d-seafoamIslands.png" alt="">
+            <div><h4>Îles Écume</h4><p class="rule">6 Pokémon · Aucun légendaire · Au plus Rare</p>
+            <p class="open">Pour entrer : finir Antre du Dragon</p><div class="types"><span style="background:#3dcef3;color:#1b1b1b">Glace</span><span style="background:#2980ef;color:#fff">Eau</span></div></div></div><div class="card">
+            <img class="pixel" src="img/d-ceruleanCave.png" alt="">
+            <div><h4>Caverne Azurée</h4><p class="rule">6 Pokémon · Aucun légendaire · Type Psy interdit</p>
+            <p class="open">Pour entrer : finir Îles Écume et 100 lignées diplômées</p><div class="types"><span style="background:#ef4179;color:#fff">Psy</span></div></div></div><div class="card">
+            <img class="pixel" src="img/d-mtCoronet.png" alt="">
+            <div><h4>Mont Couronné</h4><p class="rule">6 Pokémon · Que des légendaires</p>
+            <p class="open">Pour entrer : finir Caverne Azurée et 10 légendaires diplômés</p><div class="types"><span style="background:#60a1b8;color:#1b1b1b">Acier</span><span style="background:#2980ef;color:#fff">Eau</span><span style="background:#704170;color:#fff">Spectre</span><span style="background:#5060e1;color:#fff">Dragon</span></div></div></div><div class="card secret">
+            <img class="pixel" src="img/d-ruinsOfAlph.png" alt="">
+            <div><h4>Ruines d&#x27;Alpha</h4><p class="rule">4 Pokémon · Règles tirées au hasard</p>
+            <p class="open">Une Carte au trésor l&#x27;ouvre, sans Clé</p><div class="types"><span style="background:#ef4179;color:#fff">Psy</span></div></div></div></div></div></div>
+<div class="tier" data-t="5"><div class="tier-badge">T5</div>
+        <div class="tier-body"><div class="tier-meta"><h3>Tout au fond</h3><span class="mono">15 étages · 900M de tokens · 3 Clés Légendaires</span></div>
+        <div class="cards"><div class="card">
+            <img class="pixel" src="img/d-hallOfOrigin.png" alt="">
+            <div><h4>Salle Originelle</h4><p class="rule">6 Pokémon · Que des chromatiques</p>
+            <p class="open">Pour entrer : battre les trois boss du Mont Couronné</p><div class="types"><span style="background:#9fa19f;color:#1b1b1b">Normal</span></div></div></div></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="fight" id="formes">
+    <div class="wrap">
+      <div class="head">
+        <p class="label">Les défis</p>
+        <h2>Méga, Primo, Gigamax</h2>
+        <p class="intro">132 formes de combat à gagner dans deux défis exprès difficiles. Leur boss est connu d'avance. Bats-le et sa forme est à toi pour de bon : ton Pokémon peut la prendre dans les donjons.</p>
+      </div>
+      <div class="forms-strip">
+        <figure><img src="img/s-6-mega-x.gif" alt=""><figcaption>Méga-Dracaufeu X</figcaption></figure>
+        <figure><img src="img/s-143-gmax.gif" alt=""><figcaption>Ronflex Gigamax</figcaption></figure>
+        <figure><img src="img/s-248-mega.gif" alt=""><figcaption>Méga-Tyranocif</figcaption></figure>
+        <figure><img src="img/s-6-gmax.gif" alt=""><figcaption>Dracaufeu Gigamax</figcaption></figure>
+        <figure><img src="img/s-94-mega.gif" alt=""><figcaption>Méga-Ectoplasma</figcaption></figure>
+      </div>
+      <div class="duo">
+        <div class="panel">
+          <p class="when">Ouvert après une victoire en palier 3</p>
+          <h3>Donjon du jour</h3>
+          <p>8 étages, 200M de tokens, un essai par jour. Son boss est la Méga-Évolution d'une espèce que tu as diplômée et pas encore gagnée.</p>
+        </div>
+        <div class="panel">
+          <p class="when">Ouvert après une victoire en palier 4</p>
+          <h3>Donjon de la semaine</h3>
+          <p>12 étages, un essai par semaine. Son boss est une forme Gigamax, une Primo-Résurgence ou une Méga légendaire.</p>
+        </div>
+      </div>
+      <p class="intro" style="margin-top:18px">Partie avant minuit, une expédition garde son boss : tu ne perds pas l'essai du lendemain.</p>
+    </div>
+  </section>
+
+  <section id="butin">
+    <div class="wrap loot-grid">
+      <div>
+        <div class="head">
+          <p class="label">Le butin</p>
+          <h2>Ce que tu ramènes</h2>
+          <p class="intro">Coffres, victoires et boss remplissent ton Sac. Les Médailles Donjons, dans les Artefacts, récompensent chaque donjon fini et chaque palier complet.</p>
+        </div>
+        <ul class="items">
+          <li><b>Œuf du boss</b><span>il éclot en Pokémon de la lignée du boss attrapé</span></li>
+          <li><b>Baies Oran et Sitrus</b><span>soignent l'équipe en cours de route</span></li>
+          <li><b>Rappel, Rappel Max</b><span>relèvent un Pokémon K.O.</span></li>
+          <li><b>Super Ball, Hyper Ball</b><span>de meilleures chances au moment de capturer</span></li>
+          <li><b>Capsules d'Argent et d'Or</b><span>un IV à 31, ou les six d'un coup</span></li>
+          <li><b>Capsule Technique</b><span>apprend une attaque rare à un Pokémon</span></li>
+          <li><b>Clé Légendaire</b><span>ouvre les donjons des paliers 4 et 5</span></li>
+          <li><b>Carte au trésor</b><span>révèle un donjon secret</span></li>
+        </ul>
+      </div>
+      <div class="eggs">
+        <img class="pixel" src="img/legend-eggs.gif" alt="Huit œufs animés, dessinés pour les boss légendaires">
+        <p>Les huit boss légendaires laissent chacun un œuf dessiné rien que pour eux. À toi de découvrir lesquels.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="join" id="tester">
+    <div class="wrap join-grid">
+      <div>
+        <div class="head">
+          <p class="label">Version test</p>
+          <h2>Installer et jouer</h2>
+          <p class="intro">Les donjons ne sont pas encore dans la mise à jour automatique. Pour les essayer, construis l'app depuis leur branche (il faut Xcode). L'app se ferme pendant l'installation : relance-la ensuite.</p>
+        </div>
+        <div class="code">
+          <button class="copy" id="copy" type="button">Copier</button>
+<pre id="cmd">git clone https://github.com/KillianHzr/PokeTokenLBI.git
+cd PokeTokenLBI
+git switch feature/dungeons
+./scripts/build-app.sh</pre>
+        </div>
+      </div>
+      <div>
+        <ul class="notes">
+          <li>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>
+            <span><b>Ta partie est gardée.</b> Ta collection, ton Sac et ton Pokémon en cours sont là, et l'onglet Donjons s'ajoute.</span>
+          </li>
+          <li>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 6v4.5l3 2"/></svg>
+            <span><b>Pas de mises à jour en attendant.</b> Sur cette version, l'app ne propose plus les mises à jour habituelles. Elles reviennent toutes seules quand les donjons sortent pour tout le monde.</span>
+          </li>
+          <li>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3l8 14H2z"/><path d="M10 8v4M10 14.5v.5"/></svg>
+            <span><b>Reste sur cette version jusqu'à la sortie.</b> Si tu reviens à l'ancienne, ta progression dans les donjons risque d'être perdue.</span>
+          </li>
+        </ul>
+        <div class="ask">
+          <h3>Ce qui m'aide</h3>
+          <p>Ce qui est trop dur ou trop facile, ce qui n'est pas clair, et le moindre bug, avec une capture d'écran si tu peux.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">PokeTokenLBI · les donjons, en test · novembre 2026</div>
+</footer>
+
+<script>
+(() => {
+  const copy = document.getElementById("copy");
+  copy.addEventListener("click", async () => {
+    const text = document.getElementById("cmd").textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      copy.textContent = "Copié";
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById("cmd"));
+      const selection = getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      copy.textContent = "Sélectionné";
+    }
+    setTimeout(() => { copy.textContent = "Copier"; }, 1800);
+  });
+
+  // The demo: tokens walk the team to the boss, floor by floor, then it starts over.
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const run = document.getElementById("run");
+  const segs = [...document.querySelectorAll("#floors .seg i")];
+  const floorText = document.getElementById("floorText");
+  const spentText = document.getElementById("spent");
+  const journal = document.getElementById("journal");
+  const prize = document.getElementById("prize");
+  const floors = 8, cost = 200, perFloor = cost / floors;
+  const events = ["Pokémon sauvage battu", "Coffre : Baie Sitrus", "Dresseur battu", "Piège évité", "Horde battue",
+                  "Source : l'équipe reprend des PV", "Dresseur battu", "Le boss attend"];
+  let spent = 0, logged = 0, pause = 0;
+  const fmt = (m) => (m >= 100 ? Math.round(m) : Math.round(m * 10) / 10).toString() + "M";
+  function log(floor) {
+    const row = document.createElement("div");
+    row.className = "fresh";
+    row.innerHTML = "<b>Étage " + floor + "</b>" + events[floor - 1];
+    journal.prepend(row);
+    while (journal.children.length > 3) journal.lastElementChild.remove();
+  }
+  function reset() {
+    spent = 0; logged = 0;
+    journal.innerHTML = "";
+    prize.hidden = true;
+    run.classList.remove("done");
+  }
+  reset();
+  setInterval(() => {
+    if (pause > 0) { if (--pause === 0) reset(); return; }
+    spent = Math.min(cost, spent + 1.1 + Math.random() * 1.6);
+    const done = Math.floor(spent / perFloor);
+    segs.forEach((seg, i) => {
+      seg.style.width = (i < done ? 100 : i === done ? ((spent - done * perFloor) / perFloor) * 100 : 0) + "%";
+    });
+    while (logged < Math.min(done, floors)) log(++logged);
+    floorText.textContent = "Étage " + Math.min(done + 1, floors) + " sur " + floors;
+    spentText.textContent = fmt(spent);
+    if (spent >= cost) { run.classList.add("done"); prize.hidden = false; pause = 45; }
+  }, 80);
+})();
+</script>
+</body>
+</html>
