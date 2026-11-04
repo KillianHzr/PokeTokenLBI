@@ -177,7 +177,7 @@ struct DungeonTeamScreen: View {
         try? await Task.sleep(for: .milliseconds(250))
         guard !Task.isCancelled else { return }
         // The Bag's berries and Revives go along, as at the departure; a challenge's boss stands at the end.
-        let value = await Task.detached(priority: .utility) { estimate.run() }.value
+        let value = await BattleEngine.offMain { estimate.run() }
         guard !Task.isCancelled else { return }
         odds = value
     }

@@ -65,7 +65,7 @@ struct BattleReplayView: View {
         .frame(height: 520, alignment: .top)
         .task {
             let setup = battle.setup
-            let ran = await Task.detached(priority: .userInitiated) { BattleEngine.run(setup) }.value
+            let ran = await BattleEngine.offMain { BattleEngine.run(setup) }
             elapsed = min(max(0, startAt), ran.duration)
             outcome = ran
             while !Task.isCancelled, elapsed < ran.duration {

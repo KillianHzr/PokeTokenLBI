@@ -9,6 +9,22 @@ enum BattleEngine {
         var simulation = BattleSimulation(setup)
         return simulation.run()
     }
+
+    /// The stack a battle runs on away from the main thread: a main thread's and more. A battle's deepest call (a
+    /// knock-out inside a hit inside a cast) took more than a secondary thread's 512 KB in a debug build, and the replay
+    /// run with `Task.detached` crashed on `___chkstk_darwin` (2026-11-04).
+    static let stackSize = 16 << 20
+
+    /// `work` (a battle, or the expeditions an estimate plays) on a thread of its own with `stackSize`, never on a
+    /// task's thread: what the screens wait for off the main thread goes through here.
+    static func offMain<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            let thread = Thread { continuation.resume(returning: work()) }
+            thread.stackSize = stackSize
+            thread.qualityOfService = .userInitiated
+            thread.start()
+        }
+    }
 }
 
 /// One battle being played. Every list is walked in a fixed order, so the same seed always gives the same battle.
@@ -321,9 +337,17 @@ struct BattleSimulation {
         let casting = active.filter { battlers[$0].castMove != nil && battlers[$0].castEnds <= now }
             .sorted { (battlers[$0].castEnds, battlers[$0].side, battlers[$0].slot ?? 0)
                 < (battlers[$1].castEnds, battlers[$1].side, battlers[$1].slot ?? 0) }
-        for index in casting where battlers[index].castMove != nil && !battlers[index].isFainted && winner == nil {
+        // A cast pushed back (Flinch, Quash) or restarted (Pursuit) during this step waits for its own end.
+        for index in casting where battlers[index].castMove != nil && battlers[index].castEnds <= now
+            && !battlers[index].isFainted && winner == nil {
             completeCast(index)
             checkVictory()
+        }
+        // Cured of sleep or freeze by a move (Heal Bell, Purify), a Pokémon left without a cast starts one: no other step
+        // would, and it stood idle for the rest of the battle.
+        for index in active where battlers[index].castMove == nil && battlers[index].status != .sleep
+            && battlers[index].status != .freeze && winner == nil {
+            startCast(index)
         }
         // Put to sleep by this step, a Pokémon that knows Sleep Talk or Snore starts one.
         for index in active where battlers[index].status == .sleep && battlers[index].castMove == nil
@@ -506,11 +530,17 @@ struct BattleSimulation {
         }
         let loop = battlers[index].spec.moves
         var chosen: String?
+        // A lock whose move it may no longer use (Disable, Imprison, Grudge) ends, and the loop goes on: it was Struggle
+        // for good.
+        if let locked = battlers[index].lockedMove, battlers[index].lockedLeft > 0, !canUse(locked, by: index) {
+            battlers[index].lockedMove = nil
+            battlers[index].lockedLeft = 0
+        }
         if battlers[index].loafing {
             chosen = "_loaf"
         } else if !asleep, let locked = battlers[index].lockedMove, battlers[index].lockedLeft > 0 {
             // Outrage, Rollout, Uproar: the same move again until the lock is over.
-            chosen = canUse(locked, by: index) ? locked : nil
+            chosen = locked
         } else if !asleep, battlers[index].encoreUntil > now, let encored = battlers[index].encoreMove {
             // Encore: its move again, useful or not; Struggle when it may not.
             chosen = canUse(encored, by: index) ? encored : nil
@@ -552,11 +582,14 @@ struct BattleSimulation {
 
     /// How long a cast of `slug` lasts from now: its base by the caster's speed, a third (R1). Bide waits two turns
     /// whatever its speed; Solar Beam in the sun skips its charge.
+    /// The speed a cast's length reads: Trick Room turns speeds around, the slower cast quicker.
+    private func castSpeed(_ index: Int) -> Int {
+        fieldHas("trick-room") ? max(10, 400 - effectiveSpeed(index)) : effectiveSpeed(index)
+    }
+
     private func castDuration(_ slug: String, by index: Int) -> Int {
         if slug == "bide" { return 2 * BattleRules.turn }
-        // Trick Room turns speeds around: the slower cast quicker.
-        let speed = fieldHas("trick-room") ? max(10, 400 - effectiveSpeed(index)) : effectiveSpeed(index)
-        let scale = 300 / (100 + Double(speed)) / Double(BattleRules.speedUp)
+        let scale = 300 / (100 + Double(castSpeed(index))) / Double(BattleRules.speedUp)
         var duration = Double(MoveTable.move(slug)?.castBase ?? 1200) * scale
         if slug == "solar-beam" || slug == "solar-blade", weather == .sun { duration -= 2000 * scale }
         if slug == "electro-shot", weather == .rain { duration -= 2000 * scale }
@@ -609,6 +642,8 @@ struct BattleSimulation {
             return
         }
         if let move = MoveTable.move(slug) { use(move, by: index) }
+        // Gone by its own move (U-turn, Baton Pass): its copy on the bench starts afresh, Fake Out ready.
+        guard battlers[index].slot != nil else { return }
         battlers[index].lastActionAt = now
         battlers[index].usedSinceEntry.insert(slug)
         if Self.lockingMoves[slug] != nil, !battlers[index].isFainted { lockStep(index, slug) }
@@ -679,7 +714,7 @@ struct BattleSimulation {
         case "crafty-shield": return foes.contains { foeKnows($0) { !$0.isDamaging && !$0.targetsOwnSide } }
         case "magic-coat": return foes.contains { foeKnows($0) { $0.flags.contains("reflectable") } }
         case "snatch": return foes.contains { foeKnows($0) { $0.flags.contains("snatch") } }
-        case "substitute": return b.substituteHP == 0 && b.hp > b.maxHP / 4
+        case "substitute": return b.substituteHP == 0 && b.hp > b.maxHP / 4 && b.maxHP / 4 > 0
         case "reflect": return !sideHas(b.side, slug) && foes.contains { foeKnows($0) { $0.moveClass == .physical } }
         case "light-screen": return !sideHas(b.side, slug) && foes.contains { foeKnows($0) { $0.moveClass == .special } }
         case "aurora-veil": return !sideHas(b.side, slug) && weather == .snow && !foes.isEmpty
@@ -882,7 +917,7 @@ struct BattleSimulation {
         case "instruct": return instructTarget(index) != nil
         case "wish": return b.hp < b.maxHP && !wishes.contains { $0.side == b.side && $0.slot == b.slot }
         case "rest": return b.hp < b.maxHP && b.ability != "insomnia" && b.ability != "vital-spirit"
-        case "belly-drum": return b.hp * 2 > b.maxHP && b.stage(.attack) < 6
+        case "belly-drum": return b.hp * 2 > b.maxHP && b.stage(.attack) < 6 && b.maxHP > 1
         // Worth it while it is not charged, its Special Defense raised or not.
         case "charge": return !b.charged || b.stage(.specialDefense) < 6
         case "sunny-day": return weather != .sun
@@ -1050,7 +1085,8 @@ struct BattleSimulation {
             battlers[index].snatchUntil = now + 1500
             return
         case "substitute":
-            guard battlers[index].substituteHP == 0, battlers[index].hp > battlers[index].maxHP / 4 else {
+            // A quarter of nothing (Shedinja) makes no substitute.
+            guard battlers[index].substituteHP == 0, battlers[index].hp > battlers[index].maxHP / 4, battlers[index].maxHP / 4 > 0 else {
                 log(.fail(battler: id, move: move.slug, reason: .failed))
                 return
             }
@@ -1071,9 +1107,12 @@ struct BattleSimulation {
             battlers[index].status = nil
             battlers[index].status = .sleep
             battlers[index].wakeAt = now + 6000
+            battlers[index].castMove = nil
             log(.status(battler: id, ailment: .sleep))
             return
         case "belly-drum":
+            // Showdown's rule: half of 1 HP is nothing to pay.
+            guard battlers[index].maxHP > 1 else { return failed(move, by: index) }
             hurt(index, battlers[index].maxHP / 2, .belly)
             if !battlers[index].isFainted { changeStage(index, .attack, by: 12, fromFoe: false) }
             return
@@ -1295,8 +1334,9 @@ struct BattleSimulation {
                                   originalSpec: old.originalSpec)
             revived.lostMoves = old.lostMoves
             battlers[fallen] = revived
-            // A place it left empty, with no bench then, takes the next one in.
-            for slot in field[old.side].indices where field[old.side][slot] == fallen {
+            // A place left to a fallen Pokémon, with no bench then, takes the next one in: its own, or another's.
+            for slot in field[old.side].indices {
+                guard let occupant = field[old.side][slot], occupant == fallen || battlers[occupant].isFainted else { continue }
                 field[old.side][slot] = nil
                 if !pendingEntries.contains(where: { $0.side == old.side && $0.slot == slot }) {
                     pendingEntries.append((now + BattleRules.benchDelay, old.side, slot))
@@ -1896,7 +1936,7 @@ struct BattleSimulation {
             case "curse":
                 // A Ghost pays half its HP to curse the target: a quarter of its HP each turn, a sixteenth for a boss.
                 guard !t.cursed else { return failed(move, by: index) }
-                hurt(source, battlers[source].maxHP / 2, .curse)
+                hurt(source, max(1, battlers[source].maxHP / 2), .curse)
                 t = battlers[target]
                 t.cursed = true
             default:
@@ -1912,7 +1952,7 @@ struct BattleSimulation {
     /// would never be hit.
     private func hiddenMove(_ index: Int) -> String? {
         guard let hidden = battlers[index].semiInvulnerable, battlers[index].castMove == hidden else { return nil }
-        let charge = 2000 * 300 / (100 + Double(effectiveSpeed(index))) / Double(BattleRules.speedUp)
+        let charge = 2000 * 300 / (100 + Double(castSpeed(index))) / Double(BattleRules.speedUp)
         return Double(now) >= Double(battlers[index].castEnds) - charge ? hidden : nil
     }
 
