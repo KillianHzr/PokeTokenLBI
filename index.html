@@ -215,7 +215,7 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
           <ul>
             <li>Choisir un donjon et composer l'équipe, ou cliquer sur "Composer pour moi".</li>
             <li>Si l'équipe passe sous 25 % de ses PV : accepter ou non le soin d'urgence.</li>
-            <li>Si le boss tombe : lancer tes balls pour l'attraper (trois lancers).</li>
+            <li>Avant le départ, si tu as une Master Ball : la laisser cochée ou non pour un boss légendaire.</li>
           </ul>
         </div>
         <div class="box auto">
@@ -224,16 +224,17 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
             <li>L'avancée d'étage en étage, avec les tokens que tu dépenses.</li>
             <li>Tous les combats : chaque Pokémon lance ses quatre attaques en boucle jusqu'à la victoire ou au K.O.</li>
             <li>Les baies et les Rappels, utilisés quand il le faut.</li>
+            <li>La capture du boss : trois lancers avec tes meilleures balls.</li>
           </ul>
         </div>
       </div>
-      <p>Tu n'as pas besoin de regarder. Quand l'expédition attend ta réponse (le soin, la capture, le retour), un "!" s'affiche dans la barre de menus, et rien n'est perdu en attendant : pendant le soin, tes tokens sont gardés pour l'équipe, et pendant la capture, ton Pokémon en cours a déjà repris sa croissance.</p>
+      <p>Tu n'as pas besoin de regarder. Quand l'expédition attend ta réponse (le soin d'urgence) ou que son résultat t'attend en haut de l'Accueil, un "!" s'affiche dans la barre de menus. Rien n'est perdu en attendant : pendant le soin, tes tokens sont gardés pour l'équipe.</p>
       <ol>
         <li>Tu choisis un donjon et tu formes une équipe de 3 à 6 Pokémon diplômés qui respectent ses règles.</li>
         <li>Tes tokens font avancer l'équipe d'un étage à l'autre. Pendant ce temps, ton Pokémon en cours ne grandit pas.</li>
         <li>Chaque étage a un événement : un combat (Pokémon sauvages, horde ou dresseur), un coffre, un piège ou une source. Les combats se jouent tout seuls, en temps réel, avec les attaques et les talents des jeux.</li>
-        <li>Au dernier étage, le boss. Tu ne sais pas lequel avant d'y arriver. S'il tombe, le butin est gagné et c'est à toi : trois lancers pour l'attraper, et son œuf va dans ton Sac.</li>
-        <li>Si toute l'équipe est K.O. avant, le butin est perdu.</li>
+        <li>Au dernier étage, le boss. Tu ne sais pas lequel avant d'y arriver. S'il tombe, l'app lance seule trois balls pour l'attraper, et son œuf va dans ton Sac.</li>
+        <li>Si toute l'équipe est K.O. avant, l'expédition s'arrête, mais tu gardes le butin des étages franchis.</li>
       </ol>
       <div class="shots">
         <figure><img src="img/team-top.png" alt=""><figcaption>L'écran d'équipe.</figcaption></figure>
@@ -307,9 +308,9 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
 
     <section id="butin">
       <h2>Butin et taux</h2>
-      <p>Le butin se gagne étage après étage, puis s'ajoute la récompense de victoire. Il n'est gardé que si le boss tombe ou si une Corde Sortie ramène l'équipe. La première victoire dans un donjon double le butin et ajoute un objet du palier.</p>
+      <p>Le butin se gagne étage après étage, puis s'ajoute la récompense de victoire si le boss tombe. Celui des étages franchis est à toi même après une défaite ; seul l'étage où l'équipe tombe ne donne rien. Abandonner sans Corde Sortie le fait perdre. La première victoire dans un donjon double le butin et ajoute un objet du palier.</p>
       <h3>Capturer le boss</h3>
-      <p>Trois lancers une fois le boss battu. Chaque lancer réussit selon la rareté de la lignée du boss. Capturé, il donne son œuf, qui éclot en Pokémon de sa lignée. Un boss est chromatique 1 fois sur 64 (1 sur 48 avec le Charme Chroma), et son œuf aussi.</p>
+      <p>Une fois le boss battu, l'app lance seule trois balls, la meilleure du Sac à chaque fois : Hyper Ball, puis Super Ball, puis la Poké Ball gratuite. La Master Ball ne part que sur un boss légendaire, et tu peux l'interdire avant le départ. Chaque lancer réussit selon la rareté de la lignée du boss. Capturé, il donne son œuf, qui éclot en Pokémon de sa lignée. Un boss est chromatique 1 fois sur 64 (1 sur 48 avec le Charme Chroma), et son œuf aussi.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Rareté du boss</th><th class="n">Poké Ball</th><th class="n">Super Ball</th><th class="n">Hyper Ball</th><th class="n">Master Ball</th></tr></thead>
@@ -321,7 +322,7 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
           </tbody>
         </table>
       </div>
-      <p class="muted">Par lancer. La Poké Ball est gratuite et illimitée, les autres se prennent dans le Sac.</p>
+      <p class="muted">Par lancer. Le résultat s'affiche en haut de l'Accueil, avec les balls lancées et tout ce que tu as gagné.</p>
       <h3>Par palier</h3>
       <div class="table-wrap">
         <table>
