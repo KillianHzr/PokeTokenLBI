@@ -1145,6 +1145,13 @@ read_when:
   NotificationCenter that touches the main actor says so (`MainActor.assumeIsolated` on a main-queue handler); the
   `release → main` PR's CI is the first build on the floor toolchain, so its result is read before anything else.
 
+- **A `@MainActor` test class's synchronous `setUpWithError`/`tearDown` is nonisolated on CI's Swift.** `LiveUsageTests`
+  set its temporary folder and its defaults suite there: Swift 6.3 locally accepted it, CI's Swift 6.1 refused to
+  compile the whole test target ("main actor-isolated property … from a nonisolated context"). **Why missed:** the full
+  local suite passed; only CI has the older toolchain. The stored properties those overrides touch are
+  `nonisolated(unsafe)`, as `UsageStoreTests` does. Sweep: the other `@MainActor` classes with plain properties set up
+  there already build on CI (async or isolated overrides).
+
 ## 자격증명·Keychain
 
 - **앱 소유 keychain 항목 금지.** 앱이 만든 keychain 항목은 코드서명(cdhash)이 바뀔 때마다(로컬 재빌드·
@@ -1288,6 +1295,12 @@ read_when:
   `state`: a "Fatal access conflict" trap at the first Old Amber hatch, caught by its test before any commit. The value
   is computed into a local first. **Sweep:** no other optional-chained write of `CompanionStore` reads `state` on its
   right (`grep -nE 'state\.active\?\.[A-Za-z]+ (=|\+=) '`).
+
+- **A system resource per object makes the suite pay it hundreds of times.** Live usage gave each `UsageStore` an
+  FSEvents stream; the suite makes hundreds of stores, and each stream's start and stop talk to `fseventsd`: two full
+  runs stalled one rendering test for 937 s and 385 s (about 125 s in all before). **Why it showed:** the duration, not
+  a failure: compare a full run's time with the last ones. The watcher is made by the app only
+  (`UsageStore.appLiveWatcher`); a test that needs one passes it (`LiveUsageTests`).
 
 ## 프로세스·인스턴스
 
@@ -1810,6 +1823,14 @@ read_when:
 - **A rendered value that is hidden needs its hover hidden too.** Tokens left and time left leave the caption, but the track's
   hover still carried the same counts in `progressDetail`, and so did the bar shown while the line loads: three places, one
   rule (`hidesGrowthAmounts`).
+- **A luck criterion is judged only where its outcome could be seen.** A hidden Ditto shows at its first evolution, but the
+  replay counted Ditto odds for every hatch, Pokémon sent off or still raised before it included: their chance stayed in the
+  expectation while a hit was impossible, and no test released a Pokémon on this criterion. `HatchLuckSimulationTests` now plays
+  groups of players who send off what brings them nothing. It compares hits with expectation, because a percentile that splits
+  ties averages close to 50% and hides such a drift.
+- **A hit and its odds read the same predicate, and a better result never lowers a score.** "Exactly this rarity" made a
+  Legendary a miss for Rare. Both now count that rarity or better. A draw at odds of one is no luck either: it leaves the counts,
+  and a miss at those odds, possible when a date only approximates an item, no longer sinks the percentile.
 
 ## 에너지 (상시 표시 애니메이션)
 

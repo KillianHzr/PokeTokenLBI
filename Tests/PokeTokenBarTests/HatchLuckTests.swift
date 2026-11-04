@@ -42,16 +42,70 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertEqual(h.egg, .tier(nil), "the first egg is a Pokémon Egg")
         XCTAssertEqual(h.rarityOdds, .init(low: 40.0 / 467, high: 40.0 / 467))
         XCTAssertEqual(h.lineOdds ?? 0, 40.0 / 467, accuracy: 1e-12)
-        XCTAssertEqual(h.judged[.rare], .init(odds: 40.0 / 467, hit: true))
-        XCTAssertEqual(h.judged[.uncommon], .init(odds: 0, hit: false))
+        XCTAssertEqual(h.judged[.rare], .init(odds: 43.0 / 467, hit: true))
+        XCTAssertEqual(h.judged[.uncommon], .init(odds: 43.0 / 467, hit: true))
         XCTAssertEqual(h.judged[.legendary], .init(odds: 3.0 / 467, hit: false))
         XCTAssertEqual(h.judged[.shiny], .init(odds: 1.0 / 64, hit: false))
         let ditto = try XCTUnwrap(h.judged[.ditto])
         XCTAssertEqual(ditto.odds, 424.0 / 467 / 128, accuracy: 1e-12, "hidden in an evolving common")
         let rare = try XCTUnwrap(l.criteria.first { $0.criterion == .rare })
         XCTAssertEqual(rare.hits, 1)
-        XCTAssertEqual(rare.expected, 40.0 / 467, accuracy: 1e-12)
-        XCTAssertEqual(rare.percentile, 1 - 40.0 / 467 / 2, accuracy: 1e-12)
+        XCTAssertEqual(rare.expected, 43.0 / 467, accuracy: 1e-12)
+        XCTAssertEqual(rare.percentile, 1 - 43.0 / 467 / 2, accuracy: 1e-12)
+    }
+
+    /// A rarer Pokémon never lowers a criterion: each counts its rarity or better.
+    func testARarityCountsAsEveryRarityBelowIt() throws {
+        let legendary = try XCTUnwrap(luck([entry(243, day: 1)]).hatches.first)
+        XCTAssertEqual(legendary.judged[.uncommon]?.hit, true)
+        XCTAssertEqual(legendary.judged[.rare]?.hit, true)
+        XCTAssertEqual(legendary.judged[.legendary]?.hit, true)
+        let common = try XCTUnwrap(luck([entry(16, day: 1)]).hatches.first)
+        XCTAssertEqual(common.judged[.uncommon]?.hit, false)
+        XCTAssertEqual(common.judged[.rare]?.hit, false)
+        XCTAssertEqual(common.judged[.legendary]?.hit, false)
+    }
+
+    /// What an egg promises is not luck: it leaves the counts, and the percentile with them.
+    func testAPromisedRarityIsNotJudged() throws {
+        let rareEgg = HatchRecord(egg: .tier(.rare))
+        let l = luck([entry(147, day: 1, record: rareEgg)])
+        let h = try XCTUnwrap(l.hatches.first)
+        XCTAssertNil(h.judged[.uncommon])
+        XCTAssertNil(h.judged[.rare])
+        XCTAssertEqual(h.judged[.legendary], .init(odds: 3.0 / 43, hit: false))
+        let rare = try XCTUnwrap(l.criteria.first { $0.criterion == .rare })
+        XCTAssertEqual(rare.hits, 0)
+        XCTAssertEqual(rare.expected, 0)
+        XCTAssertEqual(rare.percentile, 0.5, accuracy: 1e-12)
+        let legendaryEgg = HatchRecord(egg: .legendary)
+        XCTAssertNil(try XCTUnwrap(luck([entry(243, day: 1, record: legendaryEgg)]).hatches.first).judged[.legendary])
+    }
+
+    /// The first egg of a Pokédex can only bring something new.
+    func testACertainNewIsNotJudged() throws {
+        let first = try XCTUnwrap(luck([entry(16, day: 1)]).hatches.first)
+        XCTAssertNil(first.judged[.new])
+        XCTAssertEqual(first.newOdds?.low, 1)
+        let second = try XCTUnwrap(luck([entry(16, day: 1), entry(10, day: 2)]).hatches.last)
+        XCTAssertNil(second.judged[.new], "a line left to finish is still new")
+        let third = try XCTUnwrap(luck([entry(16, [16, 17, 18], day: 1), entry(147, day: 2), entry(10, day: 3)]).hatches.last)
+        XCTAssertEqual(third.judged[.new]?.hit, true, "the finished line could have come back")
+    }
+
+    /// A hidden Ditto only shows at its first evolution: a Pokémon sent off or still raised before it could not show one.
+    func testADittoIsOnlyJudgedOnceItCouldHaveShown() throws {
+        func judged(_ e: DexEntry, active: Bool = false) throws -> HatchLuck.Judgement? {
+            try XCTUnwrap(luck([e], active: active).hatches.first).judged[.ditto]
+        }
+        XCTAssertNil(try judged(entry(16, day: 1, released: true)), "released before its first evolution")
+        XCTAssertNotNil(try judged(entry(16, [16, 17], day: 1, released: true)), "released after it")
+        XCTAssertNil(try judged(entry(16, day: 1), active: true), "still raised before it")
+        XCTAssertNotNil(try judged(entry(16, [16, 17], day: 1), active: true), "still raised after it")
+        XCTAssertNotNil(try judged(entry(16, [16, 17, 18], day: 1)), "graduated")
+        XCTAssertNotNil(try judged(entry(147, [147], day: 1)), "graduated at once: nothing was hiding")
+        let revealed = entry(PokemonOdds.dittoSpeciesID, day: 1, released: true)
+        XCTAssertEqual(try judged(revealed)?.hit, true, "revealed, then released")
     }
 
     /// Each hatch is judged against the Pokédex of its moment: a line hatched last is left out of the next egg, a line
@@ -72,10 +126,10 @@ final class HatchLuckTests: XCTestCase {
         let index = self.index + [BaseSpecies(id: 60, captureRate: 255)]
         let open = luck([entry(60, [60, 61, 62], day: 1), entry(60, day: 2)], active: true, index: index)
         XCTAssertTrue(open.hatches[1].isActive)
-        XCTAssertEqual(open.hatches[1].judged[.new]?.hit, true)
+        XCTAssertTrue(open.hatches[1].bringsNew)
         let done = luck([entry(60, [60, 61, 62], day: 1), entry(10, day: 1.5), entry(60, [60, 61, 186], day: 2),
                          entry(10, day: 2.5), entry(60, day: 3)], active: true, index: index)
-        XCTAssertEqual(done.hatches[2].judged[.new]?.hit, true)
+        XCTAssertTrue(done.hatches[2].bringsNew)
         XCTAssertEqual(done.hatches[4].judged[.new]?.hit, false)
         let odds = try XCTUnwrap(done.hatches[4].judged[.new]?.odds)
         XCTAssertEqual(odds, 255.0 / 361, accuracy: 1e-12, "all but Poliwag, halved, without Caterpie, hatched last")
@@ -108,8 +162,8 @@ final class HatchLuckTests: XCTestCase {
         let h = l.hatches[1]
         XCTAssertEqual(h.egg, .tier(.rare))
         XCTAssertTrue(h.eggChosenByPlayer)
-        XCTAssertEqual(Set(h.judged.keys), Set(HatchLuck.Criterion.allCases))
-        XCTAssertEqual(h.judged[.rare], .init(odds: 40.0 / 43, hit: true))
+        XCTAssertEqual(Set(h.judged.keys), [.legendary, .shiny, .ditto], "all but what the egg promised or the Pokédex left")
+        XCTAssertEqual(h.judged[.legendary], .init(odds: 3.0 / 43, hit: false))
         XCTAssertTrue(h.asksEgg, "the player may change it")
         XCTAssertTrue(h.possibleEggs.contains(.tier(nil)), "the eggs to change it for")
         XCTAssertTrue(h.possibleEggs.contains(.tier(.rare)))
@@ -131,7 +185,7 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertFalse(kabuto.asksEgg)
         XCTAssertFalse(kabuto.eggChosenByPlayer)
         XCTAssertEqual(kabuto.lineOdds, 1)
-        XCTAssertEqual(kabuto.judged[.new], .init(odds: 1, hit: true))
+        XCTAssertEqual(kabuto.judged[.ditto], .init(odds: 0, hit: false), "more than the Shiny of an unknown egg")
     }
 
     func testWhichHatchesAskTheirEgg() {
@@ -211,7 +265,7 @@ final class HatchLuckTests: XCTestCase {
     /// The strong and weak points the summary names: the first criterion when two tie.
     func testStrongestAndWeakest() {
         let l = luck([entry(147, day: 1)])
-        XCTAssertEqual(l.strongest?.criterion, .rare)
+        XCTAssertEqual(l.strongest?.criterion, .uncommon, "level with Rare, the first wins")
         XCTAssertEqual(l.weakest?.criterion, .shiny)
         let even = luck([])
         XCTAssertEqual(even.strongest?.criterion, .uncommon)
@@ -221,14 +275,14 @@ final class HatchLuckTests: XCTestCase {
     /// Shiny every time: with the Glimmering Charm, or from an event egg that promises it.
     func testShinyEveryTime() {
         let glimmering = HatchRecord(egg: .tier(nil), hatchItems: [.glimmeringCharm])
-        XCTAssertEqual(luck([entry(16, day: 1, record: glimmering)]).hatches.first?.judged[.shiny]?.odds, 1)
+        XCTAssertNil(luck([entry(16, day: 1, record: glimmering)]).hatches.first?.judged[.shiny])
         let valentine = HatchRecord(egg: .event(.valentine, key: nil))
         let index = self.index + [BaseSpecies(id: 370, captureRate: 225)]
-        XCTAssertEqual(luck([entry(370, day: 1, record: valentine)], index: index).hatches.first?.judged[.shiny]?.odds, 1)
+        XCTAssertNil(luck([entry(370, day: 1, record: valentine)], index: index).hatches.first?.judged[.shiny])
         let unknown = luck([entry(16, day: 1, released: true), entry(147, day: 2)],
                            itemsSince: [.glimmeringCharm: Self.day(0)]).hatches[1]
         XCTAssertNil(unknown.egg)
-        XCTAssertEqual(unknown.judged[.shiny]?.odds, 1, "whatever its egg was")
+        XCTAssertNil(unknown.judged[.shiny], "whatever its egg was")
     }
 
     /// The score after each hatch is the mean of the six percentiles then; each hatch's effect is what it moved.

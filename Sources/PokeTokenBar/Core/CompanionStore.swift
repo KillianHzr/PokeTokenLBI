@@ -24,6 +24,13 @@ final class CompanionStore {
     @ObservationIgnored private(set) var dexSpeciesFolds = 0
     /// Writes of the save file, for the tests of what writes it.
     @ObservationIgnored private(set) var savesWritten = 0
+    /// A usage update writes the save at most this often (0: at once). Live usage updates the companion every few
+    /// seconds while tokens flow, and each write is the whole state (about 800 KB): the numbers wait in memory, and any
+    /// other change writes them along at once. The app sets `appUsageSaveGap`; tests keep the writes immediate.
+    @ObservationIgnored var usageSaveGap: TimeInterval = 0
+    static let appUsageSaveGap: TimeInterval = 15
+    @ObservationIgnored private var lastSaveWrite: Date?
+    @ObservationIgnored private var usageSaveTask: Task<Void, Never>?
     private(set) var representativeSubject = RepresentativeSubject(speciesID: nil, isShiny: false)
     private(set) var isHatching = false
     private var isRevealingDitto = false   // 메타몽 리빌 비동기 중복 방지(isHatching 자매)
@@ -1893,7 +1900,7 @@ final class CompanionStore {
         if displayState != nextDisplayState { displayState = nextDisplayState }
         announceBirthdayGiftIfNeeded()
         announceEventEggsIfNeeded()
-        save()
+        saveUsage()
         autoSnapshotIfNeeded()
     }
 
@@ -1912,7 +1919,8 @@ final class CompanionStore {
         }
         state.active!.usedAtStage += growthDelta
         reconcileActiveProfileGrowth()
-        guard let line = currentLine else { save(); return }
+        // Tokens' growth waits with the usage writes; a Rare Candy's is written at once.
+        guard let line = currentLine else { return isTokenUsage ? saveUsage() : save() }
         var guardCount = 0
         while state.active != nil, guardCount < 50 {
             guardCount += 1
@@ -4766,16 +4774,41 @@ final class CompanionStore {
     /// the whole file all the same (660 KB for 571 Pokédex entries, twice a minute while tokens flow).
     private var savedState: CompanionState?
 
+    /// A usage update's save: at once when the last write is `usageSaveGap` old, else once that much after it.
+    private func saveUsage() {
+        guard usageSaveGap > 0, let last = lastSaveWrite else { return save() }
+        let since = Date().timeIntervalSince(last)
+        guard since < usageSaveGap else { return save() }
+        guard usageSaveTask == nil else { return }
+        let wait = usageSaveGap - since
+        usageSaveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard let self, !Task.isCancelled else { return }
+            self.usageSaveTask = nil
+            self.save()
+        }
+    }
+
+    /// Writes what a usage update left waiting (the app quitting).
+    func flushPendingSave() {
+        guard usageSaveTask != nil else { return }
+        save()
+    }
+
     private func save() {
         refreshRepresentativeSubject()
         guard saveLock == nil else { return }
         if let writer, state.writer != writer { state.writer = writer }
+        // This write carries what a usage update had waiting.
+        usageSaveTask?.cancel()
+        usageSaveTask = nil
         guard state != savedState else { return }
         guard let data = try? JSONEncoder().encode(state) else { return }
         do {
             try data.write(to: fileURL, options: .atomic)   // 부분 쓰기 손상 방지(펫 상태)
             savedState = state
             savesWritten += 1
+            lastSaveWrite = Date()
         } catch {
             AppLog.write("save failed: \(error.localizedDescription)")
         }
