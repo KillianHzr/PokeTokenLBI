@@ -14,10 +14,16 @@ protocol UsageProvider: Sendable {
 
     /// 블록/주월 누적 상세 (best effort) — 느리거나 실패해도 메뉴바 숫자에 영향 없음.
     func fetchEnrichment() async -> ProviderEnrichment
+
+    /// The folders whose files this source reads, watched so that a change is read at once (live usage,
+    /// `UsageStore.liveFilesChanged`). The same folders the reader scans. Empty: the source is read on the timer only
+    /// (an API, a database behind its own shared cache).
+    func watchedRoots() async -> [URL]
 }
 
 extension UsageProvider {
     var reportsCost: Bool { true }
+    func watchedRoots() async -> [URL] { [] }
 }
 
 /// 부가 정보 수집 결과. *OK 플래그가 false 면 수집 실패 → 이전 값 유지.
