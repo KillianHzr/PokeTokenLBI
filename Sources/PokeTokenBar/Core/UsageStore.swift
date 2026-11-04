@@ -333,6 +333,43 @@ final class UsageStore {
     /// (menuTitle 미변경) → 지급은 이 훅으로 확실히 트리거한다. AppDelegate 가 설정.
     var onRefresh: (@MainActor () -> Void)?
 
+    // MARK: Live usage state
+
+    /// How live reads are paced. A change waits `debounce` for the writes that follow it; a source is read again no
+    /// sooner than `minimumGap` after its last read, nor sooner than its read time divided by `maximumDuty` (a read
+    /// that took 300 ms waits 6 s): the reads take at most that share of the time, whatever the logs weigh.
+    struct LiveTiming: Sendable {
+        var debounce: TimeInterval = 1
+        var minimumGap: TimeInterval = 3
+        var maximumDuty: Double = 0.05
+        static let standard = LiveTiming()
+    }
+
+    @ObservationIgnored private let liveTiming: LiveTiming
+    typealias LiveWatcherFactory = @MainActor ([String], @escaping @Sendable ([String]) -> Void) -> AnyObject?
+    /// Nil: no live reads at all (tests that do not ask for them). Each watcher is an FSEvents stream, whose start and
+    /// stop talk to `fseventsd`: hundreds of stores made by the suite, each with its own, stalled it for minutes.
+    @ObservationIgnored private let makeLiveWatcher: LiveWatcherFactory?
+    /// The app's watcher; none under `swift test`, where a test passes its own.
+    static var appLiveWatcher: LiveWatcherFactory? {
+        guard AppEnv.isBundledApp else { return nil }
+        return { paths, handler in UsageFileWatcher(paths: paths, handler: handler) as AnyObject? }
+    }
+    @ObservationIgnored private var liveWatcher: AnyObject?
+    /// The folders watched, canonical, sorted: the watcher is rebuilt only when they change.
+    @ObservationIgnored private(set) var liveWatchedPaths: [String] = []
+    /// Which source each watched folder belongs to.
+    @ObservationIgnored private var liveRoots: [(root: String, providerID: String)] = []
+    @ObservationIgnored private var livePending: Set<String> = []
+    @ObservationIgnored private var liveTask: Task<Void, Never>?
+    @ObservationIgnored private var liveReadEnded: [String: Date] = [:]
+    @ObservationIgnored private var liveReadDuration: [String: TimeInterval] = [:]
+    /// Counts the full refreshes' assignments of today's numbers: a live read that started before one keeps its older
+    /// numbers to itself.
+    @ObservationIgnored private var snapshotsGeneration = 0
+    /// Live reads done, for tests.
+    @ObservationIgnored private(set) var liveReadCount = 0
+
     // MARK: 파생값
 
     var todayTotalTokens: Int {
@@ -906,8 +943,12 @@ final class UsageStore {
          },
          autoRefresh: Bool = true,
          defaults: UserDefaults = .standard,
-         displaysAsleep: @escaping @MainActor () -> Bool = { CGDisplayIsAsleep(CGMainDisplayID()) != 0 }) {
+         displaysAsleep: @escaping @MainActor () -> Bool = { CGDisplayIsAsleep(CGMainDisplayID()) != 0 },
+         liveTiming: LiveTiming = .standard,
+         makeLiveWatcher: LiveWatcherFactory? = UsageStore.appLiveWatcher) {
         self.providers = providers
+        self.liveTiming = liveTiming
+        self.makeLiveWatcher = makeLiveWatcher
         self.displaysAsleep = displaysAsleep
         self.limitsProvider = claudeLimitsProvider
         self.additionalClaudeLimitsProvider = additionalClaudeLimitsProvider
@@ -1025,6 +1066,8 @@ final class UsageStore {
     private func reschedule() {
         timer?.invalidate()
         timer = nil
+        // Live reads follow the automatic refresh: off by hand (interval 0) and while the screens sleep.
+        if isLiveEnabled { Task { await updateLiveWatcher() } } else { stopLiveWatcher() }
         guard !pollingSuspended, refreshInterval > 0 else { return }
         let t = Timer(timeInterval: refreshInterval, repeats: true) { _ in
             Task { @MainActor [weak self] in await self?.refresh() }
@@ -1043,6 +1086,7 @@ final class UsageStore {
         pollingSuspended = true
         timer?.invalidate()
         timer = nil
+        stopLiveWatcher()
         suspendedProbeTimer?.invalidate()
         let probe = Timer(timeInterval: Self.suspendedProbeInterval, repeats: true) { _ in
             Task { @MainActor [weak self] in await self?.runSuspendedPollingProbe() }
@@ -1199,6 +1243,7 @@ final class UsageStore {
             if snapshot.hasDisplayableUsage { newSnapshots.append(snapshot) }
         }
         snapshots = newSnapshots
+        snapshotsGeneration += 1
 
         if errors.isEmpty {
             lastUpdated = Date()
@@ -1266,7 +1311,145 @@ final class UsageStore {
         let summary = snapshots.map { "\($0.providerID):\($0.today?.date ?? "nil")=\($0.todayTotalTokens)" }
             .joined(separator: ", ")
         AppLog.write("refresh done [\(summary)]")
+        // The folders can change with the accounts and the custom folders.
+        await updateLiveWatcher()
         onRefresh?()   // 한도 로드 후 companion 갱신·사탕 지급(신선한 한도 시점)
+    }
+
+    // MARK: Live usage
+
+    /// Whether files that change are read at once: with the automatic refresh, not while the screens sleep.
+    var isLiveEnabled: Bool { makeLiveWatcher != nil && refreshInterval > 0 && !pollingSuspended }
+    var isWatchingLive: Bool { liveWatcher != nil }
+
+    /// Watches the folders of every source that reads files; rebuilt when they change (a new Claude account, a custom
+    /// folder), dropped while live reads are off. Folders that do not exist yet are left for a later refresh.
+    func updateLiveWatcher() async {
+        guard isLiveEnabled else { return stopLiveWatcher() }
+        var roots: [(root: String, providerID: String)] = []
+        for provider in providers {
+            for url in await provider.watchedRoots() {
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue
+                else { continue }
+                roots.append((UsageFileWatcher.canonicalPath(url.path), provider.id))
+            }
+        }
+        guard isLiveEnabled else { return stopLiveWatcher() }
+        liveRoots = roots
+        let paths = Array(Set(roots.map(\.root))).sorted()
+        guard paths != liveWatchedPaths || (liveWatcher == nil && !paths.isEmpty) else { return }
+        liveWatcher = nil
+        liveWatchedPaths = paths
+        guard !paths.isEmpty else { return }
+        liveWatcher = makeLiveWatcher?(paths) { [weak self] changed in
+            Task { @MainActor [weak self] in self?.liveFilesChanged(changed) }
+        }
+        AppLog.write("live usage: watching \(paths.count) folder(s)")
+    }
+
+    private func stopLiveWatcher() {
+        liveWatcher = nil
+        liveWatchedPaths = []
+        liveRoots = []
+        livePending = []
+    }
+
+    /// Paths FSEvents reports: each goes to the sources whose folders hold it, read after the pacing of `LiveTiming`.
+    func liveFilesChanged(_ paths: [String]) {
+        guard isLiveEnabled else { return }
+        var ids = Set<String>()
+        for path in paths {
+            for entry in liveRoots where UsageFileWatcher.path(path, isUnder: entry.root) { ids.insert(entry.providerID) }
+        }
+        guard !ids.isEmpty else { return }
+        livePending.formUnion(ids)
+        if liveTask == nil { liveTask = Task { [weak self] in await self?.runLiveReads() } }
+    }
+
+    private func runLiveReads() async {
+        defer { liveTask = nil }
+        try? await Task.sleep(for: .seconds(liveTiming.debounce))
+        while !livePending.isEmpty, isLiveEnabled {
+            let now = Date()
+            let due = livePending.filter { nextLiveRead($0) <= now }
+            if due.isEmpty {
+                let wait = livePending.map { nextLiveRead($0).timeIntervalSince(now) }.min() ?? 0
+                try? await Task.sleep(for: .seconds(max(0.05, wait)))
+                continue
+            }
+            // A full refresh under way reads them too, but maybe before the change: they wait for its end.
+            if isRefreshing {
+                try? await Task.sleep(for: .seconds(0.5))
+                continue
+            }
+            livePending.subtract(due)
+            await readLive(due)
+        }
+    }
+
+    private func nextLiveRead(_ id: String) -> Date {
+        guard let ended = liveReadEnded[id] else { return .distantPast }
+        let gap = max(liveTiming.minimumGap, (liveReadDuration[id] ?? 0) / liveTiming.maximumDuty)
+        return ended.addingTimeInterval(gap)
+    }
+
+    /// Reads again today's usage of the sources whose files changed, as phase 1 of `refresh` does for each, then lets
+    /// the companion take it (`onRefresh`). Not the limits (network, on the timer), nor the week and month (the
+    /// timer's refresh): a live read is the menu bar's number and the growth, within seconds.
+    private func readLive(_ ids: Set<String>) async {
+        let chosen = providers.filter { ids.contains($0.id) }
+        guard !chosen.isEmpty else { return }
+        let generation = snapshotsGeneration
+        let started = Date()
+        struct Outcome: Sendable {
+            let id: String
+            let today: DailyUsage?
+            let failed: Bool
+        }
+        var outcomes: [Outcome] = []
+        await withTaskGroup(of: Outcome.self) { group in
+            for provider in chosen {
+                group.addTask {
+                    do { return Outcome(id: provider.id, today: try await provider.fetchDaily(), failed: false) }
+                    catch { return Outcome(id: provider.id, today: nil, failed: true) }
+                }
+            }
+            for await outcome in group { outcomes.append(outcome) }
+        }
+        let ended = Date()
+        for provider in chosen {
+            liveReadEnded[provider.id] = ended
+            liveReadDuration[provider.id] = ended.timeIntervalSince(started)
+        }
+        liveReadCount += 1
+        // A full refresh assigned today's numbers meanwhile, read after these: they are kept.
+        guard generation == snapshotsGeneration else { return }
+        var changed = false
+        for outcome in outcomes where !outcome.failed {
+            guard let provider = chosen.first(where: { $0.id == outcome.id }) else { continue }
+            if let index = snapshots.firstIndex(where: { $0.providerID == outcome.id }) {
+                let previous = snapshots[index].today
+                guard previous?.date != outcome.today?.date || previous?.totalTokens != outcome.today?.totalTokens
+                    || previous?.totalCost != outcome.today?.totalCost else { continue }
+                snapshots[index].today = outcome.today
+                snapshots[index].fetchedAt = ended
+                changed = true
+            } else if let today = outcome.today {
+                let snapshot = ProviderSnapshot(
+                    providerID: provider.id, displayName: provider.displayName, today: today, activeBlock: nil,
+                    weekTotal: nil, monthTotal: nil, monthDaily: nil, fetchedAt: ended,
+                    reportsCost: provider.reportsCost, lastUsage: nil)
+                guard snapshot.hasDisplayableUsage else { continue }
+                snapshots.append(snapshot)
+                let order = Dictionary(providers.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+                snapshots.sort { (order[$0.providerID] ?? .max) < (order[$1.providerID] ?? .max) }
+                changed = true
+            }
+        }
+        guard changed else { return }
+        if lastErrorDescription == nil { lastUpdated = ended }
+        onRefresh?()
     }
 
     /// While the screens sleep the polls stop (battery), but a limit window can fill and reset in the night (an agent

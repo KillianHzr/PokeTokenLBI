@@ -22,6 +22,13 @@ final class CompanionStore {
     @ObservationIgnored private(set) var dexSpeciesFolds = 0
     /// Writes of the save file, for the tests of what writes it.
     @ObservationIgnored private(set) var savesWritten = 0
+    /// A usage update writes the save at most this often (0: at once). Live usage updates the companion every few
+    /// seconds while tokens flow, and each write is the whole state (about 800 KB): the numbers wait in memory, and any
+    /// other change writes them along at once. The app sets `appUsageSaveGap`; tests keep the writes immediate.
+    @ObservationIgnored var usageSaveGap: TimeInterval = 0
+    static let appUsageSaveGap: TimeInterval = 15
+    @ObservationIgnored private var lastSaveWrite: Date?
+    @ObservationIgnored private var usageSaveTask: Task<Void, Never>?
     private(set) var representativeSubject = RepresentativeSubject(speciesID: nil, isShiny: false)
     private(set) var isHatching = false
     private var isRevealingDitto = false   // 메타몽 리빌 비동기 중복 방지(isHatching 자매)
@@ -946,22 +953,7 @@ final class CompanionStore {
     var duplicateCatchEntryIDs: Set<String> {
         var seenGraduatedSpecies = Set<DexSpeciesKey>()
         var duplicates = Set<String>()
-
-        let graduated = state.dex.enumerated().sorted { a, b in
-            let d0 = a.element.caughtAt
-            let d1 = b.element.caughtAt
-            if let d0, let d1 {
-                if d0 != d1 { return d0 < d1 }
-            } else if d0 != nil, d1 == nil {
-                return false
-            } else if d0 == nil, d1 != nil {
-                return true
-            }
-            return a.offset < b.offset
-        }.map(\.element)
-
-        let allEntries = activeDexEntry.map { graduated + [$0] } ?? graduated
-        for e in allEntries {
+        for e in entriesInCatchOrder {
             let reachedSpeciesSeen = e.chainOrder.allSatisfy { id in
                 seenGraduatedSpecies.contains(DexSpeciesKey(speciesID: id, form: e.form))
             }
@@ -989,6 +981,50 @@ final class CompanionStore {
         return duplicates
     }
 
+    /// How many Pokédex records reached each species, whatever their form: the "×N" of its grid cell and the "Most
+    /// caught" sort. The Pokémon being raised counts once it graduates or is sent off.
+    var dexCatchCounts: [Int: Int] {
+        var counts: [Int: Int] = [:]
+        for entry in state.dex {
+            for id in Set(entry.chainOrder) { counts[id, default: 0] += 1 }
+        }
+        return counts
+    }
+
+    /// Each record's rank among the records that reached its species in its form, in catch order, the one being
+    /// raised last: a duplicate's badge reads "Duplicate ×3" for the third.
+    var dexCatchRanks: [String: Int] {
+        var reached: [DexSpeciesKey: Int] = [:]
+        var ranks: [String: Int] = [:]
+        for e in entriesInCatchOrder {
+            for id in Set(e.chainOrder) { reached[DexSpeciesKey(speciesID: id, form: e.form), default: 0] += 1 }
+            ranks[e.id] = max(1, reached[DexSpeciesKey(speciesID: e.finalID, form: e.form)] ?? 0)
+        }
+        return ranks
+    }
+
+    /// What the one being raised would be among its species: its repeat badge's "×N".
+    var activeCatchRank: Int? { activeDexEntry.flatMap { dexCatchRanks[$0.id] } }
+
+    /// The records in the order they were caught, the oldest first and the one being raised last; records without a
+    /// date (from before dates were kept) first, in their saved order.
+    private var entriesInCatchOrder: [DexEntry] {
+        let graduated = state.dex.enumerated().sorted { a, b in
+            let d0 = a.element.caughtAt
+            let d1 = b.element.caughtAt
+            if let d0, let d1 {
+                if d0 != d1 { return d0 < d1 }
+            } else if d0 != nil, d1 == nil {
+                return false
+            } else if d0 == nil, d1 != nil {
+                return true
+            }
+            return a.offset < b.offset
+        }.map(\.element)
+
+        return activeDexEntry.map { graduated + [$0] } ?? graduated
+    }
+
     /// 포획 로그 표시 순서 — 현재 키우는 포켓몬을 맨 앞에 고정하고, 졸업 항목은 **기록 시각 최신순**.
     ///
     /// 과거에는 희귀도 내림차순이 먼저였다(종 단위 도감의 규칙). 로그는 시간순 기록이라 희귀도로
@@ -1013,6 +1049,8 @@ final class CompanionStore {
         case nameAsc
         case nameDesc
         case rarityDesc
+        /// The most caught first (`dexCatchCounts`).
+        case countDesc
 
         var id: String { rawValue }
     }
@@ -1025,6 +1063,8 @@ final class CompanionStore {
         case nameAsc
         case nameDesc
         case rarityDesc
+        /// The species caught most first, its records together, the latest first.
+        case countDesc
 
         var id: String { rawValue }
     }
@@ -1438,6 +1478,13 @@ final class CompanionStore {
                 }
                 return $0.id < $1.id
             }
+        case .countDesc:
+            let counts = dexCatchCounts
+            return species.sorted {
+                let c0 = counts[$0.id] ?? 0
+                let c1 = counts[$1.id] ?? 0
+                return c0 != c1 ? c0 > c1 : $0.id < $1.id
+            }
         }
     }
 
@@ -1492,6 +1539,18 @@ final class CompanionStore {
                 return $0.id < $1.id
             }
             return graduated + (active.map { [$0] } ?? [])
+        case .countDesc:
+            let counts = dexCatchCounts
+            return entries.sorted {
+                let c0 = counts[$0.finalID] ?? 0
+                let c1 = counts[$1.finalID] ?? 0
+                if c0 != c1 { return c0 > c1 }
+                if $0.finalID != $1.finalID { return $0.finalID < $1.finalID }
+                let d0 = $0.caughtAt ?? .distantPast
+                let d1 = $1.caughtAt ?? .distantPast
+                if d0 != d1 { return d0 > d1 }
+                return $0.id < $1.id
+            }
         case .numberAsc:
             return entries.sorted {
                 if $0.finalID != $1.finalID {
@@ -1775,7 +1834,7 @@ final class CompanionStore {
         if displayState != nextDisplayState { displayState = nextDisplayState }
         announceBirthdayGiftIfNeeded()
         announceEventEggsIfNeeded()
-        save()
+        saveUsage()
         autoSnapshotIfNeeded()
     }
 
@@ -1794,7 +1853,8 @@ final class CompanionStore {
         }
         state.active!.usedAtStage += growthDelta
         reconcileActiveProfileGrowth()
-        guard let line = currentLine else { save(); return }
+        // Tokens' growth waits with the usage writes; a Rare Candy's is written at once.
+        guard let line = currentLine else { return isTokenUsage ? saveUsage() : save() }
         var guardCount = 0
         while state.active != nil, guardCount < 50 {
             guardCount += 1
@@ -3955,6 +4015,19 @@ final class CompanionStore {
     /// The base index the egg cards' odds read, loaded once (`loadHatchIndex`). The roll reads the index itself.
     private(set) var hatchIndex: [BaseSpecies]? { didSet { oakOddsCache = [:] } }
 
+    /// How many species each rarity holds: every species of each line of the hatch index, at its line's rarity. Nil
+    /// until the index is loaded (`loadHatchIndex`). What the Pokédex's rarity counts read "120/430" from.
+    var speciesTotalsByRarity: [Rarity: Int]? { hatchIndex.map(Self.speciesTotals) }
+
+    /// The species of each line, by the line's first species.
+    private static let lineSizes: [Int: Int] = PokemonAssets.animatedSpeciesIDs.reduce(into: [:]) {
+        $0[PokemonEvolutionData.root(of: $1), default: 0] += 1
+    }
+
+    static func speciesTotals(_ index: [BaseSpecies]) -> [Rarity: Int] {
+        index.reduce(into: [:]) { totals, base in totals[base.rarity, default: 0] += lineSizes[base.id] ?? 1 }
+    }
+
     func loadHatchIndex() async {
         guard hatchIndex == nil, let full = try? await provider.baseSpeciesIndex(), !full.isEmpty else { return }
         hatchIndex = full
@@ -4639,16 +4712,41 @@ final class CompanionStore {
     /// the whole file all the same (660 KB for 571 Pokédex entries, twice a minute while tokens flow).
     private var savedState: CompanionState?
 
+    /// A usage update's save: at once when the last write is `usageSaveGap` old, else once that much after it.
+    private func saveUsage() {
+        guard usageSaveGap > 0, let last = lastSaveWrite else { return save() }
+        let since = Date().timeIntervalSince(last)
+        guard since < usageSaveGap else { return save() }
+        guard usageSaveTask == nil else { return }
+        let wait = usageSaveGap - since
+        usageSaveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard let self, !Task.isCancelled else { return }
+            self.usageSaveTask = nil
+            self.save()
+        }
+    }
+
+    /// Writes what a usage update left waiting (the app quitting).
+    func flushPendingSave() {
+        guard usageSaveTask != nil else { return }
+        save()
+    }
+
     private func save() {
         refreshRepresentativeSubject()
         guard saveLock == nil else { return }
         if let writer, state.writer != writer { state.writer = writer }
+        // This write carries what a usage update had waiting.
+        usageSaveTask?.cancel()
+        usageSaveTask = nil
         guard state != savedState else { return }
         guard let data = try? JSONEncoder().encode(state) else { return }
         do {
             try data.write(to: fileURL, options: .atomic)   // 부분 쓰기 손상 방지(펫 상태)
             savedState = state
             savesWritten += 1
+            lastSaveWrite = Date()
         } catch {
             AppLog.write("save failed: \(error.localizedDescription)")
         }
