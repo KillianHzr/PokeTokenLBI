@@ -1893,7 +1893,6 @@ struct L {
         case .sitrusBerry: return t("자뭉열매", "Sitrus Berry", "オボンのみ", "Baya Zidra", "Baie Sitrus", "Fruta Sitrus", "Tsitrubeere", "Ягода Ситрус")
         case .revive: return t("기력의조각", "Revive", "げんきのかけら", "Revivir", "Rappel", "Reviver", "Beleber", "Оживитель")
         case .maxRevive: return t("기력의덩어리", "Max Revive", "げんきのかたまり", "Revivir Máximo", "Rappel Max", "Reviver Máximo", "Top-Beleber", "Макс. оживитель")
-        case .escapeRope: return t("동굴탈출로프", "Escape Rope", "あなぬけのヒモ", "Cuerda Huida", "Corde Sortie", "Corda de Fuga", "Fluchtseil", "Верёвка побега")
         case .silverCapsule: return t("은색왕관", "Bottle Cap", "ぎんのおうかん", "Chapa Plateada", "Capsule d'Argent", "Tampinha Prateada", "Silberkronkorken", "Серебряная крышка")
         case .goldCapsule: return t("금색왕관", "Gold Bottle Cap", "きんのおうかん", "Chapa Dorada", "Capsule d'Or", "Tampinha Dourada", "Goldkronkorken", "Золотая крышка")
         case .treasureMap: return t("보물지도", "Treasure Map", "たからのちず", "Mapa del Tesoro", "Carte au trésor", "Mapa do Tesouro", "Schatzkarte", "Карта сокровищ")
@@ -2451,15 +2450,6 @@ struct L {
                      "Na masmorra, reanima após a batalha um Pokémon desmaiado com todos os PS.",
                      "Belebt im Dungeon nach dem Kampf ein besiegtes Pokémon mit allen KP wieder.",
                      "В подземелье после боя поднимает покемона без сознания со всеми ОЗ.")
-        case .escapeRope:
-            return t("던전을 포기할 때 지금까지 모은 전리품을 갖고 나와요.",
-                     "Leaving a dungeon early, the team comes out with all the loot gathered so far.",
-                     "ダンジョンをあきらめるとき、集めた戦利品を持ち帰ります。",
-                     "Al abandonar una mazmorra, el equipo sale con todo el botín reunido.",
-                     "En abandonnant un donjon, l'équipe en sort avec tout le butin ramassé.",
-                     "Ao abandonar uma masmorra, a equipe sai com todo o espólio reunido.",
-                     "Wer einen Dungeon vorzeitig verlässt, nimmt die ganze bisherige Beute mit.",
-                     "Покидая подземелье, команда уносит всю собранную добычу.")
         case .silverCapsule:
             return t("졸업한 포켓몬의 개체값 하나를 31로 올려요.", "Raises one IV of a graduated Pokémon to 31.",
                      "卒業したポケモンの個体値をひとつ31にします。", "Sube a 31 un IV de un Pokémon graduado.",

@@ -251,6 +251,10 @@ final class CompanionStore {
     /// 난이도를 반영한 알 부화 임계. 첫 실행 안내 문구도 이 값을 보여준다.
     /// Items only halve it, with no floor: a 1M floor made the egg slower with them below difficulty 0.4.
     var eggHatchThreshold: Int {
+        // A legendary boss's egg: 200M, which no item speeds (the owner, 2026-11-04).
+        if state.eggFromDungeon?.isLegendary == true {
+            return PokemonBalance.scaled(PokemonBalance.legendaryBossEggThreshold, by: growthDifficulty)
+        }
         var threshold = PokemonBalance.scaled(PokemonBalance.eggHatchThreshold, by: growthDifficulty)
         if ownsSilverWing {
             threshold /= 2
@@ -441,6 +445,13 @@ final class CompanionStore {
     var l: L { L(language) }
 
     var hasActive: Bool { state.active != nil }
+    /// The Pokémon raised hatched from a legendary boss's egg, won once: no egg nor stone sends it off before it
+    /// graduates (the owner, 2026-11-04).
+    var isRaisingLegendaryBossPokemon: Bool { state.active?.fromLegendaryBossEgg == true }
+    /// The egg incubating is a legendary boss's: 200M to hatch (`eggHatchThreshold`).
+    var incubatesLegendaryBossEgg: Bool { state.active == nil && state.eggFromDungeon?.isLegendary == true }
+    /// A Pokémon raised that an egg or a stone may send off: every `canUse…` of them asks this.
+    var canSendOffActive: Bool { hasActive && !isRaisingLegendaryBossPokemon }
     var rarity: Rarity? { state.active?.rarity }
     var currentIsShiny: Bool { state.active?.displaysShiny ?? false }   // 위장 중엔 이로치 숨김(리빌 때 공개)
     /// 새 알(리롤) 구매 시 실수로 놓아주지 않도록 2단계 확인이 필요한 고가치 개체인지 판정.
@@ -2989,7 +3000,7 @@ final class CompanionStore {
 
     /// Evolution stone use gate: a stone in the Bag and, like an egg purchase, a companion to send off.
     func canUseStone(_ kind: ItemKind) -> Bool {
-        kind.stoneType != nil && hasActive && itemCount(kind) > 0
+        kind.stoneType != nil && canSendOffActive && itemCount(kind) > 0
     }
 
     /// Uses one evolution stone from the Bag. Like an egg purchase, the current Pokémon is sent off right
@@ -3003,7 +3014,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseTypeNullEgg() -> Bool { hasActive && itemCount(.typeNullEgg) > 0 }
+    func canUseTypeNullEgg() -> Bool { canSendOffActive && itemCount(.typeNullEgg) > 0 }
 
     /// Uses the Type: Null Egg, the reward for all of Silvally's Memories: like a stone, the current Pokémon is
     /// sent off for an egg, which hatches a Type: Null.
@@ -3042,7 +3053,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseBagEgg(_ kind: ItemKind) -> Bool { kind.isShopEgg && hasActive && itemCount(kind) > 0 }
+    func canUseBagEgg(_ kind: ItemKind) -> Bool { kind.isShopEgg && canSendOffActive && itemCount(kind) > 0 }
 
     /// Uses one of the Shop's eggs from the Bag, bought or given by an achievement. The current Pokémon is sent off
     /// for an egg that hatches anew, a Pokémon of the egg's rarity or better.
@@ -3060,7 +3071,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseLegendaryEgg() -> Bool { hasActive && itemCount(.legendaryEgg) > 0 }
+    func canUseLegendaryEgg() -> Bool { canSendOffActive && itemCount(.legendaryEgg) > 0 }
 
     /// Uses a Legendary Egg, the reward for a region whose every species is in the Pokédex: like a stone, the
     /// current Pokémon is sent off for an egg, which hatches a legendary or mythical Pokémon (`chooseBase`).
@@ -3075,7 +3086,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseBirthdayEgg() -> Bool { hasActive && itemCount(.birthdayEgg) > 0 }
+    func canUseBirthdayEgg() -> Bool { canSendOffActive && itemCount(.birthdayEgg) > 0 }
 
     /// Uses the Birthday Egg: like a stone, the current Pokémon is sent off for an egg, which hatches a mythical
     /// Pokémon not graduated yet (`BirthdayGift.pool`).
@@ -3095,7 +3106,7 @@ final class CompanionStore {
 
     /// Not on a Fossil Egg's own Pokémon: sent off, it gives its egg back, so the egg would cost nothing and fossil
     /// hatches would reroll for free (#90). A stone or a Shop egg sends it off.
-    func canUseFossilEgg() -> Bool { hasActive && !isRaisingFossilEggPokemon && itemCount(.fossilEgg) > 0 }
+    func canUseFossilEgg() -> Bool { canSendOffActive && !isRaisingFossilEggPokemon && itemCount(.fossilEgg) > 0 }
 
     /// Uses a Fossil Egg: like a stone, the current Pokémon is sent off for an egg, which hatches a fossil line not
     /// graduated yet (`FossilDig`).
@@ -3112,7 +3123,7 @@ final class CompanionStore {
 
     /// Whether a dungeon's egg of the Bag can be used: as a Fossil Egg, it sends the Pokémon raised off.
     func canUseDungeonEgg(_ id: String) -> Bool {
-        hasActive && !isRaisingFossilEggPokemon && state.dungeons.eggs.contains { $0.id == id }
+        canSendOffActive && !isRaisingFossilEggPokemon && state.dungeons.eggs.contains { $0.id == id }
     }
 
     /// Uses a dungeon's egg (Q20 B): the Pokémon raised is sent off for it, and it hatches its line, shiny when it was
@@ -3217,7 +3228,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseEventEgg(_ egg: EventEgg) -> Bool { hasActive && itemCount(egg.item) > 0 }
+    func canUseEventEgg(_ egg: EventEgg) -> Bool { canSendOffActive && itemCount(egg.item) > 0 }
 
     /// Uses an event egg: like a stone, the current Pokémon is sent off for an egg, which hatches the event's Pokémon.
     @discardableResult
@@ -3853,6 +3864,7 @@ final class CompanionStore {
         let event = state.eggEvent
         let fromFossilEgg = state.eggFromFossilEgg
         if fromFossilEgg { state.fossilEggsHatched += 1 }
+        let fromLegendaryBossEgg = state.eggFromDungeon?.isLegendary == true
         state.eggTypeGuarantee = nil
         state.eggFromTypeNullEgg = false
         state.eggFromLegendaryEgg = false
@@ -3906,6 +3918,7 @@ final class CompanionStore {
                                 dittoDisguise: dittoDisguise, form: form)
         state.active?.hasNewForm = hasNewForm
         state.active?.fromFossilEgg = fromFossilEgg
+        state.active?.fromLegendaryBossEgg = fromLegendaryBossEgg
         state.active?.raising = RaisingRecord(hatchedAt: clock())
         state.active?.fromStoneEgg = typeGuarantee != nil && event == nil
         state.active?.fromRarityEgg = fromRarityEgg

@@ -5,7 +5,7 @@ struct ExpeditionResult: Codable, Sendable, Equatable {
     var dungeon: DungeonID
     /// The boss fell (whatever the throws).
     var won: Bool
-    /// The team left early with an Escape Rope, its loot kept.
+    /// The team left before the boss, its floors' loot kept (once only with an Escape Rope, hence the name).
     var roped = false
     var startedAt: Date
     var endedAt: Date
@@ -22,8 +22,8 @@ struct ExpeditionResult: Codable, Sendable, Equatable {
     var unlockedMove: String?
     /// The battle form a challenge won (`BattleForm.key`).
     var battleForm: String? = nil
-    /// The egg of the tier's rarity (`ItemKind`) a boss already caught gave in place of its own.
-    var bossEgg: String? = nil
+    /// What the boss's capture gave (`Expedition.BossReward`), nil for its own egg: the result card says so.
+    var bossReward: Expedition.BossReward? = nil
     var log: [ExpeditionLogEntry]
 }
 
@@ -54,6 +54,9 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var weeklyTried: String?
     /// The challenges' bosses as first shown ("daily:2026-11-02" → `BattleForm.key`), kept for their period.
     var challengeDraws: [String: String] = [:]
+    /// The legendary bosses whose egg was won, or the Legendary Egg in its place: once per species (the owner,
+    /// 2026-11-04). They give the loot only afterwards.
+    var legendaryEggsWon: Set<Int> = []
 
     init() {}
 
@@ -74,6 +77,7 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         dailyTried = c.lenientOptional(String.self, forKey: .dailyTried)
         weeklyTried = c.lenientOptional(String.self, forKey: .weeklyTried)
         challengeDraws = c.lenient([String: String].self, forKey: .challengeDraws, default: [:])
+        legendaryEggsWon = c.lenient(Set<Int>.self, forKey: .legendaryEggsWon, default: [])
     }
 
     func wins(_ id: DungeonID) -> Int { wins[id.rawValue] ?? 0 }

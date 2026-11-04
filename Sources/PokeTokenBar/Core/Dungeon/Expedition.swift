@@ -10,6 +10,10 @@ struct DungeonEgg: Codable, Sendable, Equatable, Identifiable {
     var isShiny: Bool
     /// The Pokémon it came from: a legendary boss's egg has its own look (R14), the others their first type's (R8).
     var sourceSpeciesID: Int
+
+    /// A legendary boss's egg (the owner, 2026-11-04): won once per species, 200M tokens to hatch
+    /// (`PokemonBalance.legendaryBossEggThreshold`), and its Pokémon raised is never sent off.
+    var isLegendary: Bool { SpeciesInfo.lineRarity(of: sourceSpeciesID) == .legendary }
 }
 
 /// What an expedition has gathered, kept unless the team leaves without an Escape Rope (Q4, the owner 2026-11-04).
@@ -136,10 +140,20 @@ struct Expedition: Codable, Sendable, Equatable {
     /// True: the player kept the Master Ball out of this expedition at the departure; the automatic throws never take
     /// it, even at a legendary boss. Nil from an expedition saved before the throws were automatic.
     var keepsMasterBall: Bool?
-    /// The boss's species was already the player's at the departure (`CompanionStore.hasCaughtBoss`): a legendary one
-    /// comes shiny, and catching another brings an egg of the tier's rarity in place of its own (2026-11-04). Nil from
-    /// an expedition saved before.
-    var bossAlreadyCaught: Bool?
+    /// What catching the boss gives (the owner, 2026-11-04), settled at the departure (`CompanionStore.bossReward`).
+    enum BossReward: String, Codable, Sendable {
+        /// Its own egg: a boss not caught yet, or a legendary whose egg was never won (it comes shiny when the player
+        /// has it already).
+        case ownEgg
+        /// An egg of the tier's rarity: a boss caught already that is no legendary.
+        case tierEgg
+        /// A Legendary Egg: a legendary the player has shiny already, its egg never won.
+        case legendaryEgg
+        /// The loot only: a legendary whose egg was won once. No throws, so no ball is spent.
+        case lootOnly
+    }
+    /// Nil: its own egg, as an expedition saved before.
+    var bossReward: BossReward?
 
     var floors: Int { DungeonCatalog.dungeon(dungeon).floors }
     var floorCost: Int { max(1, cost / floors) }
@@ -458,8 +472,13 @@ enum ExpeditionEngine {
             e.loot.candies += e.candiesLeft
             e.candiesLeft = 0
             append(&e, .victory, rare: true, context: context)
-            // A challenge's battle form is won as the boss falls: no throws (one try a day, the owner).
-            if e.dungeon.isChallenge { finish(&e, won: true, context: context) } else { e.phase = .capture(throwsLeft: 3) }
+            // A challenge's battle form is won as the boss falls: no throws (one try a day, the owner); nor at a
+            // legendary whose egg was won once, which gives the loot only.
+            if e.dungeon.isChallenge || e.bossReward == .lootOnly {
+                finish(&e, won: true, context: context)
+            } else {
+                e.phase = .capture(throwsLeft: 3)
+            }
         } else {
             finish(&e, won: false, context: context)
         }
@@ -517,7 +536,7 @@ enum ExpeditionEngine {
         // Drawn evenly: the Capsules, which raise IVs to 31 for good, one draw in eight or nine.
         case .t1: [.oranBerry, .oranBerry, .greatBall]
         case .t2: [.sitrusBerry, .revive, .ultraBall, .oranBerry]
-        case .t3: [.sitrusBerry, .sitrusBerry, .revive, .revive, .escapeRope, .ultraBall, .ultraBall, .silverCapsule]
+        case .t3: [.sitrusBerry, .sitrusBerry, .revive, .revive, .ultraBall, .ultraBall, .silverCapsule]
         case .t4: [.sitrusBerry, .sitrusBerry, .maxRevive, .revive, .revive, .ultraBall, .ultraBall, .silverCapsule,
                    .goldCapsule]
         case .t5: [.maxRevive, .maxRevive, .ultraBall, .ultraBall, .sitrusBerry, .sitrusBerry, .silverCapsule, .goldCapsule]
@@ -559,10 +578,13 @@ enum ExpeditionEngine {
         }
     }
 
-    /// Whether catching this boss gives `tierEgg` rather than its own: caught already, and no legendary (that one comes
-    /// shiny instead, `CompanionStore.startExpedition`).
-    static func givesTierEgg(_ e: Expedition) -> Bool {
-        e.bossAlreadyCaught == true && SpeciesInfo.lineRarity(of: e.boss.speciesID) != .legendary
+    /// The egg the boss's capture gives in place of its own: the tier's (`tierEgg`) or a Legendary Egg; nil for its own.
+    static func eggInPlace(_ reward: Expedition.BossReward?, tier: DungeonTier) -> ItemKind? {
+        switch reward {
+        case .tierEgg?: tierEgg(tier)
+        case .legendaryEgg?: .legendaryEgg
+        case .ownEgg?, .lootOnly?, nil: nil
+        }
     }
 
     /// The egg of the tier's rarity a boss already caught gives in place of its own (2026-11-04).
@@ -632,10 +654,10 @@ enum ExpeditionEngine {
         let caught = Double(random.below(1000)) / 1000 < throwOdds(e.boss, ball: ball)
         append(&e, .capture(attempt: 4 - left, ball: ball?.rawValue, caught: caught), rare: caught, context: context)
         if caught {
-            // A boss already caught gives an egg of the tier's rarity rather than a second of its own; a legendary one
-            // came shiny instead, and gives its shiny egg (2026-11-04).
-            if givesTierEgg(e) {
-                e.loot.add(tierEgg(context.tier))
+            // A boss already caught gives an egg of the tier's rarity rather than a second of its own, a legendary had
+            // shiny already a Legendary Egg (2026-11-04).
+            if let egg = eggInPlace(e.bossReward, tier: context.tier) {
+                e.loot.add(egg)
             } else {
                 e.loot.eggs.append(DungeonEgg(id: "boss-\(e.seed)", baseID: SpeciesInfo.baseID(of: e.boss.speciesID),
                                               form: e.boss.form, isShiny: e.boss.isShiny, sourceSpeciesID: e.boss.speciesID))

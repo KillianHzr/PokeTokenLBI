@@ -306,9 +306,29 @@ final class DungeonTests: XCTestCase {
         XCTAssertFalse(ExpeditionEngine.isRare({ var l = ExpeditionLoot(); l.add(.uncommonEgg); return l }()))
     }
 
-    /// A boss already caught gives an egg of its tier's rarity (the owner, 2026-11-04).
+    /// A boss already caught gives an egg of its tier's rarity, a legendary had shiny a Legendary Egg (the owner,
+    /// 2026-11-04).
     func testABossCaughtAgainGivesItsTiersEgg() {
         XCTAssertEqual(DungeonTier.allCases.map(ExpeditionEngine.tierEgg),
                        [.pokemonEgg, .uncommonEgg, .rareEgg, .rareEgg, .legendaryEgg])
+        XCTAssertEqual(ExpeditionEngine.eggInPlace(.tierEgg, tier: .t3), .rareEgg)
+        XCTAssertEqual(ExpeditionEngine.eggInPlace(.legendaryEgg, tier: .t3), .legendaryEgg)
+        XCTAssertNil(ExpeditionEngine.eggInPlace(.ownEgg, tier: .t3))
+        XCTAssertNil(ExpeditionEngine.eggInPlace(nil, tier: .t3))
+    }
+
+    /// A legendary whose egg was won once falls with no throw: the expedition ends, won, its loot only.
+    func testABossGivingTheLootOnlyEndsAsItFalls() throws {
+        var e = start(.viridianForest, team: [try member(6), try member(9), try member(3)])
+        e.bossReward = .lootOnly
+        let ctx = ExpeditionContext(tier: .t1, shinyDenominator: 64, now: context.now)
+        while !e.isOver, case .exploring = e.phase {
+            ExpeditionEngine.feed(&e, tokens: 1000, context: ctx)
+            if case .awaitingHeal = e.phase { ExpeditionEngine.answerHeal(&e, paid: false, context: ctx) }
+        }
+        XCTAssertEqual(e.phase, .finished(won: true))
+        XCTAssertTrue(e.log.contains { if case .victory = $0.kind { return true }; return false })
+        XCTAssertFalse(e.log.contains { if case .capture = $0.kind { return true }; return false })
+        XCTAssertTrue(e.loot.eggs.isEmpty)
     }
 }

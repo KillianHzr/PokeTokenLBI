@@ -134,20 +134,24 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertNil(s.dungeonProgress.lastResult)
     }
 
-    /// Q4: leaving loses the loot unless an Escape Rope takes it out.
-    func testLeavingKeepsTheLootOnlyWithARope() throws {
-        for rope in [false, true] {
-            let s = try store(dex: strong, inventory: rope ? [.escapeRope: 1] : [:])
-            XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
-            s.changeDungeons { $0.expedition?.loot.candies = 4 }
-            let candies = s.itemCount(.rareCandy)
-            s.abandonExpedition()
-            XCTAssertNil(s.expedition)
-            XCTAssertEqual(s.itemCount(.rareCandy), candies + (rope ? 4 : 0))
-            XCTAssertEqual(s.itemCount(.escapeRope), 0)
-            XCTAssertEqual(s.dungeonProgress.lastResult?.roped, rope)
-            XCTAssertEqual(s.dungeonProgress.wins(.viridianForest), 0)
+    /// Leaving keeps the loot of the floors crossed (the owner, 2026-11-04: the Escape Rope is gone).
+    func testLeavingKeepsTheFloorsLoot() throws {
+        let s = try store(dex: strong)
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        s.changeDungeons {
+            $0.expedition?.loot.candies = 4
+            $0.expedition?.loot.add(.sitrusBerry)
         }
+        let candies = s.itemCount(.rareCandy), sitrus = s.itemCount(.sitrusBerry)
+        s.abandonExpedition()
+        XCTAssertNil(s.expedition)
+        XCTAssertEqual(s.itemCount(.rareCandy), candies + 4)
+        XCTAssertEqual(s.itemCount(.sitrusBerry), sitrus + 1)
+        let result = try XCTUnwrap(s.dungeonProgress.lastResult)
+        XCTAssertTrue(result.roped, "left early")
+        XCTAssertFalse(result.won)
+        XCTAssertEqual(result.loot.candies, 4)
+        XCTAssertEqual(s.dungeonProgress.wins(.viridianForest), 0)
     }
 
     /// A defeat keeps what the floors crossed gave (the owner, 2026-11-04): their tokens are paid. Not the boss's
@@ -196,12 +200,13 @@ final class DungeonStoreTests: XCTestCase {
                 if !inDex { $0.dungeons.eggs = self.eggsOf(.viridianForest) }
             }
             XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
-            XCTAssertEqual(s.expedition?.bossAlreadyCaught, true)
+            XCTAssertEqual(s.expedition?.bossReward, .tierEgg)
             let eggs = s.dungeonProgress.eggs.count
             catchTheBoss(s)
             let result = try XCTUnwrap(s.dungeonProgress.lastResult)
             XCTAssertTrue(result.caught)
-            XCTAssertEqual(result.bossEgg, ItemKind.pokemonEgg.rawValue)
+            XCTAssertEqual(result.bossReward, .tierEgg)
+            XCTAssertEqual(ExpeditionResultCard.bossLine(result, s.l), s.l.dungeonBossCaughtAgain(s.l.itemName(.pokemonEgg)))
             XCTAssertEqual(result.loot.items[ItemKind.pokemonEgg.rawValue], 1)
             XCTAssertEqual(s.itemCount(.pokemonEgg), 1)
             XCTAssertEqual(s.dungeonProgress.eggs.count, eggs, "no second egg of its own")
@@ -209,35 +214,94 @@ final class DungeonStoreTests: XCTestCase {
         // Not caught yet: its own egg, as before.
         let s = try store(dex: strong, inventory: [.ultraBall: 3]) { $0.dungeons.wins["viridianForest"] = 1 }
         XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
-        XCTAssertNil(s.expedition?.bossAlreadyCaught)
+        XCTAssertNil(s.expedition?.bossReward)
         catchTheBoss(s)
         let result = try XCTUnwrap(s.dungeonProgress.lastResult)
-        XCTAssertNil(result.bossEgg)
+        XCTAssertNil(result.bossReward)
+        XCTAssertEqual(ExpeditionResultCard.bossLine(result, s.l), s.l.dungeonBossCaught)
         XCTAssertEqual(s.itemCount(.pokemonEgg), 0)
         XCTAssertTrue(s.dungeonProgress.eggs.contains { $0.sourceSpeciesID == result.boss.speciesID })
     }
 
-    /// A legendary boss already caught comes shiny, and gives its shiny egg (the owner, 2026-11-04).
-    func testALegendaryCaughtAlreadyComesShiny() throws {
-        for caught in [false, true] {
-            let s = try store(dex: strong, inventory: [.legendaryKey: 1, .masterBall: 1]) {
-                $0.dungeons.wins["dragonsDen"] = 1
-                if caught { $0.dungeons.eggs = self.eggsOf(.seafoamIslands) }
+    /// A legendary boss gives its egg once (the owner, 2026-11-04): shiny when the player has it, a Legendary Egg when
+    /// the player has it shiny; one only, a first victory doubling none of it.
+    func testALegendaryBossGivesItsEggOnce() throws {
+        enum Had { case nothing, caught, caughtShiny }
+        let bosses = DungeonCatalog.dungeon(.seafoamIslands).bosses
+        for had in [Had.nothing, .caught, .caughtShiny] {
+            let owned = had == .nothing ? [] : bosses.map { id -> DexEntry in
+                var entry = graduated(id, rarity: .legendary)
+                entry.isShiny = had == .caughtShiny
+                return entry
             }
+            let s = try store(dex: strong + owned, inventory: [.legendaryKey: 1, .masterBall: 1]) {
+                $0.dungeons.wins["dragonsDen"] = 1
+            }
+            XCTAssertTrue(s.mayMeetALegendary(.seafoamIslands, boss: nil))
             XCTAssertTrue(s.startExpedition(.seafoamIslands, team: strong.map(\.id)))
             let boss = try XCTUnwrap(s.expedition?.boss)
             XCTAssertEqual(SpeciesInfo.lineRarity(of: boss.speciesID), .legendary)
-            if caught { XCTAssertTrue(boss.isShiny, "fought shiny") }
+            XCTAssertEqual(s.expedition?.bossReward, had == .caughtShiny ? .legendaryEgg : nil, "\(had)")
+            if had == .caught { XCTAssertTrue(boss.isShiny, "fought shiny") }
             let eggs = s.dungeonProgress.eggs.count
             catchTheBoss(s)
             let result = try XCTUnwrap(s.dungeonProgress.lastResult)
             XCTAssertTrue(result.caught, "the Master Ball")
-            XCTAssertNil(result.bossEgg, "a legendary gives its own egg")
-            XCTAssertEqual(s.itemCount(.legendaryEgg), 0)
-            let egg = try XCTUnwrap(s.dungeonProgress.eggs.dropFirst(eggs).first { $0.sourceSpeciesID == boss.speciesID })
-            XCTAssertEqual(egg.isShiny, boss.isShiny)
-            if caught { XCTAssertTrue(egg.isShiny) }
+            XCTAssertTrue(result.firstVictory)
+            XCTAssertEqual(s.dungeonProgress.legendaryEggsWon, [boss.speciesID], "won once")
+            if had == .caughtShiny {
+                XCTAssertEqual(result.loot.items[ItemKind.legendaryEgg.rawValue], 1, "one, not doubled")
+                XCTAssertEqual(s.dungeonProgress.eggs.count, eggs, "no egg of its own")
+                XCTAssertEqual(ExpeditionResultCard.bossLine(result, s.l), s.l.dungeonBossCaughtAgain(s.l.itemName(.legendaryEgg)))
+            } else {
+                let egg = try XCTUnwrap(s.dungeonProgress.eggs.dropFirst(eggs).first { $0.sourceSpeciesID == boss.speciesID })
+                XCTAssertEqual(egg.isShiny, boss.isShiny)
+                if had == .caught { XCTAssertTrue(egg.isShiny) }
+                XCTAssertTrue(s.hasWonLegendaryEgg(boss.speciesID))
+            }
         }
+    }
+
+    /// A legendary whose egg was won gives the loot only (the owner, 2026-11-04): no throw, so no ball spent, and the
+    /// Master Ball's box is not offered. An egg in the Bag or incubating counts as won.
+    func testALegendaryWhoseEggWasWonGivesTheLootOnly() throws {
+        let bosses = DungeonCatalog.dungeon(.seafoamIslands).bosses
+        let s = try store(dex: strong, inventory: [.legendaryKey: 1, .masterBall: 1]) {
+            $0.dungeons.wins["dragonsDen"] = 1
+            $0.dungeons.legendaryEggsWon = Set(bosses)
+        }
+        XCTAssertFalse(s.mayMeetALegendary(.seafoamIslands, boss: nil))
+        XCTAssertTrue(s.startExpedition(.seafoamIslands, team: strong.map(\.id)))
+        XCTAssertEqual(s.expedition?.bossReward, .lootOnly)
+        let bag = try store(dex: strong) { $0.dungeons.eggs = self.eggsOf(.seafoamIslands) }
+        XCTAssertTrue(bosses.allSatisfy { bag.bossReward($0) == .lootOnly })
+        let incubating = try store(dex: strong) {
+            $0.active = nil
+            $0.eggFromDungeon = DungeonEgg(id: "boss", baseID: 144, form: nil, isShiny: false, sourceSpeciesID: 144)
+        }
+        XCTAssertEqual(incubating.bossReward(144), .lootOnly)
+        XCTAssertEqual(incubating.bossReward(249), .ownEgg)
+
+        // Walked to its end: the boss falls, the expedition ends at once.
+        let walk = try store(dex: strong, inventory: [.ultraBall: 3])
+        XCTAssertTrue(walk.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        walk.changeDungeons { $0.expedition?.bossReward = .lootOnly }
+        let cost = DungeonTier.t1.cost(difficulty: 0.1)
+        var total = 0
+        while walk.expedition.map({ if case .exploring = $0.phase { return true }; if case .awaitingHeal = $0.phase { return true }; return false }) == true {
+            total += cost / 5
+            credit(walk, total: total)
+            if case .awaitingHeal? = walk.expedition?.phase { walk.answerEmergencyHeal(pay: false) }
+        }
+        XCTAssertNil(walk.expedition)
+        let result = try XCTUnwrap(walk.dungeonProgress.lastResult)
+        XCTAssertTrue(result.won)
+        XCTAssertFalse(result.caught)
+        XCTAssertEqual(result.bossReward, .lootOnly)
+        XCTAssertFalse(result.log.contains { if case .capture = $0.kind { return true }; return false }, "no throw")
+        XCTAssertEqual(walk.itemCount(.ultraBall), 3, "no ball spent")
+        XCTAssertTrue(result.loot.eggs.isEmpty)
+        XCTAssertEqual(ExpeditionResultCard.bossLine(result, walk.l), walk.l.dungeonBossEggWonBefore)
     }
 
     /// A legendary boss, so a throw can miss: the expedition at its throws.
@@ -470,6 +534,48 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(outcomes.first?.alwaysShiny, true)
     }
 
+    /// A legendary boss's egg takes 200M to hatch, which no item speeds, and its Pokémon raised is never sent off before
+    /// it graduates: no egg, no stone, no dungeon egg (the owner, 2026-11-04).
+    func testALegendaryBossEggTakesItsTimeAndKeepsItsPokemon() async throws {
+        let event = EventEgg.allCases[0]
+        let s = try hatchingStore(index: [BaseSpecies(id: 1, captureRate: 45)]) {
+            $0.active = MonState(baseID: 16, pathIDs: [16], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 3)
+            $0.dungeons.eggs = [DungeonEgg(id: "mewtwo", baseID: 150, form: nil, isShiny: false, sourceSpeciesID: 150),
+                                DungeonEgg(id: "dratini", baseID: 147, form: nil, isShiny: false, sourceSpeciesID: 149)]
+            let items: [ItemKind] = [.silverWing, .rareEgg, .fireStone, .legendaryEgg, .typeNullEgg, .birthdayEgg, .fossilEgg, event.item]
+            $0.inventory = Dictionary(uniqueKeysWithValues: items.map { ($0.rawValue, 1) })
+        }
+        func sendOffs() -> [Bool] {
+            [s.canUseDungeonEgg("dratini"), s.canUseBagEgg(.rareEgg), s.canUseStone(.fireStone), s.canUseLegendaryEgg(),
+             s.canUseTypeNullEgg(), s.canUseBirthdayEgg(), s.canUseFossilEgg(), s.canUseEventEgg(event)]
+        }
+        XCTAssertEqual(sendOffs(), Array(repeating: true, count: 8), "another Pokémon raised: each can send it off")
+        XCTAssertTrue(s.useDungeonEgg("dratini"))
+        XCTAssertEqual(s.eggHatchThreshold, PokemonBalance.scaled(PokemonBalance.eggHatchThreshold, by: 0.1) / 2,
+                       "another dungeon egg: 5M, the Silver Wing halving it")
+        XCTAssertFalse(s.incubatesLegendaryBossEgg)
+        s.setEggUsageForTesting(s.eggHatchThreshold)
+        await s.hatchIfNeeded()
+        XCTAssertEqual(s.state.active?.fromLegendaryBossEgg, false)
+        XCTAssertTrue(s.useDungeonEgg("mewtwo"))
+        let threshold = PokemonBalance.scaled(PokemonBalance.legendaryBossEggThreshold, by: 0.1)
+        XCTAssertEqual(s.eggHatchThreshold, threshold, "200M, the Silver Wing aside")
+        XCTAssertTrue(s.incubatesLegendaryBossEgg)
+        s.setEggUsageForTesting(threshold - 1)
+        await s.hatchIfNeeded()
+        XCTAssertNil(s.state.active, "not before its 200M")
+        s.setEggUsageForTesting(threshold)
+        await s.hatchIfNeeded()
+        XCTAssertEqual(s.state.active?.baseID, 150)
+        XCTAssertTrue(s.isRaisingLegendaryBossPokemon)
+        XCTAssertEqual(sendOffs(), Array(repeating: false, count: 8), "nothing sends it off")
+        XCTAssertFalse(s.useLegendaryEgg())
+        XCTAssertEqual(s.state.active?.baseID, 150)
+        // The save keeps it.
+        let back = try JSONDecoder().decode(MonState.self, from: JSONEncoder().encode(try XCTUnwrap(s.state.active)))
+        XCTAssertTrue(back.fromLegendaryBossEgg)
+    }
+
     /// R13: Arceus hatches from no egg: not a plain one, not a Legendary Egg, not a Birthday Egg.
     func testArceusHatchesFromNoEgg() throws {
         let index = [BaseSpecies(id: 493, captureRate: 3, isLegendary: true), BaseSpecies(id: 150, captureRate: 3, isLegendary: true),
@@ -597,7 +703,7 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertTrue(s.startExpedition(.daily, team: team.map(\.id)))
         XCTAssertEqual(s.expedition?.boss.form, boss.form)
         XCTAssertEqual(s.expedition?.floors, 8)
-        XCTAssertNil(s.expedition?.bossAlreadyCaught, "a challenge's boss, always one of the player's, gives its form")
+        XCTAssertNil(s.expedition?.bossReward, "a challenge's boss, always one of the player's, gives its form")
         XCTAssertEqual(s.expedition?.boss.isShiny, false)
         XCTAssertTrue(s.challengeTried(.daily))
         s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
@@ -719,12 +825,11 @@ final class DungeonStoreTests: XCTestCase {
 
     /// [Regression] Leaving is refused once the boss fell: it turned a victory, its throws waiting, into a defeat.
     func testNoLeavingOnceTheBossFell() throws {
-        let s = try store(dex: strong, inventory: [.escapeRope: 1])
+        let s = try store(dex: strong)
         XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
         s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
         s.abandonExpedition()
         XCTAssertNotNil(s.expedition, "still at the throws")
-        XCTAssertEqual(s.itemCount(.escapeRope), 1, "no rope spent")
     }
 
     // MARK: Past midnight and the week's turn (the owner, 2026-11-03)

@@ -355,18 +355,16 @@ extension L {
         t("던전 나가기", "Leave the dungeon", "ダンジョンを出る", "Salir de la mazmorra", "Quitter le donjon", "Sair da masmorra",
           "Dungeon verlassen", "Покинуть подземелье")
     }
-    /// What giving up costs: nothing with an Escape Rope, the loot without one (Q4).
-    func dungeonAbandonCost(rope: String, has: Bool) -> String {
-        has
-            ? t("\(KoreanParticle.direction.attach(to: rope)) 팀이 돌아와요. 모은 물건은 그대로 가져와요.",
-                "Your \(rope) brings the team back: the loot is kept.", "\(rope)でチームが戻ります。集めたものは持ち帰れます。",
-                "Tu \(rope) trae al equipo de vuelta: el botín se conserva.", "Ta \(rope) ramène l'équipe : le butin est gardé.",
-                "Sua \(rope) traz a equipe de volta: o saque fica.", "Dein \(rope) bringt das Team zurück: Die Beute bleibt.",
-                "\(rope) вернёт команду: добыча сохранится.")
-            : t("\(rope) 없이 나가면 모은 물건을 모두 잃어요.", "With no \(rope) in the Bag, the expedition's loot is lost.",
-                "\(rope)がないので、集めたものはすべて失われます。", "Sin \(rope), el botín de la expedición se pierde.",
-                "Sans \(rope), le butin de l'expédition est perdu.", "Sem \(rope), o saque da expedição é perdido.",
-                "Ohne \(rope) geht die Beute der Expedition verloren.", "Без предмета \"\(rope)\" добыча экспедиции пропадёт.")
+    /// What leaving keeps (the owner, 2026-11-04): the floors crossed, not the one under way.
+    var dungeonLeaveKeeps: String {
+        t("지나온 층의 물건을 갖고 나와요. 지금 층은 아무것도 주지 않아요.",
+          "The team comes out with the loot of the floors crossed; the floor under way gives nothing.",
+          "通った階で集めたものを持って出ます。いまの階では何も手に入りません。",
+          "El equipo sale con el botín de los pisos superados; el piso en curso no da nada.",
+          "L'équipe sort avec le butin des étages franchis ; l'étage en cours ne donne rien.",
+          "A equipe sai com o saque dos andares vencidos; o andar em curso não dá nada.",
+          "Das Team kommt mit der Beute der geschafften Ebenen heraus; die laufende Ebene gibt nichts.",
+          "Команда уходит с добычей пройденных этажей; текущий этаж ничего не даёт.")
     }
 
     // The journal's lines: the species stand beside them as sprites, named on hover.
@@ -461,15 +459,10 @@ extension L {
           "Équipe K.O. : le butin des étages franchis est gardé", "Equipe derrotada: o saque dos andares vencidos fica",
           "Team besiegt: Die Beute der geschafften Ebenen bleibt", "Команда побеждена: добыча пройденных этажей сохранена")
     }
-    func dungeonLogAbandon(rope: String?) -> String {
-        if let rope {
-            return t("\(KoreanParticle.direction.attach(to: rope)) 탈출: 모은 물건은 지켰어요", "Out with the \(rope): loot kept",
-                     "\(rope)で脱出：集めたものは無事", "Salida con \(rope): botín conservado", "Sortie avec \(rope) : butin gardé",
-                     "Saída com \(rope): saque mantido", "Raus mit \(rope): Beute behalten",
-                     "Выход с помощью предмета \"\(rope)\": добыча сохранена")
-        }
-        return t("포기: 모은 물건을 잃었어요", "Gave up: loot lost", "あきらめた：集めたものを失った", "Abandono: botín perdido",
-                 "Abandon : butin perdu", "Desistência: saque perdido", "Aufgegeben: Beute verloren", "Сдались: добыча потеряна")
+    var dungeonLogLeft: String {
+        t("던전을 나왔어요: 모은 물건은 지켰어요", "Left the dungeon: loot kept", "ダンジョンを出た：集めたものは無事",
+          "Salida de la mazmorra: botín conservado", "Sortie du donjon : butin gardé", "Saída da masmorra: saque mantido",
+          "Dungeon verlassen: Beute behalten", "Выход из подземелья: добыча сохранена")
     }
 
     // The emergency heal (R5, maquette 4).
@@ -549,6 +542,23 @@ extension L {
           "Déjà capturé : à la place, \(egg) dans le Sac", "Já capturado: em vez disso, \(egg) na Mochila",
           "Schon gefangen: stattdessen \(egg) im Beutel", "Уже пойман: вместо него \(egg) в сумке")
     }
+    /// A legendary whose egg was won once: no throws, the loot only.
+    var dungeonBossEggWonBefore: String {
+        t("알은 이미 받았어요: 전리품만", "Its egg is already yours: the loot only", "タマゴはもう手に入れた：戦利品だけ",
+          "Su huevo ya es tuyo: solo el botín", "Son œuf est déjà à toi : le butin seulement", "O ovo dele já é seu: só o saque",
+          "Sein Ei hast du schon: nur die Beute", "Его яйцо уже твоё: только добыча")
+    }
+    /// The Pokémon raised hatched from a legendary boss's egg: nothing sends it off before it graduates.
+    var legendaryBossPokemonLocked: String {
+        t("전설 보스의 알에서 태어났어요: 졸업할 때까지 다른 무엇으로도 바꿀 수 없어요.",
+          "Hatched from a legendary boss's egg: nothing can replace it before it graduates.",
+          "伝説のボスのタマゴから生まれました：卒業するまで何とも入れ替えられません。",
+          "Nació del huevo de un jefe legendario: nada puede sustituirlo antes de graduarse.",
+          "Éclos d'un œuf de boss légendaire : rien ne peut le remplacer avant son diplôme.",
+          "Nasceu do ovo de um chefe lendário: nada pode substituí-lo antes de se formar.",
+          "Aus dem Ei eines legendären Bosses geschlüpft: Nichts ersetzt es vor seinem Abschluss.",
+          "Вылупился из яйца легендарного босса: до выпуска его ничем не заменить.")
+    }
     var dungeonBossNotCaught: String {
         t("잡지 못했어요", "Not caught", "つかまえられなかった", "No capturado", "Pas capturé", "Não capturado", "Nicht gefangen", "Не пойман")
     }
@@ -560,26 +570,26 @@ extension L {
         t("기술 캡슐", "Technical Capsule", "わざカプセル", "Cápsula Técnica", "Capsule Technique", "Cápsula Técnica", "Technikkapsel",
           "Техническая капсула")
     }
-    var dungeonLootLost: String {
-        t("모은 물건은 잃었어요. 쓰지 않은 가져간 물건은 가방으로 돌아왔어요.",
-          "The loot is lost. What the team took along and didn't use is back in the Bag.",
-          "集めたものは失われました。使わなかった持ち物はバッグにもどりました。",
-          "El botín se ha perdido. Lo que el equipo llevó y no usó vuelve a la Bolsa.",
-          "Le butin est perdu. Ce que l'équipe avait emporté sans l'utiliser est revenu au Sac.",
-          "O saque foi perdido. O que a equipe levou e não usou voltou para a Mochila.",
-          "Die Beute ist verloren. Was das Team mitnahm und nicht brauchte, ist zurück im Beutel.",
-          "Добыча потеряна. Неиспользованные вещи вернулись в сумку.")
-    }
     /// A defeat before any loot: nothing found, what was taken along is back.
-    var dungeonNothingFound: String {
-        t("쓰러지기 전에 얻은 물건이 없어요. 쓰지 않은 가져간 물건은 가방으로 돌아왔어요.",
-          "Nothing found before the fall. What the team took along and didn't use is back in the Bag.",
-          "たおれる前に見つけたものはありません。使わなかった持ち物はバッグにもどりました。",
-          "No encontró nada antes de caer. Lo que el equipo llevó y no usó vuelve a la Bolsa.",
-          "Rien trouvé avant la chute. Ce que l'équipe avait emporté sans l'utiliser est revenu au Sac.",
-          "Nada encontrado antes da queda. O que a equipe levou e não usou voltou para a Mochila.",
-          "Vor dem Fall nichts gefunden. Was das Team mitnahm und nicht brauchte, ist zurück im Beutel.",
-          "До поражения ничего не найдено. Неиспользованные вещи вернулись в сумку.")
+    /// No loot before the fall, or before leaving.
+    func dungeonNothingFound(left: Bool) -> String {
+        left
+            ? t("나오기 전에 얻은 물건이 없어요. 쓰지 않은 가져간 물건은 가방으로 돌아왔어요.",
+                "Nothing found before leaving. What the team took along and didn't use is back in the Bag.",
+                "出る前に見つけたものはありません。使わなかった持ち物はバッグにもどりました。",
+                "No encontró nada antes de salir. Lo que el equipo llevó y no usó vuelve a la Bolsa.",
+                "Rien trouvé avant de sortir. Ce que l'équipe avait emporté sans l'utiliser est revenu au Sac.",
+                "Nada encontrado antes de sair. O que a equipe levou e não usou voltou para a Mochila.",
+                "Vor dem Verlassen nichts gefunden. Was das Team mitnahm und nicht nutzte, ist wieder im Beutel.",
+                "До выхода ничего не найдено. Что команда взяла и не использовала, вернулось в сумку.")
+            : t("쓰러지기 전에 얻은 물건이 없어요. 쓰지 않은 가져간 물건은 가방으로 돌아왔어요.",
+                "Nothing found before the fall. What the team took along and didn't use is back in the Bag.",
+                "たおれる前に見つけたものはありません。使わなかった持ち物はバッグにもどりました。",
+                "No encontró nada antes de caer. Lo que el equipo llevó y no usó vuelve a la Bolsa.",
+                "Rien trouvé avant la chute. Ce que l'équipe avait emporté sans l'utiliser est revenu au Sac.",
+                "Nada encontrado antes da queda. O que a equipe levou e não usou voltou para a Mochila.",
+                "Vor dem Sturz nichts gefunden. Was das Team mitnahm und nicht nutzte, ist wieder im Beutel.",
+                "До поражения ничего не найдено. Что команда взяла и не использовала, вернулось в сумку.")
     }
     /// A defeat's loot, kept: above its rows.
     var dungeonLootKept: String {

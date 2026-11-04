@@ -110,6 +110,8 @@ enum Rarity: String, Codable, Sendable {
 enum PokemonBalance {
     /// 알 부화 임계 — 이만큼 토큰을 써야 알이 깨진다(즉시 부화 대신 기대감). 초과분은 부화체 성장에 이월.
     static let eggHatchThreshold = 5_000_000
+    /// A legendary boss's egg takes 200M tokens to hatch, the items that speed eggs aside (the owner, 2026-11-04).
+    static let legendaryBossEggThreshold = 200_000_000
     static let repeatGrowthMultiplier = 2
 
     static func graduationTotal(_ rarity: Rarity) -> Int {
@@ -247,10 +249,9 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     case darkBadge
     case fairyBadge
     /// The dungeons' items (Q23, Q24, R12). Great and Ultra Balls raise a boss's capture odds (×1.5, ×2), a Master
-    /// Ball makes it sure; berries are eaten in battle, Revives raise the knocked out between battles; an Escape Rope
-    /// takes a team out with its loot; Capsules raise IVs; a Treasure Map opens the Ruins of Alph once; an Explorer's
+    /// Ball makes it sure; berries are eaten in battle, Revives raise the knocked out between battles; Capsules raise IVs; a Treasure Map opens the Ruins of Alph once; an Explorer's
     /// Chest gives an Explorer Kit treasure; a Legendary Key opens a T4 dungeon (R10).
-    case greatBall, ultraBall, masterBall, oranBerry, sitrusBerry, revive, maxRevive, escapeRope
+    case greatBall, ultraBall, masterBall, oranBerry, sitrusBerry, revive, maxRevive
     case silverCapsule, goldCapsule, treasureMap, explorerChest, legendaryKey
     /// The Dungeons achievements (Q32), one per tier: a dungeon won once, then the whole tier (`DungeonMedals`).
     case discoveryMedal, adventureMedal, expertMedal, legendsMedal, originMedal
@@ -354,7 +355,6 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .sitrusBerry: return "sitrus-berry"
         case .revive: return "revive"
         case .maxRevive: return "max-revive"
-        case .escapeRope: return "escape-rope"
         case .silverCapsule: return "bottle-cap"
         case .goldCapsule: return "gold-bottle-cap"
         case .legendaryKey: return "secret-key"
@@ -432,7 +432,6 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .oranBerry: return "🫐"
         case .sitrusBerry: return "🍋"
         case .revive, .maxRevive: return "💎"
-        case .escapeRope: return "🪢"
         case .silverCapsule: return "🥈"
         case .goldCapsule: return "🥇"
         case .treasureMap: return "🗺️"
@@ -471,7 +470,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     /// The dungeons' items: found in dungeons (the two balls sold too), never an achievement.
     var isDungeonItem: Bool {
         switch self {
-        case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .escapeRope,
+        case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
              .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: true
         default: false
         }
@@ -486,7 +485,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg,
              .leafStone, .fireStone, .waterStone, .thunderStone, .sunStone,
              .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone,
-             .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .escapeRope,
+             .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
              .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey,
              .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal:
             return false
@@ -569,7 +568,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return nil
         case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal:
             return regionGoals.map { .species($0.map(\.goal)) }
-        case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .escapeRope,
+        case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
              .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: return nil
         // The first nine stones follow the generations: each asks for one region's final starters.
         case .leafStone:   return .species([SpeciesGoal([3, 6, 9])])            // Kanto starters
@@ -1239,6 +1238,9 @@ struct MonState: Codable, Sendable, Equatable {
     /// Hatched from a Fossil Egg: sent off before it graduates, its egg goes back to the Bag, or its line would be
     /// out of reach (there are as many eggs as fossil lines).
     var fromFossilEgg = false
+    /// Hatched from a legendary boss's egg (`DungeonEgg.isLegendary`): won once, it is never sent off for another egg
+    /// before it graduates (the owner, 2026-11-04).
+    var fromLegendaryBossEgg = false
     /// Hatched from an evolution stone's egg (the Tera Orb grows it faster) or from an egg of a guaranteed rarity,
     /// bought or given by an achievement (the Sea Incense). An event egg's type or rarity is the event's: neither.
     var fromStoneEgg = false
@@ -1320,6 +1322,7 @@ struct MonState: Codable, Sendable, Equatable {
         hasGrowthBoost = try c.decodeIfPresent(Bool.self, forKey: .hasGrowthBoost) ?? false
         hasNewForm = try c.decodeIfPresent(Bool.self, forKey: .hasNewForm) ?? false
         fromFossilEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromFossilEgg)) ?? false
+        fromLegendaryBossEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromLegendaryBossEgg)) ?? false
         fromStoneEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromStoneEgg)) ?? false
         fromRarityEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromRarityEgg)) ?? false
         raising = (try? c.decodeIfPresent(RaisingRecord.self, forKey: .raising)) ?? nil

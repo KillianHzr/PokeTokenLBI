@@ -246,11 +246,15 @@ extension CompanionStore {
                                              revives: revives, context: context, boss: challenge)
         var expedition = started
         if keepsMasterBall { expedition.keepsMasterBall = true }
-        // A boss already caught (2026-11-04): a legendary one comes shiny, for its shiny egg; another gives an egg of
-        // the tier's rarity once caught (`ExpeditionEngine.throwBall`). A challenge's boss gives its form, never shiny.
-        if !id.isChallenge, hasCaughtBoss(expedition.boss.speciesID) {
-            expedition.bossAlreadyCaught = true
-            if SpeciesInfo.lineRarity(of: expedition.boss.speciesID) == .legendary { expedition.boss.isShiny = true }
+        // What its capture gives (2026-11-04, `bossReward`); a challenge's boss gives its form, never shiny.
+        if !id.isChallenge {
+            let species = expedition.boss.speciesID
+            let reward = bossReward(species)
+            if reward != .ownEgg { expedition.bossReward = reward }
+            // A legendary the player has, never shiny, its egg not won yet: it comes shiny, for its shiny egg.
+            if reward == .ownEgg, SpeciesInfo.lineRarity(of: species) == .legendary, hasCaughtBoss(species) {
+                expedition.boss.isShiny = true
+            }
         }
         let period = challengePeriod(id)
         changeDungeons {
@@ -306,7 +310,7 @@ extension CompanionStore {
         // A defeat, not a departure: the floors crossed keep their loot.
         ExpeditionEngine.finish(&e, won: false, context: context)
         changeDungeons { $0.expedition = e }
-        finishExpedition(roped: false)
+        finishExpedition(leftEarly: false)
         creditGrowthPastTheDungeon(held)
     }
 
@@ -316,7 +320,7 @@ extension CompanionStore {
             $0.expedition = e
             if bossNewlyReached { $0.bossesReached.insert(DungeonProgress.bossKey(e.dungeon, e.boss.speciesID)) }
         }
-        if e.isOver { finishExpedition(roped: false) } else { persist() }
+        if e.isOver { finishExpedition(leftEarly: false) } else { persist() }
     }
 
     // MARK: The player's answers
@@ -336,7 +340,8 @@ extension CompanionStore {
         return true
     }
 
-    /// Q4: leaves the dungeon; the loot is lost unless an Escape Rope takes it out.
+    /// Leaves the dungeon with the loot of the floors crossed (the owner, 2026-11-04: the Escape Rope is gone); the floor
+    /// under way gives nothing.
     func abandonExpedition() {
         // Not once the boss fell: a victory, its throws waiting, would turn into a defeat.
         guard var e = expedition, let context = expeditionContext else { return }
@@ -344,11 +349,10 @@ extension CompanionStore {
         case .exploring, .awaitingHeal: break
         case .capture, .finished: return
         }
-        let roped = changeBag(.escapeRope, by: -1) == -1
-        ExpeditionEngine.append(&e, .abandon(rope: roped), context: context)
+        ExpeditionEngine.append(&e, .abandon(rope: false), context: context)
         e.phase = .finished(won: false)
         changeDungeons { $0.expedition = e }
-        finishExpedition(roped: roped)
+        finishExpedition(leftEarly: true)
     }
 
     /// Q18: a throw at the fallen boss, with a ball of the Bag or a plain one. Returns whether it was caught; nil when
@@ -368,6 +372,29 @@ extension CompanionStore {
     /// waiting in the Bag.
     func hasCaughtBoss(_ speciesID: Int) -> Bool {
         state.registeredSpeciesIDs.contains(speciesID) || state.dungeons.eggs.contains { $0.sourceSpeciesID == speciesID }
+    }
+
+    /// Whether the player has this species shiny: in the Pokédex, or the Pokémon raised once at it.
+    func hasCaughtShiny(_ speciesID: Int) -> Bool {
+        state.dex.contains { $0.isShiny && $0.chainOrder.contains(speciesID) }
+            || state.active.map { $0.isShiny && $0.pathIDs.prefix($0.stageIndex + 1).contains(speciesID) } == true
+    }
+
+    /// Whether this legendary boss's egg was won (once per species, the owner 2026-11-04): recorded at the capture,
+    /// or still in the Bag or incubating from a save before the record.
+    func hasWonLegendaryEgg(_ speciesID: Int) -> Bool {
+        state.dungeons.legendaryEggsWon.contains(speciesID)
+            || state.dungeons.eggs.contains { $0.sourceSpeciesID == speciesID }
+            || state.eggFromDungeon?.sourceSpeciesID == speciesID
+    }
+
+    /// What catching this boss would give now (the owner, 2026-11-04): a legendary gives its egg once (shiny when the
+    /// player has it, a Legendary Egg when the player has it shiny), then the loot only; another, caught already, an
+    /// egg of the tier's rarity.
+    func bossReward(_ speciesID: Int) -> Expedition.BossReward {
+        guard SpeciesInfo.lineRarity(of: speciesID) == .legendary else { return hasCaughtBoss(speciesID) ? .tierEgg : .ownEgg }
+        if hasWonLegendaryEgg(speciesID) { return .lootOnly }
+        return hasCaughtShiny(speciesID) ? .legendaryEgg : .ownEgg
     }
 
     // MARK: The automatic capture
@@ -393,7 +420,10 @@ extension CompanionStore {
     /// boss is the one shown.
     func mayMeetALegendary(_ id: DungeonID, boss: BattleForm?) -> Bool {
         if id.isChallenge { return boss.map { SpeciesInfo.lineRarity(of: $0.speciesID) == .legendary } ?? false }
-        return DungeonCatalog.dungeon(id).bosses.contains { SpeciesInfo.lineRarity(of: $0) == .legendary }
+        // Not one whose egg was won: it gives the loot only, with no throw.
+        return DungeonCatalog.dungeon(id).bosses.contains {
+            SpeciesInfo.lineRarity(of: $0) == .legendary && bossReward($0) != .lootOnly
+        }
     }
 
     /// Lets the boss go without throwing again: the expedition ends, won.
@@ -511,17 +541,19 @@ extension CompanionStore {
         }
     }
 
-    private func finishExpedition(roped: Bool) {
+    private func finishExpedition(leftEarly: Bool) {
         guard let e = expedition, case .finished(let won) = e.phase else { return }
         let dungeon = DungeonCatalog.dungeon(e.dungeon)
         var random = BattleRandom(seed: e.seed ^ 0xFEED_F00D)
         let openBefore = Set(DungeonID.allCases.filter(isDungeonOpen))
         let firstVictory = won && state.dungeons.wins(e.dungeon) == 0 && !e.dungeon.isChallenge
         let t3Victories = DungeonCatalog.all.filter { $0.tier == .t3 }.reduce(0) { $0 + state.dungeons.wins($1.id) }
-        // A defeat keeps what the floors crossed gave (the owner, 2026-11-04: their tokens are paid); the floor it fell
-        // on gave nothing, a battle lost bringing no loot. Leaving without an Escape Rope still loses it.
-        let leftWithoutRope = e.log.contains { if case .abandon(rope: false) = $0.kind { return true } else { return false } }
-        var loot = won || roped || !leftWithoutRope ? e.loot : ExpeditionLoot()
+        // A defeat or leaving keeps what the floors crossed gave (the owner, 2026-11-04: their tokens are paid); the
+        // floor it fell on gave nothing, a battle lost bringing no loot.
+        var loot = e.loot
+        let caught = e.log.contains { if case .capture(_, _, true) = $0.kind { return true }; return false }
+        // The egg given in place of the boss's own is the boss's, never doubled: one Legendary Egg for one legendary.
+        let inPlace = caught ? ExpeditionEngine.eggInPlace(e.bossReward, tier: dungeon.tier)?.rawValue : nil
         var unlockedMove: String?
         // A challenge gives its battle form, and its floors' loot: no first-victory doubling, no extras.
         let battleForm = won && e.dungeon.isChallenge ? BattleForms.form(speciesID: e.boss.speciesID, form: e.boss.form) : nil
@@ -529,7 +561,10 @@ extension CompanionStore {
             if firstVictory {
                 // Q22: a first victory doubles the loot and adds a dungeon item.
                 loot.candies *= 2
-                for (key, count) in loot.items { loot.items[key] = count * 2 }
+                for (key, count) in loot.items {
+                    let boss = key == inPlace ? 1 : 0
+                    loot.items[key] = (count - boss) * 2 + boss
+                }
                 let table = ExpeditionEngine.itemTable(dungeon.tier)
                 loot.add(table[random.below(table.count)])
             }
@@ -548,8 +583,11 @@ extension CompanionStore {
         changeBag(.sitrusBerry, by: e.berries[.sitrus] ?? 0)
         changeBag(.revive, by: e.revives[ItemKind.revive.rawValue] ?? 0)
         changeBag(.maxRevive, by: e.revives[ItemKind.maxRevive.rawValue] ?? 0)
-        let caught = e.log.contains { if case .capture(_, _, true) = $0.kind { return true }; return false }
         changeDungeons { progress in
+            // A legendary boss's egg, or the Legendary Egg in its place, is won once.
+            if caught, SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary {
+                progress.legendaryEggsWon.insert(e.boss.speciesID)
+            }
             progress.eggs += loot.eggs
             if let battleForm { progress.battleForms.insert(battleForm.key) }
             if let unlockedMove { progress.unlockedMoves.insert(unlockedMove) }
@@ -562,15 +600,14 @@ extension CompanionStore {
         }
         let unlocked = DungeonID.allCases.filter { isDungeonOpen($0) && !openBefore.contains($0) && $0 != .ruinsOfAlph }
         changeDungeons {
-            $0.lastResult = ExpeditionResult(dungeon: e.dungeon, won: won, roped: roped, startedAt: e.startedAt,
+            $0.lastResult = ExpeditionResult(dungeon: e.dungeon, won: won, roped: leftEarly, startedAt: e.startedAt,
                                              endedAt: currentDate, tokens: e.tokensIn, battles: e.battles, boss: e.boss,
                                              caught: caught, loot: loot, firstVictory: firstVictory,
                                              unlocked: unlocked, unlockedMove: unlockedMove, battleForm: battleForm?.key,
-                                             bossEgg: caught && ExpeditionEngine.givesTierEgg(e)
-                                                 ? ExpeditionEngine.tierEgg(DungeonCatalog.dungeon(e.dungeon).tier).rawValue : nil,
+                                             bossReward: won ? e.bossReward : nil,
                                              log: e.log)
         }
-        AppLog.write("dungeon: \(e.dungeon.rawValue) over, won=\(won) roped=\(roped) caught=\(caught) candies=\(loot.candies)")
+        AppLog.write("dungeon: \(e.dungeon.rawValue) over, won=\(won) left=\(leftEarly) caught=\(caught) candies=\(loot.candies)")
         persist()
     }
 }

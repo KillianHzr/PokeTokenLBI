@@ -115,10 +115,9 @@ struct ExpeditionCard: View {
 
     /// Inline, as the Bag's confirmations: a sheet or an alert left behind by the closing popover would swallow clicks.
     private var abandonConfirmation: some View {
-        let hasRope = store.itemCount(.escapeRope) > 0
         return VStack(alignment: .leading, spacing: 6) {
-            Text(l.dungeonAbandonCost(rope: l.itemName(.escapeRope), has: hasRope))
-                .font(.caption).foregroundStyle(hasRope ? Color.secondary : Color.readableOrange)
+            Text(l.dungeonLeaveKeeps)
+                .font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
@@ -287,8 +286,8 @@ struct ExpeditionLogRow: View {
             line("flag.checkered", l.dungeonLogVictory)
         case .defeat:
             line("xmark.octagon", l.dungeonLogDefeat)
-        case .abandon(let rope):
-            line("figure.walk", l.dungeonLogAbandon(rope: rope ? l.itemName(.escapeRope) : nil))
+        case .abandon:
+            line("figure.walk", l.dungeonLogLeft)
         }
     }
 
@@ -411,9 +410,7 @@ struct ExpeditionResultCard: View {
                     VStack(alignment: .leading, spacing: 1) {
                         PokemonNameLabel(.pokemonSpecies, String(r.boss.speciesID), language: store.language)
                             .font(.caption.weight(.semibold))
-                        Text(!r.caught ? l.dungeonBossNotCaught
-                             : r.bossEgg.flatMap(ItemKind.init(rawValue:)).map { l.dungeonBossCaughtAgain(l.itemName($0)) }
-                             ?? l.dungeonBossCaught)
+                        Text(Self.bossLine(r, l))
                             .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         if let thrown = thrownBalls(r, l) {
                             Text(l.dungeonThrowsUsed(thrown)).font(.caption2).foregroundStyle(.secondary)
@@ -423,11 +420,11 @@ struct ExpeditionResultCard: View {
                 }
             }
             if r.loot.isEmpty, !r.won {
-                // Lost only by leaving without a rope; a defeat keeps the floors' loot, here none.
-                Text(Self.leftWithoutRope(r) ? l.dungeonLootLost : l.dungeonNothingFound).font(.caption).foregroundStyle(.secondary)
+                // A defeat or leaving keeps the floors' loot, here none.
+                Text(l.dungeonNothingFound(left: r.roped)).font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                if !r.won, !r.roped {
+                if !r.won {
                     Text(l.dungeonLootKept).font(.caption.weight(.semibold))
                 }
                 lootRows(r, l)
@@ -471,8 +468,14 @@ struct ExpeditionResultCard: View {
         .designCard()
     }
 
-    static func leftWithoutRope(_ r: ExpeditionResult) -> Bool {
-        r.log.contains { if case .abandon(rope: false) = $0.kind { return true } else { return false } }
+    /// The boss's line on the result card: caught or not, or what it gave in place of its own egg (2026-11-04).
+    static func bossLine(_ r: ExpeditionResult, _ l: L) -> String {
+        if r.bossReward == .lootOnly { return l.dungeonBossEggWonBefore }
+        guard r.caught else { return l.dungeonBossNotCaught }
+        if let egg = ExpeditionEngine.eggInPlace(r.bossReward, tier: DungeonCatalog.dungeon(r.dungeon).tier) {
+            return l.dungeonBossCaughtAgain(l.itemName(egg))
+        }
+        return l.dungeonBossCaught
     }
 
     /// The balls the automatic throws took, in order ("Ultra Ball, Ultra Ball, Poké Ball").

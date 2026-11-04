@@ -85,7 +85,7 @@ struct DungeonItemControls: View {
                 Button(l.dungeonOpen, action: openChest).buttonStyle(.pill(prominent: true))
             default:
                 Image(systemName: "map.fill").font(.caption2).foregroundStyle(.secondary)
-                Text(kind == .escapeRope || kind == .treasureMap || kind == .legendaryKey
+                Text(kind == .treasureMap || kind == .legendaryKey
                      ? l.dungeonItemHint : l.dungeonItemHint + " · " + store.effectHint(for: kind))
                     .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()

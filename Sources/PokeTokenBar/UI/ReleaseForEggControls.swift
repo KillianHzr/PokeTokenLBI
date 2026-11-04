@@ -31,8 +31,10 @@ struct ReleaseForEggControls: View {
     @ViewBuilder
     private var controls: some View {
         let l = store.l
-        // 알 상태: 리롤 대상이 없다. A Fossil Egg's own Pokémon: the caller's reason.
-        let locked = store.hasActive ? lockedHint : l.eggShopLockedHint
+        // 알 상태: 리롤 대상이 없다. A legendary boss's egg's Pokémon is never sent off; a Fossil Egg's own: the
+        // caller's reason.
+        let locked = !store.hasActive ? l.eggShopLockedHint
+            : store.isRaisingLegendaryBossPokemon ? l.legendaryBossPokemonLocked : lockedHint
         switch stage {
         case .idle:
             VStack(alignment: .leading, spacing: 4) {
