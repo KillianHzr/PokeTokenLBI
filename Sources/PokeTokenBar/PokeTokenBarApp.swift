@@ -91,6 +91,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         store = UsageStore()
         companion = CompanionStore()
+        // Live usage updates the companion every few seconds: its save is written at most every 15 s, and at quit.
+        companion.usageSaveGap = CompanionStore.appUsageSaveGap
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.companion.flushPendingSave() }
+        }
         Task { await companion.preparePokemonProfiles() }
         Task { await companion.readEggJournal() }
         Task { _ = await SpriteStore.shared.data(itemName: SpriteStore.oakPortrait) }

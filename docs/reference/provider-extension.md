@@ -34,6 +34,11 @@ read_when:
   디렉터리에 의존하지 않도록 한다.
   루트가 겹쳐도 합계는 전역 dedup 이 바로잡지만, 중복 루트는 스캔 비용을 배로 늘리므로
   `normalizedRoots` 로 접는다.
+- **Live reads** (`UsageProvider.watchedRoots`): a source that reads files returns the folders it scans, the same
+  list its reader uses (for `LocalUsageCache` sources, its `…ScanRoots()` accessor, never a second copy of the paths).
+  `UsageStore` watches them through FSEvents and reads that source again within seconds of a change, without the
+  limits. A source behind an API or a shared cache with its own lifetime (`LocalAdditionalUsageCache`, 30 s) keeps the
+  default `[]` and is read on the timer. `LiveUsageTests` covers the routing, the pacing and the end-to-end read.
 - **사용자 지정 스캔 폴더** = `customScanRoots.<providerID>` (Settings → Advanced). 항목은 그
   프로바이더 리더만 읽는다. 공통 헬퍼는 `CustomScanRoots.union` — 커스텀 루트는 기본 루트에
   *더하기만* 한다. 조상 경로(`~`)가 `normalizedRoots` 로 기본 루트를 접어 없애면
