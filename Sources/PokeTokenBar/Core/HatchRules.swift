@@ -64,10 +64,10 @@ struct HatchRules: Sendable, Equatable {
         /// #127: Tauros's Four Breeds and Necrozma's Four Forms lower complete lines further
         /// (`HatchDraw.completeLineDivisor`). Dated at its merge into main, so that every past hatch reads the rule of its time.
         case duplicateCharms = "2026-11-05T09:57:47Z"
-        /// Arceus back in the eggs once caught, like every legendary boss (the owner, 2026-11-05): its first catch no
-        /// longer closes its shiny for good. Dated at its merge into main, so that every past hatch reads the rule of
+        /// #130: Arceus back in the eggs once caught, like every legendary boss (the owner, 2026-11-05): its first catch
+        /// no longer closes its shiny for good. Dated at its merge into main, so that every past hatch reads the rule of
         /// its time.
-        case caughtBossesInEggs = "2099-01-01T00:00:00Z"
+        case caughtBossesInEggs = "2026-11-05T11:08:54Z"
 
         private static let instants: [Change: Date] = {
             let formatter = ISO8601DateFormatter()
