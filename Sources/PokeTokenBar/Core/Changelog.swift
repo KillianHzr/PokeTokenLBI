@@ -67,6 +67,82 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-05", entries: [
+            .new("2026-11-05-battle-forms") { l in
+                let daily = l.dungeonName(.daily), weekly = l.dungeonName(.weekly)
+                return l.t("전투 형태: 메가진화, 원시회귀, 거다이맥스를 \(daily)(하루 한 번)과 \(weekly)(주 한 번)에서 얻어요. 얻으면 도감에 오르고, 졸업한 포켓몬이 던전에서 그 형태로 싸워요.",
+                           "Battle forms: Mega Evolutions, Primal Reversions and Gigantamax forms are won in the \(daily) (one try a day) and the \(weekly) (one a week). Won, they join your Pokédex, and your graduated Pokémon can fight in them.",
+                           "バトルのすがた：メガシンカ、ゲンシカイキ、キョダイマックスを\(daily)（1日1回）と\(weekly)（週1回）で手に入れよう。手に入れると図鑑に載り、卒業したポケモンがダンジョンでそのすがたで戦えます。",
+                           "Formas de combate: las megaevoluciones, las regresiones primigenias y las formas Gigamax se ganan en la \(daily) (un intento al día) y la \(weekly) (uno por semana). Ganadas, entran en tu Pokédex y tus Pokémon graduados pueden luchar con ellas.",
+                           "Formes de combat : Méga-Évolutions, Primo-Résurgences et formes Gigamax se gagnent dans le \(daily) (une tentative par jour) et le \(weekly) (une par semaine). Gagnées, elles entrent dans ton Pokédex et tes Pokémon diplômés peuvent combattre sous ces formes.",
+                           "Formas de batalha: Megaevoluções, Regressões Primitivas e formas Gigantamax são ganhas na \(daily) (uma tentativa por dia) e na \(weekly) (uma por semana). Ganhas, entram na sua Pokédex e seus Pokémon formados podem lutar com elas.",
+                           "Kampfformen: Mega-Entwicklungen, Proto-Regressionen und Gigadynamax-Formen gewinnst du im \(daily) (ein Versuch pro Tag) und im \(weekly) (einer pro Woche). Gewonnen stehen sie in deinem Pokédex, und deine verabschiedeten Pokémon können in ihnen kämpfen.",
+                           "Боевые формы: мега-эволюции, первобытные формы и гигантамакс добываются в \"\(daily)\" (попытка в день) и \"\(weekly)\" (попытка в неделю). Полученные, они попадают в Покедекс, а выпускники могут сражаться в них.")
+            },
+            .improved("2026-11-05-trainer-tab") { l in
+                let tab = l.trainerTab
+                return l.t("새 \(tab) 탭: 가방과 업적이 한곳에 있어요.",
+                           "New \(tab) tab: your Bag and your achievements in one place.",
+                           "新しい\(tab)タブ：バッグと実績がひとつの場所に。",
+                           "Nueva pestaña \(tab): tu bolsa y tus logros en un solo lugar.",
+                           "Nouvel onglet \(tab) : ton Sac et tes Succès au même endroit.",
+                           "Nova aba \(tab): sua bolsa e suas conquistas num só lugar.",
+                           "Neuer Tab \(tab): dein Beutel und deine Erfolge an einem Ort.",
+                           "Новая вкладка \"\(tab)\": сумка и успехи в одном месте.")
+            },
+            .new("2026-11-05-dungeons") { l in
+                let egg = l.itemName(.legendaryEgg)
+                return l.t("던전: 졸업한 포켓몬으로 팀을 꾸려 토큰으로 13개의 던전을 탐험하세요. 전투와 포획은 자동이고, 져도 중간에 나와도 지나온 층의 전리품은 지켜요. T2부터는 상자에서 알도 나와요. 보스를 잡으면 그 알을 받고, 이미 가진 보스는 던전 등급의 알을 줘요. 전설의 보스는 알을 한 번만 줘요(이미 가졌다면 이로치로, 이로치까지 가졌다면 \(KoreanParticle.direction.attach(to: egg))). 그 포켓몬은 200M 토큰이면 졸업하고(보통 전설은 600M), 졸업할 때까지 다른 것으로 바꿀 수 없어요.",
+                           "Dungeons: send a team of graduated Pokémon to explore 13 dungeons with your tokens. Battles and the capture are automatic, the loot of the floors crossed stays yours whether the team falls or you leave, and chests hold eggs from T2. A caught boss gives its egg; one you already have gives an egg of the dungeon's rarity. A legendary boss gives its egg once (shiny if you have it already, a \(egg) if you have it shiny); its Pokémon graduates for 200M tokens instead of a legendary's 600M, and nothing replaces it before then.",
+                           "ダンジョン：卒業したポケモンでチームを組み、トークンで13のダンジョンを探検しよう。バトルも捕獲も自動で、負けても途中で出ても通った階の戦利品は残ります。T2からは宝箱からタマゴも出ます。ボスを捕まえるとそのタマゴがもらえ、すでに持っているボスはダンジョンのレア度のタマゴをくれます。伝説のボスはタマゴを一度だけくれます（持っていれば色違いで、色違いも持っていれば\(egg)）。そのポケモンは200Mトークンで卒業し（ふつうの伝説は600M）、卒業するまで入れ替えられません。",
+                           "Mazmorras: envía un equipo de Pokémon graduados a explorar 13 mazmorras con tus tokens. Los combates y la captura son automáticos, el botín de los pisos superados es tuyo tanto si el equipo cae como si sales, y desde T2 los cofres guardan huevos. Un jefe capturado da su huevo; uno que ya tienes da un huevo de la rareza de la mazmorra. Un jefe legendario da su huevo una sola vez (variocolor si ya lo tienes, un \(egg) si ya lo tienes variocolor); su Pokémon se gradúa con 200M tokens en vez de los 600M de un legendario, y nada lo sustituye antes.",
+                           "Donjons : envoie une équipe de Pokémon diplômés explorer 13 donjons avec tes tokens. Combats et capture automatiques, le butin des étages franchis reste à toi que l'équipe tombe ou que tu sortes, et les coffres cachent des œufs dès T2. Un boss capturé donne son œuf ; un boss que tu as déjà donne un œuf de la rareté du donjon. Un boss légendaire donne son œuf une seule fois (chromatique si tu l'as déjà, un \(egg) si tu l'as déjà chromatique) ; son Pokémon est diplômé en 200M tokens au lieu des 600M d'un légendaire, et rien ne le remplace d'ici là.",
+                           "Masmorras: envie uma equipe de Pokémon formados para explorar 13 masmorras com seus tokens. Batalhas e captura são automáticas, o espólio dos andares vencidos fica com você quer a equipe caia, quer você saia, e a partir de T2 os baús guardam ovos. Um chefe capturado dá o ovo dele; um que você já tem dá um ovo da raridade da masmorra. Um chefe lendário dá o ovo uma única vez (brilhante se você já o tem, um \(egg) se já o tem brilhante); o Pokémon dele se forma com 200M tokens em vez dos 600M de um lendário, e nada o substitui até lá.",
+                           "Dungeons: Schicke ein Team verabschiedeter Pokémon mit deinen Tokens in 13 Dungeons. Kämpfe und Fang laufen automatisch, die Beute der geschafften Ebenen bleibt dir, ob das Team fällt oder du gehst, und ab T2 stecken Eier in den Truhen. Ein gefangener Boss gibt sein Ei; einer, den du schon hast, gibt ein Ei der Seltenheit des Dungeons. Ein legendärer Boss gibt sein Ei nur einmal (schillernd, wenn du ihn schon hast, ein \(egg), wenn du ihn schon schillernd hast); sein Pokémon schließt mit 200M Tokens statt der 600M eines Legendären ab, und nichts ersetzt es bis dahin.",
+                           "Подземелья: отправьте команду выпущенных покемонов исследовать 13 подземелий за ваши токены. Бои и поимка автоматические, добыча пройденных этажей остаётся, падёт ли команда или вы уйдёте, а с T2 в сундуках бывают яйца. Пойманный босс даёт своё яйцо; уже имеющийся даёт яйцо редкости подземелья. Легендарный босс даёт яйцо один раз (шайни, если он у вас уже есть, и \"\(egg)\", если он у вас есть шайни); его покемон выпускается за 200M токенов вместо 600M у легендарного, и до этого его ничем не заменить.")
+            },
+            .new("2026-11-05-dungeon-moves") { l in
+                let capsule = l.dungeonTechnicalCapsule
+                return l.t("졸업한 포켓몬의 상세에서 던전에서 쓸 기술 4개를 고르세요. 모든 기술이 게임과 똑같이 작동해요. 위력 100 이상의 기술과, 효과가 능력치에 좌우되지 않는 몇몇 기술은 던전에서 얻는 \(capsule)로 풀려요.",
+                           "On a graduated Pokémon's page, choose the four moves it uses in the dungeons: each works as in the games. Moves of 100 power or more, and the few whose effect does not depend on stats, unlock with a \(capsule) won in the dungeons.",
+                           "卒業したポケモンの詳細で、ダンジョンで使う4つのわざを選ぼう。どのわざもゲームと同じように働きます。威力100以上のわざと、効果が能力に左右されない一部のわざは、ダンジョンで手に入る\(capsule)で使えるようになります。",
+                           "En la ficha de un Pokémon graduado, elige los cuatro movimientos que usa en las mazmorras: todos funcionan como en los juegos. Los de 100 de potencia o más, y los pocos cuyo efecto no depende de las estadísticas, se desbloquean con una \(capsule) ganada en ellas.",
+                           "Sur la fiche d'un Pokémon diplômé, choisis les quatre attaques qu'il utilise en donjon : chacune marche comme dans les jeux. Celles de puissance 100 ou plus, et les quelques-unes dont l'effet ne dépend pas des stats, se débloquent avec une \(capsule) gagnée en donjon.",
+                           "Na ficha de um Pokémon formado, escolha os quatro golpes que ele usa nas masmorras: todos funcionam como nos jogos. Os de poder 100 ou mais, e os poucos cujo efeito não depende dos atributos, se desbloqueiam com uma \(capsule) ganha nelas.",
+                           "Wähle auf der Seite eines verabschiedeten Pokémon die vier Attacken, die es in Dungeons nutzt: Jede wirkt wie in den Spielen. Attacken ab 100 Stärke und die wenigen, deren Wirkung nicht von den Werten abhängt, schaltet eine in Dungeons gewonnene \(capsule) frei.",
+                           "На странице выпущенного покемона выберите четыре приёма, которые он использует в подземельях: каждый работает как в играх. Приёмы мощностью от 100 и немногие, чей эффект не зависит от характеристик, открывает \"\(capsule)\", добытая в подземельях.")
+            },
+            .new("2026-11-05-dungeon-items") { l in
+                let great = l.itemName(.greatBall), ultra = l.itemName(.ultraBall), key = l.itemName(.legendaryKey)
+                return l.t("가방에 던전 아이템이 생겼어요: 나무열매, 기력의조각, 개체값을 31로 올리는 캡슐, \(key). \(great)과 \(ultra)은 상점에서도 팔아요.",
+                           "New dungeon items in the Bag: berries, Revives, Capsules that raise IVs to 31, the \(key). The \(great) and \(ultra) are also sold in the Shop.",
+                           "バッグにダンジョンの道具が加わりました：きのみ、げんきのかけら、個体値を31にするカプセル、\(key)。\(great)と\(ultra)はショップでも買えます。",
+                           "Nuevos objetos de mazmorra en la bolsa: bayas, Revivir, cápsulas que suben los IV a 31 y la \(key). La \(great) y la \(ultra) también se venden en la tienda.",
+                           "Nouveaux objets de donjon dans le Sac : baies, Rappels, Capsules qui montent les IV à 31, la \(key). La \(great) et l'\(ultra) sont aussi en vente à la Boutique.",
+                           "Novos itens de masmorra na bolsa: frutas, Revivers, cápsulas que elevam os IVs a 31 e a \(key). A \(great) e a \(ultra) também são vendidas na loja.",
+                           "Neue Dungeon-Items im Beutel: Beeren, Beleber, Kapseln, die DVs auf 31 heben, der \(key). \(great) und \(ultra) gibt es auch im Shop.",
+                           "Новые предметы подземелий в сумке: ягоды, оживители, капсулы, поднимающие IV до 31, и \"\(key)\". \"\(great)\" и \"\(ultra)\" продаются и в магазине.")
+            },
+            .new("2026-11-05-dungeon-medals") { l in
+                l.t("업적의 유물에 던전 메달 5개가 생겼어요: 던전을 처음 이길 때마다 보상, 등급의 던전을 모두 이기면 하나 더.",
+                    "Five dungeon medals join the Artifacts in Achievements: a reward for each dungeon won once, another for a whole tier.",
+                    "実績の「アーティファクト」にダンジョンのメダル5つが加わりました：ダンジョンに初めて勝つたびにごほうび、ランクの全ダンジョンでもう1つ。",
+                    "Cinco medallas de mazmorra se suman a los Artefactos en Logros: una recompensa por cada mazmorra ganada una vez y otra por un nivel entero.",
+                    "Cinq médailles de donjon rejoignent les Artefacts dans les Succès : une récompense par donjon gagné une fois, une autre pour tout un palier.",
+                    "Cinco medalhas de masmorra entram nos Artefatos em Conquistas: uma recompensa por masmorra vencida uma vez e outra por um nível inteiro.",
+                    "Fünf Dungeon-Medaillen kommen zu den Artefakten in den Erfolgen: eine Belohnung pro einmal gewonnenem Dungeon, eine weitere für eine ganze Stufe.",
+                    "Пять медалей подземелий добавлены к артефактам в успехах: награда за каждое подземелье, пройденное один раз, и ещё одна за целый уровень.")
+            },
+            .improved("2026-11-05-arceus-dungeon") { l in
+                let hall = l.dungeonName(.hallOfOrigin)
+                return l.t("아르세우스는 이제 어떤 알에서도 태어나지 않아요. \(hall) 던전의 보스로 잡으면 그 알을 받아요.",
+                           "Arceus no longer hatches from any egg: catch it as the boss of the \(hall) to get its egg.",
+                           "アルセウスはどのタマゴからも生まれなくなりました。\(hall)のボスとして捕まえると、そのタマゴがもらえます。",
+                           "Arceus ya no sale de ningún huevo: atrápalo como jefe de la \(hall) para conseguir su huevo.",
+                           "Arceus ne sort plus d'aucun œuf : capture-le en boss de la \(hall) pour avoir son œuf.",
+                           "Arceus não nasce mais de nenhum ovo: capture-o como chefe do \(hall) para ganhar o ovo dele.",
+                           "Arceus schlüpft aus keinem Ei mehr: Fange ihn als Boss im \(hall), um sein Ei zu bekommen.",
+                           "Арсеус больше не вылупляется ни из одного яйца: поймайте его как босса подземелья \"\(hall)\", чтобы получить его яйцо.")
+            },
             .fixed("2026-11-05-codex-candies") { l in
                 let candy = l.itemName(.rareCandy)
                 return l.t("Codex가 한도를 넘어 크레딧으로 계속 쓰여도 더 이상 \(KoreanParticle.object.attach(to: candy)) 거듭 주지 않아요. 한도가 다시 내려간 뒤에 새로 받아요.",
@@ -226,82 +302,6 @@ enum Changelog {
                                                          "На главной у каждого успеха, который продвигает ваш покемон, теперь своя строка.") }),
         ]),
         ChangelogDay(date: "2026-11-02", entries: [
-            .new("2026-11-02-battle-forms") { l in
-                let daily = l.dungeonName(.daily), weekly = l.dungeonName(.weekly)
-                return l.t("전투 형태: 메가진화, 원시회귀, 거다이맥스를 \(daily)(하루 한 번)과 \(weekly)(주 한 번)에서 얻어요. 얻으면 도감에 오르고, 졸업한 포켓몬이 던전에서 그 형태로 싸워요.",
-                           "Battle forms: Mega Evolutions, Primal Reversions and Gigantamax forms are won in the \(daily) (one try a day) and the \(weekly) (one a week). Won, they join your Pokédex, and your graduated Pokémon can fight in them.",
-                           "バトルのすがた：メガシンカ、ゲンシカイキ、キョダイマックスを\(daily)（1日1回）と\(weekly)（週1回）で手に入れよう。手に入れると図鑑に載り、卒業したポケモンがダンジョンでそのすがたで戦えます。",
-                           "Formas de combate: las megaevoluciones, las regresiones primigenias y las formas Gigamax se ganan en la \(daily) (un intento al día) y la \(weekly) (uno por semana). Ganadas, entran en tu Pokédex y tus Pokémon graduados pueden luchar con ellas.",
-                           "Formes de combat : Méga-Évolutions, Primo-Résurgences et formes Gigamax se gagnent dans le \(daily) (une tentative par jour) et le \(weekly) (une par semaine). Gagnées, elles entrent dans ton Pokédex et tes Pokémon diplômés peuvent combattre sous ces formes.",
-                           "Formas de batalha: Megaevoluções, Regressões Primitivas e formas Gigantamax são ganhas na \(daily) (uma tentativa por dia) e na \(weekly) (uma por semana). Ganhas, entram na sua Pokédex e seus Pokémon formados podem lutar com elas.",
-                           "Kampfformen: Mega-Entwicklungen, Proto-Regressionen und Gigadynamax-Formen gewinnst du im \(daily) (ein Versuch pro Tag) und im \(weekly) (einer pro Woche). Gewonnen stehen sie in deinem Pokédex, und deine verabschiedeten Pokémon können in ihnen kämpfen.",
-                           "Боевые формы: мега-эволюции, первобытные формы и гигантамакс добываются в \"\(daily)\" (попытка в день) и \"\(weekly)\" (попытка в неделю). Полученные, они попадают в Покедекс, а выпускники могут сражаться в них.")
-            },
-            .improved("2026-11-02-trainer-tab") { l in
-                let tab = l.trainerTab
-                return l.t("새 \(tab) 탭: 가방과 업적이 한곳에 있어요.",
-                           "New \(tab) tab: your Bag and your achievements in one place.",
-                           "新しい\(tab)タブ：バッグと実績がひとつの場所に。",
-                           "Nueva pestaña \(tab): tu bolsa y tus logros en un solo lugar.",
-                           "Nouvel onglet \(tab) : ton Sac et tes Succès au même endroit.",
-                           "Nova aba \(tab): sua bolsa e suas conquistas num só lugar.",
-                           "Neuer Tab \(tab): dein Beutel und deine Erfolge an einem Ort.",
-                           "Новая вкладка \"\(tab)\": сумка и успехи в одном месте.")
-            },
-            .new("2026-11-02-dungeons") { l in
-                let egg = l.itemName(.legendaryEgg)
-                return l.t("던전: 졸업한 포켓몬으로 팀을 꾸려 토큰으로 13개의 던전을 탐험하세요. 전투와 포획은 자동이고, 져도 중간에 나와도 지나온 층의 전리품은 지켜요. T2부터는 상자에서 알도 나와요. 보스를 잡으면 그 알을 받고, 이미 가진 보스는 던전 등급의 알을 줘요. 전설의 보스는 알을 한 번만 줘요(이미 가졌다면 이로치로, 이로치까지 가졌다면 \(KoreanParticle.direction.attach(to: egg))). 그 포켓몬은 200M 토큰이면 졸업하고(보통 전설은 600M), 졸업할 때까지 다른 것으로 바꿀 수 없어요.",
-                           "Dungeons: send a team of graduated Pokémon to explore 13 dungeons with your tokens. Battles and the capture are automatic, the loot of the floors crossed stays yours whether the team falls or you leave, and chests hold eggs from T2. A caught boss gives its egg; one you already have gives an egg of the dungeon's rarity. A legendary boss gives its egg once (shiny if you have it already, a \(egg) if you have it shiny); its Pokémon graduates for 200M tokens instead of a legendary's 600M, and nothing replaces it before then.",
-                           "ダンジョン：卒業したポケモンでチームを組み、トークンで13のダンジョンを探検しよう。バトルも捕獲も自動で、負けても途中で出ても通った階の戦利品は残ります。T2からは宝箱からタマゴも出ます。ボスを捕まえるとそのタマゴがもらえ、すでに持っているボスはダンジョンのレア度のタマゴをくれます。伝説のボスはタマゴを一度だけくれます（持っていれば色違いで、色違いも持っていれば\(egg)）。そのポケモンは200Mトークンで卒業し（ふつうの伝説は600M）、卒業するまで入れ替えられません。",
-                           "Mazmorras: envía un equipo de Pokémon graduados a explorar 13 mazmorras con tus tokens. Los combates y la captura son automáticos, el botín de los pisos superados es tuyo tanto si el equipo cae como si sales, y desde T2 los cofres guardan huevos. Un jefe capturado da su huevo; uno que ya tienes da un huevo de la rareza de la mazmorra. Un jefe legendario da su huevo una sola vez (variocolor si ya lo tienes, un \(egg) si ya lo tienes variocolor); su Pokémon se gradúa con 200M tokens en vez de los 600M de un legendario, y nada lo sustituye antes.",
-                           "Donjons : envoie une équipe de Pokémon diplômés explorer 13 donjons avec tes tokens. Combats et capture automatiques, le butin des étages franchis reste à toi que l'équipe tombe ou que tu sortes, et les coffres cachent des œufs dès T2. Un boss capturé donne son œuf ; un boss que tu as déjà donne un œuf de la rareté du donjon. Un boss légendaire donne son œuf une seule fois (chromatique si tu l'as déjà, un \(egg) si tu l'as déjà chromatique) ; son Pokémon est diplômé en 200M tokens au lieu des 600M d'un légendaire, et rien ne le remplace d'ici là.",
-                           "Masmorras: envie uma equipe de Pokémon formados para explorar 13 masmorras com seus tokens. Batalhas e captura são automáticas, o espólio dos andares vencidos fica com você quer a equipe caia, quer você saia, e a partir de T2 os baús guardam ovos. Um chefe capturado dá o ovo dele; um que você já tem dá um ovo da raridade da masmorra. Um chefe lendário dá o ovo uma única vez (brilhante se você já o tem, um \(egg) se já o tem brilhante); o Pokémon dele se forma com 200M tokens em vez dos 600M de um lendário, e nada o substitui até lá.",
-                           "Dungeons: Schicke ein Team verabschiedeter Pokémon mit deinen Tokens in 13 Dungeons. Kämpfe und Fang laufen automatisch, die Beute der geschafften Ebenen bleibt dir, ob das Team fällt oder du gehst, und ab T2 stecken Eier in den Truhen. Ein gefangener Boss gibt sein Ei; einer, den du schon hast, gibt ein Ei der Seltenheit des Dungeons. Ein legendärer Boss gibt sein Ei nur einmal (schillernd, wenn du ihn schon hast, ein \(egg), wenn du ihn schon schillernd hast); sein Pokémon schließt mit 200M Tokens statt der 600M eines Legendären ab, und nichts ersetzt es bis dahin.",
-                           "Подземелья: отправьте команду выпущенных покемонов исследовать 13 подземелий за ваши токены. Бои и поимка автоматические, добыча пройденных этажей остаётся, падёт ли команда или вы уйдёте, а с T2 в сундуках бывают яйца. Пойманный босс даёт своё яйцо; уже имеющийся даёт яйцо редкости подземелья. Легендарный босс даёт яйцо один раз (шайни, если он у вас уже есть, и \"\(egg)\", если он у вас есть шайни); его покемон выпускается за 200M токенов вместо 600M у легендарного, и до этого его ничем не заменить.")
-            },
-            .new("2026-11-02-dungeon-moves") { l in
-                let capsule = l.dungeonTechnicalCapsule
-                return l.t("졸업한 포켓몬의 상세에서 던전에서 쓸 기술 4개를 고르세요. 모든 기술이 게임과 똑같이 작동해요. 위력 100 이상의 기술과, 효과가 능력치에 좌우되지 않는 몇몇 기술은 던전에서 얻는 \(capsule)로 풀려요.",
-                           "On a graduated Pokémon's page, choose the four moves it uses in the dungeons: each works as in the games. Moves of 100 power or more, and the few whose effect does not depend on stats, unlock with a \(capsule) won in the dungeons.",
-                           "卒業したポケモンの詳細で、ダンジョンで使う4つのわざを選ぼう。どのわざもゲームと同じように働きます。威力100以上のわざと、効果が能力に左右されない一部のわざは、ダンジョンで手に入る\(capsule)で使えるようになります。",
-                           "En la ficha de un Pokémon graduado, elige los cuatro movimientos que usa en las mazmorras: todos funcionan como en los juegos. Los de 100 de potencia o más, y los pocos cuyo efecto no depende de las estadísticas, se desbloquean con una \(capsule) ganada en ellas.",
-                           "Sur la fiche d'un Pokémon diplômé, choisis les quatre attaques qu'il utilise en donjon : chacune marche comme dans les jeux. Celles de puissance 100 ou plus, et les quelques-unes dont l'effet ne dépend pas des stats, se débloquent avec une \(capsule) gagnée en donjon.",
-                           "Na ficha de um Pokémon formado, escolha os quatro golpes que ele usa nas masmorras: todos funcionam como nos jogos. Os de poder 100 ou mais, e os poucos cujo efeito não depende dos atributos, se desbloqueiam com uma \(capsule) ganha nelas.",
-                           "Wähle auf der Seite eines verabschiedeten Pokémon die vier Attacken, die es in Dungeons nutzt: Jede wirkt wie in den Spielen. Attacken ab 100 Stärke und die wenigen, deren Wirkung nicht von den Werten abhängt, schaltet eine in Dungeons gewonnene \(capsule) frei.",
-                           "На странице выпущенного покемона выберите четыре приёма, которые он использует в подземельях: каждый работает как в играх. Приёмы мощностью от 100 и немногие, чей эффект не зависит от характеристик, открывает \"\(capsule)\", добытая в подземельях.")
-            },
-            .new("2026-11-02-dungeon-items") { l in
-                let great = l.itemName(.greatBall), ultra = l.itemName(.ultraBall), key = l.itemName(.legendaryKey)
-                return l.t("가방에 던전 아이템이 생겼어요: 나무열매, 기력의조각, 개체값을 31로 올리는 캡슐, \(key). \(great)과 \(ultra)은 상점에서도 팔아요.",
-                           "New dungeon items in the Bag: berries, Revives, Capsules that raise IVs to 31, the \(key). The \(great) and \(ultra) are also sold in the Shop.",
-                           "バッグにダンジョンの道具が加わりました：きのみ、げんきのかけら、個体値を31にするカプセル、\(key)。\(great)と\(ultra)はショップでも買えます。",
-                           "Nuevos objetos de mazmorra en la bolsa: bayas, Revivir, cápsulas que suben los IV a 31 y la \(key). La \(great) y la \(ultra) también se venden en la tienda.",
-                           "Nouveaux objets de donjon dans le Sac : baies, Rappels, Capsules qui montent les IV à 31, la \(key). La \(great) et l'\(ultra) sont aussi en vente à la Boutique.",
-                           "Novos itens de masmorra na bolsa: frutas, Revivers, cápsulas que elevam os IVs a 31 e a \(key). A \(great) e a \(ultra) também são vendidas na loja.",
-                           "Neue Dungeon-Items im Beutel: Beeren, Beleber, Kapseln, die DVs auf 31 heben, der \(key). \(great) und \(ultra) gibt es auch im Shop.",
-                           "Новые предметы подземелий в сумке: ягоды, оживители, капсулы, поднимающие IV до 31, и \"\(key)\". \"\(great)\" и \"\(ultra)\" продаются и в магазине.")
-            },
-            .new("2026-11-02-dungeon-medals") { l in
-                l.t("업적의 유물에 던전 메달 5개가 생겼어요: 던전을 처음 이길 때마다 보상, 등급의 던전을 모두 이기면 하나 더.",
-                    "Five dungeon medals join the Artifacts in Achievements: a reward for each dungeon won once, another for a whole tier.",
-                    "実績の「アーティファクト」にダンジョンのメダル5つが加わりました：ダンジョンに初めて勝つたびにごほうび、ランクの全ダンジョンでもう1つ。",
-                    "Cinco medallas de mazmorra se suman a los Artefactos en Logros: una recompensa por cada mazmorra ganada una vez y otra por un nivel entero.",
-                    "Cinq médailles de donjon rejoignent les Artefacts dans les Succès : une récompense par donjon gagné une fois, une autre pour tout un palier.",
-                    "Cinco medalhas de masmorra entram nos Artefatos em Conquistas: uma recompensa por masmorra vencida uma vez e outra por um nível inteiro.",
-                    "Fünf Dungeon-Medaillen kommen zu den Artefakten in den Erfolgen: eine Belohnung pro einmal gewonnenem Dungeon, eine weitere für eine ganze Stufe.",
-                    "Пять медалей подземелий добавлены к артефактам в успехах: награда за каждое подземелье, пройденное один раз, и ещё одна за целый уровень.")
-            },
-            .improved("2026-11-02-arceus-dungeon") { l in
-                let hall = l.dungeonName(.hallOfOrigin)
-                return l.t("아르세우스는 이제 어떤 알에서도 태어나지 않아요. \(hall) 던전의 보스로 잡으면 그 알을 받아요.",
-                           "Arceus no longer hatches from any egg: catch it as the boss of the \(hall) to get its egg.",
-                           "アルセウスはどのタマゴからも生まれなくなりました。\(hall)のボスとして捕まえると、そのタマゴがもらえます。",
-                           "Arceus ya no sale de ningún huevo: atrápalo como jefe de la \(hall) para conseguir su huevo.",
-                           "Arceus ne sort plus d'aucun œuf : capture-le en boss de la \(hall) pour avoir son œuf.",
-                           "Arceus não nasce mais de nenhum ovo: capture-o como chefe do \(hall) para ganhar o ovo dele.",
-                           "Arceus schlüpft aus keinem Ei mehr: Fange ihn als Boss im \(hall), um sein Ei zu bekommen.",
-                           "Арсеус больше не вылупляется ни из одного яйца: поймайте его как босса подземелья \"\(hall)\", чтобы получить его яйцо.")
-            },
             .fixed("2026-11-02-achievements-claimed-last", { $0.t("이미 받은 업적은 이제 목록 맨 아래로 내려가요.",
                                                                   "Achievements you already claimed now sit at the very bottom of their list.",
                                                                   "受け取り済みの実績は、リストのいちばん下に並ぶようになりました。",
