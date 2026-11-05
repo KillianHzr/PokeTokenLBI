@@ -194,7 +194,7 @@ final class ShopTests: XCTestCase {
     /// 상점 목록은 가격 오름차순(사탕 500M < 이로치 부적 3B). The Mint is retired: never sold, still in the code.
     func testItemsSortedByPriceAscending() {
         let items = store(used: 0).purchasableItems
-        XCTAssertEqual(items, [.rareCandy, .shinyCharm])
+        XCTAssertEqual(items, [.rareCandy, .greatBall, .shinyCharm, .ultraBall])
         XCTAssertTrue(ItemKind.mint.isRetired)
         XCTAssertNotNil(ItemKind.mint.shopPrice, "kept, only hidden")
         let prices = items.compactMap(\.shopPrice)
@@ -232,8 +232,10 @@ final class ShopTests: XCTestCase {
         XCTAssertEqual(s.shopEntries,
                        [.item(.rareCandy),   // 500M
                         .egg(nil),           // 1B
+                        .item(.greatBall),   // 2.5B, the Uncommon Egg's price (R12 B)
                         .egg(.uncommon),     // 2.5B
                         .item(.shinyCharm),  // 3B
+                        .item(.ultraBall),   // 4B, the Rare Egg's price
                         .egg(.rare)])        // 4B
         let prices = s.shopEntries.map(\.price)
         XCTAssertEqual(prices, prices.sorted(), "가격 상수가 바뀌어도 오름차순 불변식 유지")
@@ -247,8 +249,10 @@ final class ShopTests: XCTestCase {
         XCTAssertEqual(s.shopEntries,
                        [.item(.rareCandy),   // 500M
                         .egg(nil),           // 1B
+                        .item(.greatBall),   // 2.5B, the Uncommon Egg's price (R12 B)
                         .egg(.uncommon),     // 2.5B
                         .item(.shinyCharm),  // 3B
+                        .item(.ultraBall),   // 4B, the Rare Egg's price
                         .egg(.rare)])        // 4B
         for tier in FreshEgg.shopTiers {
             XCTAssertTrue(s.shopEntries.contains(.egg(tier)), "알 상태에서도 \(tier?.rawValue ?? "기본") 알은 노출 유지")

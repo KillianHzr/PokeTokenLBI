@@ -5,10 +5,14 @@ import SwiftUI
 struct BagView: View {
     let store: CompanionStore
     let nav: PopoverNavigation
+    /// The Bag's own height: what `BagHubView` leaves under its switch.
+    var height: CGFloat = 520
     @State private var section: Section = .items
+    /// What the last Explorer's Chest held: shown above the items, the chest gone with its last.
+    @State private var chestFound: (kind: ItemKind, count: Int)?
 
-    /// The Bag's sections, as the Achievements tabs: items (Shop, candies, stones), gym badges, artifacts. The
-    /// 18 badges used to fill the list and hide the other items.
+    /// The Bag's sections, as the Achievements tabs: items (Shop, candies, stones, the dungeons' consumables and
+    /// eggs), gym badges, artifacts. The 18 badges used to fill the list and hide the other items.
     enum Section: CaseIterable, Hashable {
         case items, badges, artifacts
 
@@ -30,10 +34,13 @@ struct BagView: View {
     @ViewBuilder
     private var content: some View {
         let owned = store.ownedItems
-        if owned.isEmpty {
+        let eggs = store.dungeonProgress.eggs
+        if owned.isEmpty && eggs.isEmpty && chestFound == nil {
             emptyState
         } else {
-            let sections = Section.allCases.filter { s in owned.contains { Section.of($0.kind) == s } }
+            let sections = Section.allCases.filter { s in
+                owned.contains { Section.of($0.kind) == s } || (s == .items && (!eggs.isEmpty || chestFound != nil))
+            }
             let current = sections.contains(section) ? section : sections[0]
             let items = owned.filter { Section.of($0.kind) == current }
             // 고정 높이 — 컬렉션과 동일(팝오버 재오픈 시 fitting size 축소 방지).
@@ -41,7 +48,7 @@ struct BagView: View {
                 if sections.count > 1 {
                     PillPicker(selection: Binding(get: { current }, set: { section = $0 }),
                                options: sections.map { s in
-                                   (s, "\(title(s)) \(owned.filter { Section.of($0.kind) == s }.count)")
+                                   (s, "\(title(s)) \(owned.filter { Section.of($0.kind) == s }.count + (s == .items ? eggs.count : 0))")
                                })
                 }
                 ScrollView {
@@ -49,15 +56,23 @@ struct BagView: View {
                         badgeGrid(items.map(\.kind))
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
+                            if current == .items {
+                                if let found = chestFound { chestBanner(found) }
+                                ForEach(eggs) { egg in
+                                    DungeonEggCard(store: store, nav: nav, egg: egg)
+                                }
+                            }
                             ForEach(items, id: \.kind) { item in
-                                ItemCard(store: store, nav: nav, kind: item.kind, count: item.count)
+                                ItemCard(store: store, nav: nav, kind: item.kind, count: item.count) {
+                                    chestFound = store.openExplorerChest()
+                                }
                             }
                         }
                         .reservesScrollerLane()
                     }
                 }
             }
-            .frame(height: 520)
+            .frame(height: height)
         }
     }
 
@@ -67,6 +82,22 @@ struct BagView: View {
         case .badges: return store.l.collectorGroupTitle(.gymBadges)
         case .artifacts: return store.l.collectorGroupTitle(.legendaryArtifacts)
         }
+    }
+
+    private func chestBanner(_ found: (kind: ItemKind, count: Int)) -> some View {
+        HStack(spacing: 8) {
+            ItemIconView(kind: found.kind, size: 28)
+            Text(store.l.dungeonChestFound(found.count > 1 ? "\(store.l.itemName(found.kind)) ×\(found.count)"
+                                                            : store.l.itemName(found.kind)))
+                .font(.callout.weight(.semibold))
+            Spacer(minLength: 4)
+            Button { chestFound = nil } label: { Image(systemName: "xmark") }
+                .buttonStyle(.borderless).controlSize(.small).foregroundStyle(.secondary)
+                .accessibilityLabel(store.l.close)
+        }
+        .padding(8)
+        .background(Color.orange.opacity(0.14))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     /// The badges in two columns: icon, name and bonus so far, with the effect said once above them.
@@ -107,6 +138,8 @@ private struct ItemCard: View {
     let nav: PopoverNavigation
     let kind: ItemKind
     let count: Int
+    /// Opens an Explorer's Chest; the Bag shows what it held.
+    var openChest: () -> Void = {}
     @State private var confirming = false
     @State private var candyCount = 1
 
@@ -240,6 +273,8 @@ private struct ItemCard: View {
                                   confirmText: l.stoneConfirm(store.displayName, l.itemName(kind))) {
                 store.useBagEgg(kind)
             }
+        } else if kind.isDungeonItem {
+            DungeonItemControls(store: store, nav: nav, kind: kind, openChest: openChest)
         } else if kind.isPassive {
             // 보유형(패시브 아이템): 사용 버튼 대신 상시 효과 표시.
             HStack(spacing: 6) {
@@ -316,6 +351,17 @@ extension CompanionStore {
     func effectHint(for kind: ItemKind) -> String {
         switch kind {
         case .rareCandy: return "+\(TokenFormatter.compact(rareCandyXP)) XP"
+        case .greatBall: return "×1.5"
+        case .ultraBall: return "×2"
+        case .masterBall: return "100%"
+        case .oranBerry: return "+25%"
+        case .sitrusBerry: return "+50%"
+        case .revive: return "50%"
+        case .maxRevive: return "100%"
+        case .treasureMap, .explorerChest, .legendaryKey: return l.dungeonItemHint
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal: return l.dungeonsTab
+        case .silverCapsule: return "IV 31"
+        case .goldCapsule: return "IV 31 ×6"
         case .mint:      return l.mintEffectHint
         case .shinyCharm: return l.shinyCharmEffectHint
         case .legendCharm: return l.legendCharmEffectHint

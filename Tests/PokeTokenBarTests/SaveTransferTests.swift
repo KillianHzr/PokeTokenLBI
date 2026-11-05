@@ -547,6 +547,101 @@ final class SaveTransferTests: XCTestCase {
         XCTAssertLessThanOrEqual(store.state.usedSinceInstall, SaveTransfer.maxTokenValue + 1_000)
     }
 
+    /// The dungeons travel with the save, and their counts are clamped there: a hand-edited floor, wins count or
+    /// token count trapped at its next use.
+    /// [Regression, review of 2026-11-04] What an import could carry that no build writes: an expedition already over
+    /// (it locked the dungeons), a boss the app does not know (its egg never opened), no throw left (each ball was spent
+    /// for nothing), and journal battles past what the engine takes (their replay crashed).
+    func testAnImportedExpeditionTheAppCannotCloseOrReplayIsMended() throws {
+        func start() throws -> Expedition {
+            let spec = try XCTUnwrap(BattlerSpec.make(id: "e6", speciesID: 6, level: 100))
+            return ExpeditionEngine.start(dungeon: DungeonCatalog.dungeon(.viridianForest),
+                                          team: [ExpeditionMember(entryID: "e6", spec: spec)], rules: [], teamSize: 1, seed: 1,
+                                          cost: 75_000_000, berries: [:], revives: [:],
+                                          context: ExpeditionContext(tier: .t1, shinyDenominator: 64, now: transferNow))
+        }
+        func sanitized(_ e: Expedition) -> Expedition? {
+            var state = oldMacState(today: "2026-08-03")
+            state.dungeons.expedition = e
+            return SaveTransfer.sanitized(state).dungeons.expedition
+        }
+        var over = try start()
+        over.phase = .finished(won: true)
+        XCTAssertNil(sanitized(over), "an expedition already over does not travel")
+        var unknown = try start()
+        unknown.boss = ExpeditionBoss(speciesID: 99_999, form: nil, isShiny: false)
+        unknown.phase = .capture(throwsLeft: 3)
+        XCTAssertNil(sanitized(unknown), "nor one whose boss the app does not know")
+        var noThrow = try start()
+        noThrow.phase = .capture(throwsLeft: 0)
+        XCTAssertEqual(sanitized(noThrow)?.phase, .capture(throwsLeft: 1))
+
+        var replayed = try start()
+        var huge = try XCTUnwrap(BattlerSpec.make(id: "x", speciesID: 25, level: 100))
+        huge.level = Int.max
+        huge.stats.hp = 0
+        huge.stats.attack = Int.max
+        let good = BattleSetup(sides: [BattleSideSpec(battlers: [huge], active: 9), BattleSideSpec(battlers: [huge], active: 1)], seed: 1)
+        let lopsided = BattleSetup(sides: [BattleSideSpec(battlers: [huge], active: 1)], seed: 1)
+        let context = ExpeditionContext(tier: .t1, shinyDenominator: 64, now: transferNow)
+        for setup in [good, lopsided] {
+            ExpeditionEngine.append(&replayed, .battle(ExpeditionBattle(kind: .wild, setup: setup, won: true, duration: 1, foes: [25])),
+                                    context: context)
+        }
+        let battles = try XCTUnwrap(sanitized(replayed)).log.compactMap { entry -> ExpeditionBattle? in
+            if case .battle(let battle) = entry.kind { return battle } else { return nil }
+        }
+        XCTAssertEqual(battles.count, 1, "a battle without its two sides goes")
+        let kept = try XCTUnwrap(battles.first?.setup.sides.first)
+        XCTAssertEqual(kept.active, 1)
+        XCTAssertEqual(kept.battlers[0].level, 100)
+        XCTAssertEqual(kept.battlers[0].stats.hp, 1)
+        XCTAssertEqual(kept.battlers[0].stats.attack, 20_000)
+        _ = BattleEngine.run(try XCTUnwrap(battles.first?.setup))   // it replays
+    }
+
+    func testTheDungeonsTravelAndAreClamped() throws {
+        var state = oldMacState(today: "2026-08-03")
+        var spec = try XCTUnwrap(BattlerSpec.make(id: "e6", speciesID: 6, level: 100))
+        spec.stats.attack = Int.max
+        spec.hp = Int.max
+        var e = ExpeditionEngine.start(dungeon: DungeonCatalog.dungeon(.viridianForest),
+                                       team: [ExpeditionMember(entryID: "e6", spec: spec)], rules: [], teamSize: 1, seed: 1,
+                                       cost: 75_000_000, berries: [:], revives: [:],
+                                       context: ExpeditionContext(tier: .t1, shinyDenominator: 64, now: transferNow))
+        e.floor = -3
+        e.floorTokens = Int.max
+        e.loot.candies = Int.max
+        state.dungeons.expedition = e
+        state.dungeons.wins = ["viridianForest": Int.max]
+        state.dungeons.departures = -7
+        state.dungeons.moveLoops = ["e6": ["flamethrower"]]
+        state.dungeons.eggs = [DungeonEgg(id: "a", baseID: 147, form: nil, isShiny: true, sourceSpeciesID: 149),
+                               DungeonEgg(id: "bad", baseID: 99_999, form: nil, isShiny: false, sourceSpeciesID: 0)]
+        state.dungeons.battleFormChoice = ["e6": "mega-x", "e9": "not-a-form"]
+        state.dungeons.challengeDraws = ["daily:2026-08-03": "6-mega-x", "daily:x": "6-mega-w"]
+
+        let data = try SaveTransfer.encode(state: state, appVersion: "2.5.0", deviceName: "Old Mac", now: transferNow)
+        let d = try SaveTransfer.decode(data).state.dungeons
+        XCTAssertEqual(d.moveLoops, ["e6": ["flamethrower"]])
+        // [Regression, review of 2026-11-02] An egg the app cannot hatch, a member's form or a draw it does not know,
+        // a throw count past three: each is dropped or clamped at the boundary.
+        XCTAssertEqual(d.eggs, [state.dungeons.eggs[0]], "the unhatchable egg is dropped")
+        XCTAssertEqual(d.battleFormChoice, ["e6": "mega-x"])
+        XCTAssertEqual(d.challengeDraws, ["daily:2026-08-03": "6-mega-x"])
+        let walked = try XCTUnwrap(d.expedition)
+        XCTAssertEqual(walked.floor, 1)
+        XCTAssertEqual(walked.floorTokens, SaveTransfer.maxTokenValue)
+        XCTAssertEqual(walked.loot.candies, SaveTransfer.maxItemCount)
+        XCTAssertEqual(walked.team[0].spec.stats.attack, 20_000)
+        XCTAssertEqual(walked.team[0].spec.hp, walked.team[0].spec.stats.hp)
+        XCTAssertEqual(d.wins["viridianForest"], SaveTransfer.maxItemCount)
+        XCTAssertEqual(d.departures, 0)
+        // The clamped walk goes on without trapping.
+        var next = walked
+        ExpeditionEngine.feed(&next, tokens: 1_000, context: ExpeditionContext(tier: .t1, shinyDenominator: 64, now: transferNow))
+    }
+
     /// [회귀·딥리뷰 H2 후속] 불러오기 경계만 막으면 **이미 디스크에 있는** 극단값은 남아, 매 기동마다
     /// 같은 값을 읽어 산술 트랩으로 죽는 상태를 벗어나지 못한다(디코드가 성공하므로 `.corrupt` 복구도
     /// 발동 안 함). 상태 파일을 읽는 경로에서도 같은 정규화가 걸려야 자가 복구된다.
@@ -605,7 +700,10 @@ final class SaveTransferTests: XCTestCase {
                                      // What the Old Amber kept for the egg incubating, the graduations toward the
                                      // Explorer Kit's next treasure and the treasures not seen yet: they follow the egg,
                                      // the count and the Bag they belong to.
-                                     "amberCarry", "graduationsTowardTreasure", "unseenTreasures"]
+                                     "amberCarry", "graduationsTowardTreasure", "unseenTreasures",
+                                     // The expedition under way, the dungeons' wins, loops and eggs, and the dungeon
+                                     // egg incubating: the team and the Bag they belong to follow the save.
+                                     "dungeons", "eggFromDungeon"]
         let deviceLedger: Set<String> = ["installBaselineSet", "claimedTodayTokensByProvider", "lastDate"]
         let accountLedger: Set<String> = ["candyGrantTier", "candyWindowEpoch", "candyWindowPlan", "candyFeatureSeeded",
                                           "candyGrantsAsYouGo"]

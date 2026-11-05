@@ -554,6 +554,8 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
     /// The appearance of an individual at one species: its own form when that species has it,
     /// otherwise the species default. Nil for species without forms.
     static func resolved(speciesID: Int, form: PokemonForm?) -> PokemonForm? {
+        // A battle form (a Mega, a Gigantamax) is kept as it is: it is not in the catalog eggs roll from.
+        if BattleForms.form(speciesID: speciesID, form: form) != nil { return form }
         // A costume only changes Pikachu's sprites (`PikachuCostume`).
         if PikachuCostume(speciesID: speciesID, form: form) != nil { return form }
         let forms = forms(speciesID: speciesID)
@@ -615,6 +617,7 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
     /// Static PNGs of forms that are separate PokéAPI varieties live under the variety id.
     static func staticAssetName(speciesID: Int, form: PokemonForm?) -> String {
         if let costume = PikachuCostume(speciesID: speciesID, form: form) { return String(costume.pokemonID) }
+        if let battle = BattleForms.form(speciesID: speciesID, form: form) { return String(battle.pokemonID) }
         let resolved = resolved(speciesID: speciesID, form: form)
         if let pokemonID = entries(speciesID: speciesID).first(where: { $0.form == resolved })?.pokemonID {
             return String(pokemonID)
@@ -633,12 +636,14 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
     /// (10103 for an Alolan Vulpix), else the species, whose default form also stands for the forms that only change
     /// a look (Unown's letters, Arceus's Plates).
     static func detailsID(speciesID: Int, form: PokemonForm?) -> Int {
+        if let battle = BattleForms.form(speciesID: speciesID, form: form) { return battle.pokemonID }
         let resolved = resolved(speciesID: speciesID, form: form)
         return entries(speciesID: speciesID).first { $0.form == resolved }?.pokemonID ?? speciesID
     }
 
     /// PokéAPI `pokemon-form` id holding the localized form names. Nil for species without forms.
     static func formID(speciesID: Int, form: PokemonForm?) -> Int? {
+        if let battle = BattleForms.form(speciesID: speciesID, form: form) { return battle.formID }
         let resolved = resolved(speciesID: speciesID, form: form)
         return entries(speciesID: speciesID).first { $0.form == resolved }?.formID
     }
@@ -702,6 +707,12 @@ extension PokemonForm {
                       names: PokemonNameDisplayStore = .shared) -> String? {
         guard let form = resolved(speciesID: speciesID, form: form) else { return nil }
         if speciesID == unownSpeciesID { return form.symbol }
+        // PokéAPI names few of them outside English, French and German: the app names them in every language.
+        if let battle = BattleForms.form(speciesID: speciesID, form: form) {
+            let own = L(language).battleFormLabel(battle)
+            return battleBase(battle).flatMap { label(speciesID: speciesID, form: $0, language: language, names: names) }
+                .map { "\(own) (\($0))" } ?? own
+        }
         if hasUnnamedDefault(speciesID: speciesID, form: form) { return L(language).normalForm }
         if let name = appName(speciesID: speciesID, form: form, language: language, names: names) { return name }
         let translations = nameResource(speciesID: speciesID, form: form).flatMap { names.names[$0] }
@@ -734,9 +745,26 @@ extension PokemonForm {
         }
     }
 
+    /// The species' own form a battle form grows from, when it has several: "curly" for Tatsugiri's "curly-mega",
+    /// "rapid-strike" for Urshifu's Gigantamax. What tells its battle forms apart: three Megas read "Mega" alike.
+    static func battleBase(_ battle: BattleForm) -> PokemonForm? {
+        let raw = battle.form.rawValue
+        for suffix in ["-mega", "-gmax", "-primal"] where raw.hasSuffix(suffix) {
+            let base = PokemonForm(String(raw.dropLast(suffix.count)))
+            return forms(speciesID: battle.speciesID).contains(base) ? base : nil
+        }
+        return nil
+    }
+
     @MainActor
     static func displayName(_ name: String, speciesID: Int, form: PokemonForm?, language: AppLanguage) -> String {
-        displayName(name, speciesID: speciesID, form: form,
-                    label: label(speciesID: speciesID, form: form, language: language))
+        // "Mega Charizard X", "Gigantamax Pikachu": the form's own name holds the species'.
+        if let battle = BattleForms.form(speciesID: speciesID, form: form) {
+            let full = L(language).battleFormName(battle, species: name)
+            return battleBase(battle).flatMap { label(speciesID: speciesID, form: $0, language: language) }
+                .map { "\(full) (\($0))" } ?? full
+        }
+        return displayName(name, speciesID: speciesID, form: form,
+                           label: label(speciesID: speciesID, form: form, language: language))
     }
 }

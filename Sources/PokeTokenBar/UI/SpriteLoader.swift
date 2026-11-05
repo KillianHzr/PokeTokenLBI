@@ -358,6 +358,8 @@ enum SpriteLoader {
     static func animationFrames(speciesID: Int, shiny: Bool, store: SpriteStore = .shared,
                                 form: PokemonForm? = nil) async
         -> [(image: NSImage, delay: TimeInterval)] {
+        // A battle form Showdown has no GIF for (the Megas of Legends Z-A) stays on its still, asked for nothing.
+        if BattleForms.form(speciesID: speciesID, form: form)?.isAnimated == false { return [] }
         for variant in shiny ? [true, false] : [false] {
             guard !Task.isCancelled else { return [] }
             let cached = cachedFrames(speciesID: speciesID, shiny: variant,
@@ -388,8 +390,10 @@ enum SpriteLoader {
         onUnavailable: () async -> Void
     ) async -> [(image: NSImage, delay: TimeInterval)] {
         guard !Task.isCancelled else { return [] }
-        // Unsupported species have no GIF endpoint; a static fallback is their final state.
-        guard PokemonAssets.hasAnimatedSprite(speciesID: speciesID) else {
+        // Unsupported species have no GIF endpoint, nor the battle forms Showdown lacks; a static fallback is their
+        // final state.
+        guard PokemonAssets.hasAnimatedSprite(speciesID: speciesID),
+              BattleForms.form(speciesID: speciesID, form: form)?.isAnimated != false else {
             await onUnavailable()
             return []
         }

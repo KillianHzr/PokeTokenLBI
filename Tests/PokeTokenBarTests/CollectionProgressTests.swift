@@ -12,10 +12,11 @@ final class CollectionProgressTests: XCTestCase {
 
     func testTotalsCoverEverySpeciesAndForm() {
         let extraForms = PokemonAssets.animatedSpeciesIDs.reduce(0) { $0 + max(0, PokemonForm.forms(speciesID: $1).count - 1) }
-        XCTAssertEqual(CompanionStore.collectableFormCount, 1025 + extraForms)
+        XCTAssertEqual(CompanionStore.collectableFormCount, 1025 + extraForms + BattleForms.all.count)
         // 1,280, plus Alcremie's 62, Origin Dialga and Palkia, Hoopa Unbound, Bloodmoon Ursaluna, Maushold's
-        // Family of Three, the female Indeedee and Oinkologne, and Partner Eevee.
-        XCTAssertEqual(CompanionStore.collectableFormCount, 1350)
+        // Family of Three, the female Indeedee and Oinkologne, and Partner Eevee: 1,350; and the 132 battle forms the
+        // daily and weekly dungeons give (2026-11-02).
+        XCTAssertEqual(CompanionStore.collectableFormCount, 1350 + 132)
     }
 
     func testProgressCountsSpeciesAndTheirForms() throws {

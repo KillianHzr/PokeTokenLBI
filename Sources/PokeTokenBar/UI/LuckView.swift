@@ -246,7 +246,7 @@ struct LuckScreen: View {
                 if hatch.asksEgg {
                     eggMenu(hatch, l)
                 } else if afterRelease {
-                    Text(l.hatchEggName(hatch.egg)).font(.caption2).foregroundStyle(.secondary)
+                    Text(eggName(hatch.egg, l)).font(.caption2).foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 4)
@@ -255,6 +255,12 @@ struct LuckScreen: View {
                 .foregroundStyle(direction > 0 ? Color.readableGreen : direction < 0 ? Color.red : Color.secondary)
                 .padding(.top, 7)
         }
+    }
+
+    /// A dungeon egg by the Pokémon it hatches, as in the Bag; the others by `L.hatchEggName`.
+    private func eggName(_ egg: HatchEgg?, _ l: L) -> String {
+        if case .dungeon(let baseID, _, _) = egg { return DungeonEggTitle.text(baseID, l: l, language: store.language) }
+        return l.hatchEggName(egg)
     }
 
     private func eggMenu(_ hatch: HatchLuck.Hatch, _ l: L) -> some View {
@@ -286,7 +292,7 @@ struct LuckScreen: View {
                 }
             }
         } label: {
-            Text(l.hatchEggName(hatch.egg)).font(.caption)
+            Text(eggName(hatch.egg, l)).font(.caption)
         }
         .menuStyle(.button)
         .controlSize(.small)

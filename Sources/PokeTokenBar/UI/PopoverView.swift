@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-enum PopoverTab { case home, shop, bag, collection, achievements }
+enum PopoverTab { case home, shop, bag, collection, achievements, dungeons }
 
 /// The popover's tab bar: five equal tabs, an icon over a short label, the selected one on a pill in the color of
 /// the Pokémon being raised. Achievements ready to claim show as a count on the trophy. Each label must fit its
@@ -19,21 +19,22 @@ struct PopoverTabPicker: View {
     static let minimumLabelScale: CGFloat = 0.8
 
     func items() -> [(tab: PopoverTab, title: String, icon: String)] {
-        [(.home, l.home, "house.fill"), (.shop, l.shop, "cart.fill"), (.bag, l.bag, "bag.fill"),
-         (.collection, l.collection, "books.vertical.fill"), (.achievements, l.achievements, "trophy.fill")]
+        // Five tabs: the Bag and the achievements share the Trainer tab (`BagHubView`), a sixth left no room.
+        [(.home, l.home, "house.fill"), (.shop, l.shop, "cart.fill"), (.bag, l.trainerTab, "person.fill"),
+         (.collection, l.collection, "books.vertical.fill"), (.dungeons, l.dungeonsTab, "map.fill")]
     }
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(items(), id: \.tab) { item in
-                let selected = tab == item.tab
+                let selected = tab == item.tab || (item.tab == .bag && tab == .achievements)
                 Button { tab = item.tab } label: {
                     VStack(spacing: 3) {
                         Image(systemName: item.icon)
                             .font(.system(size: 14, weight: .semibold))
                             .frame(height: 16)
                             .overlay(alignment: .topTrailing) {
-                                if item.tab == .achievements, unclaimedAchievements > 0 {
+                                if item.tab == .bag, unclaimedAchievements > 0 {
                                     Text("\(unclaimedAchievements)")
                                         .font(.system(size: 8, weight: .bold, design: .rounded))
                                         .foregroundStyle(.white)
@@ -55,8 +56,8 @@ struct PopoverTabPicker: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(item.tab == .achievements ? l.achievementsTab(unclaimed: unclaimedAchievements)
-                                                              : item.title)
+                .accessibilityLabel(item.tab == .bag && unclaimedAchievements > 0
+                                    ? "\(item.title), \(l.achievementsTab(unclaimed: unclaimedAchievements))" : item.title)
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
@@ -117,6 +118,16 @@ final class PopoverNavigation {
     var showingCalendar = false { didSet { if showingCalendar { dexDetailCollectionID = nil } } }
     /// Prof. Oak's details page (`OakAdviceScreen`) too.
     var showingOakDetails = false { didSet { if showingOakDetails { dexDetailCollectionID = nil } } }
+    /// The team screen of a dungeon (`DungeonTeamScreen`), over the popover.
+    var dungeonTeam: DungeonID?
+    /// A dungeon battle replayed (`BattleReplayScreen`): "Revoir, c'est rejouer".
+    var replayBattle: ExpeditionBattle?
+    /// Where the replay starts: a battle still being fought opens live, at its present moment.
+    var replayStart = 0
+    /// The whole journal of the expedition (`ExpeditionLogScreen`).
+    var showingExpeditionLog = false
+    /// A Capsule being used from the Bag (`CapsuleScreen`).
+    var capsule: ItemKind?
     /// The Luck screen (`LuckScreen`) too, on one of its tabs; it reopens on its summary.
     var showingLuck = false { didSet { if showingLuck { dexDetailCollectionID = nil } } }
     enum LuckTab: Hashable, CaseIterable { case summary, curves, hatches }
@@ -174,6 +185,11 @@ final class PopoverNavigation {
         showingIdeas = false
         showingCalendar = false
         showingOakDetails = false
+        dungeonTeam = nil
+        replayBattle = nil
+        replayStart = 0
+        showingExpeditionLog = false
+        capsule = nil
         showingLuck = false
         luckTab = .summary
         tab = .home
@@ -261,6 +277,20 @@ struct PopoverView: View {
                 EventCalendarScreen(store: companion) { nav.showingCalendar = false }
             } else if nav.showingOakDetails {
                 OakAdviceScreen(store: companion) { nav.showingOakDetails = false }
+            } else if let battle = nav.replayBattle {
+                BattleReplayScreen(store: companion, battle: battle, startAt: nav.replayStart) {
+                    nav.replayBattle = nil
+                    nav.replayStart = 0
+                }
+            } else if nav.showingExpeditionLog {
+                ExpeditionLogScreen(store: companion, nav: nav)
+            } else if let capsule = nav.capsule {
+                CapsuleScreen(store: companion, kind: capsule) { nav.capsule = nil }
+            } else if let dungeon = nav.dungeonTeam {
+                DungeonTeamScreen(store: companion, dungeon: dungeon) { nav.dungeonTeam = nil } onDepart: {
+                    nav.dungeonTeam = nil
+                    nav.tab = .home
+                }
             } else if nav.showingLuck {
                 LuckScreen(store: companion, nav: nav) { nav.showingLuck = false }
             } else {
@@ -577,21 +607,29 @@ struct PopoverView: View {
             newsStrip
             PopoverTabPicker(tab: $nav.tab, l: l, unclaimedAchievements: companion.unclaimedAchievementsCount)
 
-            if nav.tab == .collection {
+            if nav.tab == .dungeons {
+                DungeonsView(store: companion, nav: nav)
+            } else if nav.tab == .collection {
                 CollectionView(store: companion, navigation: nav)
-            } else if nav.tab == .achievements {
-                AchievementsView(store: companion, nav: nav)
-            } else if nav.tab == .bag {
-                BagView(store: companion, nav: nav)
+            } else if nav.tab == .bag || nav.tab == .achievements {
+                BagHubView(store: companion, nav: nav)
             } else if nav.tab == .shop {
                 ShopView(store: companion, nav: nav)
             } else {
                 // 고정 높이 — 상점/가방/컬렉션과 동일(팝오버가 화면을 넘어가는 것을 방지).
                 ScrollView {
                     VStack(alignment: .leading, spacing: Design.sectionSpacing) {
-                        CompanionHeader(store: companion, onOpenDexEntry: { nav.openDexEntry(collectionID: $0) },
-                                        onOpenBonuses: { nav.showingBonuses = true },
-                                        onOpenAchievement: { nav.openAchievement($0) })
+                        ExpeditionResultCard(store: companion, nav: nav)
+                        ExpeditionCard(store: companion, nav: nav)
+                        // While a team explores, the Pokémon raised waits as one small line; the card comes back
+                        // with its growth.
+                        if companion.growthPaused {
+                            PausedCompanionStrip(store: companion)
+                        } else {
+                            CompanionHeader(store: companion, onOpenDexEntry: { nav.openDexEntry(collectionID: $0) },
+                                            onOpenBonuses: { nav.showingBonuses = true },
+                                            onOpenAchievement: { nav.openAchievement($0) })
+                        }
                         header
                         providerStatusBanner   // 인시던트 있을 때만 — 한도 가용 여부와 무관(API 다운=한도 nil 케이스에도)
                         if selectedProviderHasLimits {

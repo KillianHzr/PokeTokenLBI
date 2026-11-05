@@ -53,6 +53,8 @@ enum PikachuCostume: String, CaseIterable, Codable, Sendable {
         guard speciesID == Self.speciesID else { return form }
         if form == plain { return nil }
         if PikachuCostume(speciesID: Self.speciesID, form: form) != nil { return form }
+        // A battle form is its own look: a Gigantamax Pikachu wears no costume.
+        if BattleForms.form(speciesID: Self.speciesID, form: form) != nil { return form }
         return equipped?.form ?? form
     }
 

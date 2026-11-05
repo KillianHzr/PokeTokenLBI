@@ -172,7 +172,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         withObservationTracking {
             let menu = UsageStore.CompanionMenu(
                 toNext: companion.menuTokensToNext,
-                shop: companion.availableTokens)
+                shop: companion.availableTokens,
+                dungeonFloor: companion.dungeonMenuFloor,
+                dungeonAlert: companion.dungeonNeedsAttention)
             if store.companionMenu != menu { store.companionMenu = menu }
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeCompanionMenu() }
@@ -183,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         withObservationTracking {
             _ = companion.representativeSubject
             _ = companion.eggKind   // a guarantee bought redraws the egg
+            _ = companion.expedition?.dungeon   // a team setting off or back
             _ = store.animationQuality
             _ = store.menuSpriteMode
         } onChange: { [weak self] in
@@ -364,10 +367,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             needsSpriteLayout = true
         }
         let still = mode == .still
+        // Q30 C: while a team explores, its dungeon stands in for the Pokémon whose growth it pauses; a daily or weekly
+        // dungeon's boss stands in for it, as on its cards.
+        if let dungeon = companion.expedition?.dungeon, !dungeon.isChallenge, let diorama = DungeonSprites.trimmedImage(dungeon) {
+            let key = "dungeon-\(dungeon.rawValue)"
+            if key == menuSpriteKey, !menuFrames.isEmpty { return }
+            menuLoadTask?.cancel()
+            menuLoadTask = nil
+            menuSpriteKey = key
+            menuLoadGen += 1
+            setMenuFrames(Self.stillFrame(from: NSImage(cgImage: diorama, size: NSSize(width: diorama.width,
+                                                                                      height: diorama.height))))
+            return
+        }
         let subject = companion.representativeSubject
-        let id = subject.speciesID
-        let shiny = subject.isShiny
-        let form = subject.form
+        let challengeBoss = companion.expedition.flatMap { $0.dungeon.isChallenge ? $0.boss : nil }
+        let id = challengeBoss?.speciesID ?? subject.speciesID
+        let shiny = challengeBoss == nil && subject.isShiny
+        let form = challengeBoss.map(\.form) ?? subject.form
         let egg = companion.eggKind
         let key = (id.map { Self.menuSpriteKey(id: $0, shiny: shiny, floor: menuFrameFloor, form: form) }
             ?? "egg-\(egg)-\(menuFrameFloor)") + (still ? "-still" : "")

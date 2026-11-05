@@ -515,6 +515,24 @@ read_when:
   and failed three identity assertions; locally the sprites come from disk at once, so nothing showed. Both
   classes now lift the cache limit in `setUp` and restore it in `tearDown`.
 
+- **A table read for one use is not checked for another: test every row the new use reads.** The daily and weekly
+  dungeons' bosses are battle forms (Megas, Gigantamax), and 82 of the 132 had no loop: PokéAPI gives the
+  Gigantamax and the Legends: Z-A Megas no learnset, so `generate-battle-data.py` looped nothing and `BattlerSpec.make`
+  fell back to Struggle. The challenge tests checked the boss's form, stats and reward, never its moves; the battle
+  tests built bosses from species with moves. A form without a learnset now takes its species' default variety's,
+  picked by its own types, and `testEverySpeciesLoopsAMove` checks that no variety of the table loops nothing (it
+  failed on the previous table: 83 varieties, 82 of them battle forms). Sweep: the pools came from the same
+  learnsets and were empty too; Metapod, Ditto, Wobbuffet, Smeargle and the other species whose moves the rules never
+  loop now loop what they know (the moves that knock out at once aside).
+
+- **A data key the code names must be read from the data, not guessed.** Bulletproof never stopped a ball or a bomb:
+  `BattleMove.isBallistic` looked for a "ballistic" flag where PokéAPI writes "ballistics", and `absorbs` asked for
+  Soundproof in the same condition (`d.ability == "soundproof", sound || bulletproof && ball`). No test played the
+  ability, and the engine's tests only used flags that happened to be spelt right. `testEveryFlagTheEngineReadsExists`
+  now checks each flag the engine reads against the move table, and plays Bulletproof against Shadow Ball (it fails with
+  either defect put back). Sweep of the flags read: all exist; "slicing" and "wind", which PokéAPI does not have at all,
+  since the generator takes Showdown's flags too (2026-11-03, `testEveryFlagTheEngineReadsExists` asks for both).
+
 - **An NSCache is no place to prove an object is kept: it lets entries go on its own.** The guard above lifted the
   entry count only, and the cache gained a 64 MB cost limit later (`e6683cd`, 2026-10-29); lifting that too
   (`df04340`) was not enough. Full suites on the dungeons branch still failed the identity checks of
@@ -733,6 +751,23 @@ read_when:
   (`activeNews.newSpecies`, every branch): an Eevee showed "+4" for Kanto's Legendary Egg, where graduating it adds 2.
   **Why missed:** the test's Larvitar line has no branch. A goal counts the branch that advances it most
   (`testABranchedLineCountsOneBranch`).
+
+- **Every path that ends or clears a cast says who starts the next.** The battle engine restarts a Pokémon's cast
+  when its cast completes; the review of 2026-11-04 found six other ways out that left one idle for good: cured of its
+  sleep by an ally's Heal Bell (the sleep had cleared its cast), a Rest stolen with Snatch (asleep with its Tackle still
+  under way, which landed), Disable on the move Outrage locked (Struggle for the rest of the battle), Revival Blessing
+  bringing back the first to fall while the fallen one that took its place still held it (on the bench for good), and
+  two casts ending in the same step where the first flinches the second. A pass after the casting loop now starts a
+  cast for every active, awake Pokémon without one. **Why it was missed:** the engine's tests played each move against
+  a fresh foe; none had the cure, the theft or the lock land on a Pokémon whose cast was already gone. Guards:
+  `BattleEngineEdgeTests`, each played from the situation that triggers it and checked to fail with its fix removed.
+- **A cost in HP checks there is HP to pay.** Shedinja has 1 HP: Substitute (a quarter) and Belly Drum (a half) cost
+  it nothing and still worked, Curse cost it 0. Each cost needs a non-zero share, Curse costs at least 1
+  (`testShedinjaPaysForWhatCostsHP`). Sweep: every move that pays HP goes through `isUseful` and `use`.
+- **A departure checks the boss the screen showed.** The daily and weekly challenges draw their boss for the day: a
+  team screen opened before midnight showed one boss and set off against the next day's. The screen keeps the boss it
+  showed (`shownBoss`) and `startExpedition(_:team:expectedBoss:)` refuses when the draw changed, refreshing the screen
+  (`DungeonStoreTests.testAChallengeDepartureWaitsForTheBossItShowed`).
 
 ## 외부 로그·사용량 소스
 
@@ -1296,6 +1331,11 @@ read_when:
   is computed into a local first. **Sweep:** no other optional-chained write of `CompanionStore` reads `state` on its
   right (`grep -nE 'state\.active\?\.[A-Za-z]+ (=|\+=) '`).
 
+- **Deep recursion runs on a thread whose stack size it sets.** A battle ran in `Task.detached`, on a secondary thread
+  of 512 KB: a debug build overflowed it in `faint` (`___chkstk_darwin`) on a long battle, where the main thread's 8 MB
+  had never been short. `BattleEngine.offMain` runs the work on a `Thread` of 16 MB. **Why it was missed:** the tests
+  run the engine on the test's own main thread. Guards: `BattleThreadTests` plays a battle on that thread and scans the
+  sources for `Task.detached` around `BattleEngine.run`, the team screen's estimate or `ExpeditionEngine`.
 - **A system resource per object makes the suite pay it hundreds of times.** Live usage gave each `UsageStore` an
   FSEvents stream; the suite makes hundreds of stores, and each stream's start and stop talk to `fseventsd`: two full
   runs stalled one rendering test for 937 s and 385 s (about 125 s in all before). **Why it showed:** the duration, not
@@ -1340,6 +1380,12 @@ read_when:
   `writeAndFlush` 로 묶는다. `AppLog.writeAndFlush` 는 테스트된 `backend.writeAndFlush` 를
   타야 한다 — `write()`+`flush()` 두 번째 쌍은 가드가 안 되고, `flush()` 만 빼면 스위트가
   초록인데 #174 가 다시 산다. (#174)
+
+- **A step that crashed once is not played again at launch.** A dungeon step that trapped (the stack overflow below,
+  an engine edge case) left the expedition as it was, so each launch played the same step and crashed again: the app
+  could not open. The store marks a step in flight in UserDefaults (`dungeonStepInFlight`) around
+  `ExpeditionEngine.feed` and `answerHeal`; a launch that finds the mark ends that expedition (abandoned, its tokens
+  back to growth) instead of replaying it (`DungeonStoreTests.testAStepThatNeverCameBackEndsItsExpedition`).
 
 ## 표시·UI
 
@@ -1804,6 +1850,32 @@ read_when:
   in the footer, which left the refresh time some 70 points: "Mis à jour 3 s" broke in two, seen on the PR's renders.
   The icons sit 6 points apart and the time keeps one line (French, German and Russian rendered).
 
+- **A width test counts what it measures from the view, never by hand.** The Dungeons tab made the popover's tab bar
+  six labels wide and "Achievements" was cut in English ("Achieveme…"), seen on the PR's renders.
+  `testTabBarFitsThePopoverInEveryLanguage` passed: it divided the bar by a literal 5, from the day it guarded the
+  fifth tab. It now divides by `picker.items().count`, which failed in English (56 pt for a 53 pt tab). The owner then
+  asked for five tabs at most: the Bag and the achievements share a Trainer tab (`BagHubView`, "Bag | Achievements").
+  Sweep: the Achievements sections' width test reads its categories from `allCases`.
+
+- **A line of sprites and words keeps its words whole.** The expedition journal on Home put a battle's kind, three
+  sprites a side and "Replay" in one `HStack`: in English "Horde" and "Replay" broke in two (PR renders). The words
+  are `fixedSize`, two sprites a side, and a live battle shows its antenna alone ("En direct" overflowed in French
+  and Spanish). Guard: `ExpeditionLayoutTests.testAJournalBattleFitsOnOneLine` measures the line's natural width in
+  every language, live or not, against the card's; three sprites a side make it fail.
+
+- **A screen's estimate takes the path the real thing takes.** The team screen ran the odds through its own copy of
+  the departure: no boss for the daily and weekly dungeons (whose boss is drawn, `bosses: []`), so `[][0]` crashed the
+  app on Prepare; and no berries, Revives or battle forms, so the odds understated the team that would set off.
+  **Why it was missed:** the store's own `reachOdds` (the departure's inputs) was tested and never called; the screen's
+  copy was untested. The screen now runs `CompanionStore.reachEstimate`, the departure's inputs, and the engine never
+  indexes an empty boss list. Guard: `DungeonStoreTests.testAChallengesOddsDoNotCrash` (crashes with the guard
+  removed). Sweep: every other random pick is over a fixed table or a list a test keeps non-empty (`DungeonTests`).
+
+- **What a consumer does not take goes back.** `ExpeditionEngine.feed` dropped the tokens left once the boss fell or the
+  team lost, while the store said they went to the dungeon: a morning's catch-up finishing the last floor lost the
+  rest to every growth. `feed` and `answerHeal` return what they leave; the store credits it to the egg or the
+  Pokémon. Guard: `testTokensPastTheEndGoBackToGrowth` (fails with the leftover dropped).
+
 - **A line's branches answer "is it a duplicate", never "what will it bring".** `ActiveNews.newSpecies` unites every way the
   Pokémon raised can still take, on purpose: it says whether sending it off loses anything without giving its route away.
   Prof. Oak's bubble and the badge's hint read the union as this individual's gain: an Applin "would bring 5 species" when it
@@ -1832,6 +1904,23 @@ read_when:
 - **A hit and its odds read the same predicate, and a better result never lowers a score.** "Exactly this rarity" made a
   Legendary a miss for Rare. Both now count that rarity or better. A draw at odds of one is no luck either: it leaves the counts,
   and a miss at those odds, possible when a date only approximates an item, no longer sinks the percentile.
+
+- **A word that must not break is fixed, so a width test sees it.** The review of 2026-11-04 rendered the dungeon
+  screens in every language: the Ruins of Alph's bosses (every final species, one sprite each) pushed the popover wider;
+  a German entry ("3 Legendary Keys" and its button) beside the bosses broke its text in two; Tatsugiri's three Megas
+  beside "Usual" broke their labels; "Ebene 6 von 12 · pausiert" broke at its dot. The bosses show the last four and a
+  count, the entry goes under them and the options one under the other when they do not fit (`ViewThatFits`), "paused"
+  has its own line. **Why a width test missed three of them:** a text that may wrap takes the width it is given, so a
+  row too wide breaks its words and still measures in. The entry, the options and the type badges are now
+  `fixedSize`: too wide, they overflow. Guard: `DungeonLayoutTests` asks each view its size in the popover's width
+  (`sizeThatFits`), every dungeon open and every boss met, in every language; without its fallback, each of the three
+  rows fails. Measured before adding a fallback: Mt. Coronet's four types in Russian leave 3 points, the boss's floor
+  beside the longest name 7, so neither has one; the test fails the day a translation takes them.
+- **The labels of one species' forms read apart.** Tatsugiri's three Megas all read "Mega" and Urshifu's two Gigantamax
+  "Gigantamax": the team screen's chooser offered the same button three times. A battle form grown from one of the
+  species' forms adds that form's name ("Mega (Curly Form)"), in the chooser, the Pokédex and the boss's name
+  (`PokemonForm.battleBase`). Guard: `BattleFormLabelTests` checks every species' battle forms read apart in every
+  language.
 
 ## 에너지 (상시 표시 애니메이션)
 
@@ -2090,6 +2179,13 @@ read_when:
   launch. Item and treasure counts are capped at `SaveTransfer.maxItemCount`, far above any real one, no item dropped
   (`testAHandEditedCountNoLongerTraps`).
 
+- **An imported expedition is checked for what the app can close and replay.** A save brought from another device or
+  edited by hand could hold an expedition already `.finished` (no screen closes it), a boss the app has no battle data
+  for, more than three throws, or a battle with no side, seven battlers or stats of zero: each one stuck the Home card or
+  trapped the replay. `SaveTransfer.sanitize` drops what cannot be closed and clamps the rest
+  (`SaveTransferTests.testAnImportedExpeditionTheAppCannotCloseOrReplayIsMended`). A format fixture of the expedition
+  as saved today (`DungeonSaveFormatTests`) fails when a new non-optional field would make older saves fail to decode.
+
 ## 렌더 기하 (스프라이트·이미지)
 
 - **`.resizable()` + `.frame(w:h:)` 는 "맞춤"이 아니라 "늘여 채움"이다.** 대조 없이 정사각 프레임에 넣으면
@@ -2136,6 +2232,12 @@ read_when:
   runners. Thresholds measured locally failed on CI with a quarter of the pixels. **Why it was missed:** the local
   run and the fault injections all drew at 2×. Capture into an explicit 2× `NSBitmapImageRep` and compare shares of
   the box, not counts. The other render tests' absolute thresholds (`DrawnEggTests`' "an egg is drawn") hold at 1×.
+
+- **A drawing cached by its look, not by who asks for it.** Each dungeon's egg was rendered and cached under its
+  dungeon, while most dungeons without their own design share one look by type: the same egg drawn several times.
+  `EggDesigns.renderKey` maps such a dungeon to its look before both renderers cache (`DungeonEggRenderTests`).
+  In the same review, Gigantamax Pikachu wore its cap: `PikachuCostume.displayForm` now keeps a battle form as it is
+  (`PikachuCostumeTests`).
 
 ## 프로세스 제어·업데이트
 
@@ -2278,3 +2380,11 @@ read_when:
   missed:** the tests had the installed commit on `main`, and the first fix compared times, which cannot see a
   diverged line (found by the second review). Only a commit GitHub's `compare/{installed}...{candidate}` calls
   "ahead" is offered (`UpdateChecker.offered`, `testOnlyACommitTheInstalledOneLeadsToIsOffered`).
+- **A condition the Luck screen replays changes with a dated rule.** The dungeons made every battle form count for the
+  Glimmering Charm; merged with the Luck screen, its replay read today's condition at every past moment and found the
+  charm never earned (`HatchLuckLoadingTests.testTheCharmsCountedRegisteredPokemonToo` caught it at the merge).
+  **Why it was missed:** each branch was right alone; the replay's eras live in `HatchRules`, which the dungeons branch
+  did not know. The count now reads `HatchRules.Change.battleFormsCount`, dated at the dungeons' merge into main (a
+  date to come until then), and the replay counts the battle forms of the state it rebuilds, not today's. Sweep: no
+  other draw item's condition changed on the branch. A change to what an achievement or a draw item asks takes a case
+  in `HatchRules`.

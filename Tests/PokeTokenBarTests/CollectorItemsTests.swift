@@ -63,18 +63,21 @@ final class CollectorItemsTests: XCTestCase {
     func testCollectorItemsAndAchievements() {
         let s = store()
         XCTAssertEqual(s.collectorItems(in: .evolutionStones).count, 11, "10 stones and the excavation")
-        XCTAssertEqual(s.collectorItems(in: .legendaryArtifacts).count, 40, "the Old Amber with the other artifacts")
+        XCTAssertEqual(s.collectorItems(in: .legendaryArtifacts).count, 46,
+                       "the Old Amber, the five Dungeons medals and the Battle Forms Medal with the other artifacts")
         XCTAssertEqual(s.collectorItems(in: .gymBadges).count, 18)
         XCTAssertEqual(s.collectorItems(in: .forms).count, 10)
         XCTAssertEqual(Set(CompanionStore.achievementItems), Set(ItemKind.allCases.filter { $0.collectorGroup != nil }))
-        XCTAssertEqual(s.totalAchievementsCount, 244,
-                       "10 stones, 39 artifacts and the Legendary Egg's 9 regions, 161 badge regions, 10 forms, 15 digs")
-        XCTAssertEqual(s.purchasableItems, [.rareCandy, .shinyCharm], "the Shop sells what main sells, the Mint retired")
+        XCTAssertEqual(s.totalAchievementsCount, 266,
+                       "10 stones, 39 artifacts and the Legendary Egg's 9 regions, 161 badge regions, 10 forms, 15 digs, "
+                       + "16 Dungeons medal steps, 6 Battle Forms Medal steps")
+        XCTAssertEqual(s.purchasableItems, [.rareCandy, .greatBall, .shinyCharm, .ultraBall],
+                       "the Shop sells what main sells and the dungeons' two balls, the Mint retired")
 
         // An unlocked stone is an achievement to claim, never a Shop item.
         let withFire = store(dex: entries([154, 157, 160]))
         XCTAssertTrue(withFire.isUnlocked(.fireStone))
-        XCTAssertEqual(withFire.purchasableItems, [.rareCandy, .shinyCharm])
+        XCTAssertEqual(withFire.purchasableItems, [.rareCandy, .greatBall, .shinyCharm, .ultraBall])
         XCTAssertFalse(withFire.shopEntries.contains(.item(.fireStone)))
         XCTAssertEqual(withFire.unclaimedAchievementsCount, 1)
     }
@@ -87,6 +90,12 @@ final class CollectorItemsTests: XCTestCase {
                 XCTAssertNil(kind.unlock)
                 XCTAssertNil(kind.shopPrice)
                 XCTAssertFalse(kind.isAchievement)
+            } else if kind.isDungeonItem {
+                // Found in dungeons, never an achievement; only the Great and Ultra Balls are sold (R12 B).
+                XCTAssertNil(kind.unlock)
+                XCTAssertFalse(kind.isAchievement)
+                XCTAssertFalse(kind.isPassive, "\(kind) is used up")
+                XCTAssertEqual(kind.shopPrice != nil, [.greatBall, .ultraBall].contains(kind), "\(kind)")
             } else if kind.collectorGroup == nil {
                 XCTAssertNil(kind.unlock, "\(kind) is always on sale")
                 XCTAssertNotNil(kind.shopPrice, "\(kind) must have a price")
@@ -334,7 +343,7 @@ final class CollectorItemsTests: XCTestCase {
         let artifacts = s.collectorItems(in: .legendaryArtifacts)
         XCTAssertEqual(artifacts.first, .clearBell, "unlocked and not owned comes first")
         XCTAssertEqual(artifacts.last, .soulDew, "owned passives sink to the very bottom, below the four still to earn")
-        XCTAssertEqual(artifacts.count, 40)
+        XCTAssertEqual(artifacts.count, 46)
     }
 
     /// Badges too go from the closest to done to the farthest, over all their regions, claimable or not: seven Kanto

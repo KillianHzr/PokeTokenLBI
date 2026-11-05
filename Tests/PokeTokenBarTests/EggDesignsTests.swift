@@ -9,7 +9,10 @@ import XCTest
 @MainActor
 final class EggDesignsTests: XCTestCase {
     private static let designed: [EggKind] = [.tier(.uncommon), .tier(.rare), .tier(.legendary)]
-        + PokemonType.allCases.map { .type($0) } + [.typeNull]
+        + PokemonType.allCases.map { .type($0) } + [.typeNull] + legendBosses.map { .dungeon($0) }
+
+    /// The dungeons' legendary bosses, each leaving an egg of its own (`LegendEggArt`).
+    private static let legendBosses = [144, 249, 245, 150, 483, 484, 487, 493]
 
     /// The RGBA bytes of an image.
     private func bytes(_ image: CGImage) throws -> [UInt8] {
@@ -38,6 +41,9 @@ final class EggDesignsTests: XCTestCase {
             seen.append(pixels)
         }
         XCTAssertNil(EggDesigns.still(.plain))
+        // Any other boss's egg is its line's type egg.
+        let charizard = try bytes(EggRenderer.still(.dungeon(6))), fire = try bytes(EggRenderer.still(.type(.fire)))
+        XCTAssertEqual(charizard, fire, "Charizard's egg is the Fire egg")
         XCTAssertEqual(EggRenderer.still(.plain).size, NSSize(width: EggRenderer.pixels, height: EggRenderer.pixels))
     }
 
@@ -122,5 +128,19 @@ final class EggDesignsTests: XCTestCase {
             XCTAssertGreaterThan(flames / pixels, 0.07, "animated \(animated): the fire egg's flames")
             XCTAssertGreaterThan(lava / pixels, 0.04, "animated \(animated): the fire egg's lava shell")
         }
+    }
+}
+
+/// [Regression, review of 2026-11-04] Each dungeon egg of a species without a design of its own drew its type's egg again
+/// and kept it for good, about 400 KB a species, on the main thread: one render per type now.
+@MainActor
+final class DungeonEggRenderTests: XCTestCase {
+    func testADungeonEggIsItsTypesEggDrawnOnce() {
+        // Dratini and Dragonite: Dragon type, no egg of their own. Mewtwo has its own.
+        XCTAssertEqual(EggDesigns.renderKey(.dungeon(147)), EggKind.dungeonLook(147))
+        XCTAssertEqual(EggDesigns.renderKey(.dungeon(149)), EggDesigns.renderKey(.dungeon(147)))
+        XCTAssertEqual(EggDesigns.renderKey(.dungeon(150)), .dungeon(150))
+        XCTAssertTrue(EggRenderer.still(.dungeon(147)) === EggRenderer.still(.dungeon(149)), "the same image, kept once")
+        XCTAssertTrue(EggRenderer.still(.dungeon(147)) === EggRenderer.still(EggKind.dungeonLook(147)))
     }
 }

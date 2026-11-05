@@ -110,6 +110,9 @@ enum Rarity: String, Codable, Sendable {
 enum PokemonBalance {
     /// 알 부화 임계 — 이만큼 토큰을 써야 알이 깨진다(즉시 부화 대신 기대감). 초과분은 부화체 성장에 이월.
     static let eggHatchThreshold = 5_000_000
+    /// A legendary boss's egg's Pokémon graduates for 200M tokens at the one difficulty (×0.1), a third of a legendary's
+    /// 600M: its boss was fought already (the owner, 2026-11-05). It hatches as any egg.
+    static let legendaryBossGraduationTotal = 2_000_000_000
     static let repeatGrowthMultiplier = 2
 
     static func graduationTotal(_ rarity: Rarity) -> Int {
@@ -123,9 +126,14 @@ enum PokemonBalance {
     /// stageIndex(0-based)에서 다음 단계/졸업까지 필요한 토큰.
     static func phaseThreshold(rarity: Rarity, totalForms k: Int, stageIndex: Int,
                                growthMultiplier: Int = 1) -> Int {
+        phaseThreshold(total: graduationTotal(rarity), totalForms: k, stageIndex: stageIndex, growthMultiplier: growthMultiplier)
+    }
+    /// The same for a whole growth of `total` tokens (`MonState.graduationTotal`).
+    static func phaseThreshold(total graduation: Int, totalForms k: Int, stageIndex: Int,
+                               growthMultiplier: Int = 1) -> Int {
         let kk = max(1, k)
         let i = stageIndex + 1                         // 1-based
-        let total = Double(graduationTotal(rarity))
+        let total = Double(graduation)
         let denom = Double(kk * (kk + 1)) / 2.0
         let standardThreshold = Int((total * Double(i) / denom).rounded())
         return max(1, Int((Double(standardThreshold) / Double(max(1, growthMultiplier))).rounded()))
@@ -246,6 +254,15 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     case risingBadge
     case darkBadge
     case fairyBadge
+    /// The dungeons' items (Q23, Q24, R12). Great and Ultra Balls raise a boss's capture odds (×1.5, ×2), a Master
+    /// Ball makes it sure; berries are eaten in battle, Revives raise the knocked out between battles; Capsules raise IVs; a Treasure Map opens the Ruins of Alph once; an Explorer's
+    /// Chest gives an Explorer Kit treasure; a Legendary Key opens a T4 dungeon (R10).
+    case greatBall, ultraBall, masterBall, oranBerry, sitrusBerry, revive, maxRevive
+    case silverCapsule, goldCapsule, treasureMap, explorerChest, legendaryKey
+    /// The Dungeons achievements (Q32), one per tier: a dungeon won once, then the whole tier (`DungeonMedals`).
+    case discoveryMedal, adventureMedal, expertMedal, legendsMedal, originMedal
+    /// The battle forms won, in steps (`BattleFormsMedal`, 2026-11-02).
+    case battleFormsMedal
 
     var badgeType: PokemonType? {
         switch self {
@@ -337,6 +354,16 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .fairyFeather: return "fairy-feather"
         case .whippedDream: return "whipped-dream"
         case .excavation: return "helix-fossil"
+        case .greatBall: return "great-ball"
+        case .ultraBall: return "ultra-ball"
+        case .masterBall: return "master-ball"
+        case .oranBerry: return "oran-berry"
+        case .sitrusBerry: return "sitrus-berry"
+        case .revive: return "revive"
+        case .maxRevive: return "max-revive"
+        case .silverCapsule: return "bottle-cap"
+        case .goldCapsule: return "gold-bottle-cap"
+        case .legendaryKey: return "secret-key"
         case .lightBall: return "light-ball"
         case .typeNullEgg: return "mystery-egg"
         case .ovalCharm: return "oval-charm"
@@ -405,6 +432,18 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .excavation: return "🦴"
         case .typeNullEgg, .legendaryEgg, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return "🥚"
         case .lightBall: return "⚡"
+        case .greatBall: return "🔵"
+        case .ultraBall: return "🟡"
+        case .masterBall: return "🟣"
+        case .oranBerry: return "🫐"
+        case .sitrusBerry: return "🍋"
+        case .revive, .maxRevive: return "💎"
+        case .silverCapsule: return "🥈"
+        case .goldCapsule: return "🥇"
+        case .treasureMap: return "🗺️"
+        case .explorerChest: return "🧰"
+        case .legendaryKey: return "🗝️"
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal: return "🏅"
         case .ovalCharm: return "🔶"
         case .glimmeringCharm: return "✨"
         case .boulderBadge, .cascadeBadge, .thunderBadge, .rainbowBadge,
@@ -427,7 +466,19 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .rareCandy: return RareCandy.price
         case .mint: return Mint.price
         case .shinyCharm: return ShinyCharm.price
+        // R12 B: the balls cost what the Uncommon and Rare Eggs cost; the Master Ball is never sold.
+        case .greatBall: return FreshEgg.price(guaranteeing: .uncommon)
+        case .ultraBall: return FreshEgg.price(guaranteeing: .rare)
         default: return nil
+        }
+    }
+
+    /// The dungeons' items: found in dungeons (the two balls sold too), never an achievement.
+    var isDungeonItem: Bool {
+        switch self {
+        case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: true
+        default: false
         }
     }
     /// 보유형(패시브) 아이템 — 소비하지 않고 보유하는 동안 상시 효과. 1회 구매(재구매 불가), 가방엔 "적용 중" 표시.
@@ -439,7 +490,10 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .cometShard, .redNectar, .smoothRock, .sawsbuckSeasons, .fairyFeather, .furfrouTrims, .vivillonPatterns, .whippedDream, .unownLetters,
              .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg,
              .leafStone, .fireStone, .waterStone, .thunderStone, .sunStone,
-             .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone:
+             .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone,
+             .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey,
+             .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal:
             return false
         default:
             return true
@@ -464,6 +518,10 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .vivillonPatterns, .unownLetters: return [(.rareEgg, 2)]
         case .whippedDream, .lightBall: return [(.rareEgg, 2), (.rareCandy, 5)]
         case .excavation: return [(.fossilEgg, 1)]   // per dig
+        // A dungeon won; the whole tier's step gives its own (`DungeonMedals.rewards`).
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
+            return DungeonMedals.rewards(dungeonTier ?? .t1, step: 1)
+        case .battleFormsMedal: return BattleFormsMedal.rewards(step: 1)
         default: return [(self, achievementRewardCount)]
         }
     }
@@ -501,6 +559,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         switch self {
         case .rareCandy, .mint, .shinyCharm, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .fossilEgg: return nil
         case .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return nil
+        case _ where self.isDungeonItem: return nil
         case .rotomCatalog, .cometShard, .redNectar, .smoothRock, .sawsbuckSeasons, .fairyFeather, .furfrouTrims, .vivillonPatterns, .whippedDream, .unownLetters: return .forms
         case .excavation: return .evolutionStones   // rocks and stones, side by side
         default: return .legendaryArtifacts
@@ -513,6 +572,10 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         switch self {
         case .rareCandy, .mint, .shinyCharm, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .fossilEgg: return nil
         case .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return nil
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal:
+            return regionGoals.map { .species($0.map(\.goal)) }
+        case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: return nil
         // The first nine stones follow the generations: each asks for one region's final starters.
         case .leafStone:   return .species([SpeciesGoal([3, 6, 9])])            // Kanto starters
         case .fireStone:   return .species([SpeciesGoal([154, 157, 160])])      // Johto starters
@@ -592,7 +655,10 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     }
 
     /// Whether this item's achievement is claimed region by region: one tier per region in `regionGoals`.
-    var isRegional: Bool { badgeType != nil || self == .legendaryEgg || self == .excavation }
+    var isRegional: Bool { badgeType != nil || self == .legendaryEgg || self == .excavation || isPlayMedal }
+
+    /// A medal of the dungeons' play: its steps count dungeons won or battle forms won, not the Pokémon raised.
+    var isPlayMedal: Bool { dungeonTier != nil || self == .battleFormsMedal }
 
     /// The regions (generations, Kanto first) this item's achievement is claimed in, with the species each asks
     /// for: a gym badge's type in every region that has it, every species of the region for the Legendary Egg.
@@ -603,6 +669,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
                 ($0, SpeciesGoal(PokemonTypeData.badgeSpecies(for: type, generation: $0)))
             }
         }
+        if let tier = dungeonTier { return DungeonMedals.goals(tier) }
+        if self == .battleFormsMedal { return BattleFormsMedal.goals }
         if self == .excavation {
             // Not regions but digs, numbered from 1: each asks `FossilDig.rockPerDig` more Rock-type species.
             return (1...FossilDig.digs).map { ($0, SpeciesGoal(FossilDig.rockSpecies, needed: FossilDig.rockPerDig * $0)) }
@@ -1139,7 +1207,7 @@ enum PokemonNature: String, Codable, Sendable, CaseIterable {
 enum PokemonOdds {
     /// 색이 다른 포켓몬(shiny) 부화 확률 분모 — 1/64 (본가 1/4096 은 데스크톱 앱 규모에선 평생 못 봄).
     static let shinyDenominator: UInt64 = 64
-    /// Arceus hatches from no egg, no event and no gift for now: it is kept for a big update to come (2026-11-03).
+    /// R13: Arceus hatches from no egg, no event, no chest: only from the egg of the Hall of Origin's boss.
     static let dungeonOnly: Set<Int> = [493]
     /// 메타몽 위장 확률 분모 — common·≥2형태 부화에 한해 1/128 (GO 변장 메타몽 추정 1/50~70보다 귀하게).
     static let dittoDisguiseDenominator: UInt64 = 128
@@ -1180,6 +1248,9 @@ struct MonState: Codable, Sendable, Equatable {
     /// Hatched from a Fossil Egg: sent off before it graduates, its egg goes back to the Bag, or its line would be
     /// out of reach (there are as many eggs as fossil lines).
     var fromFossilEgg = false
+    /// Hatched from a legendary boss's egg (`DungeonEgg.isLegendary`): won once, it is never sent off for another egg
+    /// before it graduates (the owner, 2026-11-04), and graduates for 200M (`graduationTotal`).
+    var fromLegendaryBossEgg = false
     /// Hatched from an evolution stone's egg (the Tera Orb grows it faster) or from an egg of a guaranteed rarity,
     /// bought or given by an achievement (the Sea Incense). An event egg's type or rarity is the event's: neither.
     var fromStoneEgg = false
@@ -1202,9 +1273,14 @@ struct MonState: Codable, Sendable, Equatable {
         if currentID == PikachuCostume.speciesID, let pikachuCostume { return pikachuCostume.form }
         return PokemonForm.resolved(speciesID: currentID, form: form)
     }
+    /// The tokens its whole growth takes: its rarity's, a legendary boss's egg's Pokémon less (the owner, 2026-11-05).
+    /// Its level still counts on its rarity's scale (`CompanionStore.reconcileActiveProfileGrowth`), as with a repeat.
+    var graduationTotal: Int {
+        fromLegendaryBossEgg ? PokemonBalance.legendaryBossGraduationTotal : PokemonBalance.graduationTotal(rarity)
+    }
     var phaseThreshold: Int {
         PokemonBalance.phaseThreshold(
-            rarity: rarity,
+            total: graduationTotal,
             totalForms: totalForms,
             stageIndex: stageIndex,
             growthMultiplier: hasGrowthBoost ? PokemonBalance.repeatGrowthMultiplier : 1)
@@ -1261,6 +1337,7 @@ struct MonState: Codable, Sendable, Equatable {
         hasGrowthBoost = try c.decodeIfPresent(Bool.self, forKey: .hasGrowthBoost) ?? false
         hasNewForm = try c.decodeIfPresent(Bool.self, forKey: .hasNewForm) ?? false
         fromFossilEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromFossilEgg)) ?? false
+        fromLegendaryBossEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromLegendaryBossEgg)) ?? false
         fromStoneEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromStoneEgg)) ?? false
         fromRarityEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromRarityEgg)) ?? false
         raising = (try? c.decodeIfPresent(RaisingRecord.self, forKey: .raising)) ?? nil
@@ -1399,7 +1476,7 @@ struct SaveWriter: Codable, Equatable, Sendable {
 
 /// 배열 항목별 격리 디코딩 래퍼 — 손상된 한 항목이 배열 전체(및 상위 상태) 디코드를 실패시키지 않게.
 /// 각 항목을 `try?` 로 감싸므로 실패 항목은 `value == nil` 이 되고 배열 디코드 자체는 성공한다.
-private struct Lossy<T: Decodable>: Decodable {
+struct Lossy<T: Decodable>: Decodable {
     let value: T?
     init(from decoder: Decoder) throws {
         value = try? decoder.singleValueContainer().decode(T.self)
@@ -1428,7 +1505,7 @@ enum LenientDecoding {
     }
 }
 
-private extension KeyedDecodingContainer {
+extension KeyedDecodingContainer {
     /// 관대 디코드 — 키 없음/null/타입 불일치를 모두 기본값으로 흡수한다. 한 필드 손상이 상태 전체
     /// (도감·인벤토리)를 날리지 않게(부분 복원 > 전면 리셋). 최상위가 JSON 객체가 아닌 전면 손상은 여전히 throw.
     /// A value present but of another shape is a loss (`LenientDecoding`); a key absent or null is not.
@@ -1493,6 +1570,8 @@ struct CompanionState: Codable, Sendable, Equatable {
     var eggFromBirthdayEgg = false
     /// The egg in incubation is a Fossil Egg (`FossilDig`).
     var eggFromFossilEgg = false
+    /// The egg in incubation was won in a dungeon (`DungeonEgg`): it hatches its line, shiny when it was.
+    var eggFromDungeon: DungeonEgg?
     /// Fossil Eggs hatched so far.
     var fossilEggsHatched = 0
     /// The fossil lines graduated when the save first met the digs: their digs are done with nothing to claim. Taken
@@ -1591,6 +1670,9 @@ struct CompanionState: Codable, Sendable, Equatable {
     /// The growth bonuses add up (they used to multiply). A save from before that has `false`, and its current
     /// stage is carried over once by `CompanionStore.migrateToAdditiveGrowthIfNeeded`.
     var additiveGrowthBonuses = true
+    /// The dungeons: the expedition under way, the victories, the bosses met, the move loops, the moves unlocked, the
+    /// eggs won (`DungeonProgress`).
+    var dungeons = DungeonProgress()
 
     init() {}
 
@@ -1648,6 +1730,7 @@ struct CompanionState: Codable, Sendable, Equatable {
         eggFromLegendaryEgg = c.lenient(Bool.self, forKey: .eggFromLegendaryEgg, default: false)
         eggFromBirthdayEgg = c.lenient(Bool.self, forKey: .eggFromBirthdayEgg, default: false)
         eggFromFossilEgg = c.lenient(Bool.self, forKey: .eggFromFossilEgg, default: false)
+        eggFromDungeon = c.lenientOptional(DungeonEgg.self, forKey: .eggFromDungeon)
         fossilEggsHatched = c.lenient(Int.self, forKey: .fossilEggsHatched, default: 0)
         fossilLinesBeforeDigs = c.lenientOptional(Set<Int>.self, forKey: .fossilLinesBeforeDigs)
         pendingShiny = c.lenient(Bool.self, forKey: .pendingShiny, default: false)
@@ -1667,6 +1750,7 @@ struct CompanionState: Codable, Sendable, Equatable {
         amberCarry = c.lenient(Int.self, forKey: .amberCarry, default: 0)
         graduationsTowardTreasure = c.lenient(Int.self, forKey: .graduationsTowardTreasure, default: 0)
         unseenTreasures = c.lenient([String: Int].self, forKey: .unseenTreasures, default: [:])
+        dungeons = c.lenient(DungeonProgress.self, forKey: .dungeons, default: DungeonProgress())
     }
 
     /// 졸업 기록 또는 현재 개체가 실제로 도달한 단계에 이 종이 포함되는가.

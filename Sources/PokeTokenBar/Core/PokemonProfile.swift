@@ -160,14 +160,19 @@ struct PokemonProfile: Codable, Sendable, Equatable {
         advanceGrowth(to: rebasedGrowth, rarity: rarity)
     }
 
+    /// The gender `enrich` gives this individual for a species' rate (female eighths, -1 genderless): a battle reads
+    /// it before the profile is enriched, and finds the same.
+    func drawnGender(rate: Int) -> PokemonGender {
+        var random = ProfileRNG(seed: seed ^ 0xA11B_1E5D_9EED)
+        return rate < 0 ? .genderless : Int(random.next() % 8) < rate ? .female : .male
+    }
+
     mutating func enrich(with details: PokemonDetails) {
         var random = ProfileRNG(seed: seed ^ 0xA11B_1E5D_9EED)
         if gender == nil {
-            if details.genderRate < 0 {
-                gender = .genderless
-            } else {
-                gender = Int(random.next() % 8) < details.genderRate ? .female : .male
-            }
+            gender = drawnGender(rate: details.genderRate)
+            // The draw above used the stream's first number: the ability rolls follow it, as before.
+            if details.genderRate >= 0 { _ = random.next() }
         }
 
         let normal = details.abilities.filter { !$0.isHidden }.sorted { $0.slot < $1.slot }

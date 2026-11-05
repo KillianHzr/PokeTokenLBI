@@ -317,6 +317,11 @@ final class BirthdayGiftTests: XCTestCase {
         }
         let mythicalMissing = try await hatch(seed: 1, graduated: SpeciesGoal.mythicals.filter { $0 != 494 })
         XCTAssertEqual(mythicalMissing.baseID, 494, "the mythical still missing")
+        // [Regression, review of 2026-11-02] Arceus the only mythical left: the fallback drew 493, which only the Hall of
+        // Origin gives (R13); it goes on to the legendary still missing.
+        let arceusLeft = try await hatch(seed: 4, graduated: SpeciesGoal.mythicals.filter { $0 != 493 }
+                                                    + SpeciesGoal.legendaries.filter { $0 != 150 })
+        XCTAssertEqual(arceusLeft.baseID, 150)
         let legendaryMissing = try await hatch(seed: 2, graduated: SpeciesGoal.mythicals + SpeciesGoal.legendaries.filter { $0 != 150 })
         XCTAssertEqual(legendaryMissing.baseID, 150, "then the legendary still missing")
         XCTAssertFalse(legendaryMissing.isShiny)

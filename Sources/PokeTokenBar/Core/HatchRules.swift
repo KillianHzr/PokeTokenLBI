@@ -58,6 +58,9 @@ struct HatchRules: Sendable, Equatable {
         case seasonEggsAndBabies = "2026-10-29T11:25:11Z"
         /// #112: Arceus hatches from no egg.
         case arceusKeptForLater = "2026-11-03T12:59:02Z"
+        /// #104: the battle forms the daily and weekly dungeons give count among every form, the Glimmering Charm's.
+        /// Dated at its merge into main, so that every past unlock reads the rule of its time.
+        case battleFormsCount = "2026-11-05T09:13:38Z"
 
         private static let instants: [Change: Date] = {
             let formatter = ISO8601DateFormatter()
@@ -115,6 +118,8 @@ struct HatchRules: Sendable, Equatable {
         case .legendary: return has(.rarityWeights)
         case .birthday: return has(.birthdayEgg)
         case .fossil, .event: return has(.eventAndFossilEggs)
+        // Only noted at its hatch: a record says so.
+        case .dungeon: return true
         }
     }
 
