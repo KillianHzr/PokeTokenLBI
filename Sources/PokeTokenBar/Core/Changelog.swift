@@ -67,6 +67,16 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-05", entries: [
+            .new("2026-11-05-oak-advice-toggle") { l in
+                l.t("설정에서 오박사의 조언을 끌 수 있어요. 끄면 상점에서 조언 칸이 사라져요.",
+                    "You can turn off Prof. Oak's advice in Settings: his card leaves the Shop.",
+                    "設定でオーキド博士のアドバイスをオフにできます。オフにするとショップからカードが消えます。",
+                    "Puedes desactivar los consejos del Profesor Oak en Ajustes: su tarjeta desaparece de la Tienda.",
+                    "Tu peux désactiver les conseils du Prof. Chen dans les Réglages : son encart disparaît de la Boutique.",
+                    "Você pode desativar os conselhos do Prof. Carvalho nos Ajustes: o cartão dele some da Loja.",
+                    "Du kannst die Tipps von Prof. Eich in den Einstellungen ausschalten: Seine Karte verschwindet aus dem Laden.",
+                    "Советы профессора Оука можно отключить в настройках: его карточка исчезнет из магазина.")
+            },
             .improved("2026-11-05-explorer-kit-rarer") { l in
                 let kit = l.itemName(.explorerKit), candy = l.itemName(.rareCandy)
                 let uncommon = l.itemName(.uncommonEgg), rare = l.itemName(.rareEgg), legendary = l.itemName(.legendaryEgg)
