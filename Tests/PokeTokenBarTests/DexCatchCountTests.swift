@@ -78,6 +78,24 @@ final class DexCatchCountTests: XCTestCase {
         XCTAssertEqual(L(.fr).label(for: CompanionStore.DexSortOption.countDesc), "Les plus capturés")
         XCTAssertEqual(L(.fr).label(for: CompanionStore.CatchLogSortOption.countDesc), "Les plus capturés")
     }
+
+    /// [Regression] The catch log's "Most caught" follows the number each card shows: a Pidgey sent off as the 7th to
+    /// reach Pidgey came above a Seedot's ×9, its species' count raised by the Pidgeot caught after it (a player,
+    /// 2026-11-05).
+    func testTheCatchLogFollowsTheNumberItsCardsShow() {
+        var dex: [DexEntry] = []
+        for hour in 1...6 { dex.append(caught("pidgeot\(hour)", [16, 17, 18], hoursIn: Double(hour))) }
+        dex.append(caught("pidgey", [16], hoursIn: 7, released: true))
+        for hour in 8...10 { dex.append(caught("pidgeot\(hour)", [16, 17, 18], hoursIn: Double(hour))) }
+        for hour in 11...19 { dex.append(caught("seedot\(hour)", [273], hoursIn: Double(hour), released: true)) }
+        let s = store(dex)
+        let ranks = s.dexCatchRanks
+        XCTAssertEqual(ranks["pidgey"], 7)
+        XCTAssertEqual(s.dexCatchCounts[16], 10, "the trigger: a species' count above its records' ranks")
+        let shown = s.sortDexEntries(s.dexEntries, by: .countDesc).map { ranks[$0.id] ?? 1 }
+        XCTAssertEqual(shown, shown.sorted(by: >), "never a smaller number above a bigger one")
+        XCTAssertEqual(shown.first, 9)
+    }
 }
 
 /// Each rarity's species in all: every species of each line of the index, at its line's rarity (2026-11-04).

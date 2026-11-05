@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-05", entries: [
+            .fixed("2026-11-05-most-caught-order", { $0.t("포획 기록의 \"많이 잡은 순\"이 이제 카드에 보이는 숫자(중복 ×N)를 따라요. ×7이 더 이상 ×9 위에 오지 않아요.",
+                                                         "The catch log's \"Most caught\" now follows the number each card shows (Duplicate ×N): a ×7 no longer comes above a ×9.",
+                                                         "捕獲記録の「捕まえた数順」が、カードに出る数（重複 ×N）どおりに並ぶようになりました。×7 が ×9 より上に来ることはもうありません。",
+                                                         "El orden \"Más capturados\" del registro de capturas sigue ahora el número que muestra cada tarjeta (Duplicado ×N): un ×7 ya no queda por encima de un ×9.",
+                                                         "Le tri \"Les plus capturés\" du journal de captures suit maintenant le nombre affiché sur chaque carte (Doublon ×N) : un ×7 ne passe plus au-dessus d'un ×9.",
+                                                         "A ordem \"Mais capturados\" do registro de capturas agora segue o número de cada cartão (Duplicado ×N): um ×7 não fica mais acima de um ×9.",
+                                                         "Die Sortierung \"Am häufigsten gefangen\" im Fangprotokoll folgt jetzt der Zahl auf jeder Karte (Duplikat ×N): Ein ×7 steht nicht mehr über einem ×9.",
+                                                         "Сортировка \"Чаще пойманные\" в журнале поимок теперь следует числу на каждой карточке (Дубликат ×N): ×7 больше не стоит выше ×9.") }),
             .new("2026-11-05-duplicate-charms") { l in
                 let tauros = l.itemName(.taurosBreeds), necrozma = l.itemName(.necrozmaForms)
                 return l.t("새 폼 업적 두 개: \(tauros), \(necrozma). 보상을 가지면 이미 다 모은 계열이 알에서 덜 나와요(2분의 1 대신 3분의 1, 둘 다 있으면 5분의 1). 새것을 주지 않는 알이 줄어들어요.",

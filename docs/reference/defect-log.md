@@ -1389,6 +1389,15 @@ read_when:
 
 ## 표시·UI
 
+- **A sort reads the number its rows show.** The catch log's "Most caught" ranked each card by its species' count
+  (`dexCatchCounts`, every record that reached the species, those that evolved past it included) while the card shows
+  its own rank ("Duplicate ×7", `dexCatchRanks`): a Pidgey sent off as the 7th to reach Pidgey came above a Seedot's
+  ×9, its count raised by the Pidgeot caught after it (a player, 2026-11-05). **Why it was missed:** the test's
+  fixture had no record evolved past another of its species, so count and rank were the same number. The log now sorts
+  by the rank, then the species' count. `DexCatchCountTests.testTheCatchLogFollowsTheNumberItsCardsShow` builds that
+  trigger and requires the shown numbers never to rise down the list. Sweep: the grid's "Most caught" sorts by
+  `dexCatchCounts`, the "×N" its cells show; no other list sorts by a number it does not display.
+
 - **The egg being incubated goes by its own name.** Home named every egg "Token Egg", in English in every language:
   `displayName` returned that literal whenever no Pokémon was raised, from the days the app had a single egg. The
   Shop's, the stones', the Legendary, Type: Null, Birthday, Fossil and event eggs came later with their own drawing
