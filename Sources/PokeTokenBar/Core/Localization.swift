@@ -2655,6 +2655,11 @@ struct L {
         t("오박사의 조언", "Prof. Oak's advice", "オーキド博士のアドバイス", "Consejos del Profesor Oak", "Conseils du Prof. Chen",
           "Conselhos do Prof. Carvalho", "Tipps von Prof. Eich", "Советы профессора Оука")
     }
+    var oakAdviceToggle: String {
+        t("오박사의 조언 표시", "Show Prof. Oak's advice", "オーキド博士のアドバイスを表示", "Mostrar los consejos del Profesor Oak",
+          "Afficher les conseils du Prof. Chen", "Mostrar os conselhos do Prof. Carvalho", "Tipps von Prof. Eich anzeigen",
+          "Показывать советы профессора Оука")
+    }
     func oakVerdictLabel(_ verdict: ActiveVerdict) -> String {
         switch verdict {
         case .formMystery:
