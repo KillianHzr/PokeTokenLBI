@@ -212,6 +212,21 @@ final class HatchRulesTests: XCTestCase {
         XCTAssertEqual(draw(at(.arceusKeptForLater)).birthdayDraw([arceus]).lines.count, 0)
     }
 
+    /// A caught Arceus hatches from eggs again from `caughtBossesInEggs` (the owner, 2026-11-05): the Hall of Origin's egg
+    /// comes once, so its first catch closed its shiny for good. Not caught, it still hatches from none.
+    func testACaughtArceusHatchesFromEggs() {
+        let arceus = BaseSpecies(id: 493, captureRate: 3, isLegendary: true)
+        let plain = CompanionStore.EggSpec(), legendary = CompanionStore.EggSpec(legendaryEgg: true)
+        var caught = CompanionState()
+        caught.dex = [DexEntry(baseID: 493, finalID: 493, chainOrder: [493], rarity: .legendary, caughtAt: Date())]
+        XCTAssertEqual(draw(before(.caughtBossesInEggs), caught).hatchPool([arceus], egg: plain).count, 0)
+        XCTAssertEqual(draw(at(.caughtBossesInEggs), caught).hatchPool([arceus], egg: plain).map(\.base.id), [493])
+        XCTAssertEqual(draw(at(.caughtBossesInEggs), caught).hatchPool([arceus], egg: legendary).map(\.base.id), [493])
+        XCTAssertEqual(draw(at(.caughtBossesInEggs), caught).birthdayDraw([arceus]).lines.map(\.base.id), [493])
+        XCTAssertEqual(draw(at(.caughtBossesInEggs)).hatchPool([arceus], egg: plain).count, 0, "not caught")
+        XCTAssertEqual(draw(at(.caughtBossesInEggs)).birthdayDraw([arceus]).lines.count, 0)
+    }
+
     /// Season's eggs Uncommon or better, and Pokémon Day's babies, from #97.
     func testSeasonEggsAndPokemonDayBabies() {
         let sewaddle = BaseSpecies(id: 540, captureRate: 255)

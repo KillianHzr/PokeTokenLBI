@@ -47,15 +47,16 @@ final class TreasureAndAmberTests: XCTestCase {
                        "all six, not five of them")
     }
 
-    /// One roll in ten thousand is the Legendary Egg, 500 a Rare Egg, 2,000 an Uncommon Egg, the rest 3 Rare Candies.
+    /// One roll in ten thousand is the Legendary Egg, 300 a Rare Egg, 1,200 an Uncommon Egg, the rest one Rare Candy
+    /// (the owner's choice on DyRize's #107, 2026-11-05).
     func testTheTreasureTable() {
         var counts: [ItemKind: Int] = [:]
         for roll in 0..<ExplorerKit.rollRange {
             let treasure = ExplorerKit.treasure(roll: roll)
             counts[treasure.kind, default: 0] += 1
-            if treasure.kind == .rareCandy { XCTAssertEqual(treasure.count, 3) } else { XCTAssertEqual(treasure.count, 1) }
+            XCTAssertEqual(treasure.count, 1, "\(treasure.kind)")
         }
-        XCTAssertEqual(counts, [.legendaryEgg: 1, .rareEgg: 500, .uncommonEgg: 2_000, .rareCandy: 7_499])
+        XCTAssertEqual(counts, [.legendaryEgg: 1, .rareEgg: 300, .uncommonEgg: 1_200, .rareCandy: 8_499])
     }
 
     /// Owned, every fifth graduation digs up one treasure, put in the Bag and kept for the news strip until seen; not

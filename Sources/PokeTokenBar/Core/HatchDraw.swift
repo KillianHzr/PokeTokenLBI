@@ -34,6 +34,16 @@ struct HatchDraw: Sendable {
 
     private var ownsOvalCharm: Bool { items.contains(.ovalCharm) }
 
+    /// The lines no egg brings (R13: Arceus, the Hall of Origin's boss), until the player has caught one: then it hatches
+    /// as every legendary boss does, so its shiny stays within reach (the owner, 2026-11-05). Caught: in the Pokédex,
+    /// which the Luck screen rewinds to each hatch.
+    var dungeonOnly: Set<Int> {
+        guard rules.has(.arceusKeptForLater) else { return [] }
+        guard rules.has(.caughtBossesInEggs) else { return PokemonOdds.dungeonOnly }
+        let caught = collection.registeredSpeciesIDs
+        return PokemonOdds.dungeonOnly.filter { !caught.contains($0) }
+    }
+
     /// What a complete line's weight is divided by (a 100% duplicate): 2, one more with Tauros's Four Breeds, two more
     /// with Necrozma's Four Forms, 5 with both (the owner, 2026-11-05). Each lowers only lines the player has whole, so
     /// every line that brings something gains: a pure bonus.
@@ -158,8 +168,9 @@ struct HatchDraw: Sendable {
         // The Friendship Egg keeps its promise even then: the line is the player's own first Pokémon.
         let friendship = rules.has(.graduatedForms) && egg.event == .companion ? collection.companionLineID : nil
         let tier = rules.tier(of: egg)
+        let dungeonOnly = dungeonOnly
         return { base in
-            !(rules.has(.arceusKeptForLater) && PokemonOdds.dungeonOnly.contains(base.id))
+            !dungeonOnly.contains(base.id)
                 && (!rules.has(.eventAndFossilEggs) || !FossilDig.isFossilLine(base.id)
                 || (rules.has(.graduatedFossilsEverywhere) && graduatedSpecies.contains(base.id))
                 || base.id == friendship)
@@ -222,7 +233,7 @@ struct HatchDraw: Sendable {
     /// graduated, any of them by its hatch weight, shiny.
     func birthdayDraw(_ index: [BaseSpecies]) -> (lines: [(base: BaseSpecies, weight: Int)], shiny: Bool) {
         let (pool, byWeight) = BirthdayGift.pool(index, graduated: collection.graduatedSpeciesIDs,
-                                                 without: rules.has(.arceusKeptForLater) ? PokemonOdds.dungeonOnly : [])
+                                                 without: dungeonOnly)
         let lines = rules.has(.stoneEggDuplicates) ? CompanionStore.withoutLastHatched(pool, last: collection.lastHatchedBaseID) : pool
         return (lines.map { ($0, byWeight ? hatchWeight(for: $0) : 1) }, byWeight)
     }

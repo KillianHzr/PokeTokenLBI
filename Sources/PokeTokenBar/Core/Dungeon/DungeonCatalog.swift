@@ -95,6 +95,9 @@ enum DungeonUnlock: Codable, Sendable, Hashable {
     case won(DungeonID)
     /// A dungeon of this tier won, any of them (the daily and weekly dungeons, 2026-11-02).
     case wonTier(DungeonTier)
+    /// Every dungeon of this tier won once, the Ruins of Alph and the challenges aside: what opens the next tier (the
+    /// owner, 2026-11-05; one dungeon of it did before).
+    case wonEvery(DungeonTier)
     /// Evolution lines with a graduated Pokémon.
     case linesGraduated(Int)
     /// Legendary Pokémon graduated.
@@ -167,35 +170,35 @@ enum DungeonCatalog {
         case .mtMoon:
             return Dungeon(id: id, tier: .t2, teamSize: 4, rules: [.oneRegion], themeTypes: [.fairy, .rock],
                            wild: themed([.fairy, .rock], tier: .t2) + FossilDig.lines.filter { SpeciesBattleTable.all[$0] != nil },
-                           bosses: [36, 169, 139], unlocks: [.won(.viridianForest)])
+                           bosses: [36, 169, 139], unlocks: [.wonEvery(.t1)])
         case .mtEmber:
             return Dungeon(id: id, tier: .t2, teamSize: 4, rules: [.bannedType(.water)], themeTypes: [.fire],
-                           wild: themed([.fire], tier: .t2), bosses: [59, 467, 324], unlocks: [.won(.diglettsCave)])
+                           wild: themed([.fire], tier: .t2), bosses: [59, 467, 324], unlocks: [.wonEvery(.t1)])
         case .victoryRoad:
             return Dungeon(id: id, tier: .t3, teamSize: 6, rules: [.onlyStarters], themeTypes: [.grass, .fire, .water],
-                           wild: finalStarters, bosses: [6, 3, 9], unlocks: [.won(.mtMoon), .won(.mtEmber)])
+                           wild: finalStarters, bosses: [6, 3, 9], unlocks: [.wonEvery(.t2)])
         case .pokemonTower:
             return Dungeon(id: id, tier: .t3, teamSize: 5, rules: [.maxRarity(.uncommon)], themeTypes: [.ghost],
-                           wild: themed([.ghost], tier: .t3), bosses: [94, 442, 609], unlocks: [.won(.mtEmber)])
+                           wild: themed([.ghost], tier: .t3), bosses: [94, 442, 609], unlocks: [.wonEvery(.t2)])
         case .dragonsDen:
             return Dungeon(id: id, tier: .t3, teamSize: 6, rules: [.atMostOneLegendary], themeTypes: [.dragon],
-                           wild: themed([.dragon], tier: .t3), bosses: [149, 445, 635], unlocks: [.won(.pokemonTower)])
+                           wild: themed([.dragon], tier: .t3), bosses: [149, 445, 635], unlocks: [.wonEvery(.t2)])
         case .powerPlant:
             return Dungeon(id: id, tier: .t3, teamSize: 5, rules: [.sharedType], themeTypes: [.electric, .steel],
-                           wild: themed([.electric, .steel], tier: .t3), bosses: [462, 466, 101], unlocks: [.won(.mtMoon)])
+                           wild: themed([.electric, .steel], tier: .t3), bosses: [462, 466, 101], unlocks: [.wonEvery(.t2)])
         case .seafoamIslands:
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [.noLegendary, .maxRarity(.rare)],
                            themeTypes: [.ice, .water], wild: themed([.ice, .water], tier: .t4), bosses: [144, 249, 245],
-                           unlocks: [.won(.dragonsDen)])
+                           unlocks: [.wonEvery(.t3)])
         case .ceruleanCave:
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [.noLegendary, .bannedType(.psychic)],
                            themeTypes: [.psychic], wild: themed([.psychic], tier: .t4), bosses: [150],
-                           unlocks: [.won(.seafoamIslands), .linesGraduated(100)])
+                           unlocks: [.wonEvery(.t3), .linesGraduated(100)])
         case .mtCoronet:
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [.onlyLegendaries],
                            themeTypes: [.steel, .water, .ghost, .dragon],
                            wild: themed([.steel, .water, .ghost, .dragon], tier: .t4), bosses: [483, 484, 487],
-                           unlocks: [.won(.ceruleanCave), .legendariesGraduated(10)])
+                           unlocks: [.wonEvery(.t3), .legendariesGraduated(10)])
         case .ruinsOfAlph:
             // Q25, Q13: secret, opened once by a Treasure Map; its rules are drawn at random (`alphRules`), its
             // boss is any final species but Arceus.
@@ -212,7 +215,7 @@ enum DungeonCatalog {
                                      !info.isLegendary, SpeciesInfo.isFinal(id) else { return false }
                                return data.baseStats.reduce(0, +) >= 530
                            }.sorted(),
-                           bosses: [arceusID], unlocks: [.beatBosses([483, 484, 487])])
+                           bosses: [arceusID], unlocks: [.wonEvery(.t4), .beatBosses([483, 484, 487])])
         case .daily:
             // Hard on purpose (the owner): a T4's foes, the strongest finals, a Mega at the end (`challengeBoss`).
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [], themeTypes: [], wild: strongFinals(530),

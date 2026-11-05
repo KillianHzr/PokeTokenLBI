@@ -66,6 +66,16 @@ read_when:
 
 ## 판정·데이터
 
+- **A reward given once never closes what only it gives.** Arceus came from the Hall of Origin's egg alone
+  (`PokemonOdds.dungeonOnly`), and a legendary boss gives its egg once: the first catch, shiny or not, closed Arceus's
+  shiny for good (a player replayed it: 60 runs with the Glimmering Charm, no egg). **Why it was missed:** the two rules
+  came apart (R13 on 2026-11-03, the boss egg once on 2026-11-04) and each test checked its own; none asked what stays
+  within reach after the once-only reward. Fix: a caught Arceus hatches from eggs again (`HatchDraw.dungeonOnly`, dated
+  `HatchRules.Change.caughtBossesInEggs`). Guards: `HatchRulesTests.testACaughtArceusHatchesFromEggs`,
+  `ArceusPoolTests.testACaughtArceusHatchesFromEggs`, `DungeonStoreTests.testAPreRolledArceusHatchesOnceCaught`. Sweep:
+  `dungeonOnly` holds Arceus alone; every other legendary boss hatches from eggs. A new once-only reward checks that
+  what it gives stays reachable after it.
+
 - **A surprise never breaks what an egg promised (#57).** The Ditto disguise rolled on any common line that
   evolves, so 1 Stone egg in 128 turned into a Normal-type Ditto and 1 Oval Charm egg in 128 lost the missing form it
   had brought. The REST fallback also skipped the Oval Charm the index path applies, and the reveal kept the

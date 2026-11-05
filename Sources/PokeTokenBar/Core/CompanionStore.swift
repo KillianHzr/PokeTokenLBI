@@ -459,8 +459,9 @@ final class CompanionStore {
     /// The Pokémon raised hatched from a legendary boss's egg, won once: no egg nor stone sends it off before it
     /// graduates (the owner, 2026-11-04).
     var isRaisingLegendaryBossPokemon: Bool { state.active?.fromLegendaryBossEgg == true }
-    /// A Pokémon raised that an egg or a stone may send off: every `canUse…` of them asks this.
-    var canSendOffActive: Bool { hasActive && !isRaisingLegendaryBossPokemon }
+    /// A Pokémon raised that an egg or a stone may send off: every `canUse…` of them asks this. Not while a team explores:
+    /// it is paused until the team is back (the owner, 2026-11-05: an egg used then ended it).
+    var canSendOffActive: Bool { hasActive && !isRaisingLegendaryBossPokemon && expedition == nil }
     var rarity: Rarity? { state.active?.rarity }
     var currentIsShiny: Bool { state.active?.displaysShiny ?? false }   // 위장 중엔 이로치 숨김(리빌 때 공개)
     /// 새 알(리롤) 구매 시 실수로 놓아주지 않도록 2단계 확인이 필요한 고가치 개체인지 판정.
@@ -2312,6 +2313,8 @@ final class CompanionStore {
     var growthToGraduation: Int { max(0, rareCandyStageCosts.reduce(0, +) - (state.active?.usedAtStage ?? 0)) }
 
     var maxRareCandyUseCount: Int {
+        // Its growth pauses while a team explores: candies too, until it is back (the owner, 2026-11-05).
+        guard expedition == nil else { return 0 }
         let remaining = growthToGraduation
         let xp = rareCandyXP
         let needed = remaining / xp + (remaining % xp == 0 ? 0 : 1)
@@ -2421,18 +2424,25 @@ final class CompanionStore {
             .sorted { ($0.shopPrice ?? 0) < ($1.shopPrice ?? 0) }
     }
 
-    /// 상점 표시 순서 — 판매 아이템 + 알 3종을 하나의 가격 오름차순 목록으로 병합.
-    /// Cheapest first, as `purchasableItems`: a passive item bought is in the Bag, not here.
-    /// The eggs are never "owned" passives: they only take part in the price order. Bought, they go in the Bag.
-    ///
-    /// 등급 알끼리 붙여 '티어 사다리'로 묶어 보이게 하는 안도 검토했으나 채택하지 않았다 — 지금의 순수
-    /// 가격 오름차순은 "알이 무조건 맨 아래로 append 돼 더 비싼 부적보다 아래에 놓이던" 표시 회귀를
-    /// 고치며 들어온 규칙이라(ShopTests 참조), 그룹 배치는 그 회귀를 부분적으로 되살린다. 티어 관계는
-    /// 카드의 등급 배지로 읽히게 한다.
-    var shopEntries: [ShopEntry] {
-        var entries: [ShopEntry] = purchasableItems.map { ShopEntry.item($0) }
-        entries += FreshEgg.shopTiers.map { ShopEntry.egg($0) }
-        return entries.sorted { price(of: $0) < price(of: $1) }
+    /// The Shop's order: its sections one after the other (`shopSections`). Bought, an egg goes in the Bag.
+    var shopEntries: [ShopEntry] { shopSections.flatMap(\.entries) }
+
+    /// The Shop's sections (the owner, 2026-11-05: one price order mixed eggs, balls, candies and charms): the eggs, what
+    /// the Pokémon raised uses, the dungeons' balls, then what is kept for good, each cheapest first (`purchasableItems`'s
+    /// order, the eggs' tiers in theirs; a discount lowers a whole section alike). Empty ones go.
+    enum ShopSection: CaseIterable, Sendable { case eggs, raising, dungeons, keptForGood }
+
+    var shopSections: [(section: ShopSection, entries: [ShopEntry])] {
+        func section(of entry: ShopEntry) -> ShopSection {
+            guard case .item(let kind) = entry else { return .eggs }
+            if kind.isDungeonItem { return .dungeons }
+            return kind.isPassive ? .keptForGood : .raising
+        }
+        let entries = purchasableItems.map { ShopEntry.item($0) } + FreshEgg.shopTiers.map { ShopEntry.egg($0) }
+        return ShopSection.allCases.compactMap { kind in
+            let inSection = entries.filter { section(of: $0) == kind }
+            return inSection.isEmpty ? nil : (kind, inSection)
+        }
     }
 
     /// 구매 가능 — 잔액이 그 아이템 가격 이상(상점 미판매면 false). 활성/알 무관(재고는 미리 쌓아둘 수 있음).
@@ -2505,7 +2515,7 @@ final class CompanionStore {
     /// A save that pre-rolled Arceus before it became the Hall of Origin's alone rolls again (R13), unless the egg is
     /// that boss's.
     private func dropDungeonOnlyPreRoll() {
-        guard let pending = state.pendingHatchID, PokemonOdds.dungeonOnly.contains(pending), state.eggFromDungeon == nil
+        guard let pending = state.pendingHatchID, hatchDraw.dungeonOnly.contains(pending), state.eggFromDungeon == nil
         else { return }
         state.pendingHatchID = nil
         state.pendingForm = nil
@@ -4224,13 +4234,14 @@ final class CompanionStore {
     /// else a legendary one, from the lists of both; once all graduated, any of them, shiny. A random legendary of the
     /// REST fallback could be one graduated while a mythical was missing, and was never shiny.
     private func chooseBirthdayBaseViaREST() async -> (id: Int, shiny: Bool)? {
-        // R13: Arceus comes from the Hall of Origin only, this fallback too (it drew 493, review of 2026-11-02).
-        let graduated = graduatedSpeciesIDs.union(PokemonOdds.dungeonOnly)
+        // R13: Arceus comes from the Hall of Origin only until caught, this fallback too (it drew 493, review of 2026-11-02).
+        let dungeonOnly = hatchDraw.dungeonOnly
+        let graduated = graduatedSpeciesIDs.union(dungeonOnly)
         let mythicals = Set(SpeciesGoal.mythicals).subtracting(graduated)
         if !mythicals.isEmpty { return await chooseListedBaseViaREST(mythicals, charm: false).map { ($0, false) } }
         let legendaries = Set(SpeciesGoal.legendaries).subtracting(graduated)
         if !legendaries.isEmpty { return await chooseListedBaseViaREST(legendaries, charm: false).map { ($0, false) } }
-        return await chooseListedBaseViaREST(Set(SpeciesGoal.mythicals + SpeciesGoal.legendaries).subtracting(PokemonOdds.dungeonOnly),
+        return await chooseListedBaseViaREST(Set(SpeciesGoal.mythicals + SpeciesGoal.legendaries).subtracting(dungeonOnly),
                                              charm: false)
             .map { ($0, true) }
     }
@@ -4511,11 +4522,12 @@ final class CompanionStore {
         // The Oval Charm, as in `chooseBase`: a line with a form still missing while the tries find one, else the
         // first candidate that keeps the egg's other guarantees.
         var withoutTheCharm: Int?
+        let dungeonOnly = hatchDraw.dungeonOnly
         for attempt in 1...32 {
             let ids = PokemonAssets.animatedSpeciesIDs
             let id = Int(rng.next() % UInt64(ids.count)) + ids.lowerBound
             do {
-                if let bs = try await provider.baseSpecies(id: id), !PokemonOdds.dungeonOnly.contains(bs.id) {
+                if let bs = try await provider.baseSpecies(id: id), !dungeonOnly.contains(bs.id) {
                     // 등급 보증은 가중 경로와 **같은 기준**으로 여기서도 걸러야 한다 — 이 폴백만 빠지면
                     // GraphQL 인덱스 장애 때 보증이 조용히 깨진다. 못 찾으면 알 유지(구매 소멸 금지).
                     if let tier, !tier.admits(bs) { continue }

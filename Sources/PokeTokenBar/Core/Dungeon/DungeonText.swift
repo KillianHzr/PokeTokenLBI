@@ -75,6 +75,108 @@ extension L {
         }
     }
 
+    // MARK: My team, a dungeon's page, the type chart (2026-11-05)
+
+    var myTeamTitle: String {
+        t("내 팀", "My team", "マイチーム", "Mi equipo", "Mon équipe", "Minha equipe", "Mein Team", "Моя команда")
+    }
+    var myTeamHint: String {
+        t("최대 6마리의 기본 팀이에요. 던전 팀은 여기서 시작해, 그 던전 규칙이 받아들이는 멤버만 데려가요.",
+          "Your general team, six at most: a dungeon's team starts from it, with the members its rules admit.",
+          "最大6匹の基本チームです。ダンジョンのチームはここから始まり、そのルールが認めるメンバーだけを連れていきます。",
+          "Tu equipo general, seis como máximo: el equipo de una mazmorra parte de él, con los miembros que sus reglas admiten.",
+          "Ton équipe générale, six au plus : l'équipe d'un donjon part d'elle, avec les membres que ses règles acceptent.",
+          "Sua equipe geral, seis no máximo: a equipe de uma masmorra parte dela, com os membros que as regras aceitam.",
+          "Dein allgemeines Team, höchstens sechs: Das Team eines Dungeons beginnt damit, mit den Mitgliedern, die seine Regeln zulassen.",
+          "Ваша общая команда, не больше шести: команда подземелья начинается с неё, с участниками, которых допускают его правила.")
+    }
+    var typeChartTitle: String {
+        t("타입 상성표", "Type chart", "タイプ相性表", "Tabla de tipos", "Table des types", "Tabela de tipos", "Typentabelle", "Таблица типов")
+    }
+    var typeChartLegend: String {
+        t("행은 공격 타입, 열은 받는 타입이에요. 2: 효과가 굉장함, ½: 효과가 별로, 0: 효과 없음. 타입을 누르면 자세히 보여요.",
+          "Rows attack, columns take the hit. 2: super effective, ½: not very effective, 0: no effect. Click a type for its details.",
+          "行がこうげきのタイプ、列が受けるタイプです。2：こうかはばつぐん、½：いまひとつ、0：こうかなし。タイプを押すと詳しく出ます。",
+          "Las filas atacan, las columnas reciben. 2: superefectivo, ½: poco efectivo, 0: sin efecto. Pulsa un tipo para verlo en detalle.",
+          "Les lignes attaquent, les colonnes reçoivent. 2 : super efficace, ½ : peu efficace, 0 : sans effet. Clique un type pour le détail.",
+          "As linhas atacam, as colunas recebem. 2: supereficaz, ½: pouco eficaz, 0: sem efeito. Clique num tipo para ver o detalhe.",
+          "Zeilen greifen an, Spalten nehmen den Treffer. 2: sehr effektiv, ½: nicht sehr effektiv, 0: keine Wirkung. Klicke einen Typ für Details.",
+          "Строки атакуют, столбцы получают удар. 2: суперэффективно, ½: малоэффективно, 0: без эффекта. Нажмите на тип, чтобы увидеть подробности.")
+    }
+    var typeAttacking: String { t("공격할 때", "Attacking", "こうげきするとき", "Al atacar", "En attaque", "Ao atacar", "Im Angriff", "В атаке") }
+    var typeDefending: String { t("받을 때", "Defending", "うけるとき", "Al defender", "En défense", "Ao defender", "In der Abwehr", "В защите") }
+    var typeStrongAgainst: String {
+        t("효과가 굉장함", "Super effective on", "こうかばつぐん", "Superefectivo contra", "Super efficace contre", "Supereficaz contra",
+          "Sehr effektiv gegen", "Суперэффективно против")
+    }
+    var typeWeakAgainst: String {
+        t("효과가 별로", "Not very effective on", "いまひとつ", "Poco efectivo contra", "Peu efficace contre", "Pouco eficaz contra",
+          "Nicht sehr effektiv gegen", "Малоэффективно против")
+    }
+    var typeNoEffectOn: String {
+        t("효과 없음", "No effect on", "こうかなし", "Sin efecto en", "Sans effet sur", "Sem efeito em", "Keine Wirkung auf", "Без эффекта на")
+    }
+    var typeWeakTo: String { t("약점", "Weak to", "よわい", "Débil ante", "Craint", "Fraco contra", "Schwach gegen", "Уязвим к") }
+    var typeResists: String { t("반감", "Resists", "いまひとつで受ける", "Resiste", "Résiste à", "Resiste a", "Widersteht", "Устойчив к") }
+    var typeImmuneTo: String { t("무효", "Immune to", "こうかがない", "Inmune a", "Immunisé contre", "Imune a", "Immun gegen", "Иммунитет к") }
+    var dungeonDetailsButton: String { t("상세", "Details", "詳細", "Detalles", "Détails", "Detalhes", "Details", "Подробнее") }
+    var dungeonDetailWild: String {
+        t("야생 포켓몬", "Wild Pokémon", "やせいのポケモン", "Pokémon salvajes", "Pokémon sauvages", "Pokémon selvagens", "Wilde Pokémon", "Дикие покемоны")
+    }
+    func dungeonDetailBosses(met: Int, of total: Int) -> String {
+        t("보스: \(total)마리 중 \(met)마리 만남", "Bosses: \(met) met of \(total)", "ボス：\(total)体中\(met)体と出会った",
+          "Jefes: \(met) vistos de \(total)", "Boss : \(met) rencontrés sur \(total)", "Chefes: \(met) vistos de \(total)",
+          "Bosse: \(met) von \(total) getroffen", "Боссы: встречено \(met) из \(total)")
+    }
+    var dungeonDetailLoot: String {
+        t("전리품과 확률", "Loot and odds", "戦利品と確率", "Botín y probabilidades", "Butin et taux", "Espólio e chances", "Beute und Chancen",
+          "Добыча и шансы")
+    }
+    func dungeonDetailCandies(_ low: Int, _ high: Int) -> String {
+        let candy = itemName(.rareCandy)
+        return t("\(candy): 탐험마다 \(low)~\(high)개", "\(candy): \(low) to \(high) an expedition", "\(candy)：1回の探検で\(low)〜\(high)個",
+                 "\(candy): de \(low) a \(high) por expedición", "\(candy) : \(low) à \(high) par expédition",
+                 "\(candy): de \(low) a \(high) por expedição", "\(candy): \(low) bis \(high) pro Expedition",
+                 "\"\(candy)\": от \(low) до \(high) за экспедицию")
+    }
+    var dungeonDetailChestItems: String {
+        t("상자 아이템", "Chest items", "宝箱の道具", "Objetos de los cofres", "Objets des coffres", "Itens dos baús", "Truhen-Items", "Предметы в сундуках")
+    }
+    var dungeonDetailChestEggs: String {
+        t("상자 하나의 알", "An egg in a chest", "宝箱のタマゴ", "Huevo por cofre", "Œuf par coffre", "Ovo por baú", "Ei pro Truhe", "Яйцо в сундуке")
+    }
+    var dungeonDetailVictory: String {
+        t("보스를 쓰러뜨리면 추가로", "If the boss falls, also", "ボスを倒すとさらに", "Si cae el jefe, además", "En plus si le boss tombe",
+          "Se o chefe cair, também", "Fällt der Boss, zusätzlich", "Если босс падёт, ещё")
+    }
+    var dungeonDetailFirstVictory: String {
+        t("첫 승리: 전리품 두 배와 등급 아이템 하나 추가.", "First victory: the loot doubled and one more item of the tier.",
+          "初勝利：戦利品が2倍になり、ランクの道具がもう1つ。", "Primera victoria: botín doble y un objeto más del nivel.",
+          "Première victoire : butin doublé et un objet du palier en plus.", "Primeira vitória: espólio em dobro e mais um item do nível.",
+          "Erster Sieg: doppelte Beute und ein weiteres Item der Stufe.", "Первая победа: добыча удваивается и ещё один предмет уровня.")
+    }
+    var dungeonDetailNone: String { t("없음", "None", "なし", "Ninguno", "Aucun", "Nenhum", "Keins", "Нет") }
+    var dungeonDetailHistory: String { t("기록", "History", "記録", "Historial", "Historique", "Histórico", "Verlauf", "История") }
+    var dungeonDetailNoRun: String {
+        t("아직 이곳에서 끝난 탐험이 없어요.", "No expedition has ended here yet.", "ここで終わった探検はまだありません。",
+          "Aún no ha terminado ninguna expedición aquí.", "Aucune expédition terminée ici pour l'instant.",
+          "Nenhuma expedição terminou aqui ainda.", "Hier ist noch keine Expedition zu Ende gegangen.", "Здесь ещё не закончилась ни одна экспедиция.")
+    }
+    func dungeonDetailRuns(_ runs: Int, wins: Int) -> String {
+        t("탐험 \(runs)회 · 승리 \(wins)회", runs == 1 ? "1 expedition · \(wins) won" : "\(runs) expeditions · \(wins) won",
+          "探検\(runs)回・勝利\(wins)回", "\(runs) expediciones · \(wins) ganadas", "\(runs) expéditions · \(wins) gagnées",
+          "\(runs) expedições · \(wins) vencidas", "\(runs) Expeditionen · \(wins) gewonnen", "Экспедиций: \(runs) · побед: \(wins)")
+    }
+    func oddsPercent(_ value: Double) -> String {
+        let p = percentNumber(value)
+        return t("\(p)%", "\(p)%", "\(p)%", "\(p) %", "\(p) %", "\(p)%", "\(p) %", "\(p)%")
+    }
+
+    /// A tier's dungeons by name, as its unlock lists them.
+    func tierDungeonNames(_ tier: DungeonTier) -> String {
+        DungeonMedals.dungeons(tier).map(dungeonName).joined(separator: ", ")
+    }
+
     func dungeonUnlock(_ unlock: DungeonUnlock) -> String {
         switch unlock {
         case .graduated(let n): t("졸업한 포켓몬 \(n)마리", "\(n) graduated Pokémon", "卒業したポケモン\(n)ひき",
@@ -84,6 +186,14 @@ extension L {
             t("T\(tier.rawValue) 던전 하나 클리어", "Finish a T\(tier.rawValue) dungeon", "T\(tier.rawValue)のダンジョンをひとつクリア",
               "Superar una mazmorra T\(tier.rawValue)", "Finir un donjon T\(tier.rawValue)", "Concluir uma masmorra T\(tier.rawValue)",
               "Einen T\(tier.rawValue)-Dungeon abschließen", "Пройти подземелье T\(tier.rawValue)")
+        case .wonEvery(let tier):
+            t("T\(tier.rawValue) 던전 모두 클리어: \(tierDungeonNames(tier))", "Finish every T\(tier.rawValue) dungeon: \(tierDungeonNames(tier))",
+              "T\(tier.rawValue)のダンジョンをすべてクリア：\(tierDungeonNames(tier))",
+              "Superar todas las mazmorras T\(tier.rawValue): \(tierDungeonNames(tier))",
+              "Finir tous les donjons T\(tier.rawValue) : \(tierDungeonNames(tier))",
+              "Concluir todas as masmorras T\(tier.rawValue): \(tierDungeonNames(tier))",
+              "Alle T\(tier.rawValue)-Dungeons abschließen: \(tierDungeonNames(tier))",
+              "Пройти все подземелья T\(tier.rawValue): \(tierDungeonNames(tier))")
         case .won(let id): t("\(dungeonName(id)) 클리어", "Finish \(dungeonName(id))", "\(dungeonName(id))をクリア",
                              "Superar \(dungeonName(id))", "Finir \(dungeonName(id))", "Concluir \(dungeonName(id))",
                              "\(dungeonName(id)) abschließen", "Пройти: \(dungeonName(id))")
@@ -354,6 +464,17 @@ extension L {
     var dungeonLeave: String {
         t("던전 나가기", "Leave the dungeon", "ダンジョンを出る", "Salir de la mazmorra", "Quitter le donjon", "Sair da masmorra",
           "Dungeon verlassen", "Покинуть подземелье")
+    }
+    /// Under the Rare Candies, the eggs and the stones in the Bag while a team explores: the Pokémon raised is paused.
+    var candiesPausedForDungeon: String {
+        t("팀이 돌아올 때까지 일시정지: 키우는 포켓몬이 쉬는 동안에는 쓸 수 없어요.",
+          "Paused until the team is back: the Pokémon raised rests meanwhile.",
+          "チームが戻るまで一時停止：育てているポケモンはそのあいだ休んでいます。",
+          "En pausa hasta que vuelva el equipo: el Pokémon que crías descansa mientras tanto.",
+          "En pause jusqu'au retour de l'équipe : le Pokémon en élevage se repose en attendant.",
+          "Em pausa até a equipe voltar: o Pokémon que você cria descansa enquanto isso.",
+          "Pausiert, bis das Team zurück ist: Das aufgezogene Pokémon ruht so lange.",
+          "Пауза до возвращения команды: выращиваемый покемон пока отдыхает.")
     }
     /// What leaving keeps (the owner, 2026-11-04): the floors crossed, not the one under way.
     var dungeonLeaveKeeps: String {
