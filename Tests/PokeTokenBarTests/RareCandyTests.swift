@@ -769,6 +769,22 @@ private func rcCodex(primary: Int? = nil, secondary: Int? = nil, individual: Int
     return try! JSONDecoder().decode(CodexRateLimitStatus.self, from: Data("{\"rateLimits\":{\(parts.joined(separator: ","))}}".utf8))
 }
 
+/// app-server account/rateLimits/read wire format, with reset values observed in local rollouts.
+/// A weekly primary with no secondary is also a real Codex response, not necessarily a 5h window.
+private func rcCodexCredits(utilization: Int = 100, reset: Int = 1_792_199_349,
+                           balance: String = "100.0000", weeklyPrimary: Bool = false) throws -> CodexRateLimitStatus {
+    let primaryMinutes = weeklyPrimary ? 10_080 : 300
+    let secondary = weeklyPrimary ? "null" :
+        "{\"usedPercent\":\(utilization),\"windowDurationMins\":10080,\"resetsAt\":\(reset)}"
+    let json = """
+    {"rateLimits":{"limitId":"codex","limitName":null,
+      "primary":{"usedPercent":\(utilization),"windowDurationMins":\(primaryMinutes),"resetsAt":\(reset)},
+      "secondary":\(secondary),"credits":{"balance":"\(balance)","hasCredits":true,"unlimited":false},
+      "individualLimit":null,"planType":"pro","rateLimitReachedType":null}}
+    """
+    return try JSONDecoder().decode(CodexRateLimitStatus.self, from: Data(json.utf8))
+}
+
 @MainActor
 final class RareCandyGrantIntegrationTests: XCTestCase {
     // nonisolated(unsafe): sync setUp/tearDown 은 릴리스 Swift 에서 nonisolated → main-actor 프로퍼티
@@ -799,6 +815,42 @@ final class RareCandyGrantIntegrationTests: XCTestCase {
     private func companion() -> CompanionStore {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("rc-int-\(UUID().uuidString).json")
         return CompanionStore(provider: StubProvider(value: rcLinear3), clock: { rcNow }, fileURL: url, rng: SeededRNG(seed: 7), difficulty: 1)
+    }
+
+    private func pollCodex(_ status: CodexRateLimitStatus?, companion: CompanionStore) async {
+        let store = usage(codex: status,
+                          providers: [RCFakeProvider(id: "codex", displayName: "Codex", daily: rcDaily(1_000))])
+        await store.refresh(scheduleEmptyRetry: false)
+        companion.grantCandies(from: store.candyEligibleWindows, limitsReady: store.limitsReady)
+    }
+
+    /// Codex windows carry no reset epoch even when app-server sends `resetsAt`, so only a sample seen back down
+    /// rearms them (upstream #434).
+    func testEligibleWindowsCodexOmitsResetEpoch() async throws {
+        let store = usage(codex: try rcCodexCredits(),
+                          providers: [RCFakeProvider(id: "codex", displayName: "Codex", daily: rcDaily(1_000))])
+        await store.refresh(scheduleEmptyRetry: false)
+        let codex = store.candyEligibleWindows.filter { $0.key.hasPrefix("codex.") }
+        XCTAssertEqual(codex.count, 2)
+        XCTAssertTrue(codex.allSatisfy { $0.epoch == nil })
+    }
+
+    /// [Regression, upstream #434] Codex keeps serving at 100% on credits, its reset moving: no candy again until
+    /// it is seen back down, under half full, then full again.
+    func testCodexCreditsAtFullLimitDoNotRegrantWithoutUtilizationDrop() async throws {
+        let c = companion()
+        await pollCodex(try rcCodexCredits(utilization: 30), companion: c)
+        await pollCodex(try rcCodexCredits(), companion: c)
+        let first = c.rareCandyCount
+        XCTAssertGreaterThan(first, 0, "credits must not suppress the first grant")
+        // Balance changes, identical reset, round-trip jitter, and a genuine new epoch.
+        for reset in [1_792_199_349, 1_792_199_350, 1_792_199_351, 1_792_199_349, 1_792_804_149] {
+            await pollCodex(try rcCodexCredits(reset: reset, balance: "90.0000"), companion: c)
+            XCTAssertEqual(c.rareCandyCount, first, "100% stays paid at reset \(reset)")
+        }
+        await pollCodex(try rcCodexCredits(utilization: 30, reset: 1_792_804_149), companion: c)
+        await pollCodex(try rcCodexCredits(reset: 1_792_804_149), companion: c)
+        XCTAssertGreaterThan(c.rareCandyCount, first, "seen back down, then full: a new window pays")
     }
 
     // MARK: candyEligibleWindows 구성

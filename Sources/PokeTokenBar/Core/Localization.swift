@@ -1651,6 +1651,62 @@ struct L {
           "Токен авторизации истёк. Повторите попытку или один раз запустите Antigravity IDE: токен обновится автоматически.")
     }
 
+    // MARK: OpenCode Go 공식 한도
+    var openCodeGoMonthly: String {
+        t("월간", "Monthly", "月間", "Mensual", "Mensuel", "Mensal", "Monatlich", "Месяц")
+    }
+    var openCodeGoAuthExpiredTitle: String {
+        t("OpenCode Go 키 거부: 한도가 갱신 안 돼요",
+          "OpenCode Go key rejected: limits can't refresh",
+          "OpenCode Go キーが拒否されました：上限を更新できません",
+          "Clave de OpenCode Go rechazada: los límites no se pueden actualizar",
+          "Clé OpenCode Go refusée : les limites ne s'actualisent pas",
+          "Chave do OpenCode Go recusada: não dá para atualizar os limites",
+          "OpenCode-Go-Schlüssel abgelehnt: Limits können nicht aktualisiert werden",
+          "Ключ OpenCode Go отклонён: лимиты не обновляются")
+    }
+    var openCodeGoAuthExpiredHint: String {
+        t("OpenCode 에서 /connect 로 OpenCode Go 키를 다시 연결해 주세요.",
+          "Reconnect your OpenCode Go key with /connect in OpenCode.",
+          "OpenCode で /connect を使って OpenCode Go キーを再接続してください。",
+          "Vuelve a conectar tu clave de OpenCode Go con /connect en OpenCode.",
+          "Reconnecte ta clé OpenCode Go avec /connect dans OpenCode.",
+          "Reconecte sua chave do OpenCode Go com /connect no OpenCode.",
+          "Verbinde deinen OpenCode-Go-Schlüssel in OpenCode mit /connect neu.",
+          "Подключите ключ OpenCode Go заново командой /connect в OpenCode.")
+    }
+
+    // MARK: Grok 공식 한도(크레딧)
+    func grokCreditPeriod(weekly: Bool, monthly: Bool) -> String {
+        if weekly {
+            return t("주간 크레딧", "Weekly credits", "週間クレジット", "Créditos semanales", "Crédits hebdo", "Créditos semanais", "Wöchentliche Credits", "Кредиты на неделю")
+        }
+        if monthly {
+            return t("월간 크레딧", "Monthly credits", "月間クレジット", "Créditos mensuales", "Crédits mensuels", "Créditos mensais", "Monatliche Credits", "Кредиты на месяц")
+        }
+        return t("크레딧", "Credits", "クレジット", "Créditos", "Crédits", "Créditos", "Credits", "Кредиты")
+    }
+    var grokAuthExpiredTitle: String {
+        t("Grok 로그인 만료: 한도가 갱신 안 돼요",
+          "Grok login expired: limits can't refresh",
+          "Grok のログイン期限切れ：上限を更新できません",
+          "Sesión de Grok expirada: los límites no se pueden actualizar",
+          "Connexion Grok expirée : les limites ne s'actualisent pas",
+          "Login do Grok expirado: não dá para atualizar os limites",
+          "Grok-Anmeldung abgelaufen: Limits können nicht aktualisiert werden",
+          "Вход в Grok истёк: лимиты не обновляются")
+    }
+    var grokAuthExpiredHint: String {
+        t("Grok CLI 를 한 번 실행하면 로그인이 갱신돼요. 안 되면 grok login 을 실행해 주세요.",
+          "Run Grok CLI once to refresh the login, or run grok login.",
+          "Grok CLI を一度実行するとログインが更新されます。だめなら grok login を実行してください。",
+          "Ejecuta Grok CLI una vez para renovar la sesión, o ejecuta grok login.",
+          "Lance Grok CLI une fois pour renouveler la connexion, ou lance grok login.",
+          "Abra o Grok CLI uma vez para renovar o login, ou rode grok login.",
+          "Starte Grok CLI einmal, um die Anmeldung zu erneuern, oder führe grok login aus.",
+          "Запустите Grok CLI один раз, чтобы обновить вход, или выполните grok login.")
+    }
+
     // MARK: Cursor 공식 한도(월간 포함 allowance)
     var cursorMonthlyIncluded: String {
         t("월간 포함 allowance", "Monthly included", "月間 included", "Incluido mensual", "Inclus mensuel", "Incluso mensal", "Monatlich inklusive", "Включено в месяц")

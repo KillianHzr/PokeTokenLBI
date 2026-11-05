@@ -1033,6 +1033,7 @@ struct CandyWindow: Sendable {
     let kind: WindowClass
     let utilization: Double  // 0~100+
     /// 창 epoch (`resets_at` / reset unix). key 는 안정, epoch 가 바뀌면 새 창 → 재무장(#326).
+    /// nil 이면 100% 미만 관측으로만 재무장한다(Codex — credits 로 100% 를 넘겨 쓴다).
     let epoch: String?
     /// How many Pro plans the account's limits are worth (`LimitStatus.planMultiplier`): 1 when unknown.
     let planMultiplier: Int
