@@ -41,7 +41,7 @@ PokeTokenBar turns the AI coding tokens you're already burning — Claude Code, 
 3. ⚡ **Evolve.** Keep coding and it grows through its actual evolution tree (1/2/3 stages, branching), with a little flash celebration at each step.
 4. 🎓 **Graduate & collect.** Final form + threshold permanently archives it in your **Pokédex**: rarer takes longer (≈7 hours common, ≈2.4 days legendary at about 250M tokens a day), and a fresh egg arrives. Home shows the time to the next stage at your pace, and the Pokédex keeps a raising record of each Pokémon (hatch, graduation, tokens by tool, main model, candies, cost).
 5. 🍬 **Use your plan, get candies.** Your 5-hour and weekly usage limits pay **Rare Candy** as they fill, at the same pace on every plan, and each limit shows the candies its window paid. Tools without limit windows (Cursor, Gemini CLI…) pay one every 65M tokens. Spend them from the **Bag** to grow your current Pokémon.
-6. 🛒 **Spend at the Shop.** Every token you've used is spendable currency: buy **Rare Candy**, a **Shiny Charm** that permanently raises your shiny odds, or an egg that waits in the **Bag** until you send your companion off for it. Eggs come in three grades, each with its odds shown: a plain **Pokémon Egg**, an **Uncommon Egg** guaranteed to hatch Uncommon or better, and a **Rare Egg** guaranteed to hatch Rare or better. Once your Pokédex holds the Pokémon they ask for, **evolution stones**, **legendary artifacts** and **gym badges** can be claimed for free from the **Achievements** tab.
+6. 🛒 **Spend at the Shop.** Every token you've used is spendable currency: buy **Rare Candy**, a **Shiny Charm** that permanently raises your shiny odds, or an egg that waits in the **Bag** until you send your companion off for it. Eggs come in three grades, each with its odds shown: a plain **Pokémon Egg**, an **Uncommon Egg** guaranteed to hatch Uncommon or better, and a **Rare Egg** guaranteed to hatch Rare or better. Once your Pokédex holds the Pokémon they ask for, **evolution stones**, **legendary artifacts** and **gym badges** can be claimed for free from the **Achievements** in the **Trainer** tab.
 
 ## Tour
 
@@ -162,7 +162,7 @@ Reset countdowns include the clock time, and the colored percentage stays aligne
 
 ## Collector items
 
-Each collector item stays **locked** until you register the Pokémon it asks for in your Pokédex: graduated or released Pokémon count, and so do the stages your current Pokémon has reached. Every collector item is then claimed for free from the **Achievements** tab, whose title counts the rewards ready to claim. There, a locked card shows the Pokémon it needs, greyed out until registered; once claimed, the card keeps the goal as a small reminder.
+Each collector item stays **locked** until you register the Pokémon it asks for in your Pokédex: graduated or released Pokémon count, and so do the stages your current Pokémon has reached. Every collector item is then claimed for free from the **Achievements** in the **Trainer** tab, which counts the rewards ready to claim. There, a locked card shows the Pokémon it needs, greyed out until registered; once claimed, the card keeps the goal as a small reminder.
 
 ### Evolution Stones
 
@@ -185,7 +185,7 @@ The first nine stones follow the generations in order: each one asks for a regio
 
 ### Legendary Artifacts
 
-Claimed once from the **Achievements** tab, active for as long as they sit in the Bag.
+Claimed once from the **Achievements** (in the **Trainer** tab), active for as long as they sit in the Bag.
 
 | Artifact | Sprite | Unlocks with | Effect |
 | :--- | :---: | :--- | :--- |
@@ -255,7 +255,7 @@ Only the Azure Flute and the Oval Charm change which Pokémon hatch, and the Ova
 
 ### Gym Badges
 
-Every badge has a **region per generation**: register every Pokémon of its type from that region to complete it, then claim it from the **Achievements** tab (each badge card shows its nine regions: claimed, ready or in progress). Each claimed region makes the Pokémon weak to the badge's type grow 2.5% faster, so a badge with all nine regions gives 22.5%; Dark has no Kanto Pokémon, so its badge has eight regions (20%). Bonuses stack when a Pokémon is weak to several badges. Badges claimed before regions existed count as their Kanto region (Johto for Dark). Each badge also gives Arceus the Plate of its type: Arceus hatches in its Normal form, and once it is in your Pokédex every badge with a claimed region unlocks the matching form (Fire Arceus with the Volcano Badge), shown under each form in its Pokédex page.
+Every badge has a **region per generation**: register every Pokémon of its type from that region to complete it, then claim it from the **Achievements** in the **Trainer** tab (each badge card shows its nine regions: claimed, ready or in progress). Each claimed region makes the Pokémon weak to the badge's type grow 2.5% faster, so a badge with all nine regions gives 22.5%; Dark has no Kanto Pokémon, so its badge has eight regions (20%). Bonuses stack when a Pokémon is weak to several badges. Badges claimed before regions existed count as their Kanto region (Johto for Dark). Each badge also gives Arceus the Plate of its type: Arceus hatches in its Normal form, and once it is in your Pokédex every badge with a claimed region unlocks the matching form (Fire Arceus with the Volcano Badge), shown under each form in its Pokédex page.
 
 | Badge | Sprite | Type | Pokémon per region | Boosts Pokémon weak to it |
 | :--- | :---: | :---: | :--- | :--- |
@@ -277,6 +277,12 @@ Every badge has a **region per generation**: register every Pokémon of its type
 | **Rising Badge** | <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/16.png" width="28" height="28" alt="Rising Badge"> | Dragon | Kanto 3 · Johto 1 · Hoenn 9 · Sinnoh 6 · Unova 10 · Kalos 9 · Alola 7 · Galar 11 · Paldea 14 | Dragon |
 | **Dark Badge** | <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/59.png" width="28" height="28" alt="Dark Badge"> | Dark | Johto 6 · Hoenn 10 · Sinnoh 7 · Unova 16 · Kalos 5 · Alola 2 · Galar 10 · Paldea 13 | Psychic, Ghost |
 | **Fairy Badge** | <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/48.png" width="28" height="28" alt="Fairy Badge"> | Fairy | Kanto 5 · Johto 8 · Hoenn 5 · Sinnoh 2 · Unova 2 · Kalos 13 · Alola 12 · Galar 8 · Paldea 9 | Fighting, Dragon, Dark |
+
+## Dungeons
+
+Graduated Pokémon can head out again. Thirteen dungeons in five tiers each take a team under their own rules (one region, no legendaries, starters only, and more). Pick four moves for each Pokémon on its Pokédex page, then send the team in: the tokens you spend walk it down floor by floor while your companion's growth pauses. Battles play out on their own, with the games' types, stats and damage rules, and any of them can be watched again from the journal. A boss waits at the bottom: beat it and the app throws your best balls by itself to catch it for its egg (the Master Ball only at a legendary boss, and only if you leave its box checked on the team screen). A boss you already have gives an egg of the dungeon's rarity instead. A legendary boss gives its egg once (shiny if you already have it, a Legendary Egg if you have it shiny), then the loot only; its Pokémon graduates for 200M tokens instead of a legendary's 600M, and nothing replaces it before then. From T2, chests can hold eggs too. A defeat or leaving keeps the loot of the floors crossed. Arceus hatches from no egg any more; it waits at the end of the last dungeon. The loot (berries, Revives, balls, Capsules that raise IVs to 31, Rare Candies, eggs) goes to the Bag, and the Dungeons medals among the Artifacts reward each dungeon won once. One expedition at a time; the menu bar shows its floor, and a "!" when it needs you.
+
+Once a T3 dungeon is won, the **Daily dungeon** opens (8 floors, 200M tokens, one try a day), and after a T4 the **Weekly dungeon** (12 floors, one try a week). Their boss is a battle form of a Pokémon you graduated and do not have yet: a Mega Evolution for the day; a Gigantamax form, a Primal Reversion or a legendary Mega for the week. Beat it and the form is yours for good: in your Pokédex and its every-form count, and any graduated Pokémon of that species can fight in it, chosen on the team screen. The Battle Forms Medal rewards 5, 15, 30, 60, 100 and every form won.
 
 ## Also in the box
 

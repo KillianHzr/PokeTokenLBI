@@ -60,7 +60,7 @@ final class AchievementsRenderingTests: XCTestCase {
 
     /// Three segments with their counts used to be wider than the popover: SwiftUI centered the wider stack,
     /// so the whole tab slid off both edges. Checked in every language with the widest labels: every reward
-    /// ready, so the four segments carry counts up to three digits (10, 161, 45, 10).
+    /// ready, so the four segments carry counts up to three digits (10, 161, 46, 10).
     func testCategoryPickerFitsTheTabWidthInEveryLanguage() async throws {
         let categories = AchievementsView.AchievementCategory.allCases
         let labelWidth = PillPicker<AchievementsView.AchievementCategory>.labelWidth(count: categories.count,
@@ -79,7 +79,8 @@ final class AchievementsRenderingTests: XCTestCase {
             state.dex = Self.everySpeciesTwiceMewtwo
             try JSONEncoder().encode(state).write(to: file)
             let store = CompanionStore(provider: AchievementsStubProvider(), fileURL: file, defaults: defaults)
-            XCTAssertEqual(categories.map { AchievementsView.readyCount($0, store) }, [10, 161, 47, 10])
+            // Every species graduated no longer readies the Glimmering Charm: every form counts the battle forms too.
+            XCTAssertEqual(categories.map { AchievementsView.readyCount($0, store) }, [10, 161, 46, 10])
             for category in categories {
                 let title = AchievementsView.tabTitle(category, store)
                 let width = (title as NSString).size(withAttributes: [.font: font]).width
@@ -144,16 +145,18 @@ final class AchievementsRenderingTests: XCTestCase {
     }
 
     /// The Achievements tab made the popover's segmented tab bar five labels wide. With a two-digit count it was
-    /// wider than the popover in German, and Russian overflowed even without one.
-    /// Each tab gets a fifth of the popover's width; its label may shrink to `minimumLabelScale`, never further, in
-    /// every language. The bar itself lays out within the content width.
+    /// wider than the popover in German, and Russian overflowed even without one. The Dungeons tab made it six, and
+    /// "Achievements" was cut in English while this test still counted five tabs: the share is counted from the bar.
+    /// Each tab gets an equal share of the popover's width; its label may shrink to `minimumLabelScale`, never further,
+    /// in every language. The bar itself lays out within the content width.
     func testTabBarFitsThePopoverInEveryLanguage() async throws {
-        // 3 pt padding on each side, 2 pt between the five tabs.
-        let tabWidth = (PopoverMetrics.contentWidth - 6 - 4 * 2) / 5
         for language in AppLanguage.allCases {
             var tab = PopoverTab.home
             let picker = PopoverTabPicker(tab: Binding(get: { tab }, set: { tab = $0 }), l: L(language),
                                           unclaimedAchievements: 41)
+            // 3 pt padding on each side, 2 pt between the tabs.
+            let count = CGFloat(picker.items().count)
+            let tabWidth = (PopoverMetrics.contentWidth - 6 - (count - 1) * 2) / count
             for item in picker.items() {
                 let width = (item.title as NSString).size(withAttributes: [.font: PopoverTabPicker.labelFont]).width
                 XCTAssertLessThanOrEqual(width * PopoverTabPicker.minimumLabelScale, tabWidth,
@@ -164,6 +167,16 @@ final class AchievementsRenderingTests: XCTestCase {
             host.layoutSubtreeIfNeeded()
             XCTAssertLessThanOrEqual(host.fittingSize.width, PopoverMetrics.contentWidth + 0.5, "\(language)")
         }
+    }
+
+    /// Five tabs at most (the owner, 2026-11-02): the Bag and the achievements share the Trainer tab, which lights up
+    /// for the rewards ready.
+    func testTheBagAndTheAchievementsShareTheTrainerTab() {
+        var tab = PopoverTab.achievements
+        let picker = PopoverTabPicker(tab: Binding(get: { tab }, set: { tab = $0 }), l: L(.en), unclaimedAchievements: 3)
+        XCTAssertEqual(picker.items().map(\.tab), [.home, .shop, .bag, .collection, .dungeons])
+        XCTAssertLessThanOrEqual(picker.items().count, 5)
+        XCTAssertEqual(picker.items()[2].title, "Trainer")
     }
 
     private func descendants<T: NSView>(of view: NSView, _ type: T.Type) -> [T] {

@@ -1804,6 +1804,8 @@ struct L {
 
     // MARK: 가방 / 아이템
     var bag: String { t("가방", "Bag", "バッグ", "Bolsa", "Sac", "Bolsa", "Beutel", "Сумка") }
+    /// The tab holding the Bag and the achievements, earned or not: the trainer's, as the games' Trainer Card.
+    var trainerTab: String { t("트레이너", "Trainer", "トレーナー", "Entrenador", "Dresseur", "Treinador", "Trainer", "Тренер") }
     /// The Bag's first section: Shop items, candies, mints and stones.
     var bagItemsTitle: String { t("아이템", "Items", "アイテム", "Artículos", "Objets", "Itens", "Gegenstände", "Предметы") }
     /// One line above the Bag's badges, instead of each badge repeating it.
@@ -1974,6 +1976,25 @@ struct L {
         case .duskStone:    return t("어둠의돌", "Dusk Stone", "やみのいし", "Piedra Noche", "Pierre Nuit", "Pedra do Anoitecer", "Finsterstein", "Сумеречный камень")
         case .dawnStone:    return t("각성의돌", "Dawn Stone", "めざめいし", "Piedra Alba", "Pierre Aube", "Pedra da Alvorada", "Funkelstein", "Камень рассвета")
         case .shinyStone:   return t("빛의돌", "Shiny Stone", "ひかりのいし", "Piedra Día", "Pierre Éclat", "Pedra do Brilho", "Leuchtstein", "Сияющий камень")
+        case .greatBall: return t("수퍼볼", "Great Ball", "スーパーボール", "Super Ball", "Super Ball", "Great Ball", "Superball", "Грейт-бол")
+        case .ultraBall: return t("하이퍼볼", "Ultra Ball", "ハイパーボール", "Ultra Ball", "Hyper Ball", "Ultra Ball", "Hyperball", "Ультра-бол")
+        case .masterBall: return t("마스터볼", "Master Ball", "マスターボール", "Master Ball", "Master Ball", "Master Ball", "Meisterball", "Мастер-бол")
+        case .oranBerry: return t("오랭열매", "Oran Berry", "オレンのみ", "Baya Aranja", "Baie Oran", "Fruta Oran", "Sinelbeere", "Ягода Оран")
+        case .sitrusBerry: return t("자뭉열매", "Sitrus Berry", "オボンのみ", "Baya Zidra", "Baie Sitrus", "Fruta Sitrus", "Tsitrubeere", "Ягода Ситрус")
+        case .revive: return t("기력의조각", "Revive", "げんきのかけら", "Revivir", "Rappel", "Reviver", "Beleber", "Оживитель")
+        case .maxRevive: return t("기력의덩어리", "Max Revive", "げんきのかたまり", "Revivir Máximo", "Rappel Max", "Reviver Máximo", "Top-Beleber", "Макс. оживитель")
+        case .silverCapsule: return t("은색왕관", "Bottle Cap", "ぎんのおうかん", "Chapa Plateada", "Capsule d'Argent", "Tampinha Prateada", "Silberkronkorken", "Серебряная крышка")
+        case .goldCapsule: return t("금색왕관", "Gold Bottle Cap", "きんのおうかん", "Chapa Dorada", "Capsule d'Or", "Tampinha Dourada", "Goldkronkorken", "Золотая крышка")
+        case .treasureMap: return t("보물지도", "Treasure Map", "たからのちず", "Mapa del Tesoro", "Carte au trésor", "Mapa do Tesouro", "Schatzkarte", "Карта сокровищ")
+        case .explorerChest: return t("탐험가의 상자", "Explorer's Chest", "たんけんかのはこ", "Cofre del Explorador", "Coffre d'explorateur", "Baú do Explorador", "Forscherkiste", "Сундук исследователя")
+        case .legendaryKey: return t("전설의 열쇠", "Legendary Key", "でんせつのカギ", "Llave Legendaria", "Clé Légendaire", "Chave Lendária", "Legendenschlüssel", "Легендарный ключ")
+        case .battleFormsMedal:
+            return t("전투 형태 메달", "Battle Forms Medal", "バトルのすがたメダル", "Medalla de Formas de combate",
+                     "Médaille des Formes de combat", "Medalha das Formas de batalha", "Kampfformen-Medaille", "Медаль боевых форм")
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
+            let tier = dungeonTierName(kind.dungeonTier ?? .t1)
+            return t("\(tier) 메달", "\(tier) Medal", "\(tier)のメダル", "Medalla \(tier)", "Médaille \(tier)", "Medalha \(tier)",
+                     "\(tier)-Medaille", "Медаль: \(tier)")
         }
     }
     /// `rareCandyXP`: what a candy grants now, with the Soul Dew's +50% when owned (`CompanionStore.rareCandyXP`).
@@ -2468,6 +2489,119 @@ struct L {
                      "Solte seu Pokémon atual em troca de um ovo que com certeza vai chocar um Pokémon do tipo \(type).",
                      "Verabschiede dein aktuelles Pokémon für ein Ei, aus dem garantiert ein Pokémon vom Typ \(type) schlüpft.",
                      "Отпустите текущего покемона и получите яйцо, из которого гарантированно вылупится покемон типа \"\(type)\".")
+        case .greatBall:
+            return t("던전 보스를 잡을 확률이 1.5배가 돼요.", "Raises the odds of catching a dungeon's boss 1.5 times.",
+                     "ダンジョンのボスを捕まえる確率が1.5倍になります。", "Multiplica por 1,5 la probabilidad de atrapar al jefe de una mazmorra.",
+                     "Multiplie par 1,5 les chances de capturer le boss d'un donjon.", "Multiplica por 1,5 a chance de capturar o chefe de uma masmorra.",
+                     "Erhöht die Chance, den Boss eines Dungeons zu fangen, um das 1,5-Fache.", "Увеличивает шанс поймать босса подземелья в 1,5 раза.")
+        case .ultraBall:
+            return t("던전 보스를 잡을 확률이 2배가 돼요.", "Doubles the odds of catching a dungeon's boss.",
+                     "ダンジョンのボスを捕まえる確率が2倍になります。", "Duplica la probabilidad de atrapar al jefe de una mazmorra.",
+                     "Double les chances de capturer le boss d'un donjon.", "Dobra a chance de capturar o chefe de uma masmorra.",
+                     "Verdoppelt die Chance, den Boss eines Dungeons zu fangen.", "Удваивает шанс поймать босса подземелья.")
+        case .masterBall:
+            return t("던전 보스를 반드시 잡아요.", "Catches a dungeon's boss for sure.", "ダンジョンのボスを必ず捕まえます。",
+                     "Atrapa seguro al jefe de una mazmorra.", "Capture à coup sûr le boss d'un donjon.",
+                     "Captura com certeza o chefe de uma masmorra.", "Fängt den Boss eines Dungeons garantiert.",
+                     "Гарантированно ловит босса подземелья.")
+        case .oranBerry:
+            return t("던전에서 HP가 절반 아래로 떨어진 포켓몬이 먹고 HP를 25% 회복해요.",
+                     "In a dungeon, a Pokémon under half its HP eats it and gets back 25% of its HP.",
+                     "ダンジョンでHPが半分を切ったポケモンが食べ、HPを25%回復します。",
+                     "En una mazmorra, un Pokémon por debajo de la mitad de sus PS se la come y recupera el 25 % de sus PS.",
+                     "En donjon, un Pokémon sous la moitié de ses PV la mange et récupère 25 % de ses PV.",
+                     "Na masmorra, um Pokémon abaixo da metade dos PS a come e recupera 25% dos PS.",
+                     "Im Dungeon isst ein Pokémon unter der Hälfte seiner KP sie und erhält 25 % seiner KP zurück.",
+                     "В подземелье покемон с меньше чем половиной ОЗ съедает её и восстанавливает 25% ОЗ.")
+        case .sitrusBerry:
+            return t("던전에서 HP가 절반 아래로 떨어진 포켓몬이 먹고 HP를 50% 회복해요.",
+                     "In a dungeon, a Pokémon under half its HP eats it and gets back 50% of its HP.",
+                     "ダンジョンでHPが半分を切ったポケモンが食べ、HPを50%回復します。",
+                     "En una mazmorra, un Pokémon por debajo de la mitad de sus PS se la come y recupera el 50 % de sus PS.",
+                     "En donjon, un Pokémon sous la moitié de ses PV la mange et récupère 50 % de ses PV.",
+                     "Na masmorra, um Pokémon abaixo da metade dos PS a come e recupera 50% dos PS.",
+                     "Im Dungeon isst ein Pokémon unter der Hälfte seiner KP sie und erhält 50 % seiner KP zurück.",
+                     "В подземелье покемон с меньше чем половиной ОЗ съедает её и восстанавливает 50% ОЗ.")
+        case .revive:
+            return t("던전에서 기절한 포켓몬을 전투 후 HP 절반으로 되살려요.",
+                     "In a dungeon, gets a knocked-out Pokémon back up after the battle, with half its HP.",
+                     "ダンジョンでひんしのポケモンを戦いのあとHP半分で復活させます。",
+                     "En una mazmorra, reanima tras el combate a un Pokémon debilitado con la mitad de sus PS.",
+                     "En donjon, relève un Pokémon K.O. après le combat avec la moitié de ses PV.",
+                     "Na masmorra, reanima após a batalha um Pokémon desmaiado com metade dos PS.",
+                     "Belebt im Dungeon nach dem Kampf ein besiegtes Pokémon mit der Hälfte seiner KP wieder.",
+                     "В подземелье после боя поднимает покемона без сознания с половиной ОЗ.")
+        case .maxRevive:
+            return t("던전에서 기절한 포켓몬을 전투 후 HP를 모두 채워 되살려요.",
+                     "In a dungeon, gets a knocked-out Pokémon back up after the battle, with all its HP.",
+                     "ダンジョンでひんしのポケモンを戦いのあとHP満タンで復活させます。",
+                     "En una mazmorra, reanima tras el combate a un Pokémon debilitado con todos sus PS.",
+                     "En donjon, relève un Pokémon K.O. après le combat avec tous ses PV.",
+                     "Na masmorra, reanima após a batalha um Pokémon desmaiado com todos os PS.",
+                     "Belebt im Dungeon nach dem Kampf ein besiegtes Pokémon mit allen KP wieder.",
+                     "В подземелье после боя поднимает покемона без сознания со всеми ОЗ.")
+        case .silverCapsule:
+            return t("졸업한 포켓몬의 개체값 하나를 31로 올려요.", "Raises one IV of a graduated Pokémon to 31.",
+                     "卒業したポケモンの個体値をひとつ31にします。", "Sube a 31 un IV de un Pokémon graduado.",
+                     "Monte un IV d'un Pokémon diplômé à 31.", "Sobe um IV de um Pokémon formado para 31.",
+                     "Hebt einen DV eines verabschiedeten Pokémon auf 31.", "Поднимает один IV выпускника до 31.")
+        case .goldCapsule:
+            return t("졸업한 포켓몬의 모든 개체값을 31로 올려요.", "Raises every IV of a graduated Pokémon to 31.",
+                     "卒業したポケモンの個体値をすべて31にします。", "Sube a 31 todos los IV de un Pokémon graduado.",
+                     "Monte tous les IV d'un Pokémon diplômé à 31.", "Sobe todos os IVs de um Pokémon formado para 31.",
+                     "Hebt alle DV eines verabschiedeten Pokémon auf 31.", "Поднимает все IV выпускника до 31.")
+        case .treasureMap:
+            return t("알프의 유적을 한 번 열어요. 규칙과 보스는 무작위예요.",
+                     "Opens the Ruins of Alph once, with rules and a boss drawn at random.",
+                     "アルフのいせきを一度だけ開きます。ルールとボスはランダムです。",
+                     "Abre una vez las Ruinas Alfa, con reglas y jefe al azar.",
+                     "Ouvre une fois les Ruines d'Alpha, aux règles et au boss tirés au hasard.",
+                     "Abre uma vez as Ruínas de Alfa, com regras e chefe sorteados.",
+                     "Öffnet die Alph-Ruinen einmal, mit zufälligen Regeln und Boss.",
+                     "Открывает Руины Альфа один раз, правила и босс случайны.")
+        case .explorerChest:
+            let kit = itemName(.explorerKit)
+            return t("\(kit)의 보물 하나를 무작위로 줘요.", "Gives one of the \(kit)'s treasures, at random.",
+                     "\(kit)のおたからをひとつランダムにくれます。", "Da uno de los tesoros del \(kit), al azar.",
+                     "Donne un des trésors du \(kit), au hasard.", "Dá um dos tesouros do \(kit), ao acaso.",
+                     "Gibt einen zufälligen Schatz des \(kit).", "Даёт одно из сокровищ предмета \"\(kit)\" наугад.")
+        case .battleFormsMedal:
+            return t("오늘의 던전과 이번 주 던전에서 전투 형태를 얻으세요: 5, 15, 30, 60, 100개와 전부에서 보상.",
+                     "Win battle forms in the daily and weekly dungeons: a reward at 5, 15, 30, 60, 100 and all of them.",
+                     "今日と今週のダンジョンでバトルのすがたを手に入れよう：5、15、30、60、100、全部でごほうび。",
+                     "Gana formas de combate en las mazmorras del día y de la semana: premio a las 5, 15, 30, 60, 100 y todas.",
+                     "Gagne des formes de combat dans les donjons du jour et de la semaine : une récompense à 5, 15, 30, 60, 100 et toutes.",
+                     "Ganhe formas de batalha nas masmorras do dia e da semana: prêmio com 5, 15, 30, 60, 100 e todas.",
+                     "Gewinne Kampfformen in den Tages- und Wochen-Dungeons: eine Belohnung bei 5, 15, 30, 60, 100 und allen.",
+                     "Получайте боевые формы в подземельях дня и недели: награда за 5, 15, 30, 60, 100 и все.")
+        case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal:
+            let tier = kind.dungeonTier ?? .t1
+            let n = tier.rawValue
+            if DungeonMedals.dungeons(tier).count == 1 {
+                return t("T\(n) 던전을 한 번 이기면 보상을 받아요.", "Win the T\(n) dungeon once for a reward.",
+                         "T\(n)のダンジョンに一度勝つとごほうび。", "Gana una vez la mazmorra T\(n) para una recompensa.",
+                         "Gagne une fois le donjon T\(n) pour une récompense.",
+                         "Vença uma vez a masmorra T\(n) para uma recompensa.",
+                         "Gewinne den T\(n)-Dungeon einmal für eine Belohnung.",
+                         "Пройди подземелье T\(n) один раз, чтобы получить награду.")
+            }
+            return t("T\(n)의 던전을 각각 한 번씩 이기세요. 던전마다 보상, 전부 이기면 하나 더.",
+                     "Win each T\(n) dungeon once: a reward per dungeon, one more for them all.",
+                     "T\(n)の各ダンジョンに一度ずつ勝とう。ダンジョンごとにごほうび、全部でもう1つ。",
+                     "Gana una vez cada mazmorra T\(n): una recompensa por mazmorra y otra por todas.",
+                     "Gagne une fois chaque donjon T\(n) : une récompense par donjon, une de plus pour tous.",
+                     "Vença cada masmorra T\(n) uma vez: uma recompensa por masmorra e mais uma por todas.",
+                     "Gewinne jeden T\(n)-Dungeon einmal: eine Belohnung pro Dungeon, eine weitere für alle.",
+                     "Пройди каждое подземелье T\(n) один раз: награда за каждое и ещё одна за все.")
+        case .legendaryKey:
+            return t("T4 던전에 한 번 들어가요. 들어갈 때 사라지고, 져도 돌아오지 않아요.",
+                     "Opens a T4 dungeon once: spent at the entry, kept by the dungeon even after a defeat.",
+                     "T4のダンジョンに一度入れます。入るときに使い、負けても戻りません。",
+                     "Abre una vez una mazmorra T4: se gasta al entrar, aunque se pierda.",
+                     "Ouvre une fois un donjon T4 : dépensée à l'entrée, perdue même en cas de défaite.",
+                     "Abre uma vez uma masmorra T4: gasta na entrada, perdida mesmo em caso de derrota.",
+                     "Öffnet einmal einen T4-Dungeon: beim Betreten verbraucht, auch bei einer Niederlage.",
+                     "Открывает подземелье T4 один раз: тратится на входе, даже при поражении.")
         }
     }
 
@@ -3064,7 +3198,6 @@ struct L {
 
     // MARK: 업적 (체육관 배지 및 전설의 유물)
     var achievements: String { t("업적", "Achievements", "実績", "Logros", "Succès", "Conquistas", "Erfolge", "Успехи") }
-    var achievementsTitle: String { achievements }
     /// Popover tab title with the rewards ready to claim ("Achievements 2"). No parentheses, so a two-digit
     /// count still fits the tab bar; Russian shows no count at all, its five tab words already fill the bar.
     func achievementsTab(unclaimed: Int) -> String {

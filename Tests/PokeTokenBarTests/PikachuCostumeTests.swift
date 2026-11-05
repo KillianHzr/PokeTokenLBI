@@ -128,6 +128,10 @@ final class PikachuCostumeTests: XCTestCase {
                        "the line's form is Raichu's, Pikachu keeps its costume")
         XCTAssertEqual(PikachuCostume.displayForm(speciesID: 25, form: PikachuCostume.belle.form), PikachuCostume.belle.form)
         XCTAssertNil(PikachuCostume.displayForm(speciesID: 25, form: PikachuCostume.plain), "None: its own look")
+        // [Regression, review of 2026-11-04] A Gigantamax Pikachu (a weekly boss, a form won) showed in the costume.
+        let gigantamax = PokemonForm("gmax")
+        XCTAssertNotNil(BattleForms.form(speciesID: 25, form: gigantamax))
+        XCTAssertEqual(PikachuCostume.displayForm(speciesID: 25, form: gigantamax), gigantamax)
         XCTAssertNil(PikachuCostume.displayForm(speciesID: 26, form: nil), "Raichu wears nothing")
         let rocker = PikachuCostume.rockStar.form
         XCTAssertEqual(SpriteStore.spriteURLs(speciesID: 25, animated: true, shiny: false, form: rocker)

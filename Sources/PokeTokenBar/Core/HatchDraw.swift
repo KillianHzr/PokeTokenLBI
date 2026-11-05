@@ -241,6 +241,10 @@ struct HatchDraw: Sendable {
             return outcomes(draw.lines, types: [], event: nil, alwaysShiny: draw.shiny)
         case .tier, .stone, .legendary, .event:
             return egg.spec.map { outcomes($0, index: index) } ?? []
+        case .dungeon(let baseID, let form, let shiny):
+            return [Outcome(id: baseID, form: PokemonForm.resolved(baseID: baseID, form: form), weight: 1,
+                            rarity: index.first { $0.id == baseID }?.rarity ?? SpeciesInfo.lineRarity(of: baseID),
+                            alwaysShiny: shiny)]
         }
     }
 

@@ -38,7 +38,10 @@ struct ItemIconView: View {
         case .fossilEgg: .fossil
         default: EventEgg(item: kind).map { .event($0) }
         }
-        _img = State(initialValue: drawnEgg.map(EggRenderer.still)
+        // A Dungeons medal: its tier's first dungeon, drawn.
+        let medal = kind.dungeonTier.flatMap { DungeonMedals.dungeons($0).first }.flatMap(DungeonSprites.trimmedImage)
+            .map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
+        _img = State(initialValue: medal ?? drawnEgg.map(EggRenderer.still)
                      ?? kind.spriteName.flatMap { SpriteLoader.cachedItemImage(name: $0) })
     }
 
@@ -2391,6 +2394,8 @@ struct PokemonDetailView: View {
     private let spriteStore: SpriteStore
     @State private var selectedInstanceID = ""
     @State private var selectedForm: PokemonForm?
+    /// The slot of the dungeon loop being changed (`LoopEditor`).
+    @State private var editingLoopSlot: Int?
     @State private var selectedShiny: Bool?
 
     /// Opens another page of the family (the target, then this page as it is shown, for Back).
@@ -2415,7 +2420,13 @@ struct PokemonDetailView: View {
     }
 
     private var displayedSpecies: CompanionStore.DexSpecies {
-        formSpecies.first { $0.form == selectedForm } ?? store.dexCover(for: species)
+        // A battle form won is shown as the species' cover in that form: no individual ever graduated in it.
+        if let selectedForm, BattleForms.form(speciesID: species.id, form: selectedForm) != nil {
+            var cover = store.dexCover(for: species)
+            cover.form = selectedForm
+            return cover
+        }
+        return formSpecies.first { $0.form == selectedForm } ?? store.dexCover(for: species)
     }
 
     private var allIndividuals: [DexEntry] {
@@ -2447,6 +2458,7 @@ struct PokemonDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if PokemonForm.hasForms(speciesID: species.id) { formPicker }
+                    if !BattleForms.forms(speciesID: species.id).isEmpty { battleFormPicker }
                     if species.id == PikachuCostume.speciesID { costumePicker }
                     // A form caught shiny only still shows its normal look: one of Vivillon's patterns caught shiny
                     // had no way back to its usual colors.
@@ -2462,6 +2474,12 @@ struct PokemonDetailView: View {
                             individualSection(entry: individual, profile: profile, details: details)
                         } else {
                             baseStatsSection(details)
+                        }
+                        // R4: the moves it fights with in the dungeons, as on the team screen.
+                        if let individual, individual.finalID == species.id,
+                           store.dungeonCandidates.contains(where: { $0.id == individual.id }) {
+                            LoopEditor(store: store, entry: individual, dungeon: nil, editingSlot: $editingLoopSlot, asCard: true)
+                                .onChange(of: individual.id) { _, _ in editingLoopSlot = nil }
                         }
                         if let individual, let record = individual.raising {
                             RaisingRecordCard(record: record, entry: individual, store: store)
@@ -2493,6 +2511,53 @@ struct PokemonDetailView: View {
         .task(id: PokemonForm.detailsID(speciesID: species.id, form: displayedSpecies.form)) {
             await store.loadPokemonDetails(speciesID: species.id, form: displayedSpecies.form)
         }
+    }
+
+    /// The species' battle forms (2026-11-02): won ones open their stats, missing ones fade and say which dungeon gives
+    /// them. The usual form comes first for a species with no other form to go back to.
+    private var battleFormPicker: some View {
+        let l = store.l
+        let forms = BattleForms.forms(speciesID: species.id)
+        let won = Set(store.wonBattleForms(speciesID: species.id).map(\.key))
+        let battleSelected = BattleForms.form(speciesID: species.id, form: selectedForm)
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(l.battleFormsWon(won.count, of: forms.count)).font(.callout.weight(.semibold))
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 4), spacing: 4) {
+                if !PokemonForm.hasForms(speciesID: species.id) {
+                    battleCell(label: l.battleFormUsual, form: nil, owned: true, selected: battleSelected == nil, hint: nil)
+                }
+                ForEach(forms, id: \.key) { form in
+                    // Its own form named when the species has several: Tatsugiri's three Megas.
+                    battleCell(label: PokemonForm.label(speciesID: species.id, form: form.form, language: store.language)
+                                   ?? l.battleFormLabel(form), form: form.form, owned: won.contains(form.key),
+                               selected: battleSelected == form, hint: won.contains(form.key) ? nil : l.battleFormSource(form))
+                }
+            }
+        }
+    }
+
+    private func battleCell(label: String, form: PokemonForm?, owned: Bool, selected: Bool, hint: String?) -> some View {
+        Button {
+            selectedForm = form ?? PokemonForm.forms(speciesID: species.id).first
+            selectedInstanceID = ""
+            selectedShiny = nil
+        } label: {
+            VStack(spacing: 1) {
+                SpriteView(speciesID: species.id, size: 36, form: form).frame(width: 36, height: 36)
+                Text(label).font(.system(size: 11, weight: .semibold)).lineLimit(2).minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.center)
+                if let hint {
+                    Text(hint).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.center)
+                }
+            }
+            .opacity(owned ? 1 : 0.4)
+            .frame(maxWidth: .infinity).padding(.vertical, 3)
+            .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+            .overlay { if selected { RoundedRectangle(cornerRadius: 6).strokeBorder(Color.accentColor, lineWidth: 1.5) } }
+        }
+        .buttonStyle(.plain)
+        .disabled(!owned)
+        .accessibilityLabel(label)
     }
 
     /// Unown's 28 letters fill seven columns and short labels six (Arceus's types), one line each. Longer names

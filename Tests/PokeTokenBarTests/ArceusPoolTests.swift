@@ -74,12 +74,12 @@ final class ArceusPoolTests: XCTestCase {
         XCTAssertEqual(s.state.active?.baseID, 16)
     }
 
-    /// Hovering its silhouette says it comes later, not from eggs that can't hatch it.
-    func testThePokedexSaysArceusComesLater() {
-        XCTAssertEqual(CompanionStore.source(of: 493), .later)
+    /// Hovering its silhouette says where it comes from, the Hall of Origin, not from eggs that can't hatch it.
+    func testThePokedexSaysWhereArceusComesFrom() {
+        XCTAssertEqual(CompanionStore.source(of: 493), .dungeon(.hallOfOrigin))
         XCTAssertEqual(CompanionStore.source(of: 494), .mythical)
-        let text = L(.fr).dexHowToGet(493, source: .later, name: { "#\($0)" }, goals: [], nextDig: nil)
-        XCTAssertTrue(text.contains("mise à jour"))
+        let text = L(.fr).dexHowToGet(493, source: .dungeon(.hallOfOrigin), name: { "#\($0)" }, goals: [], nextDig: nil)
+        XCTAssertTrue(text.contains("Salle Originelle"))
         XCTAssertFalse(text.contains(L(.fr).itemName(.legendaryEgg)))
     }
 }

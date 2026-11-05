@@ -72,6 +72,8 @@ final class CompanionStore {
     private(set) var loadingPokemonDetailIDs: Set<Int> = []
     private(set) var failedPokemonDetailIDs: Set<Int> = []
     private let defaults: UserDefaults
+    /// The dungeons' in-flight mark (`CompanionStore+Dungeons`).
+    var defaultsForDungeons: UserDefaults { defaults }
     /// 세션 내 활성 개체 교체 감지용. await 뒤 이전 개체의 결과가 새 개체를 덮지 않게 한다.
     private var activeGeneration = 0
     private var lastAutoSnapshotDate: Date?
@@ -117,6 +119,9 @@ final class CompanionStore {
         migrateLightBallToRewardsIfNeeded()
         recordFossilLinesBeforeDigsIfNeeded()
         reconcileOverclaimedDigsIfNeeded()
+        recoverFromACrashedDungeonStep()
+        // A save left waiting at the boss's throws, from before they were automatic, throws them now.
+        throwAutomatically()
         refreshRepresentativeSubject()
         refreshSnapshots()
         if state.active != nil { displayState = .idle }
@@ -451,6 +456,11 @@ final class CompanionStore {
     var l: L { L(language) }
 
     var hasActive: Bool { state.active != nil }
+    /// The Pokémon raised hatched from a legendary boss's egg, won once: no egg nor stone sends it off before it
+    /// graduates (the owner, 2026-11-04).
+    var isRaisingLegendaryBossPokemon: Bool { state.active?.fromLegendaryBossEgg == true }
+    /// A Pokémon raised that an egg or a stone may send off: every `canUse…` of them asks this.
+    var canSendOffActive: Bool { hasActive && !isRaisingLegendaryBossPokemon }
     var rarity: Rarity? { state.active?.rarity }
     var currentIsShiny: Bool { state.active?.displaysShiny ?? false }   // 위장 중엔 이로치 숨김(리빌 때 공개)
     /// 새 알(리롤) 구매 시 실수로 놓아주지 않도록 2단계 확인이 필요한 고가치 개체인지 판정.
@@ -952,7 +962,8 @@ final class CompanionStore {
             goals.append(ActiveGoal(item: item, generation: generation, gain: gain, count: progress.count,
                                     needed: progress.goal.needed))
         }
-        for kind in Self.achievementItems {
+        // The Dungeons medals count dungeons won, not the Pokémon raised.
+        for kind in Self.achievementItems where !kind.isPlayMedal {
             if kind == .excavation {
                 // The digs add up: only the next one counts, with the species that are Rock in this form.
                 let rock = branches.map { $0.filter { PokemonTypeData.types(forSpeciesID: $0, form: form).contains(.rock) } }
@@ -990,11 +1001,10 @@ final class CompanionStore {
     }
 
     /// How a species not caught yet comes (7.5): from the species it evolves from (`base`: its line's first), a fossil
-    /// line's egg, a big update to come (Arceus, `PokemonOdds.dungeonOnly`), a legendary's or a mythical's eggs, else
-    /// any egg.
+    /// line's egg, a dungeon's boss alone (Arceus, R13), a legendary's or a mythical's eggs, else any egg.
     enum SpeciesSource: Equatable, Sendable {
         case evolves(from: Int, base: Int)
-        case fossil, later, legendary, mythical, egg
+        case fossil, dungeon(DungeonID), legendary, mythical, egg
     }
 
     nonisolated static func source(of speciesID: Int) -> SpeciesSource {
@@ -1004,7 +1014,10 @@ final class CompanionStore {
             return .evolves(from: parent, base: base)
         }
         if FossilDig.isFossilLine(speciesID) { return .fossil }
-        if PokemonOdds.dungeonOnly.contains(speciesID) { return .later }
+        if PokemonOdds.dungeonOnly.contains(speciesID),
+           let dungeon = DungeonCatalog.all.first(where: { $0.bosses.contains(speciesID) }) {
+            return .dungeon(dungeon.id)
+        }
         if SpeciesGoal.mythicals.contains(speciesID) { return .mythical }
         if SpeciesGoal.legendaries.contains(speciesID) { return .legendary }
         return .egg
@@ -1033,7 +1046,7 @@ final class CompanionStore {
                 index[id, default: []].append(goal)
             }
         }
-        for kind in Self.achievementItems where kind != .excavation {
+        for kind in Self.achievementItems where kind != .excavation && !kind.isPlayMedal {
             if kind.isRegional {
                 for tier in regionTiers(kind, registered: registered) where !tier.isDone {
                     add(kind, tier.generation, tier.progress)
@@ -1873,11 +1886,7 @@ final class CompanionStore {
                     recordRaising(todayTokensByProvider)
                     if delta > 0 {
                         state.usedSinceInstall += delta
-                        if state.active == nil {
-                            state.eggUsage += delta
-                        } else {
-                            applyUsage(delta)
-                        }
+                        creditGrowth(delta)
                     }
                 } else {
                     var ledger = state.claimedTodayTokensByProvider ?? [:]
@@ -1912,11 +1921,7 @@ final class CompanionStore {
                     recordRaising(deltas)
                     if delta > 0 {
                         state.usedSinceInstall += delta
-                        if state.active == nil {
-                            state.eggUsage += delta   // 알 인큐베이션 누적
-                        } else {
-                            applyUsage(delta)
-                        }
+                        creditGrowth(delta)   // 알 인큐베이션 누적, or the Pokémon's growth, or a dungeon's walk
                     }
                 }
             }
@@ -2491,6 +2496,70 @@ final class CompanionStore {
         return count
     }
 
+    /// A save that pre-rolled Arceus before it became the Hall of Origin's alone rolls again (R13), unless the egg is
+    /// that boss's.
+    private func dropDungeonOnlyPreRoll() {
+        guard let pending = state.pendingHatchID, PokemonOdds.dungeonOnly.contains(pending), state.eggFromDungeon == nil
+        else { return }
+        state.pendingHatchID = nil
+        state.pendingForm = nil
+        state.pendingShiny = false
+        AppLog.write("hatch: pre-rolled Arceus dropped, only the Hall of Origin gives it")
+    }
+
+    // MARK: The dungeons' access (`CompanionStore+Dungeons`: `state` is written in this file only)
+
+    /// The tokens' growth: a dungeon's walk while a team explores (Q1: growth pauses, the Shop and the candies go
+    /// on), else the egg's incubation or the Pokémon's growth.
+    private func creditGrowth(_ delta: Int) {
+        var delta = delta
+        if let left = feedExpedition(delta) {
+            guard left > 0 else { return }
+            delta = left
+        }
+        creditGrowthPastTheDungeon(delta)
+    }
+
+    /// The egg's incubation or the Pokémon's growth, for the tokens a dungeon did not take (its boss fallen, its
+    /// team lost).
+    func creditGrowthPastTheDungeon(_ delta: Int) {
+        guard delta > 0 else { return }
+        if state.active == nil {
+            state.eggUsage += delta
+        } else {
+            applyUsage(delta)
+        }
+    }
+
+    func changeDungeons(_ change: (inout DungeonProgress) -> Void) { change(&state.dungeons) }
+
+    /// Tokens paid from the wallet, as a purchase pays them.
+    func spendTokens(_ amount: Int) { state.spentTokens += max(0, amount) }
+
+    /// Adds (or with a negative count takes) items in the Bag, never below none. Returns how many moved.
+    @discardableResult
+    func changeBag(_ kind: ItemKind, by count: Int) -> Int {
+        let held = itemCount(kind)
+        let moved = max(-held, count)
+        state.inventory[kind.rawValue] = held + moved
+        return moved
+    }
+
+    func grantRareCandies(_ count: Int) -> Int { addRareCandies(count) }
+
+    /// A graduated Pokémon's profile, changed in place (a Capsule raises its IVs). Returns whether it has one.
+    @discardableResult
+    func changeProfile(of entryID: String, _ change: (inout PokemonProfile) -> Void) -> Bool {
+        guard let i = state.dex.firstIndex(where: { $0.id == entryID }), var profile = state.dex[i].profile else { return false }
+        change(&profile)
+        state.dex[i].profile = profile
+        return true
+    }
+    /// The store's clock (`clock`, injected by the tests).
+    var currentDate: Date { clock() }
+    func drawSeed() -> UInt64 { rng.next() }
+    func persist() { save() }
+
     // MARK: Collector items (unlocked by the Pokédex)
 
     /// Species registered in the Pokédex: the set the Pokédex grid shows (`dexSpecies`). Graduated and
@@ -2517,17 +2586,19 @@ final class CompanionStore {
     /// Every evolution line of the 1,025 species: one per species that evolves from none.
     static let evolutionLineCount = PokemonAssets.animatedSpeciesIDs.filter { PokemonEvolutionData.root(of: $0) == $0 }.count
 
-    /// Every appearance that can be collected: 1,025 species and their other forms.
+    /// Every appearance that can be collected: 1,025 species and their other forms, and the battle forms the daily and
+    /// weekly dungeons give (the owner, 2026-11-02: they lengthen the end of the game).
     static let collectableFormCount = PokemonAssets.animatedSpeciesIDs.reduce(0) {
         $0 + max(1, PokemonForm.forms(speciesID: $1).count)
-    }
+    } + BattleForms.all.count
 
     var collectionProgress: CollectionProgress { collectionProgress(graduatedOnly: false) }
 
     /// The collection the Oval and Glimmering Charms' achievements count: graduated Pokémon only.
     var graduatedCollectionProgress: CollectionProgress { collectionProgress(graduatedOnly: true) }
 
-    private func collectionProgress(graduatedOnly: Bool, of s: CompanionState? = nil) -> CollectionProgress {
+    /// `battleForms`: whether the battle forms count, as they do since `HatchRules.Change.battleFormsCount`.
+    private func collectionProgress(graduatedOnly: Bool, of s: CompanionState? = nil, battleForms: Bool = true) -> CollectionProgress {
         let s = s ?? state
         let ids = graduatedOnly ? s.graduatedSpeciesIDs : s.registeredSpeciesIDs
         let species = ids.filter(PokemonAssets.animatedSpeciesIDs.contains)
@@ -2537,8 +2608,10 @@ final class CompanionStore {
                 ?? s.collectedForms(speciesID: id, graduatedOnly: false)
             return total + (PokemonForm.hasForms(speciesID: id) ? max(1, collected.count) : 1)
         }
+        // A battle form is won by a graduated Pokémon's team, so it counts for both.
         return CollectionProgress(species: species.count, speciesTotal: PokemonAssets.animatedSpeciesIDs.count,
-                                  forms: forms, formsTotal: Self.collectableFormCount,
+                                  forms: forms + (battleForms ? s.dungeons.battleForms.count : 0),
+                                  formsTotal: Self.collectableFormCount - (battleForms ? 0 : BattleForms.all.count),
                                   lines: Set(species.map(PokemonEvolutionData.root)).count,
                                   linesTotal: Self.evolutionLineCount)
     }
@@ -2583,11 +2656,31 @@ final class CompanionStore {
     func regionTiers(_ kind: ItemKind, registered: Set<Int>? = nil) -> [RegionTier] {
         guard let goals = kind.regionGoals else { return [] }
         if kind == .excavation { return excavationTiers(goals) }
+        if let tier = kind.dungeonTier { return medalTiers(tier, goals) }
+        if kind == .battleFormsMedal {
+            // Its goal's species are the battle forms' varieties: those won count.
+            let won = Set(state.dungeons.battleForms.compactMap { BattleForms.form(key: $0)?.pokemonID })
+            return goals.map { generation, goal in
+                RegionTier(generation: generation, progress: GoalProgress(goal: goal, registered: goal.species.filter(won.contains)),
+                           isClaimed: isRegionTierClaimed(kind, generation: generation))
+            }
+        }
         let registered = registered ?? graduatedSpeciesIDs
         return goals.map { generation, goal in
             RegionTier(generation: generation,
                              progress: GoalProgress(goal: goal, registered: goal.species.filter(registered.contains)),
                        isClaimed: isRegionTierClaimed(kind, generation: generation))
+        }
+    }
+
+    /// A Dungeons medal's steps: a dungeon counts once it was won, the whole tier once each was. Its goal's species
+    /// are the bosses; a dungeon won counts its first one, as the goal reads it.
+    private func medalTiers(_ tier: DungeonTier, _ goals: [(generation: Int, goal: SpeciesGoal)]) -> [RegionTier] {
+        let won = DungeonMedals.dungeons(tier).filter { state.dungeons.wins($0) > 0 }
+            .compactMap { DungeonCatalog.dungeon($0).bosses.first }
+        return goals.map { generation, goal in
+            RegionTier(generation: generation, progress: GoalProgress(goal: goal, registered: goal.species.filter(won.contains)),
+                       isClaimed: isRegionTierClaimed(DungeonMedals.medal(tier), generation: generation))
         }
     }
 
@@ -2660,7 +2753,7 @@ final class CompanionStore {
     /// Whether this item's achievement goal is met, counting graduated Pokémon only, in the save or in `s`. Items
     /// without a Pokédex condition are always unlocked. For a regional achievement: one of its regional tiers is complete.
     func isUnlocked(_ kind: ItemKind, registered: Set<Int>? = nil, in s: CompanionState? = nil,
-                    graduatedOnly: Bool = true) -> Bool {
+                    graduatedOnly: Bool = true, battleForms: Bool = true) -> Bool {
         let s = s ?? state
         switch kind.unlock {
         case nil: return true
@@ -2670,7 +2763,7 @@ final class CompanionStore {
             let progress = collectionProgress(graduatedOnly: graduatedOnly, of: s)
             return progress.species >= progress.speciesTotal
         case .allForms:
-            let progress = collectionProgress(graduatedOnly: graduatedOnly, of: s)
+            let progress = collectionProgress(graduatedOnly: graduatedOnly, of: s, battleForms: battleForms)
             return progress.forms >= progress.formsTotal
         case .allPikachuCostumes: return s.pikachuCostumes.count >= PikachuCostume.allCases.count
         case .forms(let goal): return formProgress(goal, of: s).isMet
@@ -2720,7 +2813,7 @@ final class CompanionStore {
         if kind == .revealGlass, !rules.has(.onlyFluteWeighs) {
             return HatchRules.formerRevealGlassSpecies.allSatisfy(s.registeredSpeciesIDs.contains)
         }
-        return isUnlocked(kind, in: s, graduatedOnly: rules.has(.rarityWeights))
+        return isUnlocked(kind, in: s, graduatedOnly: rules.has(.rarityWeights), battleForms: rules.has(.battleFormsCount))
     }
 
     /// The forms of a forms achievement graduated, in the goal's order.
@@ -2850,8 +2943,13 @@ final class CompanionStore {
         ready.forEach { grantRegionTier(kind, generation: $0.generation) }
         announceFormUnlocks(since: forms)
         save()
-        let regions = ready.map { kind == .excavation ? "#\($0.generation)" : l.regionName(generation: $0.generation) }
-            .joined(separator: ", ")
+        let regions = ready.map { tier in
+            if kind == .excavation { return "#\(tier.generation)" }
+            if let dungeonTier = kind.dungeonTier { return l.medalStepName(dungeonTier, step: tier.generation) }
+            if kind == .battleFormsMedal { return l.battleFormsMedalStep(tier.generation) }
+            return l.regionName(generation: tier.generation)
+        }
+        .joined(separator: ", ")
         notifyCompanionEvent(l.notifAchievementClaimedTitle,
                              l.notifAchievementClaimedBody("\(l.itemName(kind)) (\(regions))"))
         return ready.count
@@ -2902,8 +3000,10 @@ final class CompanionStore {
         if kind.isPassive {
             state.inventory[kind.rawValue] = 1
         } else {
-            // A Legendary Egg per region; a Fossil Egg per dig.
-            for reward in kind.achievementRewards { state.inventory[reward.kind.rawValue, default: 0] += reward.count }
+            // A Legendary Egg per region; a Fossil Egg per dig; a Dungeons medal's step its own.
+            let rewards = kind == .battleFormsMedal ? BattleFormsMedal.rewards(step: generation)
+                : kind.dungeonTier.map { DungeonMedals.rewards($0, step: generation) } ?? kind.achievementRewards
+            for reward in rewards { state.inventory[reward.kind.rawValue, default: 0] += reward.count }
         }
         AppLog.write("achievement claimed: \(key)")
     }
@@ -3034,7 +3134,7 @@ final class CompanionStore {
 
     /// Evolution stone use gate: a stone in the Bag and, like an egg purchase, a companion to send off.
     func canUseStone(_ kind: ItemKind) -> Bool {
-        kind.stoneType != nil && hasActive && itemCount(kind) > 0
+        kind.stoneType != nil && canSendOffActive && itemCount(kind) > 0
     }
 
     /// Uses one evolution stone from the Bag. Like an egg purchase, the current Pokémon is sent off right
@@ -3048,7 +3148,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseTypeNullEgg() -> Bool { hasActive && itemCount(.typeNullEgg) > 0 }
+    func canUseTypeNullEgg() -> Bool { canSendOffActive && itemCount(.typeNullEgg) > 0 }
 
     /// Uses the Type: Null Egg, the reward for all of Silvally's Memories: like a stone, the current Pokémon is
     /// sent off for an egg, which hatches a Type: Null.
@@ -3087,7 +3187,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseBagEgg(_ kind: ItemKind) -> Bool { kind.isShopEgg && hasActive && itemCount(kind) > 0 }
+    func canUseBagEgg(_ kind: ItemKind) -> Bool { kind.isShopEgg && canSendOffActive && itemCount(kind) > 0 }
 
     /// Uses one of the Shop's eggs from the Bag, bought or given by an achievement. The current Pokémon is sent off
     /// for an egg that hatches anew, a Pokémon of the egg's rarity or better.
@@ -3105,7 +3205,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseLegendaryEgg() -> Bool { hasActive && itemCount(.legendaryEgg) > 0 }
+    func canUseLegendaryEgg() -> Bool { canSendOffActive && itemCount(.legendaryEgg) > 0 }
 
     /// Uses a Legendary Egg, the reward for a region whose every species is in the Pokédex: like a stone, the
     /// current Pokémon is sent off for an egg, which hatches a legendary or mythical Pokémon (`chooseBase`).
@@ -3120,7 +3220,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseBirthdayEgg() -> Bool { hasActive && itemCount(.birthdayEgg) > 0 }
+    func canUseBirthdayEgg() -> Bool { canSendOffActive && itemCount(.birthdayEgg) > 0 }
 
     /// Uses the Birthday Egg: like a stone, the current Pokémon is sent off for an egg, which hatches a mythical
     /// Pokémon not graduated yet (`BirthdayGift.pool`).
@@ -3140,7 +3240,7 @@ final class CompanionStore {
 
     /// Not on a Fossil Egg's own Pokémon: sent off, it gives its egg back, so the egg would cost nothing and fossil
     /// hatches would reroll for free (#90). A stone or a Shop egg sends it off.
-    func canUseFossilEgg() -> Bool { hasActive && !isRaisingFossilEggPokemon && itemCount(.fossilEgg) > 0 }
+    func canUseFossilEgg() -> Bool { canSendOffActive && !isRaisingFossilEggPokemon && itemCount(.fossilEgg) > 0 }
 
     /// Uses a Fossil Egg: like a stone, the current Pokémon is sent off for an egg, which hatches a fossil line not
     /// graduated yet (`FossilDig`).
@@ -3155,13 +3255,22 @@ final class CompanionStore {
         return true
     }
 
-    /// A save that pre-rolled Arceus before it left the eggs rolls again (`PokemonOdds.dungeonOnly`).
-    private func dropDungeonOnlyPreRoll() {
-        guard let pending = state.pendingHatchID, PokemonOdds.dungeonOnly.contains(pending) else { return }
-        state.pendingHatchID = nil
-        state.pendingForm = nil
-        state.pendingShiny = false
-        AppLog.write("hatch: pre-rolled Arceus dropped, it hatches from no egg for now")
+    /// Whether a dungeon's egg of the Bag can be used: as a Fossil Egg, it sends the Pokémon raised off.
+    func canUseDungeonEgg(_ id: String) -> Bool {
+        canSendOffActive && !isRaisingFossilEggPokemon && state.dungeons.eggs.contains { $0.id == id }
+    }
+
+    /// Uses a dungeon's egg (Q20 B): the Pokémon raised is sent off for it, and it hatches its line, shiny when it was
+    /// (R9 B: IVs and nature drawn at the hatch).
+    @discardableResult
+    func useDungeonEgg(_ id: String) -> Bool {
+        guard canUseDungeonEgg(id), let egg = state.dungeons.eggs.first(where: { $0.id == id }) else { return false }
+        state.dungeons.eggs.removeAll { $0.id == id }
+        replaceActiveWithEgg(price: 0, tier: nil, type: nil)
+        state.eggFromDungeon = egg
+        save()
+        AppLog.write("dungeon egg used: line \(egg.baseID) shiny=\(egg.isShiny)")
+        return true
     }
 
     // MARK: Event eggs
@@ -3253,7 +3362,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseEventEgg(_ egg: EventEgg) -> Bool { hasActive && itemCount(egg.item) > 0 }
+    func canUseEventEgg(_ egg: EventEgg) -> Bool { canSendOffActive && itemCount(egg.item) > 0 }
 
     /// Uses an event egg: like a stone, the current Pokémon is sent off for an egg, which hatches the event's Pokémon.
     @discardableResult
@@ -3368,6 +3477,7 @@ final class CompanionStore {
         state.eggFromLegendaryEgg = false
         state.eggFromBirthdayEgg = false
         state.eggFromFossilEgg = false
+        state.eggFromDungeon = nil
         state.eggEvent = nil
         state.eggEventKey = nil
         state.pendingHatchID = nil    // 새 보증으로 처음부터 롤(활성 포켓몬이 있는 동안엔 원래 비어 있다)
@@ -3725,7 +3835,8 @@ final class CompanionStore {
             state.pendingHatchID = id
             state.pendingHatchItems = hatchDraw.items
             state.pendingShiny = pick.shiny
-            state.pendingForm = HatchDraw.eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
+            state.pendingForm = state.eggFromDungeon.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
+                ?? HatchDraw.eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
             save()
         }
         guard let id = state.pendingHatchID else { return }
@@ -3887,11 +3998,13 @@ final class CompanionStore {
         let event = state.eggEvent
         let fromFossilEgg = state.eggFromFossilEgg
         if fromFossilEgg { state.fossilEggsHatched += 1 }
+        let fromLegendaryBossEgg = state.eggFromDungeon?.isLegendary == true
         state.eggTypeGuarantee = nil
         state.eggFromTypeNullEgg = false
         state.eggFromLegendaryEgg = false
         state.eggFromBirthdayEgg = false
         state.eggFromFossilEgg = false
+        state.eggFromDungeon = nil
         if event != nil, let key = state.eggEventKey { state.eventEggHatches[key] = line.baseID }
         state.eggEvent = nil
         state.eggEventKey = nil
@@ -3939,6 +4052,7 @@ final class CompanionStore {
                                 dittoDisguise: dittoDisguise, form: form)
         state.active?.hasNewForm = hasNewForm
         state.active?.fromFossilEgg = fromFossilEgg
+        state.active?.fromLegendaryBossEgg = fromLegendaryBossEgg
         state.active?.raising = RaisingRecord(hatchedAt: clock())
         state.active?.fromStoneEgg = typeGuarantee != nil && event == nil
         state.active?.fromRarityEgg = fromRarityEgg
@@ -4063,6 +4177,8 @@ final class CompanionStore {
     private func chooseBase() async -> (id: Int, shiny: Bool)? {
         let tier = state.eggTier
         let typeGuarantee = state.eggTypeGuarantee
+        // A dungeon's egg knows its line already.
+        if let egg = state.eggFromDungeon { return (egg.baseID, egg.isShiny) }
         if let full = try? await provider.baseSpeciesIndex(), !full.isEmpty {
             if state.eggFromBirthdayEgg { return chooseBirthdayBase(full) }
             if state.eggFromFossilEgg { return chooseFossilBase(full) }
@@ -4102,7 +4218,7 @@ final class CompanionStore {
     /// else a legendary one, from the lists of both; once all graduated, any of them, shiny. A random legendary of the
     /// REST fallback could be one graduated while a mythical was missing, and was never shiny.
     private func chooseBirthdayBaseViaREST() async -> (id: Int, shiny: Bool)? {
-        // Arceus hatches from no egg for now (`PokemonOdds.dungeonOnly`), this fallback neither.
+        // R13: Arceus comes from the Hall of Origin only, this fallback too (it drew 493, review of 2026-11-02).
         let graduated = graduatedSpeciesIDs.union(PokemonOdds.dungeonOnly)
         let mythicals = Set(SpeciesGoal.mythicals).subtracting(graduated)
         if !mythicals.isEmpty { return await chooseListedBaseViaREST(mythicals, charm: false).map { ($0, false) } }
@@ -4379,6 +4495,7 @@ final class CompanionStore {
     private func chooseBaseViaREST() async -> Int? {
         // A Fossil Egg asks for its candidates themselves: 32 random numbers seldom meet one of 15 lines, one in 1,025
         // even less. So does an event egg of a few lines, the Friendship Egg's one above all.
+        if let egg = state.eggFromDungeon { return egg.baseID }
         if state.eggFromFossilEgg { return await chooseListedBaseViaREST(hatchDraw.fossilCandidates, charm: false) }
         if let lines = state.eggEvent?.lines(companionLine: companionLineID) {
             return await chooseListedBaseViaREST(lines, charm: ownsOvalCharm)

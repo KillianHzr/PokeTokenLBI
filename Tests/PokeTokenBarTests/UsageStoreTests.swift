@@ -721,6 +721,30 @@ final class UsageStoreTests: XCTestCase {
         XCTAssertEqual(store.menuLines, ["↑12M"])
     }
 
+    /// While a team explores, its floor takes the place of the growth it pauses; when the dungeon waits for the player
+    /// (no notification), a "!" leads the first line whatever the menu shows, even nothing.
+    func testMenuLinesDuringAnExpedition() async {
+        let claude = FakeUsageProvider(id: "claude_code", displayName: "Claude Code",
+                                       daily: todayDaily(1_200_000, cost: 3.45))
+        let store = makeStore(providers: [claude],
+                              claude: claudeLimits(fiveHourUtil: 40, resetsAt: "2099-01-01T00:00:00Z"))
+        await store.refresh(scheduleEmptyRetry: false)
+        store.companionMenu = UsageStore.CompanionMenu(toNext: 12_000_000, shop: 217_000_000, dungeonFloor: "F6/12")
+        XCTAssertEqual(store.menuLines, ["F6/12", "¤217M"])
+        store.companionMenu?.dungeonAlert = true
+        XCTAssertEqual(store.menuLines, ["! F6/12", "¤217M"])
+        store.showLimitInMenu = true
+        XCTAssertEqual(store.menuLines.count, 2)
+        XCTAssertEqual(store.menuLines[0], "! F6/12 · ¤217M")
+        store.showLimitInMenu = false
+        store.showEvolutionInMenu = false
+        XCTAssertEqual(store.menuLines, ["! ¤217M"], "the floor goes with the growth's place, the alert stays")
+        store.showShopInMenu = false
+        XCTAssertEqual(store.menuLines, ["!"], "an icon alone still gets the alert")
+        store.companionMenu?.dungeonAlert = false
+        XCTAssertEqual(store.menuLines, [])
+    }
+
     /// Once for everyone, the companion's numbers take the place of today's tokens and cost; a choice made after
     /// that stays.
     func testTheCompanionsNumbersReplaceTodaysUsageOnce() {

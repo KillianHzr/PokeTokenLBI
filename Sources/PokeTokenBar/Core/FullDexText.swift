@@ -39,6 +39,16 @@ extension L {
                            "\(dig)で手に入る\(egg)から生まれます\(progress)。", "Sale de un \(egg), ganado en la \(dig)\(progress).",
                            "Sort d'un \(egg), gagné aux \(dig)\(progress).", "Nasce de um \(egg), ganho na \(dig)\(progress).",
                            "Schlüpft aus einem \(egg) der \(dig)\(progress).", "Вылупляется из \"\(egg)\" за \"\(dig)\"\(progress)."))
+        case .dungeon(let dungeon):
+            let place = dungeonName(dungeon)
+            lines.append(dexMissingHint(id))
+            lines.append(t("\(place)의 보스로만 나와요. 잡으면 알을 얻어요.", "Only the \(place)'s boss: catch it for its egg.",
+                           "\(place)のボスとしてだけあらわれます。つかまえるとタマゴが手に入ります。",
+                           "Solo como jefe de \(place): captúralo para tener su huevo.",
+                           "Seulement en boss de donjon (\(place)) : capture-le pour avoir son œuf.",
+                           "Só como chefe de \(place): capture-o para ganhar o ovo.",
+                           "Nur als Boss von \(place): Fang es für sein Ei.",
+                           "Только босс локации \"\(place)\": поймай его, чтобы получить яйцо."))
         case .legendary:
             let egg = itemName(.legendaryEgg)
             lines.append(t("#\(id) · 전설", "#\(id) · legendary", "#\(id) · 伝説", "#\(id) · legendario", "#\(id) · légendaire",
@@ -62,12 +72,6 @@ extension L {
                            "O \(birthday) dá os míticos primeiro; também um \(legendary), ou raramente um ovo qualquer.",
                            "Das \(birthday) bringt zuerst mysteriöse Pokémon; auch ein \(legendary) oder selten ein gewöhnliches Ei.",
                            "\"\(birthday)\" сначала даёт мифических; также \"\(legendary)\" или изредка обычное яйцо."))
-        case .later:
-            lines.append(dexMissingHint(id))
-            lines.append(t("다가올 큰 업데이트에서 만날 수 있어요.", "Arrives with a big update to come.",
-                           "今後の大型アップデートで登場します。", "Llegará con una gran actualización futura.",
-                           "Arrivera avec une grosse mise à jour à venir.", "Chegará com uma grande atualização futura.",
-                           "Kommt mit einem großen Update, das noch folgt.", "Появится в одном из будущих больших обновлений."))
         case .egg:
             lines.append(dexMissingHint(id))
             lines.append(t("알에서 태어나요.", "Hatches from an egg.", "タマゴから生まれます。", "Sale de un huevo.",

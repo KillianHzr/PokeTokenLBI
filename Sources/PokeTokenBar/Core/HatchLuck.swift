@@ -235,6 +235,7 @@ struct HatchLuck: Sendable {
         case .typeNull: return base == PokemonForm.typeNullSpeciesID
         case .fossil: return roll.fossilDraw(index).contains { $0.id == base }
         case .birthday: return roll.birthdayDraw(index).lines.contains { $0.base.id == base }
+        case .dungeon(let baseID, _, _): return base == baseID
         case .tier, .stone, .legendary, .event:
             guard let spec = egg.spec, let species = index.first(where: { $0.id == base }) else { return false }
             // A season's Deerling, first rolled apart from the pool.
