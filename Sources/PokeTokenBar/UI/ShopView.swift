@@ -16,12 +16,16 @@ struct ShopView: View {
                 OakAdviceCard(store: store, nav: nav)
                 // shopEntries = 판매 아이템 + 알 3종(보증 없음·고급 이상·희귀 이상)을 가격 오름차순으로
                 // 병합한 단일 목록. A bought egg goes in the Bag (`EggCard`).
-                ForEach(store.shopEntries, id: \.self) { entry in
-                    switch entry {
-                    case .item(let kind):
-                        ShopItemCard(store: store, kind: kind)
-                    case .egg(let tier):
-                        EggCard(store: store, tier: tier)
+                ForEach(store.shopSections, id: \.section) { group in
+                    SectionTitle(text: store.l.shopSection(group.section))
+                        .padding(.top, 4)
+                    ForEach(group.entries, id: \.self) { entry in
+                        switch entry {
+                        case .item(let kind):
+                            ShopItemCard(store: store, kind: kind)
+                        case .egg(let tier):
+                            EggCard(store: store, tier: tier)
+                        }
                     }
                 }
             }

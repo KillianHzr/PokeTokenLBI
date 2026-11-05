@@ -2403,15 +2403,15 @@ struct L {
                      "Пока она у вас, покемон на промежуточной стадии растёт на 25% быстрее.")
         case .explorerKit:
             let candy = itemName(.rareCandy), uncommon = eggName(.uncommon), rare = eggName(.rare)
-            let legendary = itemName(.legendaryEgg), n = ExplorerKit.graduationsPerTreasure, c = ExplorerKit.candies
-            return t("보유하면 포켓몬을 \(n)마리 졸업시킬 때마다 보물을 하나 발굴해요: \(candy) ×\(c), \(uncommon), \(rare), 아주 드물게 \(legendary).",
-                     "While owned, every \(n) Pokémon you graduate dig up a treasure: \(candy) ×\(c), an \(uncommon), a \(rare) or, very rarely, a \(legendary).",
-                     "持っていると、ポケモンを\(n)匹卒業させるたびに宝物を1つ掘り当てます：\(candy)×\(c)、\(uncommon)、\(rare)、ごくまれに\(legendary)。",
-                     "Mientras lo tengas, cada \(n) Pokémon que gradúas desentierran un tesoro: \(candy) ×\(c), un \(uncommon), un \(rare) o, muy rara vez, un \(legendary).",
-                     "Tant que tu l'as, tous les \(n) Pokémon diplômés, tu déterres un trésor : \(candy) ×\(c), un \(uncommon), un \(rare) ou, très rarement, un \(legendary).",
-                     "Enquanto estiver na bolsa, a cada \(n) Pokémon que você forma, você desenterra um tesouro: \(candy) ×\(c), um \(uncommon), um \(rare) ou, muito raramente, um \(legendary).",
-                     "Im Beutel gräbst du alle \(n) verabschiedeten Pokémon einen Schatz aus: \(candy) ×\(c), ein \(uncommon), ein \(rare) oder, sehr selten, ein \(legendary).",
-                     "Пока он у вас, каждые \(n) выпущенных покемонов приносят сокровище: \"\(candy)\" ×\(c), \"\(uncommon)\", \"\(rare)\" или, очень редко, \"\(legendary)\".")
+            let legendary = itemName(.legendaryEgg), n = ExplorerKit.graduationsPerTreasure
+            return t("보유하면 포켓몬을 \(n)마리 졸업시킬 때마다 보물을 하나 발굴해요: 대개 \(candy), 가끔 \(uncommon)이나 \(rare), 아주 드물게 \(legendary).",
+                     "While owned, every \(n) Pokémon you graduate dig up a treasure: mostly a \(candy), sometimes an \(uncommon) or a \(rare) and, very rarely, a \(legendary).",
+                     "持っていると、ポケモンを\(n)匹卒業させるたびに宝物を1つ掘り当てます：たいてい\(candy)、ときどき\(uncommon)か\(rare)、ごくまれに\(legendary)。",
+                     "Mientras lo tengas, cada \(n) Pokémon que gradúas desentierran un tesoro: casi siempre un \(candy), a veces un \(uncommon) o un \(rare) y, muy rara vez, un \(legendary).",
+                     "Tant que tu l'as, tous les \(n) Pokémon diplômés, tu déterres un trésor : le plus souvent un \(candy), parfois un \(uncommon) ou un \(rare) et, très rarement, un \(legendary).",
+                     "Enquanto estiver na bolsa, a cada \(n) Pokémon que você forma, você desenterra um tesouro: quase sempre um \(candy), às vezes um \(uncommon) ou um \(rare) e, muito raramente, um \(legendary).",
+                     "Im Beutel gräbst du alle \(n) verabschiedeten Pokémon einen Schatz aus: meist ein \(candy), manchmal ein \(uncommon) oder ein \(rare) und, sehr selten, ein \(legendary).",
+                     "Пока он у вас, каждые \(n) выпущенных покемонов приносят сокровище: чаще всего \"\(candy)\", иногда \"\(uncommon)\" или \"\(rare)\" и, очень редко, \"\(legendary)\".")
         case .oldAmber:
             return t("보유하면 알과 바꾸려고 놓아준 포켓몬이 지금 단계에서 쌓은 경험치의 절반을 새로 태어나는 포켓몬에게 넘겨줘요. 태어나자마자 진화하지는 않아요.",
                      "While owned, a Pokémon you send off for an egg gives half the EXP of its stage to the Pokémon that hatches, short of evolving it at once.",
@@ -3371,6 +3371,18 @@ struct L {
     }
     func anyOfGoal(_ needed: Int) -> String {
         t("이 중 \(needed)마리", "Any \(needed) of these", "このうち\(needed)匹", "\(needed) de estos", "\(needed) parmi ceux-ci", "\(needed) destes", "\(needed) davon", "Любые \(needed) из них")
+    }
+    /// The Shop's section titles (2026-11-05).
+    func shopSection(_ section: CompanionStore.ShopSection) -> String {
+        switch section {
+        case .eggs: t("알", "Eggs", "タマゴ", "Huevos", "Œufs", "Ovos", "Eier", "Яйца")
+        case .raising: t("키우는 포켓몬에게", "For the Pokémon raised", "育てているポケモンに", "Para el Pokémon que crías",
+                         "Pour le Pokémon en élevage", "Para o Pokémon que você cria", "Für das aufgezogene Pokémon",
+                         "Для выращиваемого покемона")
+        case .dungeons: dungeonsTab
+        case .keptForGood: t("영구 아이템", "Kept for good", "ずっと使えるどうぐ", "Para siempre", "Objets permanents",
+                             "Para sempre", "Dauerhaft", "Навсегда")
+        }
     }
     var ovalCharmEffectHint: String { t("빠진 폼만 부화 · 적용 중", "Missing forms only · active", "未収集フォルムのみ · 適用中", "Solo formas que faltan · activo", "Formes manquantes · actif", "Só formas que faltam · ativo", "Nur fehlende Formen · aktiv", "Только недостающие формы · активен") }
     /// Under Tauros's and Necrozma's artifacts in the Bag: what a complete line's weight is divided by now, both counted.

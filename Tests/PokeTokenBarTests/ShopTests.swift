@@ -214,13 +214,11 @@ final class ShopTests: XCTestCase {
         XCTAssertTrue(s.ownedItems.contains { $0.kind == .shinyCharm }, "in the Bag")
     }
 
-    // MARK: shopEntries (판매 아이템 + 알 3종을 하나의 가격 오름차순 목록으로 병합)
+    // MARK: shopEntries: the Shop in sections (the owner, 2026-11-05: "range mieux la boutique")
 
-    /// 활성 포켓몬이 있으면 알 3종이 각자의 가격 위치에 끼워져 전체가 가격 오름차순.
-    /// (회귀: 알이 ForEach 밖에서 무조건 맨 아래로 append 돼 3B 부적보다 아래에 놓이던 표시.)
-    /// 등급 알을 인접 그룹으로 묶지 **않는** 것이 의도다 — 그러면 4B 희귀 알이 3B 부적 위로 올라가
-    /// 위 회귀를 부분적으로 되살린다. 티어 관계는 카드의 등급 배지로 읽힌다.
-    func testShopEntriesInterleavesFreshEggByPrice() {
+    /// The eggs, then what helps the Pokémon raised, then the dungeons' items, then what is kept for good, each section
+    /// by price. The order is the sections', not one price list across them, where a ball fell between two eggs.
+    func testShopEntriesGoBySectionThenPrice() {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("shop-entries-\(UUID().uuidString).json")
         let mon = "{\"baseID\":10,\"pathIDs\":[10],\"stageIndex\":0,\"usedAtStage\":200000000,"
             + "\"rarity\":\"common\",\"totalForms\":3,\"isShiny\":false}"
@@ -229,31 +227,28 @@ final class ShopTests: XCTestCase {
         try? json.data(using: .utf8)!.write(to: url)
         let s = CompanionStore(provider: ShopNoProvider(), clock: { self.now }, fileURL: url, rng: SeededRNG(seed: 1), difficulty: 1)
         XCTAssertTrue(s.hasActive)
-        XCTAssertEqual(s.shopEntries,
-                       [.item(.rareCandy),   // 500M
-                        .egg(nil),           // 1B
-                        .item(.greatBall),   // 2.5B, the Uncommon Egg's price (R12 B)
-                        .egg(.uncommon),     // 2.5B
-                        .item(.shinyCharm),  // 3B
-                        .item(.ultraBall),   // 4B, the Rare Egg's price
-                        .egg(.rare)])        // 4B
-        let prices = s.shopEntries.map(\.price)
-        XCTAssertEqual(prices, prices.sorted(), "가격 상수가 바뀌어도 오름차순 불변식 유지")
+        XCTAssertEqual(s.shopEntries, Self.sectioned)
+        XCTAssertEqual(s.shopSections.map(\.section), [.eggs, .raising, .dungeons, .keptForGood])
+        for group in s.shopSections {
+            let prices = group.entries.map(\.price)
+            XCTAssertEqual(prices, prices.sorted(), "\(group.section) by price")
+        }
+        XCTAssertEqual(s.shopSections.flatMap(\.entries), s.shopEntries)
     }
+
+    private static let sectioned: [ShopEntry] = [
+        .egg(nil), .egg(.uncommon), .egg(.rare),      // 1B, 2.5B, 4B
+        .item(.rareCandy),                            // 500M
+        .item(.greatBall), .item(.ultraBall),         // 2.5B, 4B
+        .item(.shinyCharm),                           // 3B
+    ]
 
     /// While incubating, the three eggs stay in the Shop and can be bought: they wait in the Bag, and the egg being
     /// incubated is left alone.
     func testShopEggsCanBeBoughtWhileIncubating() {
         let s = store(used: 10_000_000_000)   // active 없음, 잔액은 세 알 가격의 합 이상
         XCTAssertFalse(s.hasActive)
-        XCTAssertEqual(s.shopEntries,
-                       [.item(.rareCandy),   // 500M
-                        .egg(nil),           // 1B
-                        .item(.greatBall),   // 2.5B, the Uncommon Egg's price (R12 B)
-                        .egg(.uncommon),     // 2.5B
-                        .item(.shinyCharm),  // 3B
-                        .item(.ultraBall),   // 4B, the Rare Egg's price
-                        .egg(.rare)])        // 4B
+        XCTAssertEqual(s.shopEntries, Self.sectioned)
         for tier in FreshEgg.shopTiers {
             XCTAssertTrue(s.shopEntries.contains(.egg(tier)), "알 상태에서도 \(tier?.rawValue ?? "기본") 알은 노출 유지")
             XCTAssertTrue(s.buyEgg(tier), "\(tier?.rawValue ?? "기본") 알")

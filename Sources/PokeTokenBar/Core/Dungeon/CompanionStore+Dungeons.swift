@@ -33,6 +33,7 @@ extension CompanionStore {
         case .won(let id): return state.dungeons.wins(id) > 0
         case .wonTier(let tier):
             return DungeonCatalog.all.contains { $0.tier == tier && !$0.id.isChallenge && state.dungeons.wins($0.id) > 0 }
+        case .wonEvery(let tier): return DungeonMedals.dungeons(tier).allSatisfy { state.dungeons.wins($0) > 0 }
         case .linesGraduated(let count):
             // The lines alone: the whole collection count walked every form of every species for one number.
             let species = Set(graduated.map(\.finalID)).filter(PokemonAssets.animatedSpeciesIDs.contains)
@@ -44,7 +45,8 @@ extension CompanionStore {
         }
     }
 
-    func isDungeonOpen(_ id: DungeonID) -> Bool { unmetUnlocks(id).isEmpty }
+    /// Open once its unlocks are met, and for good once won: the tier rule of 2026-11-05 locks none a player has beaten.
+    func isDungeonOpen(_ id: DungeonID) -> Bool { unmetUnlocks(id).isEmpty || state.dungeons.wins(id) > 0 }
 
     /// The Legendary Keys an entry spends (R10, R11): the Ruins of Alph take their Treasure Map instead.
     func keysToEnter(_ id: DungeonID) -> Int {
@@ -368,6 +370,38 @@ extension CompanionStore {
         return caught
     }
 
+    /// The general team (a player, 2026-11-05): six graduated Pokémon at most, one per species, those the Pokédex
+    /// still has.
+    var savedTeam: [String] {
+        let ids = Set(dungeonCandidates.map(\.id))
+        return state.dungeons.savedTeam.filter(ids.contains)
+    }
+
+    func setSavedTeam(_ ids: [String]) {
+        let entries = ids.compactMap { id in dungeonCandidates.first { $0.id == id } }
+        var species = Set<Int>()
+        let kept = entries.filter { species.insert($0.finalID).inserted }.prefix(6).map(\.id)
+        changeDungeons { $0.savedTeam = Array(kept) }
+        persist()
+    }
+
+    /// What a dungeon's team screen starts with: the general team's members its rules admit, in order, as many as it
+    /// takes, one per species.
+    func startingTeam(for id: DungeonID) -> [String] {
+        let (size, rules) = teamRules(id)
+        var team: [DexEntry] = []
+        for entryID in savedTeam {
+            guard team.count < size, let entry = dungeonCandidates.first(where: { $0.id == entryID }),
+                  DungeonTeamRules.admits(DungeonCandidate(entry), rules: rules),
+                  !team.contains(where: { $0.finalID == entry.finalID }) else { continue }
+            team.append(entry)
+        }
+        return team.map(\.id)
+    }
+
+    /// A dungeon's expeditions that ended, the latest first.
+    func runs(of id: DungeonID) -> [DungeonRunRecord] { state.dungeons.history.filter { $0.dungeon == id }.reversed() }
+
     /// Whether a boss's species is already the player's: in the Pokédex (graduated, raised or sent off), or its egg
     /// waiting in the Bag.
     func hasCaughtBoss(_ speciesID: Int) -> Bool {
@@ -508,25 +542,23 @@ extension CompanionStore {
     /// from T3 (sure at the first T3 victory, then one in ten: about ten T3 victories a key, a T5 asks three).
     static func victoryExtras(tier: DungeonTier, firstT3Victory: Bool, random: inout BattleRandom) -> ExpeditionLoot {
         var loot = ExpeditionLoot()
-        func roll(_ percent: Double) -> Bool { Double(random.below(10_000)) < percent * 100 }
-        switch tier {
-        case .t1: if roll(10) { loot.add(.pokemonEgg) }
-        case .t2: if roll(10) { loot.add(.uncommonEgg) }
-        case .t3:
-            if roll(10) { loot.add(.rareEgg) }
-            if firstT3Victory || roll(10) { loot.add(.legendaryKey) }
-            if roll(5) { loot.add(.treasureMap) }
-            if roll(0.5) { loot.add(.explorerChest) }
-        case .t4:
-            if roll(25) { loot.add(.rareEgg) }
-            if roll(1) { loot.add(.legendaryEgg) }
-            if roll(2) { loot.add(.masterBall) }
-            if roll(1) { loot.add(.explorerChest) }
-        case .t5:
-            if roll(5) { loot.add(.legendaryEgg) }
-            if roll(10) { loot.add(.masterBall) }
+        // In the table's order, a sure one drawing nothing: the rolls after it stay what they were.
+        for (item, percent) in victoryExtraOdds(tier, firstT3Victory: firstT3Victory)
+        where percent >= 100 || Double(random.below(10_000)) < percent * 100 {
+            loot.add(item)
         }
         return loot
+    }
+
+    /// What a victory adds, each with its chance in percent: the roll's own table, which each dungeon's page shows.
+    static func victoryExtraOdds(_ tier: DungeonTier, firstT3Victory: Bool = false) -> [(item: ItemKind, percent: Double)] {
+        switch tier {
+        case .t1: [(.pokemonEgg, 10)]
+        case .t2: [(.uncommonEgg, 10)]
+        case .t3: [(.rareEgg, 10), (.legendaryKey, firstT3Victory ? 100 : 10), (.treasureMap, 5), (.explorerChest, 0.5)]
+        case .t4: [(.rareEgg, 25), (.legendaryEgg, 1), (.masterBall, 2), (.explorerChest, 1)]
+        case .t5: [(.legendaryEgg, 5), (.masterBall, 10)]
+        }
     }
 
     /// R4 (validated 2026-10-30, T4 and T5 lowered 2026-11-02): a successful expedition unlocks a Technical Capsule
@@ -583,7 +615,14 @@ extension CompanionStore {
         changeBag(.sitrusBerry, by: e.berries[.sitrus] ?? 0)
         changeBag(.revive, by: e.revives[ItemKind.revive.rawValue] ?? 0)
         changeBag(.maxRevive, by: e.revives[ItemKind.maxRevive.rawValue] ?? 0)
+        let record = DungeonRunRecord(dungeon: e.dungeon, endedAt: currentDate, won: won, left: leftEarly,
+                                      floor: min(e.floor, e.floors), floors: e.floors, tokens: e.tokensIn,
+                                      candies: loot.candies, eggs: loot.eggs.count
+                                          + loot.items.filter { ItemKind(rawValue: $0.key)?.isEggItem == true }.values.reduce(0, +),
+                                      items: loot.items.filter { ItemKind(rawValue: $0.key)?.isEggItem != true }.values.reduce(0, +),
+                                      bossSpeciesID: e.boss.speciesID, caught: caught)
         changeDungeons { progress in
+            progress.history = Array((progress.history + [record]).suffix(DungeonRunRecord.kept))
             // A legendary boss's egg, or the Legendary Egg in its place, is won once.
             if caught, SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary {
                 progress.legendaryEggsWon.insert(e.boss.speciesID)

@@ -60,6 +60,13 @@ final class DungeonStoreTests: XCTestCase {
 
     // MARK: Opening
 
+    /// Every dungeon of a tier won, as a save holds it.
+    private static func winEvery(_ tier: DungeonTier, _ st: inout CompanionState) {
+        for id in DungeonMedals.dungeons(tier) { st.dungeons.wins[id.rawValue] = 1 }
+    }
+
+    /// A tier opens once every dungeon of the one before is won (the owner, 2026-11-05), not one of them; a dungeon won
+    /// before that rule stays open.
     func testWhatOpensTheDungeons() throws {
         let five = try store(dex: Array(strong.prefix(5)))
         XCTAssertFalse(five.isDungeonOpen(.viridianForest), "six graduated open the first dungeons")
@@ -67,20 +74,45 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertTrue(six.isDungeonOpen(.viridianForest))
         XCTAssertTrue(six.isDungeonOpen(.diglettsCave))
         XCTAssertFalse(six.isDungeonOpen(.mtMoon))
-        let won = try store(dex: strong) { $0.dungeons.wins["viridianForest"] = 1 }
-        XCTAssertTrue(won.isDungeonOpen(.mtMoon))
-        XCTAssertFalse(won.isDungeonOpen(.victoryRoad), "Mt. Moon and Mt. Ember both")
-        let seafoam = try store(dex: strong) { $0.dungeons.wins["dragonsDen"] = 1 }
+        let one = try store(dex: strong) { $0.dungeons.wins["viridianForest"] = 1 }
+        XCTAssertFalse(one.isDungeonOpen(.mtMoon), "one T1 of two no longer opens the T2")
+        XCTAssertFalse(one.isDungeonOpen(.mtEmber))
+        let both = try store(dex: strong) { Self.winEvery(.t1, &$0) }
+        XCTAssertTrue(both.isDungeonOpen(.mtMoon))
+        XCTAssertTrue(both.isDungeonOpen(.mtEmber))
+        XCTAssertFalse(both.isDungeonOpen(.victoryRoad), "Mt. Moon and Mt. Ember both")
+        let threeOfFour = try store(dex: strong) {
+            Self.winEvery(.t1, &$0)
+            Self.winEvery(.t2, &$0)
+            for id in DungeonMedals.dungeons(.t3).dropLast() { $0.dungeons.wins[id.rawValue] = 1 }
+        }
+        XCTAssertFalse(threeOfFour.isDungeonOpen(.seafoamIslands), "every T3, not three of four")
+        XCTAssertTrue(threeOfFour.isDungeonOpen(DungeonMedals.dungeons(.t3).last!), "its own tier opened by the T2")
+        let seafoam = try store(dex: strong) { Self.winEvery(.t3, &$0) }
         XCTAssertTrue(seafoam.isDungeonOpen(.seafoamIslands))
         XCTAssertFalse(seafoam.canEnter(.seafoamIslands), "a T4 takes a Legendary Key")
-        let keyed = try store(dex: strong, inventory: [.legendaryKey: 1]) { $0.dungeons.wins["dragonsDen"] = 1 }
+        let keyed = try store(dex: strong, inventory: [.legendaryKey: 1]) { Self.winEvery(.t3, &$0) }
         XCTAssertTrue(keyed.canEnter(.seafoamIslands))
+        let grandfathered = try store(dex: strong) {
+            $0.dungeons.wins["dragonsDen"] = 1
+            $0.dungeons.wins["seafoamIslands"] = 1
+        }
+        XCTAssertTrue(grandfathered.isDungeonOpen(.seafoamIslands), "won under the former rule, still open")
+        XCTAssertFalse(grandfathered.isDungeonOpen(.ceruleanCave))
         XCTAssertFalse(try store(dex: strong).isDungeonOpen(.ruinsOfAlph))
         XCTAssertTrue(try store(dex: strong, inventory: [.treasureMap: 1]).isDungeonOpen(.ruinsOfAlph))
-        let origin = try store(dex: strong) { $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484"] }
+        let origin = try store(dex: strong) {
+            Self.winEvery(.t4, &$0)
+            $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484"]
+        }
         XCTAssertFalse(origin.isDungeonOpen(.hallOfOrigin))
-        let all = try store(dex: strong) { $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484", "mtCoronet:487"] }
+        let all = try store(dex: strong) {
+            Self.winEvery(.t4, &$0)
+            $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484", "mtCoronet:487"]
+        }
         XCTAssertTrue(all.isDungeonOpen(.hallOfOrigin))
+        let bossesOnly = try store(dex: strong) { $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484", "mtCoronet:487"] }
+        XCTAssertFalse(bossesOnly.isDungeonOpen(.hallOfOrigin), "the three bosses and every T4")
     }
 
     // MARK: Departure and tokens
@@ -106,9 +138,11 @@ final class DungeonStoreTests: XCTestCase {
 
     /// The whole dungeon walked: the boss falls to a strong team, the throws go by themselves with the best ball (an
     /// Ultra Ball, sure at a common boss; the Master Ball stays for a legendary one), its loot goes to the Bag with what
-    /// was not used, a first victory doubles the candies, and Mt. Moon opens.
+    /// was not used, a first victory doubles the candies, and Mt. Moon opens (Diglett's Cave won before: the whole T1).
     func testAVictoryFillsTheBag() throws {
-        let s = try store(dex: strong, inventory: [.oranBerry: 3, .masterBall: 1, .ultraBall: 3])
+        let s = try store(dex: strong, inventory: [.oranBerry: 3, .masterBall: 1, .ultraBall: 3]) {
+            $0.dungeons.wins["diglettsCave"] = 1
+        }
         XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
         let cost = DungeonTier.t1.cost(difficulty: 0.1)
         var total = 0
@@ -235,7 +269,7 @@ final class DungeonStoreTests: XCTestCase {
                 return entry
             }
             let s = try store(dex: strong + owned, inventory: [.legendaryKey: 1, .masterBall: 1]) {
-                $0.dungeons.wins["dragonsDen"] = 1
+                Self.winEvery(.t3, &$0)
             }
             XCTAssertTrue(s.mayMeetALegendary(.seafoamIslands, boss: nil))
             XCTAssertTrue(s.startExpedition(.seafoamIslands, team: strong.map(\.id)))
@@ -267,7 +301,7 @@ final class DungeonStoreTests: XCTestCase {
     func testALegendaryWhoseEggWasWonGivesTheLootOnly() throws {
         let bosses = DungeonCatalog.dungeon(.seafoamIslands).bosses
         let s = try store(dex: strong, inventory: [.legendaryKey: 1, .masterBall: 1]) {
-            $0.dungeons.wins["dragonsDen"] = 1
+            Self.winEvery(.t3, &$0)
             $0.dungeons.legendaryEggsWon = Set(bosses)
         }
         XCTAssertFalse(s.mayMeetALegendary(.seafoamIslands, boss: nil))
@@ -302,6 +336,103 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(walk.itemCount(.ultraBall), 3, "no ball spent")
         XCTAssertTrue(result.loot.eggs.isEmpty)
         XCTAssertEqual(ExpeditionResultCard.bossLine(result, walk.l), walk.l.dungeonBossEggWonBefore)
+    }
+
+    /// Rare Candies wait for the team (the owner, 2026-11-05): the Pokémon raised is paused while it explores.
+    func testCandiesWaitWhileATeamExplores() async throws {
+        let s = try store(dex: strong, inventory: [.rareCandy: 3]) { $0.active = nil }
+        await s.hatch(baseID: 16)
+        XCTAssertGreaterThan(s.maxRareCandyUseCount, 0, "usable at home")
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        XCTAssertEqual(s.maxRareCandyUseCount, 0)
+        XCTAssertFalse(s.canUseRareCandy)
+        XCTAssertEqual(s.useRareCandy(), .unavailable)
+        XCTAssertEqual(s.itemCount(.rareCandy), 3, "none spent")
+        s.abandonExpedition()
+        XCTAssertGreaterThan(s.maxRareCandyUseCount, 0, "back home")
+    }
+
+    /// Eggs and stones wait too while a team explores (the owner, 2026-11-05: an egg used on the way sent the Pokémon
+    /// raised off while its growth was paused): none can replace it until the team is back.
+    func testEggsAndStonesWaitWhileATeamExplores() throws {
+        let s = try store(dex: strong, inventory: [.pokemonEgg: 1, .fireStone: 1, .legendaryEgg: 1]) {
+            $0.dungeons.eggs = [DungeonEgg(id: "x", baseID: 4, form: nil, isShiny: false, sourceSpeciesID: 6)]
+        }
+        XCTAssertTrue(s.canSendOffActive, "at home")
+        XCTAssertTrue(s.canUseBagEgg(.pokemonEgg))
+        XCTAssertTrue(s.canUseStone(.fireStone))
+        XCTAssertTrue(s.canUseLegendaryEgg())
+        XCTAssertTrue(s.canUseDungeonEgg("x"))
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        XCTAssertFalse(s.canSendOffActive)
+        XCTAssertFalse(s.useBagEgg(.pokemonEgg))
+        XCTAssertFalse(s.useStone(.fireStone))
+        XCTAssertFalse(s.useLegendaryEgg())
+        XCTAssertFalse(s.useDungeonEgg("x"))
+        XCTAssertEqual(s.state.active?.baseID, 16, "the Pokémon raised stays")
+        XCTAssertEqual(s.itemCount(.pokemonEgg), 1)
+        XCTAssertEqual(s.itemCount(.fireStone), 1)
+        XCTAssertEqual(s.dungeonProgress.eggs.count, 1)
+        s.abandonExpedition()
+        XCTAssertTrue(s.canUseBagEgg(.pokemonEgg), "back home")
+    }
+
+    /// The general team (a player, 2026-11-05): six at most, one per species, kept in the save; a dungeon's team screen
+    /// starts with its members the rules admit, as many as it takes.
+    func testTheGeneralTeamStartsTheTeamScreen() throws {
+        var copy = graduated(6)
+        copy.id = "copy6"
+        let legend = graduated(144, rarity: .legendary)
+        let s = try store(dex: strong + [copy, legend])
+        XCTAssertEqual(s.startingTeam(for: .diglettsCave), [], "none saved")
+        s.setSavedTeam([legend.id, "e6", "copy6", "e9", "e3", "e25", "e143", "e130", "gone"])
+        XCTAssertEqual(s.savedTeam, [legend.id, "e6", "e9", "e3", "e25", "e143"], "six, one per species, only candidates")
+        XCTAssertEqual(s.state.dungeons.savedTeam, s.savedTeam, "in the save")
+        XCTAssertEqual(s.startingTeam(for: .diglettsCave), ["e6", "e9", "e3"], "no legendary there, three")
+        XCTAssertEqual(s.startingTeam(for: .mtCoronet), [legend.id], "only legendaries there")
+        let back = try JSONDecoder().decode(CompanionState.self, from: JSONEncoder().encode(s.state))
+        XCTAssertEqual(back.dungeons.savedTeam, s.savedTeam)
+    }
+
+    /// Each expedition that ends is kept for its dungeon's page, the latest first, the last hundred only.
+    func testAnEndedExpeditionIsKeptForItsPage() throws {
+        let old = DungeonRunRecord(dungeon: .diglettsCave, endedAt: now, won: true, left: false, floor: 5, floors: 5,
+                                   tokens: 1, candies: 2, eggs: 1, items: 3, bossSpeciesID: 51, caught: true)
+        let s = try store(dex: strong) { $0.dungeons.history = Array(repeating: old, count: DungeonRunRecord.kept) }
+        XCTAssertTrue(s.runs(of: .viridianForest).isEmpty)
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        s.abandonExpedition()
+        let run = try XCTUnwrap(s.runs(of: .viridianForest).first)
+        XCTAssertFalse(run.won)
+        XCTAssertTrue(run.left)
+        XCTAssertFalse(run.caught)
+        XCTAssertEqual(s.dungeonProgress.history.count, DungeonRunRecord.kept, "the oldest goes")
+        XCTAssertEqual(s.runs(of: .diglettsCave).count, DungeonRunRecord.kept - 1)
+        let back = try JSONDecoder().decode(CompanionState.self, from: JSONEncoder().encode(s.state))
+        XCTAssertEqual(back.dungeons.history, s.dungeonProgress.history)
+    }
+
+    /// One cell per species, form and shininess on the team screen (a player saw nine identical Seedot): the copy picked,
+    /// else the one whose moves were chosen, else the best IVs.
+    func testTheTeamScreenShowsEachSpeciesOnce() {
+        func copy(_ id: String, _ species: Int, ivs: Int, shiny: Bool = false) -> DexEntry {
+            var e = graduated(species)
+            e.id = id
+            e.isShiny = shiny
+            var profile = PokemonProfile.generate(seed: 1)
+            profile.ivs = PokemonIVs(hp: ivs, attack: ivs, defense: ivs, specialAttack: ivs, specialDefense: ivs, speed: ivs)
+            e.profile = profile
+            return e
+        }
+        let entries = [copy("a", 273, ivs: 10), copy("b", 273, ivs: 31), copy("c", 273, ivs: 20), copy("d", 273, ivs: 5, shiny: true),
+                       copy("e", 18, ivs: 12)]
+        let plain = DungeonTeamScreen.candidateGroups(entries, picked: [], loops: [:])
+        XCTAssertEqual(plain.map(\.entry.id), ["b", "d", "e"], "the best IVs stand for the Seedot")
+        XCTAssertEqual(plain.map(\.count), [3, 1, 1])
+        XCTAssertEqual(DungeonTeamScreen.candidateGroups(entries, picked: [], loops: ["c": ["tackle"]]).first?.entry.id, "c",
+                       "the copy whose moves were chosen")
+        XCTAssertEqual(DungeonTeamScreen.candidateGroups(entries, picked: ["a"], loops: ["c": ["tackle"]]).first?.entry.id, "a",
+                       "the copy already in the team")
     }
 
     /// A legendary boss, so a throw can miss: the expedition at its throws.
@@ -602,6 +733,17 @@ final class DungeonStoreTests: XCTestCase {
         }
         await s.hatchIfNeeded()
         XCTAssertNotEqual(s.state.active?.baseID, 493)
+    }
+
+    /// Once the player has an Arceus, one pre-rolled hatches: Arceus is back in the eggs (the owner, 2026-11-05).
+    func testAPreRolledArceusHatchesOnceCaught() async throws {
+        let s = try hatchingStore(index: [BaseSpecies(id: 16, captureRate: 255)]) {
+            $0.dex += [self.graduated(493, rarity: .legendary)]
+            $0.pendingHatchID = 493
+            $0.eggUsage = 10_000_000
+        }
+        await s.hatchIfNeeded()
+        XCTAssertEqual(s.state.active?.baseID, 493)
     }
 
     func testVictoryExtras() {

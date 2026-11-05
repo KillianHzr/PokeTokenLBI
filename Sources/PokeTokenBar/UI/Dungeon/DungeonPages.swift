@@ -1,0 +1,369 @@
+import SwiftUI
+
+/// The general team (a player, 2026-11-05): six graduated Pokémon at most, their moves and battle forms set here; a
+/// dungeon's team screen starts from it (`CompanionStore.startingTeam`).
+@MainActor
+struct MyTeamScreen: View {
+    let store: CompanionStore
+    let onBack: () -> Void
+
+    @State private var team: [String] = []
+    @State private var focus: String?
+    @State private var editingSlot: Int?
+    @State private var search = ""
+    @State private var hovered: String?
+    @State private var loaded = false
+
+    static let size = 6
+
+    var body: some View {
+        let l = store.l
+        let picked = team.compactMap { id in store.dungeonCandidates.first { $0.id == id } }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Button { onBack() } label: { Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon) }
+                    .buttonStyle(.borderless)
+                    .keyboardShortcut(.cancelAction)
+                Spacer(minLength: 4)
+                Image(systemName: "person.3.fill").foregroundStyle(.secondary)
+                Text(l.myTeamTitle).font(.headline)
+            }
+            Text(l.myTeamHint).font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 6) {
+                ForEach(picked, id: \.id) { entry in
+                    Button {
+                        focus = focus == entry.id ? nil : entry.id
+                        editingSlot = nil
+                    } label: {
+                        SpriteView(speciesID: entry.finalID, size: 34, shiny: entry.isShiny, form: entry.form, sameScale: true)
+                            .padding(2)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(focus == entry.id ? Design.actionColor.opacity(0.25) : .clear))
+                    }
+                    .buttonStyle(.plain)
+                    .speciesNameTooltip(entry.finalID, form: entry.form, language: store.language)
+                }
+                ForEach(0..<max(0, Self.size - picked.count), id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [3]))
+                        .frame(width: 38, height: 38)
+                }
+            }
+            if let focused = focus, let entry = picked.first(where: { $0.id == focused }) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Spacer(minLength: 0)
+                        Button(l.dungeonRemove, systemImage: "minus.circle") {
+                            team.removeAll { $0 == entry.id }
+                            focus = nil
+                            editingSlot = nil
+                        }
+                        .buttonStyle(.borderless).controlSize(.small).font(.caption)
+                    }
+                    if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
+                        BattleFormChooser(store: store, entry: entry)
+                    }
+                    LoopEditor(store: store, entry: entry, dungeon: nil, editingSlot: $editingSlot)
+                }
+                .layoutPriority(1)
+            } else if let hovered, let entry = store.dungeonCandidates.first(where: { $0.id == hovered }) {
+                CandidateMovesPreview(store: store, entry: entry, dungeon: nil)
+            }
+            TextField(l.dexSearchPlaceholder, text: $search)
+                .textFieldStyle(.roundedBorder).controlSize(.small)
+            ScrollView {
+                TeamCandidateGrid(store: store, candidates: store.dungeonCandidates, size: Self.size, query: search,
+                                  team: $team, focus: $focus, hovered: $hovered)
+                    .reservesScrollerLane()
+            }
+            .frame(minHeight: 46)
+        }
+        .padding(PopoverMetrics.padding)
+        .frame(height: 520, alignment: .top)
+        .onAppear {
+            team = store.savedTeam
+            loaded = true
+        }
+        .onChange(of: team) { _, new in if loaded { store.setSavedTeam(new) } }
+    }
+}
+
+/// A dungeon's page (a player, 2026-11-05): what it is, what opens it, its wild Pokémon and bosses as met, its loot and
+/// odds from the rolls' own tables, and the expeditions that ended there.
+@MainActor
+struct DungeonDetailScreen: View {
+    let store: CompanionStore
+    let id: DungeonID
+    let onBack: () -> Void
+    let onPrepare: () -> Void
+
+    var body: some View {
+        let l = store.l
+        let dungeon = DungeonCatalog.dungeon(id)
+        let (size, rules) = store.teamRules(id)
+        let runs = store.runs(of: id)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Button { onBack() } label: { Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon) }
+                    .buttonStyle(.borderless)
+                    .keyboardShortcut(.cancelAction)
+                Spacer(minLength: 4)
+                DungeonIcon(id: id, size: 20)
+                Badge("T\(dungeon.tier.rawValue)", tint: .secondary, style: .tinted)
+                Text(l.dungeonName(id)).font(.headline)
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    facts(dungeon, size: size, rules: rules, runs: runs, l)
+                    bosses(dungeon, l)
+                    loot(dungeon, l)
+                    history(runs, l)
+                    // Last: a T2 or later brings a hundred and more.
+                    wild(dungeon, l)
+                }
+                .reservesScrollerLane()
+            }
+            HStack {
+                Spacer()
+                Button(l.dungeonPrepare) { onPrepare() }
+                    .buttonStyle(.pill(prominent: true))
+                    .disabled(!store.isDungeonOpen(id))
+            }
+        }
+        .padding(PopoverMetrics.padding)
+        .frame(height: 520, alignment: .top)
+    }
+
+    private func facts(_ dungeon: Dungeon, size: Int, rules: [DungeonRule], runs: [DungeonRunRecord], _ l: L) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(([l.dungeonTeamSize(size)] + rules.map(l.dungeonRule)
+                  + [l.dungeonCost(TokenFormatter.compact(dungeon.tier.cost(difficulty: store.growthDifficulty)))])
+                .joined(separator: " · "))
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 3) {
+                ForEach(dungeon.themeTypes, id: \.self) { type in
+                    Badge(l.typeName(type).uppercased(), tint: .type(type)).fixedSize()
+                }
+            }
+            ForEach(Array(dungeon.unlocks.enumerated()), id: \.offset) { _, unlock in
+                let met = store.isMet(unlock) || store.dungeonProgress.wins(id) > 0
+                Label(l.dungeonUnlock(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
+                    .font(.caption).foregroundStyle(met ? .primary : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(l.dungeonDetailRuns(runs.count, wins: store.dungeonProgress.wins(id)))
+                .font(.caption.weight(.semibold))
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .designSurface(cornerRadius: 10)
+    }
+
+    /// The bosses as the card shows them (Q17): whole once beaten, a silhouette once reached, nothing before.
+    private func bosses(_ dungeon: Dungeon, _ l: L) -> some View {
+        let progress = store.dungeonProgress
+        let met = dungeon.bosses.filter { progress.bossesReached.contains(DungeonProgress.bossKey(id, $0)) }
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(l.dungeonDetailBosses(met: met.count, of: dungeon.bosses.count)).font(.caption.weight(.semibold))
+            if !met.isEmpty {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
+                    ForEach(met, id: \.self) { species in
+                        let beaten = progress.bossesBeaten.contains(DungeonProgress.bossKey(id, species))
+                        SpriteView(speciesID: species, size: 30, isSilhouette: !beaten, sameScale: true)
+                            .speciesNameTooltip(species, language: store.language)
+                    }
+                }
+            }
+        }
+    }
+
+    private func wild(_ dungeon: Dungeon, _ l: L) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(l.dungeonDetailWild) · \(dungeon.wild.count)").font(.caption.weight(.semibold))
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 10), spacing: 2) {
+                ForEach(dungeon.wild, id: \.self) { species in
+                    SpriteView(speciesID: species, size: 26, sameScale: true)
+                        .speciesNameTooltip(species, language: store.language)
+                }
+            }
+        }
+    }
+
+    private func loot(_ dungeon: Dungeon, _ l: L) -> some View {
+        let tier = dungeon.tier
+        let candies = ExpeditionEngine.candyRange(tier)
+        let items = ExpeditionEngine.itemTable(tier).reduce(into: [ItemKind]()) { if !$0.contains($1) { $0.append($1) } }
+        let eggs = ExpeditionEngine.chestEggOdds(tier)
+        let extras = CompanionStore.victoryExtraOdds(tier)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(l.dungeonDetailLoot).font(.caption.weight(.semibold))
+            line(l.dungeonDetailCandies(candies.lowerBound, candies.upperBound), nil)
+            line(l.dungeonDetailChestItems, items.map(l.itemName).joined(separator: ", "))
+            line(l.dungeonDetailChestEggs, eggs.isEmpty ? l.dungeonDetailNone
+                 : eggs.map { "\(l.itemName($0.egg)) \(l.oddsPercent(Double($0.perMille) / 10))" }.joined(separator: ", "))
+            line(l.dungeonDetailVictory, (extras.map { "\(l.itemName($0.item)) \(l.oddsPercent($0.percent))" }
+                 + ["\(l.dungeonTechnicalCapsule) \(l.oddsPercent(Double(CompanionStore.technicalCapsuleChance(tier))))"])
+                 .joined(separator: ", "))
+            Text(l.dungeonDetailFirstVictory).font(.caption2).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .designSurface(cornerRadius: 10)
+    }
+
+    private func line(_ title: String, _ value: String?) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).font(.caption.weight(value == nil ? .regular : .medium))
+            if let value {
+                Text(value).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func history(_ runs: [DungeonRunRecord], _ l: L) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(l.dungeonDetailHistory).font(.caption.weight(.semibold))
+            if runs.isEmpty {
+                Text(l.dungeonDetailNoRun).font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(Array(runs.enumerated()), id: \.offset) { _, run in
+                HStack(spacing: 8) {
+                    SpriteView(speciesID: run.bossSpeciesID, size: 26, isSilhouette: !run.won, sameScale: true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 4) {
+                            Text(l.dungeonResultTitle(won: run.won, roped: run.left)).font(.caption.weight(.semibold))
+                                .foregroundStyle(run.won ? Design.actionColor : Color.readableOrange)
+                            if run.caught { Image(systemName: "checkmark.seal.fill").font(.caption2).foregroundStyle(.secondary) }
+                        }
+                        Text([run.endedAt.formatted(.dateTime.day().month().hour().minute().locale(store.language.displayLocale)),
+                              l.dungeonFloorOf(run.floor, run.floors)].joined(separator: " · "))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 4)
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("🍬 \(run.candies) · 🥚 \(run.eggs) · 🎒 \(run.items)").font(.caption2).monospacedDigit()
+                        Text(TokenFormatter.compact(run.tokens)).font(.caption2).monospacedDigit()
+                    }
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                }
+            }
+        }
+    }
+}
+
+/// The types' strengths and weaknesses (a player, 2026-11-05): the full chart, the multiplier written in each cell,
+/// and one type's details on a click.
+@MainActor
+struct TypeChartScreen: View {
+    let store: CompanionStore
+    let onBack: () -> Void
+    @State private var selected: PokemonType?
+
+    /// 18 cells and the row labels fit the popover's width beside the scroller's lane.
+    private static let cell: CGFloat = 15
+    private static let label: CGFloat = 26
+
+    var body: some View {
+        let l = store.l
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Button { onBack() } label: { Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon) }
+                    .buttonStyle(.borderless)
+                    .keyboardShortcut(.cancelAction)
+                Spacer(minLength: 4)
+                Image(systemName: "tablecells").foregroundStyle(.secondary)
+                Text(l.typeChartTitle).font(.headline)
+            }
+            Text(l.typeChartLegend).font(.caption2).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    chart(l)
+                    if let selected { details(selected, l) }
+                }
+                .reservesScrollerLane()
+            }
+        }
+        .padding(PopoverMetrics.padding)
+        .frame(height: 520, alignment: .top)
+    }
+
+    private func short(_ type: PokemonType, _ l: L) -> String { String(l.typeName(type).prefix(3)).uppercased() }
+
+    private func chart(_ l: L) -> some View {
+        let types = PokemonType.allCases
+        return Grid(horizontalSpacing: 1, verticalSpacing: 1) {
+            GridRow {
+                Color.clear.frame(width: Self.label, height: 28)
+                ForEach(types, id: \.self) { defending in
+                    Text(short(defending, l)).font(.system(size: 7, weight: .bold))
+                        .rotationEffect(.degrees(-90)).fixedSize()
+                        .frame(width: Self.cell, height: 28)
+                        .background(defending.color.opacity(selected == defending ? 0.6 : 0.3))
+                        .onTapGesture { selected = selected == defending ? nil : defending }
+                }
+            }
+            ForEach(types, id: \.self) { attacking in
+                GridRow {
+                    Text(short(attacking, l)).font(.system(size: 8, weight: .bold))
+                        .frame(width: Self.label, height: Self.cell)
+                        .background(attacking.color.opacity(selected == attacking ? 0.6 : 0.3))
+                        .onTapGesture { selected = selected == attacking ? nil : attacking }
+                    ForEach(types, id: \.self) { defending in
+                        cell(PokemonTypeData.effectiveness(attacking: attacking, defending: defending),
+                             lit: selected == nil || selected == attacking || selected == defending)
+                    }
+                }
+            }
+        }
+    }
+
+    /// The multiplier written, its color doubling it: blue for twice, orange for half, grey for none (never red and
+    /// green alone).
+    private func cell(_ value: Double, lit: Bool) -> some View {
+        let (text, fill): (String, Color) = switch value {
+        case 2...: ("2", .blue)
+        case 0.4..<0.6: ("½", .orange)
+        case ..<0.1: ("0", .gray)
+        default: ("", .clear)
+        }
+        return Text(text).font(.system(size: 9, weight: .bold)).monospacedDigit()
+            .frame(width: Self.cell, height: Self.cell)
+            .background(fill.opacity(text.isEmpty ? 0 : 0.35))
+            .background(Color.secondary.opacity(0.06))
+            .opacity(lit ? 1 : 0.35)
+    }
+
+    private func details(_ type: PokemonType, _ l: L) -> some View {
+        let types = PokemonType.allCases
+        func list(_ title: String, _ matches: [PokemonType]) -> some View {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                if matches.isEmpty {
+                    Text(l.dungeonDetailNone).font(.caption2).foregroundStyle(.tertiary)
+                } else {
+                    WrappingHStack(spacing: 3, lineSpacing: 3) {
+                        ForEach(matches, id: \.self) { Badge(l.typeName($0).uppercased(), tint: .type($0)) }
+                    }
+                }
+            }
+        }
+        let attack = { (v: Double) in types.filter { PokemonTypeData.effectiveness(attacking: type, defending: $0) == v } }
+        let defense = { (v: Double) in types.filter { PokemonTypeData.effectiveness(attacking: $0, defending: type) == v } }
+        return VStack(alignment: .leading, spacing: 6) {
+            Badge(l.typeName(type).uppercased(), tint: .type(type))
+            Text(l.typeAttacking).font(.caption.weight(.semibold))
+            list(l.typeStrongAgainst, attack(2))
+            list(l.typeWeakAgainst, attack(0.5))
+            list(l.typeNoEffectOn, attack(0))
+            Text(l.typeDefending).font(.caption.weight(.semibold))
+            list(l.typeWeakTo, defense(2))
+            list(l.typeResists, defense(0.5))
+            list(l.typeImmuneTo, defense(0))
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .designSurface(cornerRadius: 10)
+    }
+}

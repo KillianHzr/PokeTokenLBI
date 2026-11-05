@@ -34,6 +34,7 @@ struct ReleaseForEggControls: View {
         // 알 상태: 리롤 대상이 없다. A legendary boss's egg's Pokémon is never sent off; a Fossil Egg's own: the
         // caller's reason.
         let locked = !store.hasActive ? l.eggShopLockedHint
+            : store.expedition != nil ? l.candiesPausedForDungeon
             : store.isRaisingLegendaryBossPokemon ? l.legendaryBossPokemonLocked : lockedHint
         switch stage {
         case .idle:

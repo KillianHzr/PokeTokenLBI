@@ -303,9 +303,11 @@ private struct ItemCard: View {
                 }
             }
         } else {
-            // 알(부화 전)/활성 없음/(사탕만)라인 미로딩 — 비활성 + 사유
-            Text(store.isEgg ? l.useAfterHatch : l.useNeedsPokemon)
+            // 알(부화 전)/활성 없음/(사탕만)라인 미로딩 — 비활성 + 사유. A team exploring pauses the candies.
+            Text(kind == .rareCandy && store.expedition != nil ? l.candiesPausedForDungeon
+                 : store.isEgg ? l.useAfterHatch : l.useNeedsPokemon)
                 .font(.caption2).foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
