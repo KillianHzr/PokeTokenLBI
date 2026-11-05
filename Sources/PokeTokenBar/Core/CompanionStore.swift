@@ -1194,7 +1194,7 @@ final class CompanionStore {
         case nameAsc
         case nameDesc
         case rarityDesc
-        /// The species caught most first, its records together, the latest first.
+        /// The highest "Duplicate ×N" first, the number each card shows; then the species caught most, the latest first.
         case countDesc
 
         var id: String { rawValue }
@@ -1671,8 +1671,14 @@ final class CompanionStore {
             }
             return graduated + (active.map { [$0] } ?? [])
         case .countDesc:
+            // By the number the card shows, its rank ("Duplicate ×7"): sorted by its species' count, which the records
+            // that evolved past it raise, a Pidgey's ×7 came above a Seedot's ×9 (a player, 2026-11-05).
+            let ranks = dexCatchRanks
             let counts = dexCatchCounts
             return entries.sorted {
+                let r0 = ranks[$0.id] ?? 1
+                let r1 = ranks[$1.id] ?? 1
+                if r0 != r1 { return r0 > r1 }
                 let c0 = counts[$0.finalID] ?? 0
                 let c1 = counts[$1.finalID] ?? 0
                 if c0 != c1 { return c0 > c1 }
