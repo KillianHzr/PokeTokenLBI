@@ -44,7 +44,8 @@ final class FormAchievementsTests: XCTestCase {
         let expected: [(ItemKind, Int, Int)] = [(.rotomCatalog, 479, 6), (.cometShard, 774, 7), (.redNectar, 741, 4),
                                                 (.smoothRock, 351, 4), (.sawsbuckSeasons, 586, 4), (.fairyFeather, 671, 5),
                                                 (.furfrouTrims, 676, 10), (.vivillonPatterns, 666, 20),
-                                                (.whippedDream, 869, 63), (.unownLetters, 201, 28)]
+                                                (.whippedDream, 869, 63), (.unownLetters, 201, 28),
+                                                (.taurosBreeds, 128, 4), (.necrozmaForms, 800, 4)]
         for (kind, species, count) in expected {
             guard case .forms(let goal) = kind.unlock else { return XCTFail("\(kind)") }
             XCTAssertEqual(goal.speciesID, species, "\(kind)")
@@ -89,6 +90,14 @@ final class FormAchievementsTests: XCTestCase {
             XCTAssertEqual(s.itemCount(kind), 0, "\(kind) is not kept")
             XCTAssertTrue(s.isClaimed(kind))
             XCTAssertFalse(s.claimAchievement(kind), "once")
+        }
+        // Tauros's and Necrozma's rewards are artifacts, kept in the Bag (the owner, 2026-11-05).
+        for (kind, chain) in [(ItemKind.taurosBreeds, [128]), (.necrozmaForms, [800])] {
+            let s = try store(dex: try every(kind, chain: chain))
+            XCTAssertFalse(try store(dex: Array(try every(kind, chain: chain).dropLast())).isUnlocked(kind), "\(kind): one missing")
+            XCTAssertTrue(s.claimAchievement(kind), "\(kind)")
+            XCTAssertEqual(s.itemCount(kind), 1, "\(kind) is kept")
+            XCTAssertEqual(BonusTheme.of(kind), .eggs)
         }
         let rotom = try store(dex: try every(.rotomCatalog, chain: [479]))
         XCTAssertTrue(rotom.claimAchievement(.rotomCatalog))

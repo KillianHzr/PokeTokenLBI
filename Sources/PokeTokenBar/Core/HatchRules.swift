@@ -61,6 +61,9 @@ struct HatchRules: Sendable, Equatable {
         /// #104: the battle forms the daily and weekly dungeons give count among every form, the Glimmering Charm's.
         /// Dated at its merge into main, so that every past unlock reads the rule of its time.
         case battleFormsCount = "2026-11-05T09:13:38Z"
+        /// Tauros's Four Breeds and Necrozma's Four Forms lower complete lines further (`HatchDraw.completeLineDivisor`).
+        /// Dated at its merge into main; until then a date to come, so that every past hatch reads the rule of its time.
+        case duplicateCharms = "2099-01-01T00:00:00Z"
 
         private static let instants: [Change: Date] = {
             let formatter = ISO8601DateFormatter()
@@ -73,6 +76,7 @@ struct HatchRules: Sendable, Equatable {
         static func arrival(of item: ItemKind) -> Change? {
             switch item {
             case .ovalCharm, .glimmeringCharm: return .charms
+            case .taurosBreeds, .necrozmaForms: return .duplicateCharms
             case .shinyCharm: return nil
             default: return .collectorItems
             }

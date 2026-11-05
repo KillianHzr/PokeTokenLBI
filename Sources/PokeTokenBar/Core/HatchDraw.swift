@@ -3,7 +3,8 @@ import Foundation
 extension ItemKind {
     /// The items that change an egg's odds while owned: the shiny odds (Shiny Charm, Reveal Glass, Glimmering Charm),
     /// the lines drawn (Oval Charm) and the legendaries' weight (Azure Flute).
-    static let drawItems: [ItemKind] = [.shinyCharm, .ovalCharm, .legendCharm, .revealGlass, .glimmeringCharm]
+    static let drawItems: [ItemKind] = [.shinyCharm, .ovalCharm, .legendCharm, .revealGlass, .glimmeringCharm,
+                                        .taurosBreeds, .necrozmaForms]
 
     /// The items that weighed on the roll until `HatchRules.Change.onlyFluteWeighs`.
     static let formerDrawItems: [ItemKind] = [.clearBell, .griseousOrb] + PokemonType.allCases.map(\.badgeItem)
@@ -32,6 +33,14 @@ struct HatchDraw: Sendable {
     }
 
     private var ownsOvalCharm: Bool { items.contains(.ovalCharm) }
+
+    /// What a complete line's weight is divided by (a 100% duplicate): 2, one more with Tauros's Four Breeds, two more
+    /// with Necrozma's Four Forms, 5 with both (the owner, 2026-11-05). Each lowers only lines the player has whole, so
+    /// every line that brings something gains: a pure bonus.
+    var completeLineDivisor: Int {
+        guard rules.has(.duplicateCharms) else { return 2 }
+        return 2 + (items.contains(.taurosBreeds) ? 1 : 0) + (items.contains(.necrozmaForms) ? 2 : 0)
+    }
 
     /// The shiny odds' denominator: 64, 48 with the Shiny Charm, halved again by the Reveal Glass.
     var shinyDenominator: UInt64 {
@@ -76,9 +85,11 @@ struct HatchDraw: Sendable {
         var w: Int
         let weight = rules.weight(e)
         if let type, rules.has(.stoneEggDuplicates) {
-            w = collection.isLineComplete(baseID: e.id, type: type, graduated: graduated) ? max(1, weight / 4) : max(1, weight)
+            // Twice the plain egg's divisor: a quarter, and as much less as the artifacts lower it.
+            w = collection.isLineComplete(baseID: e.id, type: type, graduated: graduated)
+                ? max(1, weight / (2 * completeLineDivisor)) : max(1, weight)
         } else {
-            w = CollectionWeight.adjusted(weight, isCollected: isCollected(e.id))
+            w = CollectionWeight.adjusted(weight, isCollected: isCollected(e.id), divisor: completeLineDivisor)
         }
         if items.contains(.legendCharm) { w *= rules.fluteMultiplier(for: e) }
         return rules.has(.onlyFluteWeighs) ? w : withFormerItems(w, for: e)

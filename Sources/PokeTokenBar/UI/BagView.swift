@@ -414,6 +414,7 @@ extension CompanionStore {
         case .fossilEgg: return l.fossilEggHint
         case .excavation: return l.rewardsList(kind.achievementRewards)
         case .ovalCharm: return l.ovalCharmEffectHint
+        case .taurosBreeds, .necrozmaForms: return l.completeLinesEffectHint(hatchDraw.completeLineDivisor)
         case .glimmeringCharm: return l.glimmeringCharmEffectHint
         case .boulderBadge, .cascadeBadge, .thunderBadge, .rainbowBadge,
              .soulBadge, .marshBadge, .volcanoBadge, .earthBadge,

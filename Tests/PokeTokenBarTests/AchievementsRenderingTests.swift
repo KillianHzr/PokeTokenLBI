@@ -80,7 +80,7 @@ final class AchievementsRenderingTests: XCTestCase {
             try JSONEncoder().encode(state).write(to: file)
             let store = CompanionStore(provider: AchievementsStubProvider(), fileURL: file, defaults: defaults)
             // Every species graduated no longer readies the Glimmering Charm: every form counts the battle forms too.
-            XCTAssertEqual(categories.map { AchievementsView.readyCount($0, store) }, [10, 161, 46, 10])
+            XCTAssertEqual(categories.map { AchievementsView.readyCount($0, store) }, [10, 161, 46, 12])
             for category in categories {
                 let title = AchievementsView.tabTitle(category, store)
                 let width = (title as NSString).size(withAttributes: [.font: font]).width
