@@ -171,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func observeCompanionMenu() {
         withObservationTracking {
             let menu = UsageStore.CompanionMenu(
-                toNext: companion.hasActive ? companion.tokensToNext : companion.eggTokensToHatch,
+                toNext: companion.menuTokensToNext,
                 shop: companion.availableTokens)
             if store.companionMenu != menu { store.companionMenu = menu }
         } onChange: { [weak self] in

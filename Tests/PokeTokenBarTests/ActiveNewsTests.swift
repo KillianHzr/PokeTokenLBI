@@ -63,8 +63,8 @@ final class ActiveNewsTests: XCTestCase {
     /// A Pichu becomes a Pikachu, which brings a costume while one is missing: sending it off loses that costume, so
     /// it is no duplicate, on Home or in the catch log (review of #72). Once Pikachu, it brought its own.
     func testAPichuThatWillBringACostumeIsNotADuplicate() throws {
-        let line = graduated([172, 25, 26])
-        let pichu = try store(active: mon([172]), dex: [line])
+        let line = [graduated([172, 25, 26], form: PokemonForm("normal")), graduated([172, 25, 26], form: PokemonForm("alola"))]
+        let pichu = try store(active: mon([172]), dex: line)
         let news = try XCTUnwrap(pichu.activeNews)
         XCTAssertEqual(news.newSpecies, [])
         XCTAssertTrue(news.costume)
@@ -72,11 +72,11 @@ final class ActiveNewsTests: XCTestCase {
         XCTAssertEqual(pichu.activeNewsHint, pichu.l.activeCostumeHint)
         XCTAssertFalse(pichu.isDuplicateCatch(try XCTUnwrap(pichu.dexEntriesSorted.first)), "nor in the catch log")
 
-        let everyCostume = try store(active: mon([172]), dex: [line], costumes: Set(PikachuCostume.allCases))
+        let everyCostume = try store(active: mon([172]), dex: line, costumes: Set(PikachuCostume.allCases))
         XCTAssertEqual(everyCostume.activeNews?.isDuplicate, true, "every costume owned")
         XCTAssertTrue(everyCostume.isDuplicateCatch(try XCTUnwrap(everyCostume.dexEntriesSorted.first)))
 
-        let pikachu = try store(active: mon([172, 25], stage: 1), dex: [line])
+        let pikachu = try store(active: mon([172, 25], stage: 1), dex: line)
         XCTAssertEqual(pikachu.activeNews?.costume, false, "its costume came when it arrived")
         XCTAssertEqual(pikachu.activeNews?.isDuplicate, true)
     }

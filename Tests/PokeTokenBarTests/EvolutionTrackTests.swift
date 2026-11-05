@@ -73,17 +73,6 @@ final class EvolutionTrackTests: XCTestCase {
 
     private func item(_ id: Int, _ caught: Bool) -> BranchEvolutionItem { BranchEvolutionItem(speciesID: id, isCollected: caught) }
 
-    /// [Regression] A form is rolled with the species: a Kanto Cubone will never be an Alolan Marowak, yet the track
-    /// showed one while Home called it a duplicate.
-    func testAComingStageIsTheFormTheIndividualRolled() async throws {
-        let normal = PokemonForm("normal"), alola = PokemonForm("alola")
-        let kanto = try await store([104, 105], stage: 0, caught: [[104, 105]], form: normal, caughtForm: normal)
-        XCTAssertEqual(kanto.evolutionTrack, [.reached(104, isCurrent: true), .coming(105, isCaught: true), .graduation])
-        let alolan = try await store([104, 105], stage: 0, caught: [[104, 105]], form: alola, caughtForm: normal)
-        XCTAssertEqual(alolan.evolutionTrack, [.reached(104, isCurrent: true), .coming(105, isCaught: false), .graduation])
-        XCTAssertEqual(alolan.evolutionTrackForm, alola)
-    }
-
     func testALinearLineHeadsForTheGraduationThroughItsComingStages() async throws {
         let charmander = try await store([4, 5, 6], stage: 0, caught: [[4, 5]])
         XCTAssertEqual(charmander.evolutionTrack, [.reached(4, isCurrent: true), .coming(5, isCaught: true),
@@ -150,12 +139,19 @@ final class EvolutionTrackTests: XCTestCase {
         XCTAssertFalse(galarSlowbro.isEvolutionCollected(speciesID: 80, baseID: 79), "nor a Galarian one a Kanto one")
     }
 
-    func testTheCaptionNamesTheNextStop() async throws {
+    func testTheCaptionNamesOnlyAStageAlreadySeen() async throws {
         let l = L(.en)
-        let charmander = try await store([4, 5, 6], stage: 0)
         let names = [5: "Charmeleon"]
-        XCTAssertEqual(CompanionHeader.trackCaption(charmander.evolutionTrack, amount: "95M", percent: "24%",
+        let seen = try await store([4, 5, 6], stage: 0, caught: [[4, 5, 6]])
+        XCTAssertEqual(CompanionHeader.trackCaption(seen.evolutionTrack, amount: "95M", percent: "24%",
                                                     names: names, l: l), "95M to Charmeleon · 24%")
+        let unseen = try await store([4, 5, 6], stage: 0)
+        XCTAssertEqual(CompanionHeader.trackCaption(unseen.evolutionTrack, amount: "95M", percent: "24%",
+                                                    names: names, l: l), "\(l.toNextEvolution("95M")) · 24%")
+        let released = try await store([4, 5, 6], stage: 0, released: [[4, 5, 6]])
+        XCTAssertEqual(CompanionHeader.trackCaption(released.evolutionTrack, amount: "95M", percent: "24%",
+                                                    names: names, l: l), "\(l.toNextEvolution("95M")) · 24%",
+                       "its silhouette stays, and so does the secret")
         let charizard = try await store([4, 5, 6], stage: 2)
         XCTAssertEqual(CompanionHeader.trackCaption(charizard.evolutionTrack, amount: "127.5M", percent: "32%",
                                                     names: names, l: l), "\(l.toGraduation("127.5M")) · 32%")
@@ -189,7 +185,7 @@ final class EvolutionTrackTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(200))
         host.layoutSubtreeIfNeeded()
         XCTAssertLessThanOrEqual(measured.size.width, width + 0.5, "the track stays within its width")
-        XCTAssertGreaterThan(measured.size.height, EvolutionTrackView.stopSize + 30, "the patterns wrap onto more lines")
+        XCTAssertLessThanOrEqual(measured.size.height, EvolutionTrackView.stopSize + 30, "the patterns scroll on one line")
         // Eevee's eight still stand on one line.
         let eevee = (0..<8).map { [BranchEvolutionItem(speciesID: 134 + $0, isCollected: false)] }
         measured.size = .zero

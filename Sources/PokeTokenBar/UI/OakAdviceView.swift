@@ -273,14 +273,15 @@ private struct OakWords {
     }
 
     private func said(_ verdict: ActiveVerdict) -> String {
-        l.oakBubble(verdict, name: name, newFormName: newFormName(verdict))
+        var reveal = ""
+        if case .formMystery(let mystery) = verdict { reveal = store.activeSpeciesName(mystery.revealSpeciesID) }
+        return l.oakBubble(verdict, name: name, newFormName: newFormName(verdict), revealName: reveal)
     }
 
     /// The species it brings in its form, named in it ("Ninetales [Alolan Form]").
     private func newFormName(_ verdict: ActiveVerdict) -> String {
         guard case .newForm(let id) = verdict else { return "" }
-        return store.formDisplayName(store.currentLine?.localizedName(id, store.state.language) ?? "#\(id)",
-                                     speciesID: id, form: store.state.active?.form)
+        return store.activeSpeciesName(id)
     }
 
     func title(_ step: OakStep) -> String {
@@ -398,7 +399,7 @@ private struct OakVerdictLabel: View {
     private func tint(_ verdict: ActiveVerdict) -> BadgeTint {
         switch verdict {
         case .spare: return .secondary
-        case .newForm: return .blue
+        case .newForm, .formMystery: return .blue
         case .lineToComplete, .costume, .shinyToKeep, .keptForAchievement: return .green
         }
     }

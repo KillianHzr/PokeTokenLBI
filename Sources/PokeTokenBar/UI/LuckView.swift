@@ -224,7 +224,12 @@ struct LuckScreen: View {
                 }
                 .loadsFormNames(entry.form == nil ? 0 : entry.baseID)
                 .loadsFormNames(entry.form == nil ? 0 : entry.finalID)
-                if let newOdds = hatch.newOdds {
+                if hatch.isFormMystery {
+                    HStack(spacing: 8) {
+                        odds(rarity, hatch.rarityOdds)
+                        Badge(tint: .blue, style: .tinted) { Text(l.formMysteryBadge) }
+                    }
+                } else if let newOdds = hatch.newOdds {
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 8) {
                             odds(rarity, hatch.rarityOdds)
