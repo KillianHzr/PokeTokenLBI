@@ -559,6 +559,8 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(s.state.active?.fromLegendaryBossEgg, false)
         XCTAssertTrue(s.useDungeonEgg("mewtwo"))
         let threshold = PokemonBalance.scaled(PokemonBalance.legendaryBossEggThreshold, by: 0.1)
+        XCTAssertEqual(threshold, 200_000_000, "the owner's 200M, as the player reads it")
+        XCTAssertEqual(PokemonBalance.scaled(PokemonBalance.legendaryBossEggThreshold), 200_000_000, "at the app's difficulty")
         XCTAssertEqual(s.eggHatchThreshold, threshold, "200M, the Silver Wing aside")
         XCTAssertTrue(s.incubatesLegendaryBossEgg)
         s.setEggUsageForTesting(threshold - 1)

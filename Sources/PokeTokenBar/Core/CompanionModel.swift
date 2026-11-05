@@ -110,8 +110,9 @@ enum Rarity: String, Codable, Sendable {
 enum PokemonBalance {
     /// 알 부화 임계 — 이만큼 토큰을 써야 알이 깨진다(즉시 부화 대신 기대감). 초과분은 부화체 성장에 이월.
     static let eggHatchThreshold = 5_000_000
-    /// A legendary boss's egg takes 200M tokens to hatch, the items that speed eggs aside (the owner, 2026-11-04).
-    static let legendaryBossEggThreshold = 200_000_000
+    /// A legendary boss's egg takes 200M tokens to hatch at the one difficulty (×0.1), the items that speed eggs aside
+    /// (the owner, 2026-11-04).
+    static let legendaryBossEggThreshold = 2_000_000_000
     static let repeatGrowthMultiplier = 2
 
     static func graduationTotal(_ rarity: Rarity) -> Int {
