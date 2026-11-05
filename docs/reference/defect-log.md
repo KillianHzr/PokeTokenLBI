@@ -1884,9 +1884,18 @@ read_when:
 - **A word says what the player can act on, not which factor applies.** `hasGrowthBoost` means the line already graduated in
   this form, which is why it pays; the badge's "Repeat" read it, next to "New" and "Line to complete" on an Eevee with seven
   evolutions to find. The word and its tint read `activeIsRepeat`; the boost itself does not change.
-- **The evolution track shows what this individual can reach.** A form is rolled with the species, but the track offered every
-  form of a coming stage: a silhouette of an Alolan Marowak above a Kanto Cubone that Home called a duplicate. Screens that
-  judge an individual and screens that preview its future must read the same `form`.
+- **Screens must not tell a form no stage has shown yet.** A form is rolled with the species, but a Cubone looks the same
+  in each. The track offered every form while Home called a Kanto Cubone a duplicate, and once #116 aligned them, Home,
+  Prof. Oak, the growth badge and the Journal all named the form before its evolution. Everything said of such a Pokémon reads
+  `CompanionStore.formSuspense`, which holds for each form it can carry. Anything that reads `MonState.form`,
+  `hasGrowthBoost` or `hasNewForm` to tell the player something asks it first; only growth itself reads the real values.
+- **A silhouette hides the name too.** The track drew a coming stage as a silhouette while its caption said "95M to
+  Charmeleon" and the New badge's hover listed it. A name now follows the drawing: the caption asks `isCaught`, the hover
+  says "???" for a species neither reached nor graduated. Prof. Oak only ever names a species already graduated.
+- **A rendered value that is hidden needs its hover hidden too.** Tokens left and time left leave the caption, but the track's
+  hover still carried the same counts in `progressDetail`, and so did the bar shown while the line loads and the menu bar's
+  `↑`, which the sweep missed because it only read `UI/`: four places, one rule (`hidesGrowthAmounts`). Sweep a value by its
+  name across `Sources/`.
 - **A luck criterion is judged only where its outcome could be seen.** A hidden Ditto shows at its first evolution, but the
   replay counted Ditto odds for every hatch, Pokémon sent off or still raised before it included: their chance stayed in the
   expectation while a hit was impossible, and no test released a Pokémon on this criterion. `HatchLuckSimulationTests` now plays

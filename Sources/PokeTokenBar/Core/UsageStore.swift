@@ -114,8 +114,8 @@ final class UsageStore {
     }
     /// What the companion gives the menu bar, set by AppDelegate as it changes. Nil until the companion is known.
     struct CompanionMenu: Equatable, Sendable {
-        /// Tokens to the next stage, or to the hatch while an egg incubates.
-        var toNext: Int
+        /// Tokens to the next stage, or to the hatch while an egg incubates. Nil while a form is a mystery.
+        var toNext: Int?
         /// Tokens the Shop can spend.
         var shop: Int
         /// While a team explores, its floor ("É6/12"), shown in place of the growth it pauses.

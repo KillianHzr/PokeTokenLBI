@@ -7,7 +7,7 @@ import UserNotifications
 @MainActor
 @Observable
 final class CompanionStore {
-    private(set) var state = CompanionState() { didSet { dexSpeciesCache = [:]; goalsBySpecies = nil; oakOddsCache = [:] } }
+    private(set) var state = CompanionState() { didSet { dexSpeciesCache = [:]; goalsBySpecies = nil; oakOddsCache = [:]; formSuspenseCache = nil } }
     private(set) var displayState: CompanionStateKind = .egg
     private(set) var currentLine: EvoLine? { didSet { dexSpeciesCache = [:] } }
     /// `collectedDexSpecies` by `groupForms`, until the state or the line changes: a form species' page read it some
@@ -15,6 +15,8 @@ final class CompanionStore {
     @ObservationIgnored private var dexSpeciesCache: [Bool: [DexSpecies]] = [:]
     /// `goals(counting:)` for every species, until the state changes.
     @ObservationIgnored private var goalsBySpecies: [Int: [ActiveGoal]]?
+    /// `formSuspense`, made once per state: every badge and line of a render asks it, for up to 63 forms.
+    @ObservationIgnored private var formSuspenseCache: FormSuspense??
     /// Each egg's odds of something new for Prof. Oak (`newOdds`), until the state or the hatch index changes: his card
     /// reads them several times a draw, each over the egg's whole pool.
     @ObservationIgnored var oakOddsCache: [ItemKind: Double?] = [:]
@@ -33,6 +35,7 @@ final class CompanionStore {
     private(set) var isHatching = false
     private var isRevealingDitto = false   // 메타몽 리빌 비동기 중복 방지(isHatching 자매)
     private(set) var justEvolvedTo: String?     // 이름(연출/문구)
+    private var justRevealedForm: String?
     private(set) var justGraduated: String?
     private var eventUntil: Date?
 
@@ -394,7 +397,19 @@ final class CompanionStore {
     }
 
     /// The current Pokémon's growth factors and total; empty and 1 for an egg.
-    var currentGrowthFactors: [GrowthFactor] { state.active.map(growthFactors(for:)) ?? [] }
+    /// While its form is a mystery, only those that hold for every form it can carry.
+    var currentGrowthFactors: [GrowthFactor] {
+        guard let a = state.active else { return [] }
+        guard let suspense = formSuspense, suspense.isUncertain else { return growthFactors(for: a) }
+        var seen = Set<[Bool]>()
+        let perForm = suspense.outcomes.filter { seen.insert([$0.isRepeat, $0.isNewForm]).inserted }.map { outcome -> [GrowthFactor] in
+            var mon = a
+            mon.hasGrowthBoost = outcome.isRepeat
+            mon.hasNewForm = outcome.isNewForm
+            return growthFactors(for: mon)
+        }
+        return (perForm.first ?? []).filter { factor in perForm.allSatisfy { $0.contains(factor) } }
+    }
     var currentGrowthTotal: Double { Self.growthTotal(currentGrowthFactors) }
 
     /// The bonuses add up and the repeat boost multiplies their total: 2 × (1 + 0.33 + 0.1) = ×2.87.
@@ -623,26 +638,45 @@ final class CompanionStore {
     }
 
     /// Home's evolution track: the stages reached, then every coming one up to the graduation, or up to where the
-    /// line goes several ways, with all the ways to its end. The individual's planned path stays hidden. Empty
-    /// while the line is not loaded or for the egg.
+    /// line goes several ways, with all the ways to its end. The individual's planned path stays hidden, and so does
+    /// a form no stage reached shows: the stage that shows it stands for each form it can carry. Empty while the line
+    /// is not loaded or for the egg.
     var evolutionTrack: [EvolutionTrackStop] {
         guard let a = state.active, let line = currentLine else { return [] }
         var stops = a.pathIDs.prefix(a.stageIndex + 1).enumerated().map { index, id in
             EvolutionTrackStop.reached(id, isCurrent: index == a.stageIndex)
         }
-        func caught(_ id: Int) -> Bool { isEvolutionCollected(speciesID: id, baseID: a.baseID, form: a.form) }
-        func paths(from node: EvoNode) -> [[BranchEvolutionItem]] {
-            let open = Self.openChildren(node, form: a.form)
+        func caught(_ id: Int, form: PokemonForm?) -> Bool { isEvolutionCollected(speciesID: id, baseID: a.baseID, form: form) }
+        func caught(_ id: Int) -> Bool { caught(id, form: a.form) }
+        func paths(from node: EvoNode, form: PokemonForm?) -> [[BranchEvolutionItem]] {
+            let open = Self.openChildren(node, form: form)
             guard !open.isEmpty else { return [[]] }
             return open.flatMap { child in
-                paths(from: child).map { [BranchEvolutionItem(speciesID: child.speciesID, isCollected: caught(child.speciesID))] + $0 }
+                paths(from: child, form: form).map {
+                    [BranchEvolutionItem(speciesID: child.speciesID, isCollected: caught(child.speciesID, form: form),
+                                         form: form)] + $0
+                }
             }
         }
         guard var node = line.tree.node(withID: a.currentID) else { return stops + [.graduation] }
+        if let suspense = formSuspense, let reveal = line.tree.node(withID: suspense.revealSpeciesID) {
+            while node.speciesID != reveal.speciesID,
+                  let child = node.children.first(where: { $0.node(withID: reveal.speciesID) != nil }) {
+                if child.speciesID != reveal.speciesID { stops.append(.coming(child.speciesID, isCaught: caught(child.speciesID))) }
+                node = child
+            }
+            stops.append(.branch(suspense.outcomes.flatMap { outcome in
+                paths(from: reveal, form: outcome.form).map {
+                    [BranchEvolutionItem(speciesID: reveal.speciesID, isCollected: caught(reveal.speciesID, form: outcome.form),
+                                         form: outcome.form)] + $0
+                }
+            }))
+            return stops
+        }
         while true {
             let open = Self.openChildren(node, form: a.form)
             if open.count > 1 {
-                stops.append(.branch(paths(from: node)))
+                stops.append(.branch(paths(from: node, form: a.form)))
                 return stops
             }
             guard let child = open.first else { break }
@@ -734,8 +768,53 @@ final class CompanionStore {
         var firstShiny: Bool
         /// A Pikachu still ahead in its line while a costume is missing: it brings one when it arrives.
         var costume = false
+        /// Its form is still hidden and decides what it brings: nothing here says it brings nothing.
+        var mystery: FormMystery?
         /// Nothing new: sending it off loses nothing the Pokédex and the costumes do not already hold.
-        var isDuplicate: Bool { newSpecies.isEmpty && !firstShiny && !costume }
+        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume }
+    }
+
+    /// Nil unless its form is hidden and could be several (`FormSuspense`). The forms it can carry are those its egg
+    /// rolled among: an egg's type never narrows them on these lines, whose first stage looks the same in each form, so
+    /// only the draw items noted at its roll do. Without a note, every form of its line.
+    var formSuspense: FormSuspense? {
+        _ = state.dex.count   // observed even from the cache
+        if let cached = formSuspenseCache { return cached }
+        let suspense = makeFormSuspense()
+        formSuspenseCache = .some(suspense)
+        return suspense
+    }
+
+    private func makeFormSuspense() -> FormSuspense? {
+        guard let a = state.active,
+              PokemonForm.isFormHidden(baseID: a.baseID, reached: a.pathIDs.prefix(a.stageIndex + 1)),
+              let reveal = PokemonForm.formSpecies(baseID: a.baseID).first else { return nil }
+        let draw = HatchDraw(collection: state, items: a.hatch?.rollItems ?? []).lineFormDraw(baseID: a.baseID, types: [])
+        guard draw.forms.count > 1 else { return nil }
+        let held = graduatedSpeciesForms, shinyHeld = graduatedShinySpeciesForms
+        let repeats = state.collectedFinalForms(forBaseID: a.baseID)
+        let weights = PokemonForm.rollWeights(among: draw.forms, collected: draw.collected)
+        return FormSuspense(revealSpeciesID: reveal, outcomes: zip(draw.forms, weights).map { form, weight in
+            FormSuspense.Outcome(form: form, weight: weight, news: news(of: a, form: form, held: held, shinyHeld: shinyHeld),
+                                 isRepeat: repeats.contains(form),
+                                 isNewForm: !draw.collected.contains(form))
+        })
+    }
+
+    /// The Journal keeps quiet about what it brings: the one raised while its form is a mystery, and one sent off
+    /// before a stage showed its form, which nobody will ever know.
+    func hidesFormNews(_ entry: DexEntry) -> Bool {
+        if isActiveDexEntry(entry) { return activeNews?.mystery != nil }
+        return entry.isReleased && PokemonForm.isFormHidden(baseID: entry.baseID, reached: entry.chainOrder)
+    }
+
+    /// What is left to grow in tokens and time would tell its form while that form is a mystery.
+    var hidesGrowthAmounts: Bool { activeNews?.mystery != nil }
+
+    /// A species of the line raised, named in its form unless that form is hidden.
+    func activeSpeciesName(_ id: Int) -> String {
+        let name = currentLine?.localizedName(id, state.language) ?? "#\(id)"
+        return formSuspense == nil ? formDisplayName(name, speciesID: id, form: state.active?.form) : name
     }
 
     /// Its growth boost is that of a repeat: the boost comes from its line, and it brings nothing new.
@@ -744,13 +823,15 @@ final class CompanionStore {
     /// Nil for an egg.
     var activeNews: ActiveNews? {
         guard let a = state.active else { return nil }
-        let held = graduatedSpeciesForms
-        let line = Self.lineAhead(Array(a.pathIDs.prefix(a.stageIndex + 1)), from: a.currentID, form: a.form)
-        let newSpecies = line.filter { !held.contains(DexSpeciesKey(speciesID: $0, form: a.form)) }
+        return formSuspense?.news ?? news(of: a, form: a.form, held: graduatedSpeciesForms, shinyHeld: graduatedShinySpeciesForms)
+    }
+
+    private func news(of a: MonState, form: PokemonForm?, held: Set<DexSpeciesKey>, shinyHeld: Set<DexSpeciesKey>) -> ActiveNews {
+        let line = Self.lineAhead(Array(a.pathIDs.prefix(a.stageIndex + 1)), from: a.currentID, form: form)
+        let newSpecies = line.filter { !held.contains(DexSpeciesKey(speciesID: $0, form: form)) }
         // A first shiny as the Pokédex counts one: a species of the line, in this form, with no graduated shiny. The
         // shine a disguised Ditto hides stays hidden (`displaysShiny`).
-        let shinyHeld = graduatedShinySpeciesForms
-        let firstShiny = a.displaysShiny && line.contains { !shinyHeld.contains(DexSpeciesKey(speciesID: $0, form: a.form)) }
+        let firstShiny = a.displaysShiny && line.contains { !shinyHeld.contains(DexSpeciesKey(speciesID: $0, form: form)) }
         // The costume comes on arriving as Pikachu (`grantPikachuCostume`): one already reached brought its own.
         let costume = line.contains(PikachuCostume.speciesID)
             && !a.pathIDs.prefix(a.stageIndex + 1).contains(PikachuCostume.speciesID)
@@ -815,12 +896,19 @@ final class CompanionStore {
         let needed: Int
     }
 
-    /// Every way to the end of its line the Pokémon raised can still take, with the stages it reached.
+    /// Every way to the end of its line the Pokémon raised can still take, with the stages it reached: in any form it
+    /// can carry while its form is hidden.
     var activeWays: [[Int]] {
         guard let a = state.active else { return [] }
+        guard let suspense = formSuspense else { return ways(of: a, form: a.form) }
+        var seen = Set<[Int]>()
+        return suspense.outcomes.flatMap { ways(of: a, form: $0.form) }.filter { seen.insert($0).inserted }
+    }
+
+    private func ways(of a: MonState, form: PokemonForm?) -> [[Int]] {
         var ways: [[Int]] = []
         func walk(_ id: Int, _ path: [Int]) {
-            let children = PokemonEvolutionData.children(of: id, form: a.form).filter { !path.contains($0) }
+            let children = PokemonEvolutionData.children(of: id, form: form).filter { !path.contains($0) }
             if children.isEmpty { ways.append(path) }
             for child in children { walk(child, path + [child]) }
         }
@@ -830,13 +918,40 @@ final class CompanionStore {
 
     /// The goals not claimed yet that graduating the Pokémon raised would advance, the ones it advances most first: a
     /// gym badge's or the Legendary Egg's region, the next dig (its Rock species in this form), a stone or an artifact
-    /// still locked, a species' forms. Empty when it brings nothing new. Helps to choose whether to keep it.
+    /// still locked, a species' forms. Empty when it brings nothing new. Helps to choose whether to keep it. While its
+    /// form is hidden, the goals every form it can carry advances, with the least any of them adds.
     var activeGoals: [ActiveGoal] {
-        guard let a = state.active, let news = activeNews, !news.newSpecies.isEmpty else { return [] }
+        guard let a = state.active else { return [] }
+        guard let suspense = formSuspense else {
+            return goals(of: a, form: a.form, news: news(of: a, form: a.form, held: graduatedSpeciesForms,
+                                                         shinyHeld: graduatedShinySpeciesForms))
+        }
+        var common: [ActiveGoal]?
+        var seen = Set<[[Int]]>()
+        for outcome in suspense.outcomes {
+            let ways = ways(of: a, form: outcome.form)
+            let rock = Set(ways.joined()).filter { PokemonTypeData.types(forSpeciesID: $0, form: outcome.form).contains(.rock) }
+            guard seen.insert([outcome.news.newSpecies, rock.sorted()] + ways).inserted else { continue }
+            let goals = goals(of: a, form: outcome.form, news: outcome.news)
+            common = common.map { kept in
+                kept.compactMap { goal in
+                    goals.first { $0.item == goal.item && $0.generation == goal.generation }.map {
+                        ActiveGoal(item: goal.item, generation: goal.generation, gain: min(goal.gain, $0.gain),
+                                   count: goal.count, needed: goal.needed)
+                    }
+                }
+            } ?? goals
+            if common?.isEmpty == true { return [] }
+        }
+        return common ?? []
+    }
+
+    private func goals(of a: MonState, form: PokemonForm?, news: ActiveNews) -> [ActiveGoal] {
+        guard !news.newSpecies.isEmpty else { return [] }
         let new = Set(news.newSpecies)
         // Graduated, it keeps one branch of its line: an Eevee counted Vaporeon, Jolteon and Flareon at once (+4 for
         // Kanto, where it brings 2). A goal counts the branch that advances it most.
-        let branches = activeWays.map { Set($0).intersection(new) }
+        let branches = ways(of: a, form: form).map { Set($0).intersection(new) }
         let registered = graduatedSpeciesIDs
         var goals: [ActiveGoal] = []
         func consider(_ item: ItemKind, _ generation: Int?, _ progress: GoalProgress, counted: [Set<Int>]) {
@@ -851,7 +966,7 @@ final class CompanionStore {
         for kind in Self.achievementItems where !kind.isPlayMedal {
             if kind == .excavation {
                 // The digs add up: only the next one counts, with the species that are Rock in this form.
-                let rock = branches.map { $0.filter { PokemonTypeData.types(forSpeciesID: $0, form: a.form).contains(.rock) } }
+                let rock = branches.map { $0.filter { PokemonTypeData.types(forSpeciesID: $0, form: form).contains(.rock) } }
                 if let next = regionTiers(.excavation).first(where: { !$0.isDone && !$0.progress.isMet }) {
                     consider(kind, next.generation, next.progress, counted: rock)
                 }
@@ -948,18 +1063,20 @@ final class CompanionStore {
     /// The hint of the Home badge saying it brings something: what graduating it adds, and a costume it brings.
     var activeNewsHint: String {
         guard let news = activeNews else { return "" }
+        if let mystery = news.mystery { return l.formMysteryHint(activeSpeciesName(mystery.revealSpeciesID), mystery) }
         let names = activeNewsNames
         return ([names.isEmpty ? nil : l.activeNewHint(names, certain: activeWays.count == 1), news.costume ? l.activeCostumeHint : nil] as [String?])
             .compactMap { $0 }.joined(separator: " ")
     }
 
-    /// The new species of `activeNews`, named in their form, for the badge's hint.
+    /// The new species of `activeNews`, named in their form, for the badge's hint. Those never seen stay "???", like
+    /// their silhouettes on the track.
     var activeNewsNames: [String] {
-        guard let a = state.active, let news = activeNews else { return [] }
-        let names = news.newSpecies.map { id in
-            formDisplayName(currentLine?.localizedName(id, state.language) ?? "#\(id)", speciesID: id, form: a.form)
-        }
-        return names + (news.firstShiny ? [l.activeFirstShiny] : [])
+        guard let news = activeNews, let a = state.active else { return [] }
+        let seen = graduatedSpeciesIDs.union(a.pathIDs.prefix(a.stageIndex + 1))
+        let named = news.newSpecies.filter(seen.contains).map(activeSpeciesName)
+        let unseen = news.newSpecies.contains { !seen.contains($0) }
+        return named + (unseen ? ["???"] : []) + (news.firstShiny ? [l.activeFirstShiny] : [])
     }
 
     /// 시간순(과거 졸업분부터 현재 키우는 개체까지)으로 중복 포획된 개체들의 ID 집합.
@@ -972,6 +1089,7 @@ final class CompanionStore {
             }
 
             if e.isReleased || isActiveDexEntry(e) {
+                if hidesFormNews(e) { continue }
                 let uncollected = hasUncollectedEvolutions(
                     from: e.finalID,
                     form: e.form,
@@ -1893,6 +2011,7 @@ final class CompanionStore {
                 } else {
                     graduate(); break
                 }
+                let wasMystery = activeNews?.mystery != nil
                 // Evolving into a legendary (Solgaleo) wins its Memories; into Silvally, the forms they unlock.
                 let unlockedForms = itemFormSnapshot()
                 state.active!.pathIDs = Array(a.pathIDs.prefix(a.stageIndex + 1)) + [next.speciesID]
@@ -1907,16 +2026,37 @@ final class CompanionStore {
                 }
                 let newName = formDisplayName(line.localizedName(next.speciesID, state.language),
                                               speciesID: next.speciesID, form: a.form)
+                let body = evolutionBody(newName, wasMystery: wasMystery)
                 justEvolvedTo = newName
+                justRevealedForm = formReveal(wasMystery: wasMystery)
                 fireCelebration(.evolve)
                 // 짧은 levelUp 창 — 진화 순간 "…(으)로 진화했어요" 문구 노출(hatch/graduate 와 동일 패턴).
                 // 이게 없으면 computeState 가 .levelUp 을 안 내 statusEvolved 가 도달 불가(dead code)였다.
                 eventUntil = clock().addingTimeInterval(4)
-                notifyCompanionEvent(l.notifEvolveTitle, l.notifEvolveBody(newName))
+                notifyCompanionEvent(l.notifEvolveTitle, body)
             }
         }
         reconcileActiveProfileGrowth()
         save()
+    }
+
+    /// What the menu bar tells of the next stage, or of the hatch: nothing while a form is a mystery (`hidesGrowthAmounts`).
+    var menuTokensToNext: Int? { hasActive ? (hidesGrowthAmounts ? nil : tokensToNext) : eggTokensToHatch }
+
+    /// Home's line just after an evolution, the reveal of a form included.
+    var evolvedStatus: String? {
+        justEvolvedTo.map { [l.statusEvolved($0), justRevealedForm].compactMap { $0 }.joined(separator: " ") }
+    }
+
+    /// What the stage that shows a form still a mystery says of that form.
+    private func formReveal(wasMystery: Bool) -> String? {
+        guard wasMystery, formSuspense == nil, let news = activeNews else { return nil }
+        return news.isDuplicate ? l.formRevealNothingNew : l.formRevealBringsNew
+    }
+
+    /// The evolution's message, the reveal of a form included.
+    func evolutionBody(_ name: String, wasMystery: Bool) -> String {
+        [l.notifEvolveBody(name), formReveal(wasMystery: wasMystery)].compactMap { $0 }.joined(separator: " ")
     }
 
     /// Whether this evolution graduated already, what the evolution plan avoids and Home's track shows as had: neither

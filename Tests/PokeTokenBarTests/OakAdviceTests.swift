@@ -96,7 +96,8 @@ final class OakAdviceTests: XCTestCase {
 
     /// A Pichu whose line is graduated still brings a costume missing when it becomes Pikachu: not a Spare.
     func testAPichuThatWillBringACostumeIsKept() throws {
-        XCTAssertEqual(try store(active: mon([172, 25, 26]), dex: [graduated([172, 25, 26])]).activeVerdict, .costume)
+        let line = [graduated([172, 25, 26], form: PokemonForm("normal")), graduated([172, 25, 26], form: PokemonForm("alola"))]
+        XCTAssertEqual(try store(active: mon([172, 25, 26]), dex: line).activeVerdict, .costume)
     }
 
     /// A shiny Charmander whose line is graduated, none of it shiny: a Spare that brings its first shiny.

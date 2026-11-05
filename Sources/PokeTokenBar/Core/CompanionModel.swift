@@ -1096,13 +1096,16 @@ struct EvoNode: Codable, Sendable {
 }
 
 struct BranchEvolutionItem: Equatable, Sendable, Identifiable {
-    var id: Int { speciesID }
+    var id: String { "\(speciesID)-\(form?.rawValue ?? "")" }
     let speciesID: Int
     let isCollected: Bool
+    /// One form of a stage that will show the individual's hidden one. Nil: the individual's own.
+    let form: PokemonForm?
 
-    init(speciesID: Int, isCollected: Bool) {
+    init(speciesID: Int, isCollected: Bool, form: PokemonForm? = nil) {
         self.speciesID = speciesID
         self.isCollected = isCollected
+        self.form = form
     }
 }
 
@@ -1824,6 +1827,13 @@ struct CompanionState: Codable, Sendable, Equatable {
         let graduated = dex.filter { $0.baseID == baseID && !$0.isReleased }
         guard !graduated.isEmpty else { return hasCollectedFinal(forBaseID: baseID) }
         return graduated.contains { PokemonForm.resolved(baseID: baseID, form: $0.form) == form }
+    }
+
+    /// The forms `hasCollectedFinal(forBaseID:form:)` holds for, read once for the many forms of a line.
+    func collectedFinalForms(forBaseID baseID: Int) -> Set<PokemonForm> {
+        let graduated = dex.filter { $0.baseID == baseID && !$0.isReleased }
+        guard !graduated.isEmpty else { return hasCollectedFinal(forBaseID: baseID) ? Set(PokemonForm.lineForms(baseID: baseID)) : [] }
+        return Set(graduated.compactMap { PokemonForm.resolved(baseID: baseID, form: $0.form) })
     }
 
     /// Match Pokédex ownership, including the active Pokémon and released catch records.

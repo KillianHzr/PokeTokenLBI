@@ -682,7 +682,7 @@ struct EvolutionTrackView: View {
     var pikachuCostume: PikachuCostume? = nil
     /// What is left, under the track ("95M to Charmeleon · 24%"); `amount` is drawn bold inside it.
     let remaining: String
-    let amount: String
+    let amount: String?
     /// The exact counts on hover ("60M / 187.5M · 32%").
     let detail: String
     let l: L
@@ -691,8 +691,9 @@ struct EvolutionTrackView: View {
     var onOpenDexEntry: ((String) -> Void)? = nil
 
     static let stopSize: CGFloat = 36
+    static let waysPerLine = 8
     /// The bracket and eight 19 pt ways.
-    static let branchMaxWidth: CGFloat = 8 + 8 * 20
+    static let branchMaxWidth: CGFloat = 8 + CGFloat(waysPerLine) * 20
     private static let spriteSize: CGFloat = 30
 
     /// Index of the stage the individual is at; the stretch after it is the one growing.
@@ -717,7 +718,7 @@ struct EvolutionTrackView: View {
 
     private var remainingText: AttributedString {
         var text = AttributedString(remaining)
-        if let range = text.range(of: amount) {
+        if let amount, let range = text.range(of: amount) {
             text[range].font = .system(size: 10, weight: .bold, design: .rounded)
             text[range].foregroundColor = .primary
         }
@@ -786,7 +787,7 @@ struct EvolutionTrackView: View {
             }
             .accessibilityHidden(true)
         case .branch(let paths):
-            // Eight ways a line at most (Eevee's), so the stretches keep room to show the growth; more wrap. Vivillon's
+            // Eight ways a line at most (Eevee's), so the stretches keep room to show the growth; more scroll. Vivillon's
             // twenty patterns on one line pushed the popover off its edges. Fewer ways take only their own width, so
             // the stretches reach the edge.
             UpToWidth(maxWidth: Self.branchMaxWidth) {
@@ -805,7 +806,13 @@ struct EvolutionTrackView: View {
         if paths.allSatisfy({ $0.count == 1 }) {
             // Eevee's eight still fit on one line beside a stop and a stretch; more wrap.
             let size: CGFloat = paths.count > 6 ? 19 : 22
-            WrappingHStack(spacing: 1, lineSpacing: 1) { ForEach(paths.map { $0[0] }) { candidate($0, size: size) } }
+            if paths.count > Self.waysPerLine {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 1) { ForEach(paths.map { $0[0] }) { candidate($0, size: size) } }
+                }
+            } else {
+                WrappingHStack(spacing: 1, lineSpacing: 1) { ForEach(paths.map { $0[0] }) { candidate($0, size: size) } }
+            }
         } else {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(paths.enumerated()), id: \.offset) { _, path in
@@ -824,12 +831,17 @@ struct EvolutionTrackView: View {
 
     private func candidate(_ item: BranchEvolutionItem, size: CGFloat) -> some View {
         SpriteView(speciesID: item.speciesID, size: size, shiny: item.isCollected && shiny,
-                   form: form, isSilhouette: !item.isCollected)
+                   form: item.form ?? form, isSilhouette: !item.isCollected)
             .opacity(item.isCollected ? 0.8 : 0.55)
             .frame(width: size, height: size)
             .modifier(DexEntryLink(target: item.isCollected ? dexLinks[item.speciesID] : nil, hint: l.dexOpenEntryHint,
                                    accessibilityName: names[item.speciesID], cornerRadius: 5, open: onOpenDexEntry))
-            .hoverTip(item.isCollected ? (names[item.speciesID] ?? l.dexOpenEntryHint) : l.unknownNextEvolution)
+            .hoverTip(item.isCollected ? collectedName(item) : l.unknownNextEvolution)
+    }
+
+    private func collectedName(_ item: BranchEvolutionItem) -> String {
+        guard let name = names[item.speciesID] else { return l.dexOpenEntryHint }
+        return item.form.map { PokemonForm.displayName(name, speciesID: item.speciesID, form: $0, language: l.lang) } ?? name
     }
 }
 
@@ -1023,13 +1035,18 @@ struct CompanionHeader: View {
     @ViewBuilder
     private var activeBadges: some View {
         let l = store.l
+        let isMystery = store.activeNews?.mystery != nil
         let isNewForm = store.state.active?.hasNewForm == true
-        if isNewForm {
+        if isMystery {
+            Badge(l.formMysteryBadge.uppercased(), tint: .blue, style: .tinted)
+                .lineLimit(1).fixedSize()
+                .hoverTip(store.activeNewsHint)
+        } else if isNewForm {
             Badge(l.newFormBadge.uppercased(), tint: .blue, style: .tinted)
                 .lineLimit(1).fixedSize()
                 .hoverTip(store.activeNewsHint)
         }
-        if let news = store.activeNews {
+        if let news = store.activeNews, !isMystery {
             if news.isDuplicate {
                 Badge(l.activeDuplicateBadge.uppercased(), tint: .secondary, style: .tinted)
                     .lineLimit(1).fixedSize()
@@ -1135,8 +1152,10 @@ struct CompanionHeader: View {
                         if store.evolutionTrack.isEmpty {
                             // The line is still loading: the plain growth bar meanwhile.
                             LabeledProgressBar(value: store.progress,
-                                               label: Self.progressDetail(used: store.state.active?.usedAtStage ?? 0,
-                                                                          total: store.threshold),
+                                               label: store.hidesGrowthAmounts
+                                                   ? "\(Int(store.progress * 100))%"
+                                                   : Self.progressDetail(used: store.state.active?.usedAtStage ?? 0,
+                                                                         total: store.threshold),
                                                tint: rarityColor(store.rarity))
                         }
                     } else {
@@ -1298,7 +1317,7 @@ struct CompanionHeader: View {
     /// The stages along a bar that fills with the growth; what is left under it, the next stage named.
     private func evolutionTrack(_ track: [CompanionStore.EvolutionTrackStop], dexLinks: [Int: String]) -> some View {
         let l = store.l
-        let amount = TokenFormatter.compact(store.tokensToNext)
+        let amount = store.hidesGrowthAmounts ? nil : TokenFormatter.compact(store.tokensToNext)
         let used = store.state.active?.usedAtStage ?? 0
         let percent = store.threshold > 0 ? min(used, store.threshold) * 100 / store.threshold : 0
         let names = store.currentLine.map { line in
@@ -1312,19 +1331,20 @@ struct CompanionHeader: View {
                                                                names: names, l: l,
                                                                eta: store.timeToNext.map { l.etaAbout(l.shortDuration($0)) }),
                                   amount: amount,
-                                  detail: Self.progressDetail(used: used, total: store.threshold), l: l,
+                                  detail: amount == nil ? percentText : Self.progressDetail(used: used, total: store.threshold), l: l,
                                   names: names, dexLinks: dexLinks, onOpenDexEntry: onOpenDexEntry)
     }
 
-    /// What is left before the track's next stop: that stage by name, an evolution when the line goes several ways,
-    /// or the graduation. "95M to Charmeleon · 24%".
+    /// What is left before the track's next stop: that stage by name once caught, an evolution while it is a silhouette
+    /// or when the line goes several ways, or the graduation. "95M to Charmeleon · 24%". No `amount`: the percentage alone.
     /// `eta`: the time it takes at the user's pace ("about 9 h"), last.
-    nonisolated static func trackCaption(_ track: [CompanionStore.EvolutionTrackStop], amount: String, percent: String,
+    nonisolated static func trackCaption(_ track: [CompanionStore.EvolutionTrackStop], amount: String?, percent: String,
                                          names: [Int: String], l: L, eta: String? = nil) -> String {
+        guard let amount else { return percent }
         let current = track.firstIndex { if case .reached(_, true) = $0 { return true } else { return false } } ?? 0
         let toNext: String
         switch current + 1 < track.count ? track[current + 1] : .graduation {
-        case .coming(let id, _): toNext = l.toStage(amount, names[id] ?? "#\(id)")
+        case .coming(let id, let isCaught): toNext = isCaught ? l.toStage(amount, names[id] ?? "#\(id)") : l.toNextEvolution(amount)
         case .branch: toNext = l.toNextEvolution(amount)
         case .graduation, .reached: toNext = l.toGraduation(amount)
         }
@@ -1352,7 +1372,7 @@ struct CompanionHeader: View {
         case .focus:   return l.statusFocus
         case .tired:   return l.statusTired
         case .sleep:   return l.statusSleep
-        case .levelUp: return store.justEvolvedTo.map { l.statusEvolved($0) } ?? l.statusGrew
+        case .levelUp: return store.evolvedStatus ?? l.statusGrew
         }
     }
 }
@@ -3116,7 +3136,7 @@ private struct DexEntryRow: View {
                         // 중립색(secondary)으로 둔다: 실패가 아니라 다른 종류의 기록이라 경고색은 과하다.
                         Badge(store.l.dexReleased.uppercased(), tint: .secondary, style: .tinted, size: 10)
                     }
-                    if entry.hasNewForm {
+                    if entry.hasNewForm, !store.hidesFormNews(entry) {
                         Badge(store.l.newFormBadge.uppercased(), tint: .blue, style: .tinted, size: 10)
                     }
                     if isDuplicate {
