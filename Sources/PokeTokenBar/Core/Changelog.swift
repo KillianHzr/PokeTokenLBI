@@ -67,6 +67,25 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-05", entries: [
+            .fixed("2026-11-05-most-caught-order", { $0.t("포획 기록의 \"많이 잡은 순\"이 이제 카드에 보이는 숫자(중복 ×N)를 따라요. ×7이 더 이상 ×9 위에 오지 않아요.",
+                                                         "The catch log's \"Most caught\" now follows the number each card shows (Duplicate ×N): a ×7 no longer comes above a ×9.",
+                                                         "捕獲記録の「捕まえた数順」が、カードに出る数（重複 ×N）どおりに並ぶようになりました。×7 が ×9 より上に来ることはもうありません。",
+                                                         "El orden \"Más capturados\" del registro de capturas sigue ahora el número que muestra cada tarjeta (Duplicado ×N): un ×7 ya no queda por encima de un ×9.",
+                                                         "Le tri \"Les plus capturés\" du journal de captures suit maintenant le nombre affiché sur chaque carte (Doublon ×N) : un ×7 ne passe plus au-dessus d'un ×9.",
+                                                         "A ordem \"Mais capturados\" do registro de capturas agora segue o número de cada cartão (Duplicado ×N): um ×7 não fica mais acima de um ×9.",
+                                                         "Die Sortierung \"Am häufigsten gefangen\" im Fangprotokoll folgt jetzt der Zahl auf jeder Karte (Duplikat ×N): Ein ×7 steht nicht mehr über einem ×9.",
+                                                         "Сортировка \"Чаще пойманные\" в журнале поимок теперь следует числу на каждой карточке (Дубликат ×N): ×7 больше не стоит выше ×9.") }),
+            .new("2026-11-05-duplicate-charms") { l in
+                let tauros = l.itemName(.taurosBreeds), necrozma = l.itemName(.necrozmaForms)
+                return l.t("새 폼 업적 두 개: \(tauros), \(necrozma). 보상을 가지면 이미 다 모은 계열이 알에서 덜 나와요(2분의 1 대신 3분의 1, 둘 다 있으면 5분의 1). 새것을 주지 않는 알이 줄어들어요.",
+                           "Two new forms achievements: \(tauros) and \(necrozma). Their rewards make a line you have whole hatch less often (a third instead of half, a fifth with both): fewer eggs bring nothing new.",
+                           "新しいフォルムの実績が2つ：\(tauros)と\(necrozma)。ごほうびを持っていると、すでにそろった系統がタマゴから生まれにくくなります（2分の1ではなく3分の1、両方で5分の1）。新しいものをくれないタマゴが減ります。",
+                           "Dos nuevos logros de formas: \(tauros) y \(necrozma). Sus recompensas hacen que una línea que ya tienes entera salga menos de los huevos (un tercio en lugar de la mitad, un quinto con las dos): menos huevos sin nada nuevo.",
+                           "Deux nouveaux succès de formes : \(tauros) et \(necrozma). Leurs récompenses font sortir moins souvent des œufs une lignée que tu as en entier (trois fois moins au lieu de deux, cinq fois moins avec les deux) : moins d'œufs sans rien de nouveau.",
+                           "Duas novas conquistas de formas: \(tauros) e \(necrozma). As recompensas fazem uma linha que você já tem inteira sair menos dos ovos (um terço em vez da metade, um quinto com as duas): menos ovos sem nada novo.",
+                           "Zwei neue Formen-Erfolge: \(tauros) und \(necrozma). Ihre Belohnungen lassen eine Linie, die du vollständig hast, seltener schlüpfen (ein Drittel statt halb so oft, ein Fünftel mit beiden): weniger Eier ohne Neues.",
+                           "Два новых достижения форм: \"\(tauros)\" и \"\(necrozma)\". Их награды делают так, что собранная полностью линия вылупляется реже (в 3 раза вместо 2, в 5 раз с обеими): меньше яиц без нового.")
+            },
             .new("2026-11-05-battle-forms") { l in
                 let daily = l.dungeonName(.daily), weekly = l.dungeonName(.weekly)
                 return l.t("전투 형태: 메가진화, 원시회귀, 거다이맥스를 \(daily)(하루 한 번)과 \(weekly)(주 한 번)에서 얻어요. 얻으면 도감에 오르고, 졸업한 포켓몬이 던전에서 그 형태로 싸워요.",

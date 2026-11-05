@@ -236,6 +236,9 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     case springEgg, summerEgg, autumnEgg, winterEgg
     case ovalCharm
     case glimmeringCharm
+    /// The rewards for Tauros's four breeds and Necrozma's four forms (the owner, 2026-11-05): a complete line weighs
+    /// less in every egg, Tauros's by one step, Necrozma's by two (`HatchDraw.completeLineDivisor`).
+    case taurosBreeds, necrozmaForms
     case boulderBadge
     case cascadeBadge
     case thunderBadge
@@ -445,6 +448,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .legendaryKey: return "🗝️"
         case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal: return "🏅"
         case .ovalCharm: return "🔶"
+        case .taurosBreeds: return "🐂"
+        case .necrozmaForms: return "💠"
         case .glimmeringCharm: return "✨"
         case .boulderBadge, .cascadeBadge, .thunderBadge, .rainbowBadge,
              .soulBadge, .marshBadge, .volcanoBadge, .earthBadge,
@@ -560,7 +565,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .rareCandy, .mint, .shinyCharm, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .fossilEgg: return nil
         case .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return nil
         case _ where self.isDungeonItem: return nil
-        case .rotomCatalog, .cometShard, .redNectar, .smoothRock, .sawsbuckSeasons, .fairyFeather, .furfrouTrims, .vivillonPatterns, .whippedDream, .unownLetters: return .forms
+        case .rotomCatalog, .cometShard, .redNectar, .smoothRock, .sawsbuckSeasons, .fairyFeather, .furfrouTrims, .vivillonPatterns, .whippedDream, .unownLetters,
+             .taurosBreeds, .necrozmaForms: return .forms
         case .excavation: return .evolutionStones   // rocks and stones, side by side
         default: return .legendaryArtifacts
         }
@@ -639,6 +645,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .vivillonPatterns: return .forms(FormGoal(666))                    // Vivillon's twenty patterns
         case .whippedDream: return .forms(FormGoal(869))                        // Alcremie's 63 sweets
         case .unownLetters: return .forms(FormGoal(201))                        // Unown's 28 letters
+        case .taurosBreeds: return .forms(FormGoal(128))                        // Tauros's Kanto breed and Paldea's three
+        case .necrozmaForms: return .forms(FormGoal(800))                       // Necrozma, Dusk Mane, Dawn Wings, Ultra
         case .typeNullEgg: return .silvallyMemories
         case .legendaryEgg: return regionGoals.map { .species($0.map(\.goal)) }
         case .lightBall: return .allPikachuCostumes
@@ -742,7 +750,7 @@ enum BonusTheme: CaseIterable, Sendable {
              .magmaStone, .libertyPass, .lunarWing, .oaksLetter, .zRing, .scrollOfDarkness, .relicVase,
              .oldAmber:
             return .growth
-        case .silverWing, .teraOrb, .seaIncense, .legendCharm, .ovalCharm: return .eggs
+        case .silverWing, .teraOrb, .seaIncense, .legendCharm, .ovalCharm, .taurosBreeds, .necrozmaForms: return .eggs
         case .shinyCharm, .revealGlass, .glimmeringCharm: return .shiny
         case .rainbowWing, .jadeOrb: return .shop
         case .soulDew, .reinsOfUnity, .meteorite, .rotomCatalog, .explorerKit, .shockDrive: return .candies
