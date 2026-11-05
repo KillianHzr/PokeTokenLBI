@@ -216,6 +216,7 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
             <li>Choisir un donjon et composer l'équipe, ou cliquer sur "Composer pour moi".</li>
             <li>Si l'équipe passe sous 25 % de ses PV : accepter ou non le soin d'urgence.</li>
             <li>Avant le départ, si tu as une Master Ball : la laisser cochée ou non pour un boss légendaire.</li>
+            <li>Quitter le donjon quand tu veux : tu gardes le butin des étages franchis.</li>
           </ul>
         </div>
         <div class="box auto">
@@ -233,8 +234,8 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
         <li>Tu choisis un donjon et tu formes une équipe de 3 à 6 Pokémon diplômés qui respectent ses règles.</li>
         <li>Tes tokens font avancer l'équipe d'un étage à l'autre. Pendant ce temps, ton Pokémon en cours ne grandit pas.</li>
         <li>Chaque étage a un événement : un combat (Pokémon sauvages, horde ou dresseur), un coffre, un piège ou une source. Les combats se jouent tout seuls, en temps réel, avec les attaques et les talents des jeux.</li>
-        <li>Au dernier étage, le boss. Tu ne sais pas lequel avant d'y arriver. S'il tombe, l'app lance seule trois balls pour l'attraper, et son œuf va dans ton Sac. Si tu as déjà ce Pokémon, tu reçois un œuf de la rareté du palier à la place ; un boss légendaire que tu as déjà revient chromatique.</li>
-        <li>Si toute l'équipe est K.O. avant, l'expédition s'arrête, mais tu gardes le butin des étages franchis.</li>
+        <li>Au dernier étage, le boss. Tu ne sais pas lequel avant d'y arriver. S'il tombe, l'app lance seule trois balls pour l'attraper, et son œuf va dans ton Sac. Si tu as déjà ce Pokémon, tu reçois un œuf de la rareté du palier à la place. Un boss légendaire ne donne son œuf qu'une seule fois.</li>
+        <li>Si toute l'équipe est K.O. avant, l'expédition s'arrête, mais tu gardes le butin des étages franchis. Pareil si tu quittes le donjon en cours de route.</li>
       </ol>
       <div class="shots">
         <figure><img src="img/team-top.png" alt=""><figcaption>L'écran d'équipe.</figcaption></figure>
@@ -308,10 +309,11 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
 
     <section id="butin">
       <h2>Butin et taux</h2>
-      <p>Le butin se gagne étage après étage, puis s'ajoute la récompense de victoire si le boss tombe. Celui des étages franchis est à toi même après une défaite ; seul l'étage où l'équipe tombe ne donne rien. Abandonner sans Corde Sortie le fait perdre. La première victoire dans un donjon double le butin et ajoute un objet du palier.</p>
+      <p>Le butin se gagne étage après étage, puis s'ajoute la récompense de victoire si le boss tombe. Celui des étages franchis est à toi même après une défaite ; seul l'étage où l'équipe tombe ne donne rien. Quitter le donjon en cours de route le garde aussi. La première victoire dans un donjon double le butin et ajoute un objet du palier.</p>
       <h3>Capturer le boss</h3>
       <p>Une fois le boss battu, l'app lance seule trois balls, la meilleure du Sac à chaque fois : Hyper Ball, puis Super Ball, puis la Poké Ball gratuite. La Master Ball ne part que sur un boss légendaire, et tu peux l'interdire avant le départ. Chaque lancer réussit selon la rareté de la lignée du boss. Capturé, il donne son œuf, qui éclot en Pokémon de sa lignée. Un boss est chromatique 1 fois sur 64 (1 sur 48 avec le Charme Chroma), et son œuf aussi.</p>
-      <p>Si tu as déjà ce Pokémon (au Pokédex ou son œuf dans le Sac), il ne donne pas un second œuf de sa lignée mais un œuf de la rareté du palier : Œuf en T1, Œuf peu commun en T2, Œuf rare en T3 et T4, Œuf légendaire en T5. Un boss légendaire que tu as déjà apparaît chromatique, et sa capture donne son œuf chromatique.</p>
+      <p>Si tu as déjà ce Pokémon (au Pokédex ou son œuf dans le Sac), il ne donne pas un second œuf de sa lignée mais un œuf de la rareté du palier : Œuf en T1, Œuf peu commun en T2, Œuf rare en T3 et T4, Œuf légendaire en T5.</p>
+      <p>Un boss légendaire donne son œuf une seule fois par espèce. Si tu as déjà ce légendaire, il apparaît chromatique et donne son œuf chromatique ; si tu l'as déjà chromatique, il donne un Œuf légendaire. Ensuite, le battre ne rapporte que le butin : l'app ne lance plus de balls. Cet œuf demande 200M tokens pour éclore (les objets qui accélèrent les œufs n'y changent rien), et tant que son Pokémon est en élevage, aucun œuf ni pierre ne peut le remplacer avant son diplôme.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Rareté du boss</th><th class="n">Poké Ball</th><th class="n">Super Ball</th><th class="n">Hyper Ball</th><th class="n">Master Ball</th></tr></thead>
@@ -331,7 +333,7 @@ footer { border-top: 1px solid var(--stone); padding-block: 26px; font-size: var
           <tbody>
             <tr><td>T1</td><td class="num">0 à 1</td><td>Baie Oran, Super Ball</td><td>Aucun</td><td>Capsule Technique 10 %, Œuf 10 %</td></tr>
             <tr><td>T2</td><td class="num">0 à 2</td><td>Baie Sitrus, Baie Oran, Rappel, Hyper Ball</td><td>Œuf peu commun 1 sur 8</td><td>Capsule Technique 20 %, Œuf peu commun 10 %</td></tr>
-            <tr><td>T3</td><td class="num">1 à 3</td><td>Baie Sitrus, Rappel, Corde Sortie, Hyper Ball, Capsule d'Argent</td><td>Œuf rare 1 sur 10</td><td>Capsule Technique 35 %, Œuf rare 10 %, Clé Légendaire (sûre à la première victoire en T3, puis 10 %), Carte au trésor 5 %, Coffre d'explorateur 0,5 %</td></tr>
+            <tr><td>T3</td><td class="num">1 à 3</td><td>Baie Sitrus, Rappel, Hyper Ball, Capsule d'Argent</td><td>Œuf rare 1 sur 10</td><td>Capsule Technique 35 %, Œuf rare 10 %, Clé Légendaire (sûre à la première victoire en T3, puis 10 %), Carte au trésor 5 %, Coffre d'explorateur 0,5 %</td></tr>
             <tr><td>T4</td><td class="num">4 à 7</td><td>Baie Sitrus, Rappel, Rappel Max, Hyper Ball, Capsule d'Argent, Capsule d'Or</td><td>Œuf légendaire 1 sur 50, sinon Œuf rare 3 sur 20</td><td>Capsule Technique 20 %, Œuf rare 25 %, Œuf légendaire 1 %, Master Ball 2 %, Coffre d'explorateur 1 %</td></tr>
             <tr><td>T5</td><td class="num">6 à 10</td><td>Rappel Max, Hyper Ball, Baie Sitrus, Capsule d'Argent, Capsule d'Or</td><td>Œuf légendaire 1 sur 15, sinon Œuf rare 1 sur 5</td><td>Capsule Technique 15 %, Œuf légendaire 5 %, Master Ball 10 %</td></tr>
           </tbody>
