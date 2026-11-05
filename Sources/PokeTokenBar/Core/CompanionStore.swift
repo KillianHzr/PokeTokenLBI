@@ -251,10 +251,6 @@ final class CompanionStore {
     /// 난이도를 반영한 알 부화 임계. 첫 실행 안내 문구도 이 값을 보여준다.
     /// Items only halve it, with no floor: a 1M floor made the egg slower with them below difficulty 0.4.
     var eggHatchThreshold: Int {
-        // A legendary boss's egg: 200M, which no item speeds (the owner, 2026-11-04).
-        if state.eggFromDungeon?.isLegendary == true {
-            return PokemonBalance.scaled(PokemonBalance.legendaryBossEggThreshold, by: growthDifficulty)
-        }
         var threshold = PokemonBalance.scaled(PokemonBalance.eggHatchThreshold, by: growthDifficulty)
         if ownsSilverWing {
             threshold /= 2
@@ -448,8 +444,6 @@ final class CompanionStore {
     /// The Pokémon raised hatched from a legendary boss's egg, won once: no egg nor stone sends it off before it
     /// graduates (the owner, 2026-11-04).
     var isRaisingLegendaryBossPokemon: Bool { state.active?.fromLegendaryBossEgg == true }
-    /// The egg incubating is a legendary boss's: 200M to hatch (`eggHatchThreshold`).
-    var incubatesLegendaryBossEgg: Bool { state.active == nil && state.eggFromDungeon?.isLegendary == true }
     /// A Pokémon raised that an egg or a stone may send off: every `canUse…` of them asks this.
     var canSendOffActive: Bool { hasActive && !isRaisingLegendaryBossPokemon }
     var rarity: Rarity? { state.active?.rarity }

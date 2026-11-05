@@ -110,9 +110,9 @@ enum Rarity: String, Codable, Sendable {
 enum PokemonBalance {
     /// 알 부화 임계 — 이만큼 토큰을 써야 알이 깨진다(즉시 부화 대신 기대감). 초과분은 부화체 성장에 이월.
     static let eggHatchThreshold = 5_000_000
-    /// A legendary boss's egg takes 200M tokens to hatch at the one difficulty (×0.1), the items that speed eggs aside
-    /// (the owner, 2026-11-04).
-    static let legendaryBossEggThreshold = 2_000_000_000
+    /// A legendary boss's egg's Pokémon graduates for 200M tokens at the one difficulty (×0.1), a third of a legendary's
+    /// 600M: its boss was fought already (the owner, 2026-11-05). It hatches as any egg.
+    static let legendaryBossGraduationTotal = 2_000_000_000
     static let repeatGrowthMultiplier = 2
 
     static func graduationTotal(_ rarity: Rarity) -> Int {
@@ -126,9 +126,14 @@ enum PokemonBalance {
     /// stageIndex(0-based)에서 다음 단계/졸업까지 필요한 토큰.
     static func phaseThreshold(rarity: Rarity, totalForms k: Int, stageIndex: Int,
                                growthMultiplier: Int = 1) -> Int {
+        phaseThreshold(total: graduationTotal(rarity), totalForms: k, stageIndex: stageIndex, growthMultiplier: growthMultiplier)
+    }
+    /// The same for a whole growth of `total` tokens (`MonState.graduationTotal`).
+    static func phaseThreshold(total graduation: Int, totalForms k: Int, stageIndex: Int,
+                               growthMultiplier: Int = 1) -> Int {
         let kk = max(1, k)
         let i = stageIndex + 1                         // 1-based
-        let total = Double(graduationTotal(rarity))
+        let total = Double(graduation)
         let denom = Double(kk * (kk + 1)) / 2.0
         let standardThreshold = Int((total * Double(i) / denom).rounded())
         return max(1, Int((Double(standardThreshold) / Double(max(1, growthMultiplier))).rounded()))
@@ -1240,7 +1245,7 @@ struct MonState: Codable, Sendable, Equatable {
     /// out of reach (there are as many eggs as fossil lines).
     var fromFossilEgg = false
     /// Hatched from a legendary boss's egg (`DungeonEgg.isLegendary`): won once, it is never sent off for another egg
-    /// before it graduates (the owner, 2026-11-04).
+    /// before it graduates (the owner, 2026-11-04), and graduates for 200M (`graduationTotal`).
     var fromLegendaryBossEgg = false
     /// Hatched from an evolution stone's egg (the Tera Orb grows it faster) or from an egg of a guaranteed rarity,
     /// bought or given by an achievement (the Sea Incense). An event egg's type or rarity is the event's: neither.
@@ -1264,9 +1269,14 @@ struct MonState: Codable, Sendable, Equatable {
         if currentID == PikachuCostume.speciesID, let pikachuCostume { return pikachuCostume.form }
         return PokemonForm.resolved(speciesID: currentID, form: form)
     }
+    /// The tokens its whole growth takes: its rarity's, a legendary boss's egg's Pokémon less (the owner, 2026-11-05).
+    /// Its level still counts on its rarity's scale (`CompanionStore.reconcileActiveProfileGrowth`), as with a repeat.
+    var graduationTotal: Int {
+        fromLegendaryBossEgg ? PokemonBalance.legendaryBossGraduationTotal : PokemonBalance.graduationTotal(rarity)
+    }
     var phaseThreshold: Int {
         PokemonBalance.phaseThreshold(
-            rarity: rarity,
+            total: graduationTotal,
             totalForms: totalForms,
             stageIndex: stageIndex,
             growthMultiplier: hasGrowthBoost ? PokemonBalance.repeatGrowthMultiplier : 1)

@@ -167,8 +167,7 @@ struct BonusScreen: View {
         case .eggs:
             let base = PokemonBalance.scaled(PokemonBalance.eggHatchThreshold, by: store.growthDifficulty)
             let current = store.eggHatchThreshold
-            // A legendary boss's egg takes its 200M whatever the items: they speed none of it.
-            guard current != base, !store.incubatesLegendaryBossEgg else { return nil }
+            guard current != base else { return nil }
             return l.eggThresholdSummary(TokenFormatter.compact(current), instead: TokenFormatter.compact(base))
         case .shiny:
             return store.ownsGlimmeringCharm ? nil : l.shinyOddsSummary(Int(store.shinyDenominator))

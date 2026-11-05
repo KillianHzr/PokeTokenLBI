@@ -534,9 +534,9 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(outcomes.first?.alwaysShiny, true)
     }
 
-    /// A legendary boss's egg takes 200M to hatch, which no item speeds, and its Pokémon raised is never sent off before
-    /// it graduates: no egg, no stone, no dungeon egg (the owner, 2026-11-04).
-    func testALegendaryBossEggTakesItsTimeAndKeepsItsPokemon() async throws {
+    /// A legendary boss's egg hatches as any egg; its Pokémon graduates for 200M, a third of a legendary's 600M, and is
+    /// never sent off before it graduates: no egg, no stone, no dungeon egg (the owner, 2026-11-04 and 2026-11-05).
+    func testALegendaryBossEggsPokemonGraduatesForLessAndStays() async throws {
         let event = EventEgg.allCases[0]
         let s = try hatchingStore(index: [BaseSpecies(id: 1, captureRate: 45)]) {
             $0.active = MonState(baseID: 16, pathIDs: [16], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 3)
@@ -551,31 +551,37 @@ final class DungeonStoreTests: XCTestCase {
         }
         XCTAssertEqual(sendOffs(), Array(repeating: true, count: 8), "another Pokémon raised: each can send it off")
         XCTAssertTrue(s.useDungeonEgg("dratini"))
-        XCTAssertEqual(s.eggHatchThreshold, PokemonBalance.scaled(PokemonBalance.eggHatchThreshold, by: 0.1) / 2,
-                       "another dungeon egg: 5M, the Silver Wing halving it")
-        XCTAssertFalse(s.incubatesLegendaryBossEgg)
-        s.setEggUsageForTesting(s.eggHatchThreshold)
+        let hatch = s.eggHatchThreshold
+        s.setEggUsageForTesting(hatch)
         await s.hatchIfNeeded()
         XCTAssertEqual(s.state.active?.fromLegendaryBossEgg, false)
         XCTAssertTrue(s.useDungeonEgg("mewtwo"))
-        let threshold = PokemonBalance.scaled(PokemonBalance.legendaryBossEggThreshold, by: 0.1)
-        XCTAssertEqual(threshold, 200_000_000, "the owner's 200M, as the player reads it")
-        XCTAssertEqual(PokemonBalance.scaled(PokemonBalance.legendaryBossEggThreshold), 200_000_000, "at the app's difficulty")
-        XCTAssertEqual(s.eggHatchThreshold, threshold, "200M, the Silver Wing aside")
-        XCTAssertTrue(s.incubatesLegendaryBossEgg)
-        s.setEggUsageForTesting(threshold - 1)
+        XCTAssertEqual(s.eggHatchThreshold, hatch, "a legendary boss's egg hatches as any egg")
+        s.setEggUsageForTesting(hatch)
         await s.hatchIfNeeded()
-        XCTAssertNil(s.state.active, "not before its 200M")
-        s.setEggUsageForTesting(threshold)
-        await s.hatchIfNeeded()
-        XCTAssertEqual(s.state.active?.baseID, 150)
+        let mewtwo = try XCTUnwrap(s.state.active)
+        XCTAssertEqual(mewtwo.baseID, 150)
+        XCTAssertTrue(mewtwo.fromLegendaryBossEgg)
         XCTAssertTrue(s.isRaisingLegendaryBossPokemon)
+        // Its whole growth: 200M as the player reads it, where a legendary takes 600M.
+        let growth = (0..<mewtwo.totalForms).reduce(0) { total, stage in
+            var at = mewtwo
+            at.stageIndex = stage
+            return total + at.phaseThreshold
+        }
+        XCTAssertEqual(PokemonBalance.scaled(growth), 200_000_000, "\(mewtwo.totalForms) stages")
+        var plain = mewtwo
+        plain.fromLegendaryBossEgg = false
+        XCTAssertEqual(PokemonBalance.scaled(plain.graduationTotal), 600_000_000)
+        // The growth bonuses still speed it, as any Pokémon.
+        XCTAssertLessThanOrEqual(s.stageThreshold(for: mewtwo), PokemonBalance.scaled(mewtwo.phaseThreshold, by: 0.1))
         XCTAssertEqual(sendOffs(), Array(repeating: false, count: 8), "nothing sends it off")
         XCTAssertFalse(s.useLegendaryEgg())
         XCTAssertEqual(s.state.active?.baseID, 150)
         // The save keeps it.
-        let back = try JSONDecoder().decode(MonState.self, from: JSONEncoder().encode(try XCTUnwrap(s.state.active)))
+        let back = try JSONDecoder().decode(MonState.self, from: JSONEncoder().encode(mewtwo))
         XCTAssertTrue(back.fromLegendaryBossEgg)
+        XCTAssertEqual(back.phaseThreshold, mewtwo.phaseThreshold)
     }
 
     /// R13: Arceus hatches from no egg: not a plain one, not a Legendary Egg, not a Birthday Egg.

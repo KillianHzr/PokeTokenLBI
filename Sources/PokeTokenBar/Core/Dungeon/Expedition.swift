@@ -11,8 +11,8 @@ struct DungeonEgg: Codable, Sendable, Equatable, Identifiable {
     /// The Pokémon it came from: a legendary boss's egg has its own look (R14), the others their first type's (R8).
     var sourceSpeciesID: Int
 
-    /// A legendary boss's egg (the owner, 2026-11-04): won once per species, 200M tokens to hatch
-    /// (`PokemonBalance.legendaryBossEggThreshold`), and its Pokémon raised is never sent off.
+    /// A legendary boss's egg (the owner, 2026-11-04): won once per species; its Pokémon graduates for 200M
+    /// (`MonState.graduationTotal`) and is never sent off while raised.
     var isLegendary: Bool { SpeciesInfo.lineRarity(of: sourceSpeciesID) == .legendary }
 }
 
