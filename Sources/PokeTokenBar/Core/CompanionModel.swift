@@ -965,6 +965,7 @@ struct CandyWindow: Sendable {
     let kind: WindowClass
     let utilization: Double  // 0~100+
     /// 창 epoch (`resets_at` / reset unix). key 는 안정, epoch 가 바뀌면 새 창 → 재무장(#326).
+    /// nil 이면 100% 미만 관측으로만 재무장한다(Codex — credits 로 100% 를 넘겨 쓴다).
     let epoch: String?
     /// How many Pro plans the account's limits are worth (`LimitStatus.planMultiplier`): 1 when unknown.
     let planMultiplier: Int
@@ -1028,13 +1029,16 @@ struct EvoNode: Codable, Sendable {
 }
 
 struct BranchEvolutionItem: Equatable, Sendable, Identifiable {
-    var id: Int { speciesID }
+    var id: String { "\(speciesID)-\(form?.rawValue ?? "")" }
     let speciesID: Int
     let isCollected: Bool
+    /// One form of a stage that will show the individual's hidden one. Nil: the individual's own.
+    let form: PokemonForm?
 
-    init(speciesID: Int, isCollected: Bool) {
+    init(speciesID: Int, isCollected: Bool, form: PokemonForm? = nil) {
         self.speciesID = speciesID
         self.isCollected = isCollected
+        self.form = form
     }
 }
 
@@ -1740,6 +1744,13 @@ struct CompanionState: Codable, Sendable, Equatable {
         let graduated = dex.filter { $0.baseID == baseID && !$0.isReleased }
         guard !graduated.isEmpty else { return hasCollectedFinal(forBaseID: baseID) }
         return graduated.contains { PokemonForm.resolved(baseID: baseID, form: $0.form) == form }
+    }
+
+    /// The forms `hasCollectedFinal(forBaseID:form:)` holds for, read once for the many forms of a line.
+    func collectedFinalForms(forBaseID baseID: Int) -> Set<PokemonForm> {
+        let graduated = dex.filter { $0.baseID == baseID && !$0.isReleased }
+        guard !graduated.isEmpty else { return hasCollectedFinal(forBaseID: baseID) ? Set(PokemonForm.lineForms(baseID: baseID)) : [] }
+        return Set(graduated.compactMap { PokemonForm.resolved(baseID: baseID, form: $0.form) })
     }
 
     /// Match Pokédex ownership, including the active Pokémon and released catch records.

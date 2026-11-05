@@ -229,7 +229,7 @@ final class SessionKeyLimitsTests: XCTestCase {
 
         let first = try await provider.fetch(allowKeychainPrompt: false)
         XCTAssertEqual(first.planMultiplier, 5)
-        XCTAssertEqual(first.planDisplay, "Max 5x")
+        XCTAssertEqual(first.planDisplay, "Max", "Max 5x is called Max since 2026-10-31")
         XCTAssertEqual(store.load()?.plan?.rateLimitTier, "default_claude_max_5x")
         clock.date += SessionKeyLimitsProvider.planMaxAge - 60
         let second = try await provider.fetch(allowKeychainPrompt: false)

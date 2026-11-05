@@ -1294,6 +1294,40 @@ struct L {
           "Ничего нового: его виды, формы, сияющий вариант и костюмы уже в покедексе, отпустив его, вы ничего не потеряете.")
     }
     var activeNewBadge: String { t("신규", "New", "新規", "Nuevo", "Nouveau", "Novo", "Neu", "Новое") }
+    var formMysteryBadge: String {
+        t("미스터리 폼", "Mystery form", "謎のフォルム", "Forma misteriosa", "Forme mystère", "Forma misteriosa", "Geheime Form", "Тайная форма")
+    }
+    /// The real odds a form still hidden brings something new (`FormMystery`).
+    func formMysteryOdds(_ mystery: FormMystery) -> String {
+        guard !mystery.isCertain else {
+            return t("어떤 폼이든 새로운 것을 가져와요", "Something new whatever its form", "どのフォルムでも新しいものをもたらします",
+                     "Algo nuevo sea cual sea su forma", "Du nouveau quelle que soit sa forme", "Algo novo qualquer que seja a forma",
+                     "Etwas Neues, egal in welcher Form", "Что-то новое при любой форме")
+        }
+        let c = mystery.chances, n = mystery.outOf
+        let ru = c % 10 == 1 && c % 100 != 11 ? "шанс" : (2...4).contains(c % 10) && !(12...14).contains(c % 100) ? "шанса" : "шансов"
+        return t("\(n)번 중 \(c)번은 새로운 것을 가져와요", "\(c) \(c == 1 ? "chance" : "chances") in \(n) of bringing something new",
+                 "\(n)分の\(c)の確率で新しいものをもたらします", "\(c) \(c == 1 ? "posibilidad" : "posibilidades") de \(n) de traer algo nuevo",
+                 "\(c) \(c == 1 ? "chance" : "chances") sur \(n) d'apporter du nouveau", "\(c) \(c == 1 ? "chance" : "chances") em \(n) de trazer algo novo",
+                 "\(c) von \(n) Chancen auf etwas Neues", "\(c) \(ru) из \(n) принести что-то новое")
+    }
+    /// The hint of the Mystery form badge: `reveal` is the stage that shows the form.
+    func formMysteryHint(_ reveal: String, _ mystery: FormMystery) -> String {
+        let odds = formMysteryOdds(mystery)
+        return t("\(KoreanParticle.direction.attach(to: reveal)) 진화하면 폼이 드러나요. \(odds).", "It shows when it becomes \(reveal). \(odds).",
+                 "\(reveal)に進化するとフォルムが明らかになります。\(odds)。", "Se revela cuando se convierte en \(reveal). \(odds).",
+                 "Elle se révèle quand il devient \(reveal). \(odds).", "Ela se revela quando ele vira \(reveal). \(odds).",
+                 "Sie zeigt sich, wenn es zu \(reveal) wird. \(odds).", "Форма откроется, когда он станет \(reveal). \(odds).")
+    }
+    /// After the evolution's message, at the stage that shows a form that was a mystery.
+    var formRevealBringsNew: String {
+        t("이 폼은 새로운 것을 가져와요!", "Its form brings something new!", "このフォルムは新しいものをもたらします！", "¡Su forma trae algo nuevo!",
+          "Sa forme apporte du nouveau !", "A forma dele traz algo novo!", "Seine Form bringt etwas Neues!", "Эта форма приносит что-то новое!")
+    }
+    var formRevealNothingNew: String {
+        t("이 폼은 이미 도감에 있어요.", "Its form is already in your Pokédex.", "このフォルムはすでに図鑑にあります。", "Su forma ya está en tu Pokédex.",
+          "Sa forme est déjà dans ton Pokédex.", "A forma dele já está na sua Pokédex.", "Seine Form ist schon in deinem Pokédex.", "Эта форма уже есть в покедексе.")
+    }
     /// What graduating the current Pokémon adds, for the hint of its New badge.
     func activeNewHint(_ names: [String], certain: Bool) -> String {
         let list = names.joined(separator: ", ")
@@ -1615,6 +1649,62 @@ struct L {
           "O token de autenticação expirou. Tente de novo, ou abra o Antigravity IDE uma vez para atualizar automaticamente.",
           "Das Authentifizierungs-Token ist abgelaufen. Versuch es erneut oder starte Antigravity IDE einmal, um es automatisch zu aktualisieren.",
           "Токен авторизации истёк. Повторите попытку или один раз запустите Antigravity IDE: токен обновится автоматически.")
+    }
+
+    // MARK: OpenCode Go 공식 한도
+    var openCodeGoMonthly: String {
+        t("월간", "Monthly", "月間", "Mensual", "Mensuel", "Mensal", "Monatlich", "Месяц")
+    }
+    var openCodeGoAuthExpiredTitle: String {
+        t("OpenCode Go 키 거부: 한도가 갱신 안 돼요",
+          "OpenCode Go key rejected: limits can't refresh",
+          "OpenCode Go キーが拒否されました：上限を更新できません",
+          "Clave de OpenCode Go rechazada: los límites no se pueden actualizar",
+          "Clé OpenCode Go refusée : les limites ne s'actualisent pas",
+          "Chave do OpenCode Go recusada: não dá para atualizar os limites",
+          "OpenCode-Go-Schlüssel abgelehnt: Limits können nicht aktualisiert werden",
+          "Ключ OpenCode Go отклонён: лимиты не обновляются")
+    }
+    var openCodeGoAuthExpiredHint: String {
+        t("OpenCode 에서 /connect 로 OpenCode Go 키를 다시 연결해 주세요.",
+          "Reconnect your OpenCode Go key with /connect in OpenCode.",
+          "OpenCode で /connect を使って OpenCode Go キーを再接続してください。",
+          "Vuelve a conectar tu clave de OpenCode Go con /connect en OpenCode.",
+          "Reconnecte ta clé OpenCode Go avec /connect dans OpenCode.",
+          "Reconecte sua chave do OpenCode Go com /connect no OpenCode.",
+          "Verbinde deinen OpenCode-Go-Schlüssel in OpenCode mit /connect neu.",
+          "Подключите ключ OpenCode Go заново командой /connect в OpenCode.")
+    }
+
+    // MARK: Grok 공식 한도(크레딧)
+    func grokCreditPeriod(weekly: Bool, monthly: Bool) -> String {
+        if weekly {
+            return t("주간 크레딧", "Weekly credits", "週間クレジット", "Créditos semanales", "Crédits hebdo", "Créditos semanais", "Wöchentliche Credits", "Кредиты на неделю")
+        }
+        if monthly {
+            return t("월간 크레딧", "Monthly credits", "月間クレジット", "Créditos mensuales", "Crédits mensuels", "Créditos mensais", "Monatliche Credits", "Кредиты на месяц")
+        }
+        return t("크레딧", "Credits", "クレジット", "Créditos", "Crédits", "Créditos", "Credits", "Кредиты")
+    }
+    var grokAuthExpiredTitle: String {
+        t("Grok 로그인 만료: 한도가 갱신 안 돼요",
+          "Grok login expired: limits can't refresh",
+          "Grok のログイン期限切れ：上限を更新できません",
+          "Sesión de Grok expirada: los límites no se pueden actualizar",
+          "Connexion Grok expirée : les limites ne s'actualisent pas",
+          "Login do Grok expirado: não dá para atualizar os limites",
+          "Grok-Anmeldung abgelaufen: Limits können nicht aktualisiert werden",
+          "Вход в Grok истёк: лимиты не обновляются")
+    }
+    var grokAuthExpiredHint: String {
+        t("Grok CLI 를 한 번 실행하면 로그인이 갱신돼요. 안 되면 grok login 을 실행해 주세요.",
+          "Run Grok CLI once to refresh the login, or run grok login.",
+          "Grok CLI を一度実行するとログインが更新されます。だめなら grok login を実行してください。",
+          "Ejecuta Grok CLI una vez para renovar la sesión, o ejecuta grok login.",
+          "Lance Grok CLI une fois pour renouveler la connexion, ou lance grok login.",
+          "Abra o Grok CLI uma vez para renovar o login, ou rode grok login.",
+          "Starte Grok CLI einmal, um die Anmeldung zu erneuern, oder führe grok login aus.",
+          "Запустите Grok CLI один раз, чтобы обновить вход, или выполните grok login.")
     }
 
     // MARK: Cursor 공식 한도(월간 포함 allowance)
@@ -2411,6 +2501,8 @@ struct L {
     }
     func oakVerdictLabel(_ verdict: ActiveVerdict) -> String {
         switch verdict {
+        case .formMystery:
+            return formMysteryBadge
         case .lineToComplete:
             return t("채울 계열", "Line to complete", "未完成の系統", "Línea por completar", "Ligne à compléter", "Linha a completar",
                      "Linie offen", "Линия не собрана")
@@ -2439,8 +2531,14 @@ struct L {
     }
     /// Prof. Oak's bubble on the Pokémon being raised. `name`: its name in its form; `newFormName`: the species it
     /// brings in its form, for `.newForm`.
-    func oakBubble(_ verdict: ActiveVerdict, name: String, newFormName: String) -> String {
+    func oakBubble(_ verdict: ActiveVerdict, name: String, newFormName: String, revealName: String = "") -> String {
         switch verdict {
+        case .formMystery(let mystery):
+            let odds = formMysteryOdds(mystery)
+            return t("\(odds). \(KoreanParticle.direction.attach(to: revealName)) 진화할 때까지 기다려 보거라!", "\(odds), wait until it becomes \(revealName)!",
+                     "\(odds)。\(revealName)に進化するまで待つのじゃ！", "\(odds), ¡espera a que se convierta en \(revealName)!",
+                     "\(odds), attends qu'il devienne \(revealName) !", "\(odds), espere até ele virar \(revealName)!",
+                     "\(odds), warte, bis es zu \(revealName) wird!", "\(odds), подождите, пока он не станет \(revealName)!")
         case .lineToComplete(let count) where count.lowerBound != count.upperBound:
             let n = count.upperBound
             return t("\(KoreanParticle.subject.attach(to: name)) 아직 도감에 없는 종을 최대 \(n)종까지 가져올 수 있단다! 절대 놓아주지 말거라.",
