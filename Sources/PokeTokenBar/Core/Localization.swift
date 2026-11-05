@@ -1947,6 +1947,10 @@ struct L {
         case .legendaryEgg: return t("전설의 알", "Legendary Egg", "伝説のタマゴ", "Huevo Legendario", "Œuf légendaire", "Ovo Lendário", "Legendäres Ei", "Легендарное яйцо")
         case .birthdayEgg: return t("생일 알", "Birthday Egg", "誕生日のタマゴ", "Huevo de Cumpleaños", "Œuf d'anniversaire", "Ovo de Aniversário", "Geburtstags-Ei", "Праздничное яйцо")
         case .ovalCharm: return t("둥근부적", "Oval Charm", "まるいおまもり", "Amuleto Oval", "Charme Ovale", "Amuleto Oval", "Ovalpin", "Овальный талисман")
+        case .taurosBreeds: return t("켄타로스의 네 품종", "Tauros's Four Breeds", "ケンタロスの4つの品種", "Las cuatro razas de Tauros",
+                                     "Les quatre races de Tauros", "As quatro raças de Tauros", "Die vier Rassen von Tauros", "Четыре породы Тауроса")
+        case .necrozmaForms: return t("네크로즈마의 네 가지 모습", "Necrozma's Four Forms", "ネクロズマの4つのすがた", "Las cuatro formas de Necrozma",
+                                      "Les quatre formes de Necrozma", "As quatro formas de Necrozma", "Die vier Formen von Necrozma", "Четыре формы Некрозмы")
         case .glimmeringCharm: return t("반짝이는부적", "Glimmering Charm", "きらめくおまもり", "Amuleto Cristalino", "Charme Éclatant", "Amuleto Cintilante", "Glitzerpin", "Сверкающий талисман")
         case .boulderBadge: return t("회색배지", "Boulder Badge", "グレーバッジ", "Medalla Roca", "Badge Roche", "Insígnia da Rocha", "Felsorden", "Каменный значок")
         case .cascadeBadge: return t("블루배지", "Cascade Badge", "ブルーバッジ", "Medalla Cascada", "Badge Cascade", "Insígnia da Cascata", "Quellorden", "Каскадный значок")
@@ -2248,6 +2252,24 @@ struct L {
                      "Enquanto estiver na bolsa, dos ovos nascem Pokémon com uma forma que falta, numa forma que você não tem; se nenhuma linha tiver forma faltando, qualquer outra. Não vale para os ovos de aniversário e fósseis.",
                      "Lässt im Beutel Pokémon schlüpfen, denen dir noch eine Form fehlt, in einer Form, die du nicht hast; fehlt keiner Linie eine, dann jedes andere. Bei Geburtstags- und Fossil-Eiern wirkt es nicht.",
                      "Пока он у вас, из яиц вылупляются покемоны с недостающей формой, в форме, которой у вас нет; если ни одной линии форма не нужна, то любые другие. На яйца дня рождения и окаменелостей не действует.")
+        case .taurosBreeds:
+            return t("보유하면 이미 다 모은 계열(모든 종과 폼이 졸업)이 알에서 2분의 1 대신 3분의 1만큼만 나와요. 새것을 주지 않는 알이 줄어들어요. 네크로즈마의 네 가지 모습과 함께면 5분의 1이에요.",
+                     "While owned, a line you have whole (every species and form graduated) hatches a third as often instead of half: fewer eggs bring nothing new. With Necrozma's Four Forms, a fifth.",
+                     "持っていると、すでにそろった系統（すべての種とフォルムが卒業）が、タマゴから2分の1ではなく3分の1しか生まれません。新しいものをくれないタマゴが減ります。ネクロズマの4つのすがたと合わせると5分の1です。",
+                     "Mientras lo tengas, una línea que ya tienes entera (todas sus especies y formas graduadas) sale de los huevos un tercio de las veces en lugar de la mitad: menos huevos sin nada nuevo. Con Las cuatro formas de Necrozma, un quinto.",
+                     "Tant que tu le possèdes, une lignée que tu as en entier (toutes ses espèces et formes diplômées) sort des œufs trois fois moins souvent au lieu de deux : moins d'œufs sans rien de nouveau. Avec Les quatre formes de Necrozma, cinq fois moins.",
+                     "Enquanto estiver na bolsa, uma linha que você já tem inteira (todas as espécies e formas formadas) sai dos ovos um terço das vezes em vez da metade: menos ovos sem nada novo. Com As quatro formas de Necrozma, um quinto.",
+                     "Im Beutel schlüpft eine Linie, die du vollständig hast (alle Spezies und Formen verabschiedet), nur noch ein Drittel statt halb so oft: weniger Eier ohne Neues. Mit Die vier Formen von Necrozma ein Fünftel.",
+                     "Пока он у вас, линия, собранная полностью (все виды и формы выпущены), вылупляется в 3 раза реже вместо 2: меньше яиц без нового. Вместе с \"Четыре формы Некрозмы\" в 5 раз реже.")
+        case .necrozmaForms:
+            return t("보유하면 이미 다 모은 계열(모든 종과 폼이 졸업)이 알에서 2분의 1 대신 4분의 1만큼만 나와요. 새것을 주지 않는 알이 줄어들어요. 켄타로스의 네 품종과 함께면 5분의 1이에요.",
+                     "While owned, a line you have whole (every species and form graduated) hatches a quarter as often instead of half: fewer eggs bring nothing new. With Tauros's Four Breeds, a fifth.",
+                     "持っていると、すでにそろった系統（すべての種とフォルムが卒業）が、タマゴから2分の1ではなく4分の1しか生まれません。新しいものをくれないタマゴが減ります。ケンタロスの4つの品種と合わせると5分の1です。",
+                     "Mientras lo tengas, una línea que ya tienes entera (todas sus especies y formas graduadas) sale de los huevos un cuarto de las veces en lugar de la mitad: menos huevos sin nada nuevo. Con Las cuatro razas de Tauros, un quinto.",
+                     "Tant que tu le possèdes, une lignée que tu as en entier (toutes ses espèces et formes diplômées) sort des œufs quatre fois moins souvent au lieu de deux : moins d'œufs sans rien de nouveau. Avec Les quatre races de Tauros, cinq fois moins.",
+                     "Enquanto estiver na bolsa, uma linha que você já tem inteira (todas as espécies e formas formadas) sai dos ovos um quarto das vezes em vez da metade: menos ovos sem nada novo. Com As quatro raças de Tauros, um quinto.",
+                     "Im Beutel schlüpft eine Linie, die du vollständig hast (alle Spezies und Formen verabschiedet), nur noch ein Viertel statt halb so oft: weniger Eier ohne Neues. Mit Die vier Rassen von Tauros ein Fünftel.",
+                     "Пока он у вас, линия, собранная полностью (все виды и формы выпущены), вылупляется в 4 раза реже вместо 2: меньше яиц без нового. Вместе с \"Четыре породы Тауроса\" в 5 раз реже.")
         case .glimmeringCharm:
             return t("보유하면 알에서 태어나는 포켓몬이 모두 이로치입니다.",
                      "While owned, every Pokémon that hatches is shiny.",
@@ -3351,6 +3373,12 @@ struct L {
         t("이 중 \(needed)마리", "Any \(needed) of these", "このうち\(needed)匹", "\(needed) de estos", "\(needed) parmi ceux-ci", "\(needed) destes", "\(needed) davon", "Любые \(needed) из них")
     }
     var ovalCharmEffectHint: String { t("빠진 폼만 부화 · 적용 중", "Missing forms only · active", "未収集フォルムのみ · 適用中", "Solo formas que faltan · activo", "Formes manquantes · actif", "Só formas que faltam · ativo", "Nur fehlende Formen · aktiv", "Только недостающие формы · активен") }
+    /// Under Tauros's and Necrozma's artifacts in the Bag: what a complete line's weight is divided by now, both counted.
+    func completeLinesEffectHint(_ divisor: Int) -> String {
+        t("다 모은 계열 ÷\(divisor) · 적용 중", "Complete lines ÷\(divisor) · active", "そろった系統 ÷\(divisor) · 適用中",
+          "Líneas completas ÷\(divisor) · activo", "Lignées complètes ÷\(divisor) · actif", "Linhas completas ÷\(divisor) · ativo",
+          "Vollständige Linien ÷\(divisor) · aktiv", "Собранные линии ÷\(divisor) · активен")
+    }
     var glimmeringCharmEffectHint: String { t("이로치 확정 · 적용 중", "Always shiny · active", "色違い確定 · 適用中", "Siempre variocolor · activo", "Chromatique garanti · actif", "Sempre shiny · ativo", "Immer schillernd · aktiv", "Всегда шайни · активен") }
     var allSpeciesGoal: String {
         t("모든 종", "Every species", "すべての種", "Todas las especies", "Toutes les espèces", "Todas as espécies", "Alle Spezies", "Все виды")

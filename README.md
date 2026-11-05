@@ -229,7 +229,7 @@ Claimed once from the **Achievements** (in the **Trainer** tab), active for as l
 | **Oval Charm** | <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-charm.png" width="28" height="28" alt="Oval Charm"> | Every species (1,025) | Eggs only hatch Pokémon with a form you are missing, in a form you don't have, while some are left |
 | **Glimmering Charm** | <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/glimmering-charm.png" width="28" height="28" alt="Glimmering Charm"> | Every form (1,350) | Every Pokémon that hatches is shiny |
 
-Only the Azure Flute and the Oval Charm change which Pokémon hatch, and the Oval Charm only once every species is in your Pokédex; every other artifact is a pure bonus that never lowers another Pokémon's chances.
+Only the Azure Flute and the Oval Charm change which Pokémon hatch, and the Oval Charm only once every species is in your Pokédex; Tauros's and Necrozma's rewards only lower the lines you already have whole. Every other artifact is a pure bonus that never lowers another Pokémon's chances.
 
 ¹ Omastar, Kabutops, Aerodactyl, Cradily, Armaldo, Rampardos, Bastiodon, Carracosta, Archeops, Tyrantrum, Aurorus, Dracozolt, Arctozolt, Dracovish, Arctovish.
 ² Nihilego, Buzzwole, Pheromosa, Xurkitree, Celesteela, Kartana, Guzzlord, Poipole, Naganadel, Stakataka, Blacephalon.
@@ -252,6 +252,8 @@ Only the Azure Flute and the Oval Charm change which Pokémon hatch, and the Ova
 | **Vivillon's Twenty Patterns** |  | Vivillon's 20 patterns | 2 Rare Eggs |
 | **Whipped Dream** | <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/whipped-dream.png" width="28" height="28" alt="Whipped Dream"> | Alcremie's 63 forms | 2 Rare Eggs and 5 Rare Candies |
 | **Unown's Alphabet** |  | Unown's 28 letters | 2 Rare Eggs |
+| **Tauros's Four Breeds** |  | Tauros's 4 breeds (Kanto's and Paldea's three) | While owned, a line you have whole hatches a third as often instead of half (a fifth with Necrozma's) |
+| **Necrozma's Four Forms** |  | Necrozma's 4 forms | While owned, a line you have whole hatches a quarter as often instead of half (a fifth with Tauros's) |
 
 ### Gym Badges
 

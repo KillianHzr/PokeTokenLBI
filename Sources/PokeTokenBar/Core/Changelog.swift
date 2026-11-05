@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-05", entries: [
+            .new("2026-11-05-duplicate-charms") { l in
+                let tauros = l.itemName(.taurosBreeds), necrozma = l.itemName(.necrozmaForms)
+                return l.t("새 폼 업적 두 개: \(tauros), \(necrozma). 보상을 가지면 이미 다 모은 계열이 알에서 덜 나와요(2분의 1 대신 3분의 1, 둘 다 있으면 5분의 1). 새것을 주지 않는 알이 줄어들어요.",
+                           "Two new forms achievements: \(tauros) and \(necrozma). Their rewards make a line you have whole hatch less often (a third instead of half, a fifth with both): fewer eggs bring nothing new.",
+                           "新しいフォルムの実績が2つ：\(tauros)と\(necrozma)。ごほうびを持っていると、すでにそろった系統がタマゴから生まれにくくなります（2分の1ではなく3分の1、両方で5分の1）。新しいものをくれないタマゴが減ります。",
+                           "Dos nuevos logros de formas: \(tauros) y \(necrozma). Sus recompensas hacen que una línea que ya tienes entera salga menos de los huevos (un tercio en lugar de la mitad, un quinto con las dos): menos huevos sin nada nuevo.",
+                           "Deux nouveaux succès de formes : \(tauros) et \(necrozma). Leurs récompenses font sortir moins souvent des œufs une lignée que tu as en entier (trois fois moins au lieu de deux, cinq fois moins avec les deux) : moins d'œufs sans rien de nouveau.",
+                           "Duas novas conquistas de formas: \(tauros) e \(necrozma). As recompensas fazem uma linha que você já tem inteira sair menos dos ovos (um terço em vez da metade, um quinto com as duas): menos ovos sem nada novo.",
+                           "Zwei neue Formen-Erfolge: \(tauros) und \(necrozma). Ihre Belohnungen lassen eine Linie, die du vollständig hast, seltener schlüpfen (ein Drittel statt halb so oft, ein Fünftel mit beiden): weniger Eier ohne Neues.",
+                           "Два новых достижения форм: \"\(tauros)\" и \"\(necrozma)\". Их награды делают так, что собранная полностью линия вылупляется реже (в 3 раза вместо 2, в 5 раз с обеими): меньше яиц без нового.")
+            },
             .new("2026-11-05-battle-forms") { l in
                 let daily = l.dungeonName(.daily), weekly = l.dungeonName(.weekly)
                 return l.t("전투 형태: 메가진화, 원시회귀, 거다이맥스를 \(daily)(하루 한 번)과 \(weekly)(주 한 번)에서 얻어요. 얻으면 도감에 오르고, 졸업한 포켓몬이 던전에서 그 형태로 싸워요.",
