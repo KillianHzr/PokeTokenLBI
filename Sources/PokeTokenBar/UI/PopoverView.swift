@@ -120,6 +120,11 @@ final class PopoverNavigation {
     var showingOakDetails = false { didSet { if showingOakDetails { dexDetailCollectionID = nil } } }
     /// The team screen of a dungeon (`DungeonTeamScreen`), over the popover.
     var dungeonTeam: DungeonID?
+    /// A dungeon's page (`DungeonDetailScreen`): its odds, bosses and past expeditions. Its team screen opens over it.
+    var dungeonDetail: DungeonID?
+    /// The general team (`MyTeamScreen`) and the type chart (`TypeChartScreen`), from the Dungeons tab.
+    var showingMyTeam = false
+    var showingTypeChart = false
     /// A dungeon battle replayed (`BattleReplayScreen`): "Revoir, c'est rejouer".
     var replayBattle: ExpeditionBattle?
     /// Where the replay starts: a battle still being fought opens live, at its present moment.
@@ -186,6 +191,9 @@ final class PopoverNavigation {
         showingCalendar = false
         showingOakDetails = false
         dungeonTeam = nil
+        dungeonDetail = nil
+        showingMyTeam = false
+        showingTypeChart = false
         replayBattle = nil
         replayStart = 0
         showingExpeditionLog = false
@@ -289,8 +297,17 @@ struct PopoverView: View {
             } else if let dungeon = nav.dungeonTeam {
                 DungeonTeamScreen(store: companion, dungeon: dungeon) { nav.dungeonTeam = nil } onDepart: {
                     nav.dungeonTeam = nil
+                    nav.dungeonDetail = nil
                     nav.tab = .home
                 }
+            } else if let dungeon = nav.dungeonDetail {
+                DungeonDetailScreen(store: companion, id: dungeon) { nav.dungeonDetail = nil } onPrepare: {
+                    nav.dungeonTeam = dungeon
+                }
+            } else if nav.showingMyTeam {
+                MyTeamScreen(store: companion) { nav.showingMyTeam = false }
+            } else if nav.showingTypeChart {
+                TypeChartScreen(store: companion) { nav.showingTypeChart = false }
             } else if nav.showingLuck {
                 LuckScreen(store: companion, nav: nav) { nav.showingLuck = false }
             } else {

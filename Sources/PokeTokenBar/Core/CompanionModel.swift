@@ -546,6 +546,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
 
     /// One of the Shop's eggs, which wait in the Bag until used.
     var isShopEgg: Bool { self == .pokemonEgg || bagEggTier != nil }
+    /// An egg in the Bag: the Shop's, the Legendary and the Fossil Eggs.
+    var isEggItem: Bool { isShopEgg || self == .legendaryEgg || self == .fossilEgg }
 
     /// The Bag item a Shop egg of `tier` becomes (`FreshEgg.shopTiers`).
     init?(shopEgg tier: Rarity?) {
@@ -847,13 +849,15 @@ enum CollectorBonus {
 /// The Explorer Kit's treasures: one for every `graduationsPerTreasure` Pokémon graduated while it is owned.
 enum ExplorerKit {
     static let graduationsPerTreasure = 5
-    /// Out of `rollRange`: 1 Legendary Egg (0.01%), 500 Rare Eggs (5%), 2,000 Uncommon Eggs (20%), and the rest, 3
-    /// Rare Candies (74.99%). Pure bonuses: nothing here changes what hatches.
+    /// Out of `rollRange`: 1 Legendary Egg (0.01%), 300 Rare Eggs (3%), 1,200 Uncommon Eggs (12%), and the rest, one
+    /// Rare Candy (84.99%). It was 5%, 20% and 3 candies, too generous (DyRize's #107; the owner chose these,
+    /// 2026-11-05). Pure bonuses: nothing here changes what hatches. The Explorer Chest gives one of these too.
     static let rollRange = 10_000
     static let legendaryEggRolls = 1
-    static let rareEggRolls = 500
-    static let uncommonEggRolls = 2_000
-    static let candies = 3
+    static let rareEggRolls = 300
+    static let uncommonEggRolls = 1_200
+    /// One: the kit's description says "a Rare Candy".
+    static let candies = 1
 
     /// The treasure of one roll in `0..<rollRange`.
     static func treasure(roll: Int) -> (kind: ItemKind, count: Int) {

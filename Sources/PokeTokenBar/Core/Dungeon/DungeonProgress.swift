@@ -27,6 +27,25 @@ struct ExpeditionResult: Codable, Sendable, Equatable {
     var log: [ExpeditionLogEntry]
 }
 
+/// One expedition that ended, for its dungeon's page (2026-11-05): when, how, how deep, what it brought.
+struct DungeonRunRecord: Codable, Sendable, Equatable {
+    var dungeon: DungeonID
+    var endedAt: Date
+    var won: Bool
+    /// The team left before the boss.
+    var left: Bool
+    var floor: Int
+    var floors: Int
+    var tokens: Int
+    var candies: Int
+    var eggs: Int
+    var items: Int
+    var bossSpeciesID: Int
+    var caught: Bool
+
+    static let kept = 100
+}
+
 /// The dungeons' side of the save, decoded field by field so a damaged one never costs the rest.
 struct DungeonProgress: Codable, Sendable, Equatable {
     var expedition: Expedition?
@@ -57,6 +76,10 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     /// The legendary bosses whose egg was won, or the Legendary Egg in its place: once per species (the owner,
     /// 2026-11-04). They give the loot only afterwards.
     var legendaryEggsWon: Set<Int> = []
+    /// The player's general team (entry ids, six at most): a dungeon's team screen starts from it (a player, 2026-11-05).
+    var savedTeam: [String] = []
+    /// The expeditions that ended, the latest last, a hundred at most: each dungeon's page lists its own.
+    var history: [DungeonRunRecord] = []
 
     init() {}
 
@@ -78,6 +101,8 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         weeklyTried = c.lenientOptional(String.self, forKey: .weeklyTried)
         challengeDraws = c.lenient([String: String].self, forKey: .challengeDraws, default: [:])
         legendaryEggsWon = c.lenient(Set<Int>.self, forKey: .legendaryEggsWon, default: [])
+        savedTeam = c.lenient([String].self, forKey: .savedTeam, default: [])
+        history = c.lenient([Lossy<DungeonRunRecord>].self, forKey: .history, default: []).compactMap(\.value)
     }
 
     func wins(_ id: DungeonID) -> Int { wins[id.rawValue] ?? 0 }

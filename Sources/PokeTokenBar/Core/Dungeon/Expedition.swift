@@ -567,14 +567,24 @@ enum ExpeditionEngine {
     /// their loot): none in T1; an Uncommon Egg one chest in 8 in T2; a Rare Egg one in 10 in T3; in T4 a Legendary
     /// Egg one in 50, else a Rare Egg 3 in 20; in T5 a Legendary Egg one in 15, else a Rare Egg one in 5.
     static func chestEgg(_ tier: DungeonTier, random: inout BattleRandom) -> ItemKind? {
-        guard tier > .t1 else { return nil }
-        let roll = random.below(1000)
+        let odds = chestEggOdds(tier)
+        guard !odds.isEmpty else { return nil }
+        var roll = random.below(1000)
+        for (egg, perMille) in odds {
+            if roll < perMille { return egg }
+            roll -= perMille
+        }
+        return nil
+    }
+
+    /// The eggs a chest may hold, each in chests per thousand: the draw's own table, which each dungeon's page shows.
+    static func chestEggOdds(_ tier: DungeonTier) -> [(egg: ItemKind, perMille: Int)] {
         switch tier {
-        case .t1: return nil
-        case .t2: return roll < 125 ? .uncommonEgg : nil
-        case .t3: return roll < 100 ? .rareEgg : nil
-        case .t4: return roll < 20 ? .legendaryEgg : roll < 170 ? .rareEgg : nil
-        case .t5: return roll < 67 ? .legendaryEgg : roll < 267 ? .rareEgg : nil
+        case .t1: []
+        case .t2: [(.uncommonEgg, 125)]
+        case .t3: [(.rareEgg, 100)]
+        case .t4: [(.legendaryEgg, 20), (.rareEgg, 150)]
+        case .t5: [(.legendaryEgg, 67), (.rareEgg, 200)]
         }
     }
 

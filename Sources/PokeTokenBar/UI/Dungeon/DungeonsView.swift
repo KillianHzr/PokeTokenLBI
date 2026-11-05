@@ -15,6 +15,10 @@ struct DungeonsView: View {
                 HStack(spacing: 6) {
                     SectionTitle(text: l.dungeonsTab, systemImage: "map.fill")
                     Spacer(minLength: 4)
+                    Button { nav.showingMyTeam = true } label: { Image(systemName: "person.3.fill") }
+                        .buttonStyle(.borderless).hoverTip(l.myTeamTitle)
+                    Button { nav.showingTypeChart = true } label: { Image(systemName: "tablecells") }
+                        .buttonStyle(.borderless).hoverTip(l.typeChartTitle)
                     ItemIconView(kind: .legendaryKey, size: 16)
                     Text("\(l.itemName(.legendaryKey)) ×\(store.itemCount(.legendaryKey))")
                         .font(.caption.weight(.semibold)).monospacedDigit().foregroundStyle(.secondary)
@@ -33,7 +37,7 @@ struct DungeonsView: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 ForEach(shown, id: \.self) { id in
-                    DungeonCard(store: store, id: id) { nav.dungeonTeam = id }
+                    DungeonCard(store: store, id: id, onPrepare: { nav.dungeonTeam = id }, onDetails: { nav.dungeonDetail = id })
                 }
             }
             .reservesScrollerLane()
@@ -77,6 +81,8 @@ struct DungeonCard: View {
     let store: CompanionStore
     let id: DungeonID
     let onPrepare: () -> Void
+    /// Opens the dungeon's page (`DungeonDetailScreen`); nil hides the button.
+    var onDetails: (() -> Void)? = nil
     /// The bosses a card shows, the latest met; the others make a count.
     static let bossesShown = 4
 
@@ -84,7 +90,8 @@ struct DungeonCard: View {
         let l = store.l
         let dungeon = DungeonCatalog.dungeon(id)
         let (size, rules) = store.teamRules(id)
-        let unmet = store.unmetUnlocks(id)
+        // A dungeon won before a rule changed stays open (`isDungeonOpen`).
+        let unmet = store.isDungeonOpen(id) ? [] : store.unmetUnlocks(id)
         let wins = store.dungeonProgress.wins(id)
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top, spacing: 10) {
@@ -96,6 +103,12 @@ struct DungeonCard: View {
                         Text(l.dungeonName(id)).font(.callout.weight(.semibold))
                         Spacer(minLength: 4)
                         status(unmet: unmet, wins: wins, l)
+                        if let onDetails {
+                            Button(action: onDetails) { Image(systemName: "info.circle") }
+                                .buttonStyle(.borderless).font(.caption)
+                                .hoverTip(l.dungeonDetailsButton)
+                                .accessibilityLabel(l.dungeonDetailsButton)
+                        }
                     }
                     Text(([l.dungeonTeamSize(size)] + rules.map(l.dungeonRule)
                           + [l.dungeonCost(TokenFormatter.compact(dungeon.tier.cost(difficulty: store.growthDifficulty)))])

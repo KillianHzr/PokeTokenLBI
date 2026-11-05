@@ -1,7 +1,8 @@
 import XCTest
 @testable import PokeTokenBar
 
-/// Arceus hatches from no egg for now (`PokemonOdds.dungeonOnly`, 2026-11-03): it is kept for a big update to come.
+/// Arceus hatches from no egg (`PokemonOdds.dungeonOnly`, 2026-11-03) until the player caught one: then as every
+/// legendary boss (`HatchDraw.dungeonOnly`, the owner, 2026-11-05).
 @MainActor
 final class ArceusPoolTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_793_000_000)
@@ -49,6 +50,19 @@ final class ArceusPoolTests: XCTestCase {
         XCTAssertFalse(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 493 })
         XCTAssertTrue(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 150 })
         XCTAssertFalse(BirthdayGift.pool(index, graduated: []).lines.contains { $0.id == 493 })
+    }
+
+    /// Once caught (the Hall of Origin's egg hatched), Arceus is in the eggs like every legendary: the Legendary Egg's
+    /// pool and its odds, and the GraphQL fallback, which no longer skips it.
+    func testACaughtArceusHatchesFromEggs() async throws {
+        let index = [BaseSpecies(id: 493, captureRate: 3, isLegendary: true),
+                     BaseSpecies(id: 150, captureRate: 3, isLegendary: true), BaseSpecies(id: 16, captureRate: 255)]
+        let s = try store(index: index) { $0.dex = self.graduated([493]) }
+        XCTAssertTrue(s.hatchDraw.dungeonOnly.isEmpty)
+        XCTAssertTrue(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec(legendaryEgg: true)).contains { $0.base.id == 493 })
+        XCTAssertTrue(s.hatchDraw.hatchPool(index, egg: CompanionStore.EggSpec()).contains { $0.base.id == 493 })
+        let uncaught = try store(index: index) { _ in }
+        XCTAssertEqual(uncaught.hatchDraw.dungeonOnly, [493])
     }
 
     /// The Birthday Egg without the index: Arceus the only mythical left, it goes on to the legendary still missing.
