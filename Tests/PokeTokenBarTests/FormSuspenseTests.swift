@@ -25,7 +25,8 @@ final class FormSuspenseTests: XCTestCase {
 
     private func store(_ path: [Int], stage: Int = 0, form: PokemonForm?, dex: [DexEntry] = [],
                        rollItems: Set<ItemKind>? = nil, inventory: [String: Int] = [:], shiny: Bool = false,
-                       boost: Bool = false, newForm: Bool = false, used: Int = 0) async throws -> CompanionStore {
+                       boost: Bool = false, newForm: Bool = false, used: Int = 0,
+                       hatchedAt: Date? = FormSuspenseTests.beforeMissingFirst) async throws -> CompanionStore {
         let suite = "Suspense-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
@@ -38,6 +39,9 @@ final class FormSuspenseTests: XCTestCase {
                            usedAtStage: used, rarity: .common, totalForms: path.count, isShiny: shiny, nature: .hardy,
                            hasGrowthBoost: boost, form: form)
         mon.hasNewForm = newForm
+        // Hatched before `missingFormsFirst` (the owner, 2026-11-06), as these tests were written: a form rolled
+        // among all, a missing one weighing twice. `testAMissingFormIsCertainOnceFirst` reads the rule after it.
+        mon.raising = hatchedAt.map(RaisingRecord.init(hatchedAt:))
         if let rollItems { mon.hatch = HatchRecord(egg: .tier(nil), rollItems: rollItems) }
         state.active = mon
         state.dex = dex
@@ -104,6 +108,26 @@ final class FormSuspenseTests: XCTestCase {
     }
 
     // MARK: The forms it can carry
+
+    /// The day before `HatchRules.Change.missingFormsFirst` was published.
+    static let beforeMissingFirst = HatchRules.Change.missingFormsFirst.publishedAt.addingTimeInterval(-86_400)
+
+    /// From `missingFormsFirst`, an egg hatches a form its line misses first: one form graduated of two, the other
+    /// comes for sure, no mystery; every form graduated, any of them again, still no news to tell apart.
+    func testAMissingFormIsCertainOnceFirst() async throws {
+        let after = HatchRules.Change.missingFormsFirst.publishedAt.addingTimeInterval(60)
+        let oneOfTwo = try await store([104, 105], form: alola, dex: [graduated([104, 105], form: normal)], hatchedAt: after)
+        XCTAssertNil(oneOfTwo.formSuspense, "Alolan Marowak comes for sure")
+        let draw = HatchDraw(collection: oneOfTwo.state, items: [], rules: HatchRules(rolledAt: after)).lineFormDraw(baseID: 104, types: [])
+        XCTAssertEqual(draw.forms, [alola])
+        let before = HatchDraw(collection: oneOfTwo.state, items: [], rules: HatchRules(rolledAt: Self.beforeMissingFirst))
+            .lineFormDraw(baseID: 104, types: [])
+        XCTAssertEqual(before.forms, [normal, alola], "the rule of its time")
+        let both = try await store([104, 105], form: alola, dex: [graduated([104, 105], form: normal), graduated([104, 105], form: alola)],
+                                   hatchedAt: after)
+        XCTAssertEqual(HatchDraw(collection: both.state, items: [], rules: HatchRules(rolledAt: after)).lineFormDraw(baseID: 104, types: []).forms,
+                       [normal, alola], "every form graduated: any again")
+    }
 
     func testEveryFormOfItsLineWithoutANote() async throws {
         let s = try await kantoCubone()

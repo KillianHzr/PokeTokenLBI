@@ -790,7 +790,10 @@ final class CompanionStore {
         guard let a = state.active,
               PokemonForm.isFormHidden(baseID: a.baseID, reached: a.pathIDs.prefix(a.stageIndex + 1)),
               let reveal = PokemonForm.formSpecies(baseID: a.baseID).first else { return nil }
-        let draw = HatchDraw(collection: state, items: a.hatch?.rollItems ?? []).lineFormDraw(baseID: a.baseID, types: [])
+        // The rules its egg was rolled under, as its items: a form rolled before `missingFormsFirst` kept its odds.
+        let draw = HatchDraw(collection: state, items: a.hatch?.rollItems ?? [],
+                             rules: HatchRules(rolledAt: a.raising?.hatchedAt))
+            .lineFormDraw(baseID: a.baseID, types: [])
         guard draw.forms.count > 1 else { return nil }
         let held = graduatedSpeciesForms, shinyHeld = graduatedShinySpeciesForms
         let repeats = state.collectedFinalForms(forBaseID: a.baseID)

@@ -309,13 +309,14 @@ final class OakAdviceTests: XCTestCase {
         XCTAssertNil(s.oakRelease)
     }
 
-    /// Kanto's Vulpix graduated, not Alola's: a plain egg rolls the Alolan form twice as often as the one collected
-    /// (`PokemonForm.roll`), a Fire Stone only Kanto's, which brings nothing.
+    /// Kanto's Vulpix graduated, not Alola's: a plain egg rolls the Alolan form, missing, for sure
+    /// (`HatchRules.Change.missingFormsFirst`; twice as often as the one collected before it), a Fire Stone only
+    /// Kanto's, which brings nothing.
     func testAnEggsOddsWeighTheFormsItRolls() async throws {
         let s = try store(active: mon([16]), dex: [graduated([16, 17, 18]), graduated([37, 38])],
                           index: [BaseSpecies(id: 37, captureRate: 190)])
         await s.loadHatchIndex()
-        XCTAssertEqual(try XCTUnwrap(s.newOdds(item: .pokemonEgg)), odds(2, of: 3), accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(s.newOdds(item: .pokemonEgg)), odds(1, of: 1), accuracy: 1e-9)
         XCTAssertEqual(s.newOdds(item: .fireStone), odds(0, of: 1), "a first shiny only")
     }
 
