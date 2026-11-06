@@ -29,17 +29,11 @@ struct BattleReplayView: View {
             }
             if let outcome {
                 let frame = BattleFrame.at(elapsed, setup: outcome.setup, events: outcome.events)
-                HStack(alignment: .top, spacing: 12) {
-                    side(frame, 0)
-                    side(frame, 1)
-                }
+                // #134 (the owner, 2026-11-06): the battle as an arena, face to face.
+                BattleArena(store: store, frame: frame, setup: outcome.setup, elapsed: elapsed)
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(Array(frame.recentHits.reversed().enumerated()), id: \.offset) { _, hit in
-                        HStack(spacing: 4) {
-                            Text(Self.clock(hit.time)).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
-                            PokemonNameLabel(.move, hit.move, language: store.language).font(.caption)
-                            Text("-\(hit.damage)").font(.caption.weight(.bold)).monospacedDigit()
-                        }
+                        HitLine(store: store, hit: hit, setup: outcome.setup, frame: frame)
                     }
                 }
                 Spacer(minLength: 0)
@@ -75,72 +69,181 @@ struct BattleReplayView: View {
         }
     }
 
-    private func side(_ frame: BattleFrame, _ side: Int) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(frame.units.filter { $0.side == side && ($0.onField || $0.fainted) }, id: \.id) { unit in
-                UnitRow(store: store, unit: unit, elapsed: elapsed)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     static func clock(_ ms: Int) -> String { String(format: "%d:%02d", ms / 60_000, ms / 1000 % 60) }
 }
 
+/// #134, the battle as an arena (maquette of 2026-11-06): the foes up and to the right, the team down and to the left,
+/// face to face on their grounds, each with its plate (name, HP written and drawn, the move being cast, its status),
+/// the benches as balls; the last move that landed in a banner with its type and how effective it was, its damage
+/// rising off the Pokémon hit, which shakes.
 @MainActor
-private struct UnitRow: View {
+struct BattleArena: View {
     let store: CompanionStore
-    let unit: BattleFrame.Unit
+    let frame: BattleFrame
+    let setup: BattleSetup
     let elapsed: Int
 
+    /// How long a hit stays in the banner and its damage on screen.
+    static let hitShown = 1_100
+
     var body: some View {
-        HStack(spacing: 6) {
-            SpriteView(speciesID: unit.speciesID, size: 30, shiny: unit.isShiny, form: unit.form, sameScale: true)
-                .opacity(unit.fainted ? 0.35 : 1)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 3) {
-                    PokemonNameLabel(.pokemonSpecies, String(unit.speciesID), language: store.language)
-                        .font(.caption2.weight(.semibold))
-                    GenderGlyph(gender: unit.gender, l: store.l)
+        let foes = frame.units.filter { $0.side == 1 && $0.onField }
+        let ours = frame.units.filter { $0.side == 0 && $0.onField }
+        let last = frame.recentHits.last.flatMap { elapsed - $0.time < Self.hitShown ? $0 : nil }
+        let tint = foes.first.flatMap { PokemonTypeData.types(forSpeciesID: $0.speciesID, form: $0.form).first }?.color ?? .gray
+        let ourTint = ours.first.flatMap { PokemonTypeData.types(forSpeciesID: $0.speciesID, form: $0.form).first }?.color ?? .gray
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(LinearGradient(colors: [tint.opacity(0.28), ourTint.opacity(0.22)], startPoint: .top, endPoint: .bottom))
+            VStack(spacing: 6) {
+                HStack(alignment: .top, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(foes, id: \.id) { plate($0) }
+                        bench(side: 1)
+                    }
+                    Spacer(minLength: 0)
+                    fighters(foes, size: foes.count > 1 ? 52 : 70, hit: last, mirrored: false)
                 }
-                .lineLimit(1)
-                bar(Double(unit.hp) / Double(max(1, unit.maxHP)), color: .blue)
-                bar(unit.castProgress(at: elapsed), color: .purple)
-                // The move and the status on one line when they fit, else the status under it: "Abgrundsklinge
-                // Verbrennung" cut the status to "Verbre…".
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 4) { castLine(unit); statusLine(unit) }
-                    VStack(alignment: .leading, spacing: 1) { castLine(unit); statusLine(unit) }
+                if let last { banner(last) } else { Color.clear.frame(height: 22) }
+                HStack(alignment: .bottom, spacing: 6) {
+                    fighters(ours, size: ours.count > 1 ? 56 : 78, hit: last, mirrored: true)
+                    Spacer(minLength: 0)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        bench(side: 0)
+                        ForEach(ours, id: \.id) { plate($0) }
+                    }
                 }
-                .lineLimit(1)
+            }
+            .padding(10)
+        }
+        .frame(height: 236)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// The Pokémon on the field on their ground, the one just hit shaking, its damage rising off it.
+    private func fighters(_ units: [BattleFrame.Unit], size: CGFloat, hit: BattleFrame.Hit?, mirrored: Bool) -> some View {
+        HStack(alignment: .bottom, spacing: -size * 0.25) {
+            ForEach(units, id: \.id) { unit in
+                let struck = hit?.target == unit.id
+                let age = Double(elapsed - (hit?.time ?? 0))
+                ZStack(alignment: .top) {
+                    Ellipse().fill(Color.black.opacity(0.18)).frame(width: size * 0.95, height: size * 0.22)
+                        .offset(y: size * 0.82)
+                    SpriteView(speciesID: unit.speciesID, size: size, shiny: unit.isShiny, form: unit.form, sameScale: true,
+                               bottomAligned: true)
+                        .scaleEffect(x: mirrored ? -1 : 1, y: 1)
+                        .offset(x: struck && age < 360 ? sin(age / 30) * 4 : 0)
+                        .opacity(struck && age < 360 && Int(age / 60) % 2 == 1 ? 0.55 : 1)
+                    if struck, let hit {
+                        Text("-\(hit.damage)")
+                            .font(.system(size: 15, weight: .heavy, design: .rounded)).monospacedDigit()
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Capsule().fill(Color.black.opacity(0.55)))
+                            .offset(y: -CGFloat(min(age, Double(Self.hitShown))) / 40)
+                            .opacity(1 - min(1, age / Double(Self.hitShown)))
+                    }
+                }
+                .frame(width: size, height: size * 1.05)
             }
         }
     }
 
-    @ViewBuilder
-    private func castLine(_ unit: BattleFrame.Unit) -> some View {
-        if unit.fainted {
-            Text(store.l.battleKO).font(.caption2.weight(.bold))
-        } else if let move = unit.castMove {
-            PokemonNameLabel(.move, move, language: store.language).font(.caption2)
+    /// A Pokémon's plate: name and gender, its HP drawn and written, its cast, its status.
+    private func plate(_ unit: BattleFrame.Unit) -> some View {
+        let l = store.l
+        let share = Double(unit.hp) / Double(max(1, unit.maxHP))
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 3) {
+                PokemonNameLabel(.pokemonSpecies, String(unit.speciesID), language: store.language)
+                    .font(.caption2.weight(.bold)).lineLimit(1)
+                GenderGlyph(gender: unit.gender, l: l)
+                if let status = unit.status {
+                    Text(l.ailmentName(status).uppercased()).font(.system(size: 7, weight: .heavy))
+                        .padding(.horizontal, 3).background(Capsule().fill(Color.secondary.opacity(0.3)))
+                }
+            }
+            HStack(spacing: 4) {
+                Text(l.battleHP).font(.system(size: 8, weight: .heavy)).foregroundStyle(.secondary)
+                ExpeditionBar(value: share, color: .blue, height: 5)
+            }
+            HStack(spacing: 4) {
+                Text("\(unit.hp)/\(unit.maxHP)").font(.system(size: 9, weight: .semibold)).monospacedDigit()
+                Spacer(minLength: 2)
+                if let move = unit.castMove {
+                    PokemonNameLabel(.move, move, language: store.language).font(.system(size: 9)).foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            ExpeditionBar(value: unit.castProgress(at: elapsed), color: .purple, height: 2)
         }
+        .padding(6)
+        .frame(width: 150, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.background.opacity(0.82)))
     }
 
-    @ViewBuilder
-    private func statusLine(_ unit: BattleFrame.Unit) -> some View {
-        if let status = unit.status {
-            Text(store.l.ailmentName(status)).font(.caption2).foregroundStyle(.secondary)
-        }
-    }
-
-    private func bar(_ value: Double, color: Color) -> some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.12))
-                Capsule().fill(color.opacity(0.85)).frame(width: geometry.size.width * max(0, min(1, value)))
+    /// The side's Pokémon as balls: one in play or waiting, one down crossed out.
+    private func bench(side: Int) -> some View {
+        HStack(spacing: 2) {
+            ForEach(frame.units.filter { $0.side == side }, id: \.id) { unit in
+                Image(systemName: unit.fainted ? "xmark.circle" : "circle.inset.filled")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(unit.fainted ? Color.secondary : Color.primary.opacity(unit.onField ? 1 : 0.6))
             }
         }
-        .frame(height: 4)
+    }
+
+    /// The last move that landed: its type, its name, and how effective it was, said in words.
+    private func banner(_ hit: BattleFrame.Hit) -> some View {
+        let l = store.l
+        let attacker = setup.sides.flatMap(\.battlers).first { $0.id == hit.attacker }
+        let type = MoveTable.move(hit.move).map { move in attacker.map { move.type(for: $0) } ?? move.type }
+        return HStack(spacing: 5) {
+            if let type { TypeMiniBadge(type: type, l: l) }
+            PokemonNameLabel(.move, hit.move, language: store.language).font(.caption.weight(.bold))
+            if let note = HitLine.note(hit, l) {
+                Text(note).font(.caption2.weight(.semibold))
+                    .foregroundStyle(hit.effectiveness >= 2 || hit.critical ? Color.blue : Color.readableOrange)
+            }
+        }
+        .padding(.horizontal, 8).padding(.vertical, 3)
+        .background(Capsule().fill(.background.opacity(0.85)))
+        .frame(height: 22)
+    }
+}
+
+/// One move landed, in the list under the arena: when, its type, its name, on whom, how much, how effective.
+@MainActor
+struct HitLine: View {
+    let store: CompanionStore
+    let hit: BattleFrame.Hit
+    let setup: BattleSetup
+    let frame: BattleFrame
+
+    var body: some View {
+        let l = store.l
+        let attacker = setup.sides.flatMap(\.battlers).first { $0.id == hit.attacker }
+        let type = MoveTable.move(hit.move).map { move in attacker.map { move.type(for: $0) } ?? move.type }
+        let ours = frame.units.first { $0.id == hit.attacker }?.side == 0
+        HStack(spacing: 4) {
+            Text(BattleReplayView.clock(hit.time)).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+            Image(systemName: ours ? "arrow.up.right" : "arrow.down.left").font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.secondary)
+            if let type { TypeMiniBadge(type: type, l: l) }
+            PokemonNameLabel(.move, hit.move, language: store.language).font(.caption).lineLimit(1)
+            Text("-\(hit.damage)").font(.caption.weight(.bold)).monospacedDigit()
+            if let note = Self.note(hit, l) {
+                Text(note).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+    }
+
+    /// "Critical hit!", "Super effective!", "Not very effective": nothing for a plain hit.
+    static func note(_ hit: BattleFrame.Hit, _ l: L) -> String? {
+        if hit.critical { return l.battleCritical }
+        if hit.effectiveness >= 2 { return l.battleSuperEffective }
+        if hit.effectiveness > 0, hit.effectiveness < 1 { return l.battleNotVeryEffective }
+        return nil
     }
 }
 

@@ -72,6 +72,9 @@ enum ExpeditionLogKind: Codable, Sendable, Equatable {
     case shiny(speciesID: Int, caught: Bool)
     /// The dice of a branch (Q14 C) and the path it took.
     case branch(roll: Int, risky: Bool)
+    /// #141 (DyRize's idea, the owner's rule of 2026-11-06): a secret passage, the next floor skipped unpaid, or a
+    /// hidden room and its chest.
+    case secretPassage(skipped: Bool, loot: ExpeditionLoot?)
     case revive(entryID: String, max: Bool)
     case emergencyHeal(paid: Int)
     case bossReached(speciesID: Int, isShiny: Bool)
@@ -278,7 +281,7 @@ enum ExpeditionEngine {
             for i in e.team.indices { e.team[i].spec.hp = e.team[i].spec.stats.hp }
             append(&e, .center, context: context)
         } else {
-            playEvent(&e, kind: drawEvent(e, tier: context.tier, random: &random), dungeon: dungeon,
+            playEvent(&e, kind: drawEvent(e, tier: context.tier, shinyDenominator: context.shinyDenominator, random: &random), dungeon: dungeon,
                       random: &random, context: context)
         }
         guard !e.isOver else { return }
@@ -287,26 +290,48 @@ enum ExpeditionEngine {
             return
         }
         // Q15: a branch every three floors, rolled (Q14 C).
-        if e.floor % 3 == 0 {
-            let roll = 1 + random.below(6)
-            e.risky = roll >= 4
-            append(&e, .branch(roll: roll, risky: e.risky), context: context)
-        }
+        if e.floor % 3 == 0 { rollBranch(&e, random: &random, context: context) }
+        secretPassage(&e, dungeon: dungeon, context: context)
         offerHealIfCritical(&e)
     }
 
-    /// The floor's event: battles most often, the risky path more of them and of traps.
-    private static func drawEvent(_ e: Expedition, tier: DungeonTier, random: inout BattleRandom) -> ExpeditionEventKind {
-        // R13: a shiny meeting, 1% of the events from T3.
-        if tier >= .t3, random.below(100) == 0 { return .shiny }
-        let battle = e.risky ? 1.4 : 1.0
-        var weights: [(ExpeditionEventKind, Double)] = [
-            (.wild, 40 * battle), (.chest, 12), (.trap, e.risky ? 12 : 8), (.spring, 7), (.lost, 6),
-        ]
-        if tier >= .t2 {
-            weights.append((.horde, 12 * battle))
-            weights.append((.trainer, 14 * battle))
+    private static func rollBranch(_ e: inout Expedition, random: inout BattleRandom, context: ExpeditionContext) {
+        let roll = 1 + random.below(6)
+        e.risky = roll >= 4
+        append(&e, .branch(roll: roll, risky: e.risky), context: context)
+    }
+
+    /// #141: from T2, a floor's secret passage one time in 25 (`secretPassagePercent`), its own die so that every
+    /// other draw stays what it was: half the time the team skips the next floor, its tokens unpaid, never the boss's;
+    /// else a hidden room holds a chest.
+    static let secretPassagePercent = 4
+
+    private static func secretPassage(_ e: inout Expedition, dungeon: Dungeon, context: ExpeditionContext) {
+        guard context.tier >= .t2, !e.dungeon.isChallenge else { return }
+        var random = BattleRandom(seed: e.seed &+ UInt64(e.floor) &* 0x5EC2_E7F1_0A55_A9E5 &+ 0x41)
+        guard random.below(100) < secretPassagePercent else { return }
+        // Never the boss's floor, nor the Pokémon Center's (Q16): a passage never costs the team its heal.
+        let canSkip = e.floor + 1 < e.floors && !(context.tier >= .t3 && e.floor + 1 == e.floors / 2)
+        if canSkip, random.below(2) == 0 {
+            append(&e, .secretPassage(skipped: true, loot: nil), rare: true, context: context)
+            e.floor += 1
+            // The skipped floor's fork still comes: the floors after it need their path.
+            if e.floor % 3 == 0 { rollBranch(&e, random: &random, context: context) }
+        } else {
+            let loot = chest(&e, tier: context.tier, better: false, random: &random)
+            append(&e, .secretPassage(skipped: false, loot: loot), rare: true, context: context)
         }
+    }
+
+    /// The floor's event: battles most often, the risky path more of them and of traps.
+    private static func drawEvent(_ e: Expedition, tier: DungeonTier, shinyDenominator: Int,
+                                  random: inout BattleRandom) -> ExpeditionEventKind {
+        // R13: a shiny meeting, 1% of the events from T3, more with the Shiny Charm and the Reveal Glass as every
+        // shiny roll (the owner, 2026-11-06): 1 in 64 makes 1%, 1 in 48 1.33%, 1 in 24 2.67%.
+        if tier >= .t3, random.below(10_000) < shinyEncounterPerTenThousand(shinyDenominator: shinyDenominator) {
+            return .shiny
+        }
+        let weights = eventWeights(tier: tier, risky: e.risky)
         let total = weights.reduce(0) { $0 + $1.1 }
         var roll = Double(random.below(10_000)) / 10_000 * total
         for (kind, weight) in weights {
@@ -314,6 +339,34 @@ enum ExpeditionEngine {
             if roll < 0 { return kind }
         }
         return .wild
+    }
+
+    /// A floor's shiny meeting from T3, in ten thousandths: 100 at the plain 1 in 64.
+    static func shinyEncounterPerTenThousand(shinyDenominator: Int) -> Int {
+        Int((100 * 64 / Double(max(1, shinyDenominator))).rounded())
+    }
+
+    /// The weights a floor's event is drawn with (Q14 C): the risky path, from a die of 4 to 6 every three floors,
+    /// weighs battles 1.4 times and traps 12 rather than 8. Its order is the draw's.
+    static func eventWeights(tier: DungeonTier, risky: Bool) -> [(ExpeditionEventKind, Double)] {
+        let battle = risky ? 1.4 : 1.0
+        var weights: [(ExpeditionEventKind, Double)] = [
+            (.wild, 40 * battle), (.chest, 12), (.trap, risky ? 12 : 8), (.spring, 7), (.lost, 6),
+        ]
+        if tier >= .t2 {
+            weights.append((.horde, 12 * battle))
+            weights.append((.trainer, 14 * battle))
+        }
+        return weights
+    }
+
+    /// A floor's events in percent, the shiny meeting of T3 and beyond first: what each dungeon's page shows of the
+    /// two paths (the owner, 2026-11-06: nothing said what the dice change).
+    static func eventOdds(tier: DungeonTier, risky: Bool, shinyDenominator: Int = 64) -> [(kind: ExpeditionEventKind, percent: Double)] {
+        let shiny = tier >= .t3 ? Double(shinyEncounterPerTenThousand(shinyDenominator: shinyDenominator)) / 100 : 0
+        let weights = eventWeights(tier: tier, risky: risky)
+        let total = weights.reduce(0) { $0 + $1.1 }
+        return (shiny > 0 ? [(.shiny, shiny)] : []) + weights.map { ($0.0, $0.1 / total * (100 - shiny)) }
     }
 
     private static func playEvent(_ e: inout Expedition, kind: ExpeditionEventKind, dungeon: Dungeon,
@@ -328,7 +381,7 @@ enum ExpeditionEngine {
             default: count = tier.wildCounts[random.below(tier.wildCounts.count)]
             }
             let foes = drawFoes(count: count, kind: kind, dungeon: dungeon, tier: tier, random: &random)
-            fight(&e, kind: kind, foes: foes, foesActive: kind == .trainer ? 1 : foes.count, random: &random,
+            fight(&e, kind: kind, foes: foes, random: &random,
                   context: context)
             if kind == .trainer, !e.team.allSatisfy(\.isFainted), !e.isOver {
                 let loot = chest(&e, tier: tier, better: true, random: &random)
@@ -409,14 +462,23 @@ enum ExpeditionEngine {
         return foes
     }
 
-    private static func fight(_ e: inout Expedition, kind: ExpeditionEventKind, foes: [BattlerSpec], foesActive: Int,
+    /// A boss one against one (the owner, 2026-11-06: "1v1 partout, boss affaiblis", its stats with its HP): its HP
+    /// and stats were set for three of mine at once (R2 A); one at a time, both are multiplied by its kind's share,
+    /// set so that the dungeons' and the challenges' odds stay what they were (`DungeonSimulatorTests`).
+    static let oneOnOneBoss = 0.6
+    /// T1 and T2: their bosses one against one fell too easily at the T3's share.
+    static let oneOnOneBossEarly = 0.72
+    static let oneOnOneLegendary = 0.7
+    static let oneOnOneChallenge = 0.7
+
+    private static func fight(_ e: inout Expedition, kind: ExpeditionEventKind, foes: [BattlerSpec],
                               random: inout BattleRandom, context: ExpeditionContext) {
         guard !foes.isEmpty else { return }
         let alive = e.team.filter { !$0.isFainted }
-        // R2: as many of mine as foes in sight, all that are left when fewer stand.
-        let active = max(1, min(foesActive, alive.count))
-        let setup = BattleSetup(sides: [BattleSideSpec(battlers: alive.map(\.spec), active: active, berries: e.berries),
-                                        BattleSideSpec(battlers: foes, active: foesActive)],
+        // One against one (the owner, 2026-11-06: "tous 1 par 1 chacun leur tour"): the others wait on the bench, the
+        // best against the foe in front stepping in. It was R2, as many of mine as foes in sight.
+        let setup = BattleSetup(sides: [BattleSideSpec(battlers: alive.map(\.spec), active: 1, berries: e.berries),
+                                        BattleSideSpec(battlers: foes, active: 1)],
                                 seed: random.next())
         let outcome = BattleEngine.run(setup)
         for i in e.team.indices {
@@ -455,8 +517,8 @@ enum ExpeditionEngine {
             finish(&e, won: false, context: context)
             return
         }
-        // R2 A: three of mine against the boss.
-        let setup = BattleSetup(sides: [BattleSideSpec(battlers: alive.map(\.spec), active: min(3, alive.count),
+        // One against the boss too (2026-11-06); it was R2 A, three of mine against it.
+        let setup = BattleSetup(sides: [BattleSideSpec(battlers: alive.map(\.spec), active: 1,
                                                        berries: e.berries),
                                         BattleSideSpec(battlers: [boss], active: 1)], seed: random.next())
         let outcome = BattleEngine.run(setup)
@@ -506,8 +568,12 @@ enum ExpeditionEngine {
             default: (hp, stats) = (4, 1.25)
             }
         }
+        // Its HP and stats were set for three of mine at once (R2 A); one at a time, both are lowered alike.
+        let oneOnOne = challenge != nil ? oneOnOneChallenge : legendary ? oneOnOneLegendary
+            : tier <= .t2 ? oneOnOneBossEarly : oneOnOneBoss
         return BattlerSpec.make(id: "boss-\(boss.speciesID)", speciesID: boss.speciesID, form: boss.form, level: 100,
-                                ivs: ivs, isShiny: boss.isShiny, isBoss: true, hpFactor: hp, statFactor: stats)
+                                ivs: ivs, isShiny: boss.isShiny, isBoss: true, hpFactor: hp * oneOnOne,
+                                statFactor: stats * oneOnOne)
     }
 
     /// The daily and weekly bosses' HP and stats, hard on purpose (the owner, 2026-11-03): a full Pokédex wins about

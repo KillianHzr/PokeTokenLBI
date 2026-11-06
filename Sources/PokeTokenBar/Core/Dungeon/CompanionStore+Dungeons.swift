@@ -48,6 +48,44 @@ extension CompanionStore {
     /// Open once its unlocks are met, and for good once won: the tier rule of 2026-11-05 locks none a player has beaten.
     func isDungeonOpen(_ id: DungeonID) -> Bool { unmetUnlocks(id).isEmpty || state.dungeons.wins(id) > 0 }
 
+    // MARK: The artifacts in the dungeons (the owner, 2026-11-06)
+
+    /// What speeds a dungeon's floors up, as the Pokémon raised grows (`growthSpeedFactors`, `tokenGrowthFactors`),
+    /// added up the same way: the artifacts for everyone (Silver Wing, Old Sea Map, DNA Splicers, Zygarde Cube), those
+    /// of a type the dungeon has, and the badges its types are weak to. An artifact that fits no dungeon (a stage, a
+    /// rarity, a kind of Pokémon) does nothing here.
+    func dungeonGrowthFactors(_ id: DungeonID) -> [GrowthFactor] {
+        let types = DungeonCatalog.dungeon(id).themeTypes
+        var factors: [GrowthFactor] = []
+        func add(_ kind: ItemKind, _ multiplier: Double, if applies: Bool) {
+            if applies, itemCount(kind) > 0 { factors.append(GrowthFactor(source: .item(kind), multiplier: multiplier)) }
+        }
+        add(.silverWing, CollectorBonus.silverWingGrowth, if: true)
+        add(.griseousOrb, CollectorBonus.griseousOrbGhostDragon, if: types.contains { $0 == .ghost || $0 == .dragon })
+        add(.sparklingStone, CollectorBonus.sparklingStoneFairy, if: types.contains(.fairy))
+        add(.tealMask, CollectorBonus.tealMaskTypes, if: types.contains(where: CollectorBonus.tealMaskTypeList.contains))
+        add(.lunarWing, CollectorBonus.lunarWingPsychicDark, if: types.contains { $0 == .psychic || $0 == .dark })
+        add(.zRing, CollectorBonus.zRingSteelElectric, if: types.contains { $0 == .steel || $0 == .electric })
+        add(.scrollOfDarkness, CollectorBonus.scrollOfDarknessFighting, if: types.contains(.fighting))
+        // A badge counts once for a dungeon one of whose types is weak to its type, as a species weak to it.
+        let regions = PokemonType.allCases.reduce(0) { count, badge in
+            let weak = types.contains { badge == .normal ? $0 == .normal : PokemonTypeData.effectiveness(attacking: badge, defending: $0) > 1 }
+            return weak ? count + claimedBadgeTierCount(badge) : count
+        }
+        if regions > 0 {
+            factors.append(GrowthFactor(source: .badges, multiplier: 1 + CollectorBonus.badgeRegionBonus * Double(regions)))
+        }
+        return factors + tokenGrowthFactors
+    }
+
+    /// How much faster a dungeon's floors go (1.5 = 50% faster): one plus its factors' bonuses, added up.
+    func dungeonSpeed(_ id: DungeonID) -> Double { 1 + Self.bonusSum(dungeonGrowthFactors(id)) }
+
+    /// The tokens a dungeon takes, its artifacts counted: what its card shows and an expedition sets off with.
+    func dungeonCost(_ id: DungeonID) -> Int {
+        Int((Double(DungeonCatalog.dungeon(id).cost(difficulty: growthDifficulty)) / dungeonSpeed(id)).rounded(.up))
+    }
+
     /// The Legendary Keys an entry spends (R10, R11): the Ruins of Alph take their Treasure Map instead.
     func keysToEnter(_ id: DungeonID) -> Int {
         id == .ruinsOfAlph || id.isChallenge ? 0 : DungeonCatalog.dungeon(id).tier.keys
@@ -186,8 +224,23 @@ extension CompanionStore {
     /// Q8: the best team the rules allow against the dungeon's theme.
     func composeTeam(for id: DungeonID) -> [String] {
         let (size, rules) = teamRules(id)
-        let pool = dungeonCandidates.compactMap { entry in dungeonSpec(entry, for: id).map { (DungeonCandidate(entry), $0) } }
-        return DungeonTeamBuilder.compose(pool, dungeon: DungeonCatalog.dungeon(id), size: size, rules: rules)
+        return DungeonTeamBuilder.compose(composePool(id), dungeon: DungeonCatalog.dungeon(id), size: size, rules: rules)
+    }
+
+    /// What "Compose for me" runs off the main thread: the candidate teams, as they would set off, and a challenge's boss.
+    func composeChoice(for id: DungeonID) -> DungeonTeamBuilder.ComposeChoice {
+        let (size, rules) = teamRules(id)
+        let pool = composePool(id)
+        let dungeon = DungeonCatalog.dungeon(id)
+        let teams = DungeonTeamBuilder.candidateTeams(pool, dungeon: dungeon, size: size, rules: rules).map { ids in
+            ids.compactMap { entryID in pool.first { $0.candidate.entryID == entryID }.map { ExpeditionMember(entryID: entryID, spec: $0.spec) } }
+        }
+        let boss = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
+        return .init(teams: teams, dungeon: dungeon, boss: boss)
+    }
+
+    private func composePool(_ id: DungeonID) -> [(candidate: DungeonCandidate, spec: BattlerSpec)] {
+        dungeonCandidates.compactMap { entry in dungeonSpec(entry, for: id).map { (DungeonCandidate(entry), $0) } }
     }
 
     /// R7: what the odds that this team reaches the boss are run on, off the main thread: the team as it would set
@@ -244,7 +297,7 @@ extension CompanionStore {
         settleChallengeBosses()
         let challenge = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
         let started = ExpeditionEngine.start(dungeon: dungeon, team: members, rules: rules, teamSize: size, seed: seed,
-                                             cost: dungeon.cost(difficulty: growthDifficulty), berries: berries,
+                                             cost: dungeonCost(id), berries: berries,
                                              revives: revives, context: context, boss: challenge)
         var expedition = started
         if keepsMasterBall { expedition.keepsMasterBall = true }
@@ -402,6 +455,9 @@ extension CompanionStore {
     /// A dungeon's expeditions that ended, the latest first.
     func runs(of id: DungeonID) -> [DungeonRunRecord] { state.dungeons.history.filter { $0.dungeon == id }.reversed() }
 
+    /// Every expedition that ended, the latest first (#133).
+    var allRuns: [DungeonRunRecord] { state.dungeons.history.reversed() }
+
     /// Whether a boss's species is already the player's: in the Pokédex (graduated, raised or sent off), or its egg
     /// waiting in the Bag.
     func hasCaughtBoss(_ speciesID: Int) -> Bool {
@@ -555,7 +611,8 @@ extension CompanionStore {
         switch tier {
         case .t1: [(.pokemonEgg, 10)]
         case .t2: [(.uncommonEgg, 10)]
-        case .t3: [(.rareEgg, 10), (.legendaryKey, firstT3Victory ? 100 : 10), (.treasureMap, 5), (.explorerChest, 0.5)]
+        // A Legendary Key one T3 victory in two (the owner, 2026-11-06: one in ten made a key 3B and Arceus 450B).
+        case .t3: [(.rareEgg, 10), (.legendaryKey, firstT3Victory ? 100 : 50), (.treasureMap, 5), (.explorerChest, 0.5)]
         case .t4: [(.rareEgg, 25), (.legendaryEgg, 1), (.masterBall, 2), (.explorerChest, 1)]
         case .t5: [(.legendaryEgg, 5), (.masterBall, 10)]
         }
@@ -620,9 +677,9 @@ extension CompanionStore {
                                       candies: loot.candies, eggs: loot.eggs.count
                                           + loot.items.filter { ItemKind(rawValue: $0.key)?.isEggItem == true }.values.reduce(0, +),
                                       items: loot.items.filter { ItemKind(rawValue: $0.key)?.isEggItem != true }.values.reduce(0, +),
-                                      bossSpeciesID: e.boss.speciesID, caught: caught)
+                                      bossSpeciesID: e.boss.speciesID, caught: caught, log: e.log, team: e.team)
         changeDungeons { progress in
-            progress.history = Array((progress.history + [record]).suffix(DungeonRunRecord.kept))
+            progress.history = DungeonRunRecord.trimmed(progress.history + [record])
             // A legendary boss's egg, or the Legendary Egg in its place, is won once.
             if caught, SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary {
                 progress.legendaryEggsWon.insert(e.boss.speciesID)

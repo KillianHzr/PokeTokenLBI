@@ -352,6 +352,9 @@ extension CompanionStore {
     /// An item's effect in a few words, as the Bag shows it under the item ("Final stage +25% · active").
     func effectHint(for kind: ItemKind) -> String {
         switch kind {
+        case .deoxysFormes, .wormadamCloaks, .darmanitanModes, .kyuremFusions, .genesectDrives, .gourgeistSizes, .zygardeFormes,
+             .lycanrocForms, .cramorantForms, .calyrexSteeds, .squawkabillyPlumages, .tatsugiriForms, .ogerponMasks, .terapagosForms:
+            return l.rewardsList(kind.achievementRewards)
         case .rareCandy: return "+\(TokenFormatter.compact(rareCandyXP)) XP"
         case .greatBall: return "×1.5"
         case .ultraBall: return "×2"
