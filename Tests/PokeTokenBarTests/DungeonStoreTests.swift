@@ -800,6 +800,21 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(ExpeditionEngine.eventOdds(tier: .t3, risky: false, shinyDenominator: 24).first?.percent ?? 0, 2.67, accuracy: 1e-9)
     }
 
+    /// The team screen asked the candidates for every row and member of each render, each time filtering the whole
+    /// Pokédex: 3.2 s a render on 742 Pokémon, the app frozen on a hover (a player, 2026-11-06). Made once per state
+    /// now, a team's species once per render.
+    func testTheCandidatesAreMadeOncePerState() throws {
+        let s = try store(dex: strong)
+        let first = s.dungeonCandidates
+        for _ in 0..<500 { _ = s.dungeonCandidates }
+        XCTAssertEqual(s.dungeonCandidatesBuilds, 1, "one build for every read")
+        XCTAssertEqual(s.teamSpecies(["e6", "e9", "gone"]), [6, 9])
+        XCTAssertEqual(s.dungeonCandidatesBuilds, 1)
+        s.setSavedTeam(["e6"])
+        XCTAssertEqual(s.dungeonCandidates, first, "the same Pokémon")
+        XCTAssertEqual(s.dungeonCandidatesBuilds, 2, "made again once the state changed")
+    }
+
     func testVictoryExtras() {
         var random = BattleRandom(seed: 1)
         XCTAssertEqual(CompanionStore.victoryExtras(tier: .t3, firstT3Victory: true, random: &random).items[ItemKind.legendaryKey.rawValue], 1,

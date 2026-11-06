@@ -186,7 +186,11 @@ extension CompanionStore {
 
     /// The graduated Pokémon a team is formed from (Q6: not sent off), those the battle table knows.
     var dungeonCandidates: [DexEntry] {
-        state.dex.filter { !$0.isReleased && SpeciesBattleTable.data(speciesID: $0.finalID, form: $0.form) != nil }
+        // Observed even from the cache: a view reading it redraws when the Pokédex or a battle form changes.
+        _ = state.dex.count
+        _ = state.dungeons.battleFormChoice.count
+        if let cached = dungeonCandidatesCache { return cached }
+        let candidates = state.dex.filter { !$0.isReleased && SpeciesBattleTable.data(speciesID: $0.finalID, form: $0.form) != nil }
             .map { entry in
                 // In the battle form chosen for it: the team, its rules and its battles see its Mega.
                 guard let form = battleFormChoice(for: entry) else { return entry }
@@ -194,6 +198,15 @@ extension CompanionStore {
                 shown.form = form.form
                 return shown
             }
+        dungeonCandidatesCache = candidates
+        dungeonCandidatesBuilds += 1
+        return candidates
+    }
+
+    /// The species a team holds, for the team screens' rows: one look-up per render, not one per row and member.
+    func teamSpecies(_ team: [String]) -> Set<Int> {
+        let ids = Set(team)
+        return Set(dungeonCandidates.lazy.filter { ids.contains($0.id) }.map(\.finalID))
     }
 
     /// A graduated Pokémon's battle self for a dungeon: its chosen loop, else the one suggested against the theme (none
