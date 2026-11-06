@@ -1,8 +1,8 @@
 name: CI
 
+# On the pull request into main only (the owner, 2026-11-06): its merge commit is what the run tested, main taking
+# up-to-date pull requests; the in-app updater reads a merge commit's checks on its pull request's head.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 

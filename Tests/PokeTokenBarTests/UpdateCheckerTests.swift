@@ -133,6 +133,28 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertFalse(UpdateChecker.isGreen([]), "no check at all is not a pass")
     }
 
+    /// The CI runs on the pull request only (2026-11-06): a merge commit with no check reads its pull request's head,
+    /// green or not; one with checks of its own keeps them, and a plain commit with none is still no pass.
+    func testAMergeCommitIsGreenWhenItsPullRequestIs() async {
+        let sha = { (c: String) in c + String(repeating: "0", count: 39) }
+        let green: [[String: Any]] = [["status": "completed", "conclusion": "success"]]
+        let red: [[String: Any]] = [["status": "completed", "conclusion": "failure"]]
+        let runs: [String: [[String: Any]]] = [sha("m"): [], sha("h"): green, sha("n"): [], sha("r"): red, sha("p"): []]
+        let merged = UpdateChecker.LatestCommit(sha: sha("m"), url: "u", mergedHead: sha("h"))
+        let picked = await UpdateChecker.firstGreen([merged], current: "dev") { runs[$0] }
+        XCTAssertEqual(picked?.sha, sha("m"), "the merge commit itself is offered")
+        let redHead = UpdateChecker.LatestCommit(sha: sha("n"), url: "u", mergedHead: sha("r"))
+        let fallback = UpdateChecker.LatestCommit(sha: sha("h"), url: "u")
+        let skipped = await UpdateChecker.firstGreen([redHead, fallback], current: "dev") { runs[$0] }
+        XCTAssertEqual(skipped?.sha, sha("h"), "a red pull request's merge is not offered")
+        let plain = UpdateChecker.LatestCommit(sha: sha("p"), url: "u")
+        let none = await UpdateChecker.firstGreen([plain], current: "dev") { runs[$0] }
+        XCTAssertNil(none, "a commit with no check and no pull request is no pass")
+        let ownRed = UpdateChecker.LatestCommit(sha: sha("r"), url: "u", mergedHead: sha("h"))
+        let own = await UpdateChecker.firstGreen([ownRed], current: "dev") { runs[$0] }
+        XCTAssertNil(own, "its own red checks win over its head's")
+    }
+
     /// [Regression] A build of `release` was offered `main`'s head when it was newer by time but on another line (#94
     /// merged into `main` alone): `main`'s build knows nothing of the save `release` wrote. Only a commit the installed
     /// one leads to is offered; the same, older or diverged reads as the installed one; an unread comparison offers
