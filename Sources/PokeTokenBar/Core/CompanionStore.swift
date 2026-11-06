@@ -7,7 +7,9 @@ import UserNotifications
 @MainActor
 @Observable
 final class CompanionStore {
-    private(set) var state = CompanionState() { didSet { dexSpeciesCache = [:]; goalsBySpecies = nil; oakOddsCache = [:]; formSuspenseCache = nil } }
+    private(set) var state = CompanionState() {
+        didSet { dexSpeciesCache = [:]; goalsBySpecies = nil; oakOddsCache = [:]; formSuspenseCache = nil; dungeonCandidatesCache = nil }
+    }
     private(set) var displayState: CompanionStateKind = .egg
     private(set) var currentLine: EvoLine? { didSet { dexSpeciesCache = [:] } }
     /// `collectedDexSpecies` by `groupForms`, until the state or the line changes: a form species' page read it some
@@ -15,6 +17,11 @@ final class CompanionStore {
     @ObservationIgnored private var dexSpeciesCache: [Bool: [DexSpecies]] = [:]
     /// `goals(counting:)` for every species, until the state changes.
     @ObservationIgnored private var goalsBySpecies: [Int: [ActiveGoal]]?
+    /// `dungeonCandidates`, made once per state: the team screen asked it for every row and every member of each
+    /// render, 3.2 s a render on a Pokédex of 742 (a player's lag on hovering a Pokémon, 2026-11-06).
+    @ObservationIgnored var dungeonCandidatesCache: [DexEntry]?
+    /// How many times `dungeonCandidates` was made: the tests check its cache with it.
+    @ObservationIgnored var dungeonCandidatesBuilds = 0
     /// `formSuspense`, made once per state: every badge and line of a render asks it, for up to 63 forms.
     @ObservationIgnored private var formSuspenseCache: FormSuspense??
     /// Each egg's odds of something new for Prof. Oak (`newOdds`), until the state or the hatch index changes: his card
@@ -790,7 +797,10 @@ final class CompanionStore {
         guard let a = state.active,
               PokemonForm.isFormHidden(baseID: a.baseID, reached: a.pathIDs.prefix(a.stageIndex + 1)),
               let reveal = PokemonForm.formSpecies(baseID: a.baseID).first else { return nil }
-        let draw = HatchDraw(collection: state, items: a.hatch?.rollItems ?? []).lineFormDraw(baseID: a.baseID, types: [])
+        // The rules its egg was rolled under, as its items: a form rolled before `missingFormsFirst` kept its odds.
+        let draw = HatchDraw(collection: state, items: a.hatch?.rollItems ?? [],
+                             rules: HatchRules(rolledAt: a.raising?.hatchedAt))
+            .lineFormDraw(baseID: a.baseID, types: [])
         guard draw.forms.count > 1 else { return nil }
         let held = graduatedSpeciesForms, shinyHeld = graduatedShinySpeciesForms
         let repeats = state.collectedFinalForms(forBaseID: a.baseID)

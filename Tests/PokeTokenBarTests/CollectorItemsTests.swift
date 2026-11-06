@@ -66,10 +66,10 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(s.collectorItems(in: .legendaryArtifacts).count, 46,
                        "the Old Amber, the five Dungeons medals and the Battle Forms Medal with the other artifacts")
         XCTAssertEqual(s.collectorItems(in: .gymBadges).count, 18)
-        XCTAssertEqual(s.collectorItems(in: .forms).count, 12, "with Tauros's and Necrozma's")
+        XCTAssertEqual(s.collectorItems(in: .forms).count, 26, "with Tauros's and Necrozma's, and #135's fourteen")
         XCTAssertEqual(Set(CompanionStore.achievementItems), Set(ItemKind.allCases.filter { $0.collectorGroup != nil }))
-        XCTAssertEqual(s.totalAchievementsCount, 268,
-                       "10 stones, 39 artifacts and the Legendary Egg's 9 regions, 161 badge regions, 12 forms, 15 digs, "
+        XCTAssertEqual(s.totalAchievementsCount, 282,
+                       "10 stones, 39 artifacts and the Legendary Egg's 9 regions, 161 badge regions, 26 forms, 15 digs, "
                        + "16 Dungeons medal steps, 6 Battle Forms Medal steps")
         XCTAssertEqual(s.purchasableItems, [.rareCandy, .greatBall, .shinyCharm, .ultraBall],
                        "the Shop sells what main sells and the dungeons' two balls, the Mint retired")

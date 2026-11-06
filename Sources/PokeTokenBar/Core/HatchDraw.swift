@@ -194,8 +194,9 @@ struct HatchDraw: Sendable {
                                             types: rules.has(.stoneEggsByFormType) ? types : [])
         guard !forms.isEmpty else { return ([], []) }
         let collected = collection.graduatedLineForms(baseID: baseID, graduated: graduated)
-        // The Oval Charm hatches a form still missing when the line has one.
-        if ownsOvalCharm {
+        // A form still missing first when the line has one, then any (the owner, 2026-11-06: "tu gagnes d'abord les
+        // formes qui te manquent", for every line); only the Oval Charm did it before `missingFormsFirst`.
+        if ownsOvalCharm || rules.has(.missingFormsFirst) {
             let missing = forms.filter { !collected.contains($0) }
             if !missing.isEmpty { forms = missing }
         }

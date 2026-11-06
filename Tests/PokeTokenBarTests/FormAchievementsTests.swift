@@ -45,7 +45,13 @@ final class FormAchievementsTests: XCTestCase {
                                                 (.smoothRock, 351, 4), (.sawsbuckSeasons, 586, 4), (.fairyFeather, 671, 5),
                                                 (.furfrouTrims, 676, 10), (.vivillonPatterns, 666, 20),
                                                 (.whippedDream, 869, 63), (.unownLetters, 201, 28),
-                                                (.taurosBreeds, 128, 4), (.necrozmaForms, 800, 4)]
+                                                (.taurosBreeds, 128, 4), (.necrozmaForms, 800, 4),
+                                                // #135 (the owner, 2026-11-06): every final species of three forms or more.
+                                                (.deoxysFormes, 386, 4), (.wormadamCloaks, 413, 3), (.darmanitanModes, 555, 4),
+                                                (.kyuremFusions, 646, 3), (.genesectDrives, 649, 5), (.gourgeistSizes, 711, 4),
+                                                (.zygardeFormes, 718, 3), (.lycanrocForms, 745, 3), (.cramorantForms, 845, 3),
+                                                (.calyrexSteeds, 898, 3), (.squawkabillyPlumages, 931, 4), (.tatsugiriForms, 978, 3),
+                                                (.ogerponMasks, 1017, 4), (.terapagosForms, 1024, 3)]
         for (kind, species, count) in expected {
             guard case .forms(let goal) = kind.unlock else { return XCTFail("\(kind)") }
             XCTAssertEqual(goal.speciesID, species, "\(kind)")
@@ -55,6 +61,22 @@ final class FormAchievementsTests: XCTestCase {
         guard case .forms(let minior) = ItemKind.cometShard.unlock else { return XCTFail() }
         XCTAssertFalse(minior.forms.contains(PokemonForm("meteor")))
         XCTAssertEqual(Set(ItemKind.allCases.filter { $0.collectorGroup == .forms }).count, expected.count)
+    }
+
+    /// #135's rule, kept by the catalog: every final species with three forms or more that eggs roll has its
+    /// achievement, except the item-made ones (Arceus's Plates, Silvally's Memories); two forms never ask for one.
+    func testEverySpeciesOfThreeFormsHasItsAchievement() {
+        let asked = Set(ItemKind.allCases.compactMap { kind -> Int? in
+            guard case .forms(let goal) = kind.unlock else { return nil }
+            return goal.speciesID
+        })
+        for species in 1...1025 where SpeciesInfo.isFinal(species) && PokemonForm.unlockSources[species] == nil {
+            let forms = PokemonForm.forms(speciesID: species)
+            let rollable = Set(HatchRules.current.rollableForms(baseID: SpeciesInfo.baseID(of: species)))
+            guard forms.count >= 3, forms.allSatisfy(rollable.contains) else { continue }
+            XCTAssertTrue(asked.contains(species), "\(species) has \(forms.count) forms and no achievement")
+        }
+        for species in asked { XCTAssertGreaterThanOrEqual(FormGoal(species).forms.count, 3, "\(species)") }
     }
 
     /// Graduated forms only: one missing, released or being raised keeps it locked.
@@ -81,6 +103,10 @@ final class FormAchievementsTests: XCTestCase {
             (.sawsbuckSeasons, [585, 586], [.uncommonEgg: 1]), (.fairyFeather, [669, 670, 671], [.uncommonEgg: 1]),
             (.furfrouTrims, [676], [.rareEgg: 1]), (.vivillonPatterns, [664, 665, 666], [.rareEgg: 2]),
             (.whippedDream, [868, 869], [.rareEgg: 2, .rareCandy: 5]), (.unownLetters, [201], [.rareEgg: 2]),
+            // #135: a legendary's a Rare Egg and five candies, four forms an Uncommon Egg, three forms three candies.
+            (.kyuremFusions, [646], [.rareEgg: 1, .rareCandy: 5]), (.genesectDrives, [649], [.rareEgg: 1, .rareCandy: 5]),
+            (.darmanitanModes, [554, 555], [.uncommonEgg: 1]), (.lycanrocForms, [744, 745], [.rareCandy: 3]),
+            (.wormadamCloaks, [412, 413], [.rareCandy: 3]),
         ]
         for (kind, chain, items) in rewards {
             let s = try store(dex: try every(kind, chain: chain))
@@ -121,9 +147,10 @@ final class FormAchievementsTests: XCTestCase {
             XCTAssertNil(s.state.active, "graduated, seed \(seed)")
             XCTAssertEqual(s.itemCount(.rareCandy), mon.form == PokemonForm("heat") ? 0 : 1,
                            "seed \(seed), \(String(describing: mon.form))")
+            XCTAssertNotEqual(mon.form, PokemonForm("heat"), "a missing form first (`missingFormsFirst`), seed \(seed)")
             paid.insert(s.itemCount(.rareCandy) > 0)
         }
-        XCTAssertEqual(paid, [true, false])
+        XCTAssertEqual(paid, [true], "every hatch brings a form never graduated, so every graduation pays")
 
         let without = try store(dex: [heat])
         await without.hatch(baseID: 479)

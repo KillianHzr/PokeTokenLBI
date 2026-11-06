@@ -1879,9 +1879,55 @@ struct L {
         }
     }
 
+    /// A forms achievement that puts items in the Bag: every form graduated earns it, its rewards listed.
+    func formsRewardDescription(_ kind: ItemKind) -> String {
+        let list = rewardsList(kind.achievementRewards)
+        return t("모든 폼이 졸업하면 받을 수 있어요. 받으면 가방에 들어와요: \(list).",
+                     "Every form graduated earns it. Claiming it puts in your Bag: \(list).",
+                     "すべてのフォルムが卒業すると受け取れます。受け取るとバッグに入ります：\(list)。",
+                     "Se gana con todas las formas graduadas. Al reclamarlo, recibes en tu bolsa: \(list).",
+                     "Toutes les formes diplômées le débloquent. En le réclamant, tu reçois dans ton sac : \(list).",
+                     "Todas as formas formadas o liberam. Ao resgatá-lo, você recebe na sua bolsa: \(list).",
+                     "Alle Formen verabschiedet schalten es frei. Holst du es ab, kommt in deinen Beutel: \(list).",
+                     "Открывается, когда все формы выпущены. Получив его, вы найдёте в сумке: \(list).")
+    }
+
+    /// #135's forms achievements, named as the others: "Kyurem's Three Forms".
+    func moreFormsName(_ kind: ItemKind) -> String {
+        let n = kind.moreFormsSpecies.map { PokemonForm.forms(speciesID: $0).count } ?? 0
+        func number(_ words: [String]) -> String { words[max(0, min(words.count - 1, n - 3))] }
+        let ko = number(["세", "네", "다섯"]), en = number(["Three", "Four", "Five"]), es = number(["tres", "cuatro", "cinco"])
+        let fr = number(["trois", "quatre", "cinq"]), pt = number(["três", "quatro", "cinco"]), de = number(["drei", "vier", "fünf"])
+        let ru = number(["Три формы", "Четыре формы", "Пять форм"])
+        let names: (ko: String, en: String, ja: String, fr: String, de: String, ru: String) = switch kind {
+        case .deoxysFormes: ("테오키스", "Deoxys", "デオキシス", "Deoxys", "Deoxys", "Деоксиса")
+        case .wormadamCloaks: ("도롱마담", "Wormadam", "ミノマダム", "Cheniselle", "Burmadame", "Вормадам")
+        case .darmanitanModes: ("불비달마", "Darmanitan", "ヒヒダルマ", "Darumacho", "Flampivian", "Дарманитана")
+        case .kyuremFusions: ("큐레무", "Kyurem", "キュレム", "Kyurem", "Kyurem", "Кюрема")
+        case .genesectDrives: ("게노세크트", "Genesect", "ゲノセクト", "Genesect", "Genesect", "Генесекта")
+        case .gourgeistSizes: ("펌킨인", "Gourgeist", "パンプジン", "Banshitrouye", "Pumpdjinn", "Гургейста")
+        case .zygardeFormes: ("지가르데", "Zygarde", "ジガルデ", "Zygarde", "Zygarde", "Зигарда")
+        case .lycanrocForms: ("루가루암", "Lycanroc", "ルガルガン", "Lougaroc", "Wolwerock", "Ликанрока")
+        case .cramorantForms: ("윽우지", "Cramorant", "ウッウ", "Nigosier", "Urgl", "Крэморанта")
+        case .calyrexSteeds: ("버드렉스", "Calyrex", "バドレックス", "Sylveroy", "Coronospa", "Калирекса")
+        case .squawkabillyPlumages: ("시비꼬", "Squawkabilly", "イキリンコ", "Tapatoès", "Krawalloro", "Скуокабилли")
+        case .tatsugiriForms: ("싸리용", "Tatsugiri", "シャリタツ", "Nigirigon", "Nigiragi", "Тацугири")
+        case .ogerponMasks: ("오거폰", "Ogerpon", "オーガポン", "Ogerpon", "Ogerpon", "Огерпона")
+        case .terapagosForms: ("테라파고스", "Terapagos", "テラパゴス", "Terapagos", "Terapagos", "Терапагоса")
+        default: ("", kind.rawValue, "", "", "", "")
+        }
+        // Spanish and Portuguese keep the English names.
+        return t("\(names.ko)의 \(ko) 가지 모습", "\(names.en)'s \(en) Forms", "\(names.ja)の\(n)つのすがた",
+                 "Las \(es) formas de \(names.en)", "Les \(fr) formes de \(names.fr)", "As \(pt) formas de \(names.en)",
+                 "Die \(de) Formen von \(names.de)", "\(ru) \(names.ru)")
+    }
+
     /// 아이템 표시명 — species 처럼 공식 현지명.
     func itemName(_ kind: ItemKind) -> String {
         switch kind {
+        case .deoxysFormes, .wormadamCloaks, .darmanitanModes, .kyuremFusions, .genesectDrives, .gourgeistSizes, .zygardeFormes,
+             .lycanrocForms, .cramorantForms, .calyrexSteeds, .squawkabillyPlumages, .tatsugiriForms, .ogerponMasks, .terapagosForms:
+            return moreFormsName(kind)
         case .rareCandy: return t("이상한 사탕", "Rare Candy", "ふしぎなアメ", "Caramelo Raro", "Super Bonbon", "Doce Raro", "Sonderbonbon", "Редкая конфета")
         case .mint:      return t("민트", "Mint", "ミント", "Menta", "Menthe", "Menta", "Minze", "Мята")
         case .shinyCharm: return t("이로치 부적", "Shiny Charm", "ひかるおまもり", "Amuleto Iris", "Charme Chroma", "Amuleto Shiny", "Schillerpin", "Шайни-талисман")
@@ -2004,6 +2050,9 @@ struct L {
     /// `rareCandyXP`: what a candy grants now, with the Soul Dew's +50% when owned (`CompanionStore.rareCandyXP`).
     func itemDescription(_ kind: ItemKind, rareCandyXP: Int = RareCandy.xp) -> String {
         switch kind {
+        case .deoxysFormes, .wormadamCloaks, .darmanitanModes, .kyuremFusions, .genesectDrives, .gourgeistSizes, .zygardeFormes,
+             .lycanrocForms, .cramorantForms, .calyrexSteeds, .squawkabillyPlumages, .tatsugiriForms, .ogerponMasks, .terapagosForms:
+            return formsRewardDescription(kind)
         case .rareCandy:
             let xp = TokenFormatter.compact(rareCandyXP)   // 스토어 값에서 파생(Soul Dew 반영, 하드코딩 드리프트 방지)
             return t("현재 포켓몬의 경험치를 \(xp) 올려줘요.",
@@ -2460,15 +2509,7 @@ struct L {
                      "Пока он у вас, за каждого покемона, выпущенного в форме, которую его линия ещё не выпускала, вы получаете Редкую конфету.")
         case .cometShard, .redNectar, .smoothRock, .sawsbuckSeasons, .fairyFeather, .furfrouTrims, .vivillonPatterns,
              .whippedDream, .unownLetters:
-            let list = rewardsList(kind.achievementRewards)
-            return t("모든 폼이 졸업하면 받을 수 있어요. 받으면 가방에 들어와요: \(list).",
-                     "Every form graduated earns it. Claiming it puts in your Bag: \(list).",
-                     "すべてのフォルムが卒業すると受け取れます。受け取るとバッグに入ります：\(list)。",
-                     "Se gana con todas las formas graduadas. Al reclamarlo, recibes en tu bolsa: \(list).",
-                     "Toutes les formes diplômées le débloquent. En le réclamant, tu reçois dans ton sac : \(list).",
-                     "Todas as formas formadas o liberam. Ao resgatá-lo, você recebe na sua bolsa: \(list).",
-                     "Alle Formen verabschiedet schalten es frei. Holst du es ab, kommt in deinen Beutel: \(list).",
-                     "Открывается, когда все формы выпущены. Получив его, вы найдёте в сумке: \(list).")
+            return formsRewardDescription(kind)
         case .pokemonEgg: return eggDescription(nil)
         case .uncommonEgg: return eggDescription(.uncommon)
         case .rareEgg: return eggDescription(.rare)

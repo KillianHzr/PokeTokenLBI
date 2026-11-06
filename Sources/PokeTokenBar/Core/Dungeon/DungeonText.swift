@@ -260,6 +260,81 @@ extension L {
           "Für mich zusammenstellen", "Собрать за меня")
     }
     var dungeonSetOff: String { t("출발", "Set off", "出発", "Partir", "Partir", "Partir", "Aufbrechen", "В путь") }
+    /// The team screen (redone 2026-11-06): the winning odds beside the reaching ones, the team's matchup, each
+    /// candidate's fit.
+    var dungeonWinOdds: String {
+        t("던전을 이길 확률", "Odds of winning the dungeon", "ダンジョンをクリアする確率", "Probabilidad de ganar la mazmorra",
+          "Chances de réussir le donjon", "Chance de vencer a masmorra", "Chance, den Dungeon zu schaffen",
+          "Шанс пройти подземелье")
+    }
+    var dungeonWinOddsHint: String {
+        t("보스는 들어갈 때 정해져요: 나올 수 있는 모든 보스를 합친 확률이에요.",
+          "The boss is drawn at the entry: these odds count every boss it may be.",
+          "ボスは入るときに決まります：出てくるかもしれないすべてのボスを合わせた確率です。",
+          "El jefe se sortea al entrar: esta probabilidad cuenta todos los jefes posibles.",
+          "Le boss est tiré à l'entrée : ces chances comptent tous les boss possibles.",
+          "O chefe é sorteado na entrada: esta chance conta todos os chefes possíveis.",
+          "Der Boss wird beim Betreten gezogen: Diese Chance zählt jeden möglichen Boss.",
+          "Босс выбирается при входе: этот шанс учитывает всех возможных боссов.")
+    }
+    func dungeonTeamHeader(_ count: Int, _ size: Int) -> String {
+        t("팀 \(count)/\(size)", "Team \(count)/\(size)", "チーム \(count)/\(size)", "Equipo \(count)/\(size)",
+          "Équipe \(count)/\(size)", "Equipe \(count)/\(size)", "Team \(count)/\(size)", "Команда \(count)/\(size)")
+    }
+    func dungeonVersus(boss: Bool) -> String {
+        boss ? t("보스 상대로", "Against the boss", "ボスに対して", "Contra el jefe", "Face au boss", "Contra o chefe",
+                 "Gegen den Boss", "Против босса")
+            : t("이 던전 상대로", "Against this dungeon", "このダンジョンに対して", "Contra esta mazmorra", "Face au donjon",
+                "Contra esta masmorra", "Gegen diesen Dungeon", "Против этого подземелья")
+    }
+    var dungeonYourHits: String {
+        t("팀의 공격", "Your moves", "チームのわざ", "Tus movimientos", "Tes attaques", "Seus golpes", "Deine Attacken",
+          "Ваши приёмы")
+    }
+    var dungeonWeakSpots: String {
+        t("약점", "Weak spots", "弱点", "Puntos débiles", "Points faibles", "Pontos fracos", "Schwachstellen", "Слабые места")
+    }
+    /// Members a type hits twice: "2 weak".
+    func dungeonWeakMembers(_ n: Int) -> String {
+        t("\(n)마리 약함", n == 1 ? "1 weak" : "\(n) weak", "\(n)匹が弱い", n == 1 ? "1 débil" : "\(n) débiles",
+          n == 1 ? "1 faible" : "\(n) faibles", n == 1 ? "1 fraco" : "\(n) fracos", "\(n) schwach",
+          "слабых: \(n)")
+    }
+    var dungeonFitStrong: String {
+        t("여기서 강함", "Strong here", "ここで強い", "Fuerte aquí", "Fort ici", "Forte aqui", "Stark hier", "Силён здесь")
+    }
+    var dungeonFitWeak: String {
+        t("여기서 약함", "Weak here", "ここで弱い", "Débil aquí", "Faible ici", "Fraco aqui", "Schwach hier", "Слаб здесь")
+    }
+    var dungeonFitHint: String {
+        t("\"여기서 강함\": 기술이 던전의 타입을 2배로 치고 그 타입에 약하지 않아요. \"여기서 약함\": 그 반대예요.",
+          "\"Strong here\": a move hits a dungeon type twice and no dungeon type hits it twice. \"Weak here\": the other way round.",
+          "「ここで強い」：わざがダンジョンのタイプに2倍で、そのタイプに弱くありません。「ここで弱い」：その逆です。",
+          "\"Fuerte aquí\": un movimiento golpea el doble a un tipo de la mazmorra y ningún tipo de la mazmorra le golpea el doble. \"Débil aquí\": al revés.",
+          "\"Fort ici\" : une attaque touche ×2 un type du donjon et aucun type du donjon ne le touche ×2. \"Faible ici\" : l'inverse.",
+          "\"Forte aqui\": um golpe acerta em dobro um tipo da masmorra e nenhum tipo da masmorra o acerta em dobro. \"Fraco aqui\": o contrário.",
+          "\"Stark hier\": Eine Attacke trifft einen Dungeon-Typ doppelt, und kein Dungeon-Typ trifft es doppelt. \"Schwach hier\": umgekehrt.",
+          "\"Силён здесь\": приём бьёт тип подземелья вдвойне, и ни один тип подземелья не бьёт его вдвойне. \"Слаб здесь\": наоборот.")
+    }
+    var dungeonMemberDone: String {
+        t("완료", "Done", "完了", "Listo", "Terminé", "Pronto", "Fertig", "Готово")
+    }
+    var dungeonComposing: String {
+        t("최적의 팀을 시험하는 중…", "Trying the best teams…", "いちばんのチームを試しています…", "Probando los mejores equipos…",
+          "Essai des meilleures équipes…", "Testando as melhores equipes…", "Die besten Teams werden getestet…",
+          "Проверяю лучшие команды…")
+    }
+    var dungeonComposeHint: String {
+        t("규칙이 허락하는 가장 좋은 팀들을 보스까지 시뮬레이션해 가장 많이 이기는 팀을 골라요.",
+          "Runs the best teams the rules allow to the end, the boss included, and keeps the one that wins most.",
+          "ルールで組めるいちばんのチームをボスまでシミュレーションし、いちばん勝つチームを選びます。",
+          "Simula hasta el final, jefe incluido, los mejores equipos que permiten las reglas y se queda con el que más gana.",
+          "Simule jusqu'au bout, boss compris, les meilleures équipes que les règles permettent et garde celle qui gagne le plus.",
+          "Simula até o fim, chefe incluído, as melhores equipes que as regras permitem e fica com a que mais vence.",
+          "Spielt die besten Teams, die die Regeln erlauben, bis zum Ende samt Boss durch und behält das, das am häufigsten gewinnt.",
+          "Прогоняет до конца, с боссом, лучшие команды по правилам и оставляет ту, что побеждает чаще.")
+    }
+
     var dungeonReachOdds: String {
         t("보스까지 갈 확률", "Odds of reaching the boss", "ボスまでたどり着く確率", "Probabilidad de llegar al jefe",
           "Chances d'atteindre le boss", "Chance de chegar ao chefe", "Chance, den Boss zu erreichen",
@@ -414,6 +489,20 @@ extension L {
         default: t("야생", "Wild", "やせい", "Salvaje", "Sauvage", "Selvagem", "Wild", "Дикие")
         }
     }
+    /// The plate's HP label, as the games write it.
+    var battleHP: String { t("HP", "HP", "HP", "PS", "PV", "PS", "KP", "ОЗ") }
+    var battleSuperEffective: String {
+        t("효과가 굉장했다!", "Super effective!", "こうかは ばつぐんだ！", "¡Es muy eficaz!", "C'est super efficace !",
+          "É super efetivo!", "Sehr effektiv!", "Очень эффективно!")
+    }
+    var battleNotVeryEffective: String {
+        t("효과가 별로인 듯하다", "Not very effective", "こうかは いまひとつ", "No es muy eficaz", "Ce n'est pas très efficace",
+          "Não é muito efetivo", "Nicht sehr effektiv", "Не очень эффективно")
+    }
+    var battleCritical: String {
+        t("급소에 맞았다!", "Critical hit!", "きゅうしょに あたった！", "¡Golpe crítico!", "Coup critique !", "Acerto crítico!",
+          "Volltreffer!", "Критический удар!")
+    }
     var battlePause: String { t("일시정지", "Pause", "一時停止", "Pausa", "Pause", "Pausar", "Pause", "Пауза") }
     var battlePlay: String { t("재생", "Play", "再生", "Reproducir", "Lecture", "Reproduzir", "Abspielen", "Играть") }
     var battleSkip: String { t("건너뛰기", "Skip", "スキップ", "Saltar", "Passer", "Pular", "Überspringen", "Пропустить") }
@@ -433,10 +522,8 @@ extension L {
           "Этаж \(floor)")
     }
     /// The menu bar's short tag: "É6/12".
-    func dungeonFloorTag(_ floor: Int, _ floors: Int) -> String {
-        t("\(floor)/\(floors)층", "F\(floor)/\(floors)", "\(floor)/\(floors)階", "P\(floor)/\(floors)", "É\(floor)/\(floors)",
-          "A\(floor)/\(floors)", "E\(floor)/\(floors)", "Э\(floor)/\(floors)")
-    }
+    /// The menu bar's floor, "3/8": no letter before it (#136), the "↑" and "¤" of the other numbers tell them apart.
+    func dungeonFloorTag(_ floor: Int, _ floors: Int) -> String { "\(floor)/\(floors)" }
     func dungeonToNextFloor(_ have: String, _ need: String, next: Int) -> String {
         t("\(next)층까지 \(have) / \(need)", "\(have) / \(need) to floor \(next)", "\(next)階まで \(have) / \(need)",
           "\(have) / \(need) hasta el piso \(next)", "\(have) / \(need) avant l'étage \(next)",
@@ -537,15 +624,141 @@ extension L {
                 "Rencontre chromatique : il s'est enfui", "Encontro brilhante: fugiu", "Schillerndes Pokémon: geflohen",
                 "Встреча с шайни: сбежал")
     }
-    func dungeonLogBranch(roll: Int, risky: Bool) -> String {
+    /// The journal's fork: the die, the path it gives, until which floor, and what it changes (the owner, 2026-11-06:
+    /// "on comprend pas ce que ça change").
+    func dungeonLogBranch(roll: Int, risky: Bool, until floor: Int) -> String {
         risky
-            ? t("주사위: 6 중 \(roll), 위험한 길", "Dice: \(roll) of 6, risky path", "サイコロ：6のうち\(roll)、きけんな道",
-                "Dados: \(roll) de 6, camino arriesgado", "Dés : \(roll) sur 6, chemin risqué", "Dados: \(roll) de 6, caminho arriscado",
-                "Würfel: \(roll) von 6, riskanter Weg", "Кубик: \(roll) из 6, опасный путь")
-            : t("주사위: 6 중 \(roll), 안전한 길", "Dice: \(roll) of 6, safe path", "サイコロ：6のうち\(roll)、あんぜんな道",
-                "Dados: \(roll) de 6, camino seguro", "Dés : \(roll) sur 6, chemin sûr", "Dados: \(roll) de 6, caminho seguro",
-                "Würfel: \(roll) von 6, sicherer Weg", "Кубик: \(roll) из 6, безопасный путь")
+            ? t("갈림길: 주사위 \(roll)/6, 위험한 길로 \(floor)층까지. 전투와 함정이 늘어요.",
+                "Fork: dice \(roll) of 6, the risky path until floor \(floor). More battles and traps.",
+                "わかれ道：サイコロ \(roll)/6、\(floor)階まできけんな道。バトルとわなが増えます。",
+                "Bifurcación: dado \(roll) de 6, camino arriesgado hasta el piso \(floor). Más combates y trampas.",
+                "Embranchement : dé \(roll) sur 6, chemin risqué jusqu'à l'étage \(floor). Plus de combats et de pièges.",
+                "Bifurcação: dado \(roll) de 6, caminho arriscado até o andar \(floor). Mais batalhas e armadilhas.",
+                "Abzweigung: Würfel \(roll) von 6, riskanter Weg bis Ebene \(floor). Mehr Kämpfe und Fallen.",
+                "Развилка: кубик \(roll) из 6, опасный путь до этажа \(floor). Больше боёв и ловушек.")
+            : t("갈림길: 주사위 \(roll)/6, 안전한 길로 \(floor)층까지. 전투와 함정이 줄어요.",
+                "Fork: dice \(roll) of 6, the safe path until floor \(floor). Fewer battles and traps.",
+                "わかれ道：サイコロ \(roll)/6、\(floor)階まであんぜんな道。バトルとわなが減ります。",
+                "Bifurcación: dado \(roll) de 6, camino seguro hasta el piso \(floor). Menos combates y trampas.",
+                "Embranchement : dé \(roll) sur 6, chemin sûr jusqu'à l'étage \(floor). Moins de combats et de pièges.",
+                "Bifurcação: dado \(roll) de 6, caminho seguro até o andar \(floor). Menos batalhas e armadilhas.",
+                "Abzweigung: Würfel \(roll) von 6, sicherer Weg bis Ebene \(floor). Weniger Kämpfe und Fallen.",
+                "Развилка: кубик \(roll) из 6, безопасный путь до этажа \(floor). Меньше боёв и ловушек.")
     }
+    /// The artifacts that speed a dungeon's floors up, their sum first (the owner, 2026-11-06).
+    func dungeonArtifactsSpeed(_ percent: Int, _ list: String) -> String {
+        t("유물로 층이 \(percent)% 빨라져요: \(list)", "Artifacts make its floors \(percent)% faster: \(list)",
+          "アーティファクトで各階が\(percent)%速くなります：\(list)", "Los artefactos hacen sus pisos un \(percent) % más rápidos: \(list)",
+          "Les artefacts rendent ses étages \(percent) % plus rapides : \(list)", "Os artefatos deixam os andares \(percent)% mais rápidos: \(list)",
+          "Artefakte machen seine Ebenen \(percent) % schneller: \(list)", "Артефакты ускоряют этажи на \(percent)%: \(list)")
+    }
+
+    /// The daily and weekly boss's form: not the player's yet, or won already.
+    var challengeFormNew: String {
+        t("아직 없는 모습", "Not yours yet", "まだ持っていない", "Aún no es tuya", "Pas encore à toi", "Ainda não é sua", "Noch nicht deine",
+          "Ещё не ваша")
+    }
+    var challengeFormOwned: String {
+        t("이미 얻은 모습", "Won already", "もう手に入れた", "Ya la tienes", "Déjà obtenue", "Já é sua", "Schon gewonnen", "Уже получена")
+    }
+    var challengeFormNewHint: String {
+        t("이 모습은 아직 없어요: 보스를 쓰러뜨리면 영원히 내 것이 돼요.",
+          "You do not have this form yet: beat the boss and it is yours for good.",
+          "このすがたはまだ持っていません：ボスをたおすとずっと自分のものになります。",
+          "Aún no tienes esta forma: vence al jefe y será tuya para siempre.",
+          "Tu n'as pas encore cette forme : bats le boss et elle est à toi pour de bon.",
+          "Você ainda não tem esta forma: vença o chefe e ela é sua para sempre.",
+          "Du hast diese Form noch nicht: Besiege den Boss, und sie gehört dir für immer.",
+          "У вас ещё нет этой формы: победите босса, и она станет вашей навсегда.")
+    }
+
+    /// #133: every expedition that ended.
+    var runHistoryTitle: String {
+        t("탐험 기록", "Expedition history", "たんけんの記録", "Historial de expediciones", "Historique des expéditions",
+          "Histórico de expedições", "Expeditionsverlauf", "История экспедиций")
+    }
+    func runHistoryHint(_ n: Int) -> String {
+        t("끝난 탐험이 최신순으로 보여요. 최근 \(n)개는 일지와 전투 다시보기를 열 수 있어요.",
+          "Every expedition that ended, the latest first. The last \(n) open on their journal, every battle replayable.",
+          "終わったたんけんを新しい順に表示します。最近の\(n)件は記録とバトルの見返しを開けます。",
+          "Cada expedición terminada, la más reciente primero. Las \(n) últimas abren su diario, con cada combate para volver a ver.",
+          "Chaque expédition terminée, la plus récente en premier. Les \(n) dernières s'ouvrent sur leur journal, chaque combat à revoir.",
+          "Cada expedição terminada, a mais recente primeiro. As \(n) últimas abrem o diário, com cada batalha para rever.",
+          "Jede beendete Expedition, die neueste zuerst. Die letzten \(n) öffnen ihr Protokoll, jeder Kampf zum Ansehen.",
+          "Все завершённые экспедиции, сначала последние. Последние \(n) открывают журнал, каждый бой можно пересмотреть.")
+    }
+    var runOpenJournal: String {
+        t("일지와 전투 보기", "See its journal and battles", "記録とバトルを見る", "Ver su diario y combates", "Voir son journal et ses combats",
+          "Ver o diário e as batalhas", "Protokoll und Kämpfe ansehen", "Журнал и бои")
+    }
+
+    /// #141: a secret passage, in gold in the journal.
+    func dungeonLogSecretSkip(_ floor: Int) -> String {
+        t("비밀 통로: 팀이 \(floor)층을 토큰 없이 건너뛰었어요!", "Secret passage: the team skips floor \(floor), its tokens unpaid!",
+          "ひみつの通路：チームは\(floor)階をトークンなしでとばした！", "¡Pasadizo secreto: el equipo se salta el piso \(floor) sin pagar sus tokens!",
+          "Passage secret : l'équipe saute l'étage \(floor) sans payer ses tokens !", "Passagem secreta: a equipe pula o andar \(floor) sem pagar os tokens!",
+          "Geheimgang: Das Team überspringt Ebene \(floor), ohne ihre Tokens zu zahlen!", "Тайный ход: команда пропускает этаж \(floor), не платя за него токены!")
+    }
+    var dungeonLogSecretRoom: String {
+        t("비밀 통로: 숨겨진 방과 상자를 찾았어요!", "Secret passage: a hidden room and its chest!", "ひみつの通路：かくし部屋とたからばこ！",
+          "¡Pasadizo secreto: una sala oculta y su cofre!", "Passage secret : une salle cachée et son coffre !",
+          "Passagem secreta: uma sala escondida e seu baú!", "Geheimgang: ein versteckter Raum mit Truhe!",
+          "Тайный ход: скрытая комната и её сундук!")
+    }
+    var dungeonSecretRule: String {
+        t("T2부터 층마다 4% 확률로 비밀 통로가 나와요: 반은 다음 층을 토큰 없이 건너뛰고(보스 층과 포켓몬센터 층은 제외), 반은 숨겨진 방에 상자가 있어요.",
+          "From T2, each floor has a 4% chance of a secret passage: half the time the team skips the next floor without paying its tokens (never the boss's nor the Pokémon Center's), else a hidden room holds a chest.",
+          "T2から、各階に4%の確率でひみつの通路があります：半分は次の階をトークンなしでとばし（ボスとポケモンセンターの階はのぞく）、半分はかくし部屋にたからばこがあります。",
+          "Desde T2, cada piso tiene un 4 % de probabilidad de un pasadizo secreto: la mitad de las veces el equipo se salta el piso siguiente sin pagar sus tokens (nunca el del jefe ni el del Centro Pokémon); si no, una sala oculta guarda un cofre.",
+          "Dès le T2, chaque étage a 4 % de chances de cacher un passage secret : une fois sur deux, l'équipe saute l'étage suivant sans payer ses tokens (jamais celui du boss ni celui du Centre Pokémon) ; sinon, une salle cachée garde un coffre.",
+          "A partir do T2, cada andar tem 4% de chance de uma passagem secreta: metade das vezes a equipe pula o andar seguinte sem pagar os tokens (nunca o do chefe nem o do Centro Pokémon); senão, uma sala escondida guarda um baú.",
+          "Ab T2 hat jede Ebene eine Chance von 4 % auf einen Geheimgang: In der Hälfte der Fälle überspringt das Team die nächste Ebene, ohne ihre Tokens zu zahlen (nie die des Bosses oder des Pokémon-Centers), sonst wartet ein versteckter Raum mit einer Truhe.",
+          "Начиная с T2, на каждом этаже 4% шанс тайного хода: в половине случаев команда пропускает следующий этаж, не платя за него токены (никогда этаж босса или Покецентра), иначе скрытая комната хранит сундук.")
+    }
+    var dungeonSecretPassage: String {
+        t("비밀 통로", "Secret passage", "ひみつの通路", "Pasadizo secreto", "Passage secret", "Passagem secreta", "Geheimgang", "Тайный ход")
+    }
+
+    /// The path the team walks now, on Home.
+    func dungeonPath(risky: Bool) -> String {
+        risky ? t("위험한 길", "Risky path", "きけんな道", "Camino arriesgado", "Chemin risqué", "Caminho arriscado", "Riskanter Weg",
+                  "Опасный путь")
+            : t("안전한 길", "Safe path", "あんぜんな道", "Camino seguro", "Chemin sûr", "Caminho seguro", "Sicherer Weg",
+                "Безопасный путь")
+    }
+    /// The rule of the dice, on Home and on each dungeon's page.
+    var dungeonPathRule: String {
+        t("3층마다 주사위를 굴려요: 4~6이면 다음 주사위까지 위험한 길(전투 1.4배, 함정 증가), 1~3이면 안전한 길이에요. 보스와 보상 표는 바뀌지 않아요.",
+          "Every three floors a die is rolled: 4 to 6, the risky path until the next one (1.4 times the battles, more traps); 1 to 3, the safe path. The boss and the loot tables stay the same.",
+          "3階ごとにサイコロをふります：4〜6なら次のサイコロまできけんな道（バトル1.4倍、わなが増える）、1〜3ならあんぜんな道です。ボスと戦利品の表は変わりません。",
+          "Cada tres pisos se tira un dado: de 4 a 6, camino arriesgado hasta el siguiente (1,4 veces los combates, más trampas); de 1 a 3, camino seguro. El jefe y las tablas de botín no cambian.",
+          "Tous les 3 étages, un dé est lancé : de 4 à 6, chemin risqué jusqu'au dé suivant (1,4 fois plus de combats, plus de pièges) ; de 1 à 3, chemin sûr. Le boss et les tables de butin ne changent pas.",
+          "A cada três andares um dado é lançado: de 4 a 6, caminho arriscado até o próximo (1,4 vez as batalhas, mais armadilhas); de 1 a 3, caminho seguro. O chefe e as tabelas de saque não mudam.",
+          "Alle drei Ebenen wird gewürfelt: 4 bis 6, der riskante Weg bis zum nächsten Wurf (1,4-mal so viele Kämpfe, mehr Fallen); 1 bis 3, der sichere Weg. Boss und Beutetabellen bleiben gleich.",
+          "Каждые три этажа бросается кубик: от 4 до 6 опасный путь до следующего броска (боёв в 1,4 раза больше, больше ловушек); от 1 до 3 безопасный путь. Босс и таблицы добычи не меняются.")
+    }
+    var dungeonDetailEvents: String {
+        t("층마다 일어나는 일", "What a floor holds", "各階のできごと", "Lo que trae cada piso", "Ce que réserve un étage",
+          "O que cada andar traz", "Was eine Ebene bringt", "Что ждёт на этаже")
+    }
+    func dungeonEventName(_ kind: ExpeditionEventKind) -> String {
+        switch kind {
+        case .wild: t("야생 전투", "Wild battle", "やせいのバトル", "Combate salvaje", "Combat sauvage", "Batalha selvagem", "Wilder Kampf", "Дикий бой")
+        case .horde: t("무리", "Horde", "むれ", "Horda", "Horde", "Horda", "Horde", "Орда")
+        case .trainer: t("트레이너", "Trainer", "トレーナー", "Entrenador", "Dresseur", "Treinador", "Trainer", "Тренер")
+        case .chest: dungeonLogChest
+        case .trap: t("함정", "Trap", "わな", "Trampa", "Piège", "Armadilha", "Falle", "Ловушка")
+        case .spring: t("샘", "Spring", "いずみ", "Manantial", "Source", "Fonte", "Quelle", "Источник")
+        case .lost: t("길 잃은 포켓몬", "Lost Pokémon", "まいごのポケモン", "Pokémon perdido", "Pokémon perdu", "Pokémon perdido",
+                      "Verirrtes Pokémon", "Потерянный покемон")
+        case .shiny: t("이로치 조우", "Shiny encounter", "色違いに出会う", "Encuentro variocolor", "Rencontre chromatique",
+                       "Encontro brilhante", "Schillernde Begegnung", "Встреча с блестящим")
+        case .center: t("포켓몬센터", "Pokémon Center", "ポケモンセンター", "Centro Pokémon", "Centre Pokémon", "Centro Pokémon",
+                        "Pokémon-Center", "Покецентр")
+        case .boss: battleKind(.boss)
+        }
+    }
+
     func dungeonLogItemUsed(_ item: String) -> String {
         t("\(item) 사용", "\(item) used", "\(item)をつかった", "\(item) usado", "\(item) utilisé", "\(item) usado",
           "\(item) eingesetzt", "Использован предмет \"\(item)\"")

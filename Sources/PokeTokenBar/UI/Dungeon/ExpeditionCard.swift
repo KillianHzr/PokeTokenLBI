@@ -68,6 +68,11 @@ struct ExpeditionCard: View {
             if e.floor < e.floors {
                 Text(l.dungeonLeftToBoss(TokenFormatter.compact(toBoss)))
                     .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                // The path the dice gave, said in words, its rule on hover (the owner, 2026-11-06).
+                Label(l.dungeonPath(risky: e.risky), systemImage: e.risky ? "dice.fill" : "dice")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(e.risky ? Color.readableOrange : .secondary)
+                    .hoverTip(l.dungeonPathRule)
             }
         }
         sectionLabel(l.dungeonTeamTitle)
@@ -76,7 +81,7 @@ struct ExpeditionCard: View {
         let recent = e.log.filter { $0.id != rare?.id }.suffix(4).reversed()
         if rare != nil || !recent.isEmpty { sectionLabel(l.dungeonRecentTitle) }
         if let rare {
-            ExpeditionLogRow(store: store, nav: nav, entry: rare, team: e.team)
+            ExpeditionLogRow(store: store, nav: nav, entry: rare, team: e.team, floors: e.floors)
                 .padding(8)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(LegendaryHeroBackground.gold.opacity(0.16)))
@@ -89,7 +94,7 @@ struct ExpeditionCard: View {
         if !recent.isEmpty {
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(Array(recent)) { entry in
-                    ExpeditionLogRow(store: store, nav: nav, entry: entry, team: e.team)
+                    ExpeditionLogRow(store: store, nav: nav, entry: entry, team: e.team, floors: e.floors)
                 }
             }
         }
@@ -230,6 +235,8 @@ struct ExpeditionLogRow: View {
     let nav: PopoverNavigation
     let entry: ExpeditionLogEntry
     let team: [ExpeditionMember]
+    /// The expedition's floors: a fork says until which floor its path holds, never the boss's.
+    var floors: Int?
 
     private var l: L { store.l }
 
@@ -264,8 +271,15 @@ struct ExpeditionLogRow: View {
         case .shiny(let species, let caught):
             sprite(species, shiny: true)
             line("sparkles", l.dungeonLogShiny(caught: caught))
+        case .secretPassage(let skipped, let loot):
+            line("door.left.hand.open", skipped ? l.dungeonLogSecretSkip(entry.floor + 1) : l.dungeonLogSecretRoom)
+                .hoverTip(l.dungeonSecretRule)
+            if let loot { ExpeditionLootIcons(loot: loot) }
         case .branch(let roll, let risky):
-            line(risky ? "dice.fill" : "dice", l.dungeonLogBranch(roll: roll, risky: risky))
+            // Rolled at the end of a floor, it holds for the next three, the boss's floor apart.
+            line(risky ? "dice.fill" : "dice",
+                 l.dungeonLogBranch(roll: roll, risky: risky, until: min(entry.floor + 3, (floors ?? .max) - 1)))
+                .hoverTip(l.dungeonPathRule)
         case .revive(let entryID, let max):
             if let member = team.first(where: { $0.entryID == entryID }) {
                 sprite(member.spec.speciesID, shiny: member.spec.isShiny, form: member.spec.form)
@@ -528,6 +542,7 @@ struct ExpeditionLogScreen: View {
         let l = store.l
         let e = store.expedition
         let log = e?.log ?? store.dungeonProgress.lastResult?.log ?? []
+        let floors = e?.floors ?? store.dungeonProgress.lastResult.map { DungeonCatalog.dungeon($0.dungeon).floors }
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Button { nav.showingExpeditionLog = false } label: {
@@ -541,7 +556,7 @@ struct ExpeditionLogScreen: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
                     ForEach(log.reversed()) { entry in
-                        ExpeditionLogRow(store: store, nav: nav, entry: entry, team: e?.team ?? [])
+                        ExpeditionLogRow(store: store, nav: nav, entry: entry, team: e?.team ?? [], floors: floors)
                     }
                 }
                 .reservesScrollerLane()

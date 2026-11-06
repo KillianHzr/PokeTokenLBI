@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// A dungeon's team screen (maquette 2): the rules ticked as the team forms, the team, the loop of the Pokémon picked
-/// (R4: chosen among the moves it can learn, the locked ones greyed, details on hover), the graduated Pokémon the rules
-/// admit, "Compose for me" (Q8) and the odds of reaching the boss (R7), then the departure.
+/// A dungeon's team screen, redone on 2026-11-06 (the owner: "not intuitive, and ugly"): the dungeon and its rules
+/// ticked as the team forms; the team as cards, with what its types do against the dungeon's (#139); the candidates
+/// as a list, each with its types, its moves' types and its fit here, those the rules refuse greyed with the rule; a
+/// member clicked opens its moves in place of the list (R4); "Compose for me" (Q8) tries the best teams to the end;
+/// the odds of reaching the boss (R7) and of winning, then the departure.
 @MainActor
 struct DungeonTeamScreen: View {
     let store: CompanionStore
@@ -13,68 +15,52 @@ struct DungeonTeamScreen: View {
     @State private var team: [String] = []
     @State private var focus: String?
     @State private var editingSlot: Int?
-    @State private var odds: Double?
+    @State private var odds: DungeonTeamBuilder.Odds?
     /// A challenge's boss as the screen opened: shown, estimated and set off against, even past midnight.
     @State private var shownBoss: BattleForm?
     /// Checked: the automatic throws may take the Master Ball at a legendary boss (the owner, 2026-11-04).
     @State private var useMasterBall = true
     @State private var search = ""
-    /// The candidate under the pointer: its moves and their types show before it is picked (a player, 2026-11-05).
-    @State private var hovered: String?
+    @State private var composing = false
 
     var body: some View {
         let l = store.l
         let (size, rules) = store.teamRules(dungeon)
         let picked = team.compactMap { id in store.dungeonCandidates.first { $0.id == id } }
-        let candidates = picked.map(DungeonCandidate.init)
+        let members = picked.map(DungeonCandidate.init)
+        let info = DungeonCatalog.dungeon(dungeon)
+        let boss = shownBoss ?? store.challengeBoss(dungeon)
+        let faced = TeamMatchup.facedTypes(info, boss: boss)
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Button { onBack() } label: { Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon) }
-                    .buttonStyle(.borderless)
-                    .keyboardShortcut(.cancelAction)
-                Spacer(minLength: 4)
-                DungeonIcon(id: dungeon, size: 20,
-                            boss: (shownBoss ?? store.challengeBoss(dungeon)).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
-                Text(l.dungeonName(dungeon)).font(.headline)
-            }
-            rulesBox(size: size, rules: rules, team: candidates, l)
-            teamRow(picked, size: size)
-            if let focus, let entry = picked.first(where: { $0.id == focus }) {
-                // The member's panel first: with the battle forms shown, the move picker shrank to a row and a half while
-                // the candidates kept their room. The candidates scroll instead.
-                VStack(alignment: .leading, spacing: 8) {
-                    // A visible way out of the team: it was a right click only (a player, 2026-11-05).
-                    HStack {
-                        Spacer(minLength: 0)
-                        Button(l.dungeonRemove, systemImage: "minus.circle") {
-                            team.removeAll { $0 == entry.id }
-                            self.focus = nil
-                            editingSlot = nil
-                        }
-                        .buttonStyle(.borderless).controlSize(.small).font(.caption)
-                    }
-                    if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
-                        BattleFormChooser(store: store, entry: entry)
-                    }
-                    LoopEditor(store: store, entry: entry, dungeon: dungeon, editingSlot: $editingSlot)
+            header(info, boss: boss, l)
+            rulesLine(size: size, rules: rules, members: members, info: info, l)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(l.dungeonTeamHeader(picked.count, size)).font(.caption.weight(.semibold))
+                    Spacer(minLength: 4)
+                    composeButton(l)
                 }
-                .layoutPriority(1)
-            } else if let hovered, let entry = store.dungeonCandidates.first(where: { $0.id == hovered }) {
-                CandidateMovesPreview(store: store, entry: entry, dungeon: dungeon)
+                TeamMemberRow(store: store, picked: picked, size: size, dungeon: dungeon, team: $team, focus: $focus,
+                              editingSlot: $editingSlot)
+                if !faced.isEmpty, !picked.isEmpty {
+                    versus(picked, faced: faced, boss: info.themeTypes.isEmpty, l)
+                }
+            }
+            .padding(8)
+            .designSurface(cornerRadius: 10)
+            if let focus, let entry = picked.first(where: { $0.id == focus }) {
+                memberPanel(entry, l)
             } else {
-                // What to do next, said where it is done.
-                Text(picked.count < size ? l.dungeonTeamPickHint(compose: l.dungeonComposeForMe) : l.dungeonTeamEditHint)
-                    .font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                TextField(l.dexSearchPlaceholder, text: $search)
+                    .textFieldStyle(.roundedBorder).controlSize(.small)
+                ScrollView {
+                    TeamCandidateList(store: store, dungeon: dungeon, faced: faced, rules: rules, size: size, query: search,
+                                      team: $team, focus: $focus)
+                        .reservesScrollerLane()
+                }
+                .frame(minHeight: 46)
             }
-            TextField(l.dexSearchPlaceholder, text: $search)
-                .textFieldStyle(.roundedBorder).controlSize(.small)
-            ScrollView {
-                candidateList(size: size, rules: rules, l)
-                    .reservesScrollerLane()
-            }
-            .frame(minHeight: 46)
-            footer(size: size, rules: rules, team: candidates, l)
+            footer(size: size, rules: rules, members: members, boss: boss, l)
         }
         .padding(PopoverMetrics.padding)
         .frame(height: 520, alignment: .top)
@@ -87,50 +73,128 @@ struct DungeonTeamScreen: View {
         .task(id: estimateKey) { await estimate() }
     }
 
-    private func rulesBox(size: Int, rules: [DungeonRule], team: [DungeonCandidate], _ l: L) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            rule(l.dungeonTeamSize(size) + " · \(team.count)/\(size)",
-                 met: team.count == size && DungeonTeamRules.distinctSpecies(team))
+    private func header(_ info: Dungeon, boss: BattleForm?, _ l: L) -> some View {
+        HStack(spacing: 6) {
+            Button { onBack() } label: { Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon) }
+                .buttonStyle(.borderless)
+                .keyboardShortcut(.cancelAction)
+            Spacer(minLength: 4)
+            DungeonIcon(id: dungeon, size: 20,
+                        boss: boss.map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
+            if !dungeon.isChallenge { Badge("T\(info.tier.rawValue)", tint: .secondary, style: .tinted) }
+            Text(l.dungeonName(dungeon)).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
+        }
+    }
+
+    /// The dungeon's types, then each rule, ticked once the team keeps it.
+    private func rulesLine(size: Int, rules: [DungeonRule], members: [DungeonCandidate], info: Dungeon, _ l: L) -> some View {
+        WrappingHStack(spacing: 6, lineSpacing: 4) {
+            ForEach(info.themeTypes, id: \.self) { type in
+                Badge(l.typeName(type).uppercased(), tint: .type(type)).fixedSize()
+            }
+            rule(l.dungeonTeamSize(size), met: members.count == size && DungeonTeamRules.distinctSpecies(members))
             ForEach(Array(rules.enumerated()), id: \.offset) { _, item in
-                rule(l.dungeonRule(item), met: DungeonTeamRules.holds(item, for: team) && !team.isEmpty)
+                rule(l.dungeonRule(item), met: DungeonTeamRules.holds(item, for: members) && !members.isEmpty)
             }
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .designSurface(cornerRadius: 10)
     }
 
     private func rule(_ text: String, met: Bool) -> some View {
         Label(text, systemImage: met ? "checkmark.circle.fill" : "circle")
-            .font(.caption.weight(.semibold))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(met ? Design.actionColor : .secondary)
+            .fixedSize()
     }
 
-    private func teamRow(_ picked: [DexEntry], size: Int) -> some View {
-        HStack(spacing: 6) {
-            ForEach(picked, id: \.id) { entry in
-                Button {
-                    focus = focus == entry.id ? nil : entry.id
-                    editingSlot = nil
-                } label: {
-                    SpriteView(speciesID: entry.finalID, size: 34, shiny: entry.isShiny, form: entry.form, sameScale: true)
-                        .padding(2)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(focus == entry.id ? Design.actionColor.opacity(0.25) : .clear))
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    Button(store.l.dungeonRemove) {
-                        team.removeAll { $0 == entry.id }
-                        if focus == entry.id { focus = nil }
-                    }
-                }
-                .speciesNameTooltip(entry.finalID, form: entry.form, language: store.language)
+    private func composeButton(_ l: L) -> some View {
+        Button {
+            composing = true
+            let choice = store.composeChoice(for: dungeon)
+            Task {
+                let ids = await BattleEngine.offMain { choice.run() }
+                if !ids.isEmpty { team = ids }
+                focus = nil
+                composing = false
             }
-            ForEach(0..<max(0, size - picked.count), id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [3]))
-                    .frame(width: 38, height: 38)
+        } label: {
+            HStack(spacing: 4) {
+                if composing { ProgressView().controlSize(.mini) }
+                Text(composing ? l.dungeonComposing : l.dungeonComposeForMe)
             }
         }
+        .buttonStyle(.pill())
+        .disabled(composing)
+        .hoverTip(l.dungeonComposeHint)
+    }
+
+    /// #139: what the team's moves reach on each type it faces, and the members each one hits twice. Written, never
+    /// told by a color alone.
+    private func versus(_ picked: [DexEntry], faced: [PokemonType], boss: Bool, _ l: L) -> some View {
+        let specs = picked.compactMap { store.dungeonSpec($0, for: dungeon) }
+        let lines = TeamMatchup.summary(team: specs, against: faced)
+        let weak = lines.filter { $0.weakMembers > 0 }
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(l.dungeonVersus(boss: boss)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            WrappingHStack(spacing: 6, lineSpacing: 3) {
+                Text(l.dungeonYourHits).font(.caption2)
+                ForEach(lines, id: \.type) { line in
+                    HStack(spacing: 2) {
+                        TypeMiniBadge(type: line.type, l: l)
+                        Text(TeamMatchup.multiplierText(line.best)).font(.caption2.weight(.bold)).monospacedDigit()
+                            .foregroundStyle(line.best >= 2 ? Color.blue : line.best < 1 ? Color.readableOrange : .primary)
+                    }
+                    .fixedSize()
+                }
+            }
+            WrappingHStack(spacing: 6, lineSpacing: 3) {
+                Text(l.dungeonWeakSpots).font(.caption2)
+                if weak.isEmpty {
+                    Text(l.dungeonDetailNone).font(.caption2).foregroundStyle(.secondary)
+                }
+                ForEach(weak, id: \.type) { line in
+                    HStack(spacing: 2) {
+                        TypeMiniBadge(type: line.type, l: l)
+                        Text(l.dungeonWeakMembers(line.weakMembers)).font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.readableOrange)
+                    }
+                    .fixedSize()
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The member clicked: its moves (R4) and battle form, in place of the list; back to the list with "Done".
+    private func memberPanel(_ entry: DexEntry, _ l: L) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Button(l.dungeonMemberDone, systemImage: "chevron.left") {
+                    focus = nil
+                    editingSlot = nil
+                }
+                .buttonStyle(.borderless).font(.caption.weight(.semibold))
+                Spacer(minLength: 4)
+                PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language).font(.caption.weight(.semibold))
+                Spacer(minLength: 4)
+                // A visible way out of the team: it was a right click only (a player, 2026-11-05).
+                Button(l.dungeonRemove, systemImage: "minus.circle") {
+                    team.removeAll { $0 == entry.id }
+                    focus = nil
+                    editingSlot = nil
+                }
+                .buttonStyle(.borderless).font(.caption)
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
+                        BattleFormChooser(store: store, entry: entry)
+                    }
+                    LoopEditor(store: store, entry: entry, dungeon: dungeon, editingSlot: $editingSlot)
+                }
+                .reservesScrollerLane()
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     /// The candidates, one cell per species, form and shininess: a player with nine Seedot saw nine identical cells
@@ -155,39 +219,27 @@ struct DungeonTeamScreen: View {
         }
     }
 
-    private func candidateList(size: Int, rules: [DungeonRule], _ l: L) -> some View {
-        let admitted = store.dungeonCandidates.filter { DungeonTeamRules.admits(DungeonCandidate($0), rules: rules) }
-        return TeamCandidateGrid(store: store, candidates: admitted, size: size, query: search, team: $team, focus: $focus,
-                                 hovered: $hovered)
-    }
-
-    private func footer(size: Int, rules: [DungeonRule], team: [DungeonCandidate], _ l: L) -> some View {
-        let valid = DungeonTeamRules.isValid(team, size: size, rules: rules)
+    private func footer(size: Int, rules: [DungeonRule], members: [DungeonCandidate], boss: BattleForm?, _ l: L) -> some View {
+        let valid = DungeonTeamRules.isValid(members, size: size, rules: rules)
         return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(l.dungeonReachOdds).font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                if valid {
-                    Text(odds.map { "\(Int(($0 * 100).rounded())) %" } ?? "…")
-                        .font(.callout.weight(.bold)).monospacedDigit()
-                } else {
-                    Text(l.dungeonTeamIncomplete).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                }
-            }
             // The automatic throws take the Master Ball at a legendary boss unless it stays home for this one.
-            if store.itemCount(.masterBall) > 0, store.mayMeetALegendary(dungeon, boss: shownBoss ?? store.challengeBoss(dungeon)) {
+            if store.itemCount(.masterBall) > 0, store.mayMeetALegendary(dungeon, boss: boss) {
                 Toggle(isOn: $useMasterBall) {
                     Text(l.dungeonUseMasterBall(l.itemName(.masterBall))).font(.caption)
                 }
                 .toggleStyle(.checkbox)
             }
-            HStack(spacing: 8) {
-                Button(l.dungeonComposeForMe) {
-                    self.team = store.composeTeam(for: dungeon)
-                    focus = nil
+            HStack(alignment: .center, spacing: 8) {
+                if valid {
+                    VStack(alignment: .leading, spacing: 1) {
+                        oddsLine(l.dungeonReachOdds, odds?.reach)
+                        oddsLine(l.dungeonWinOdds, odds?.win)
+                            .hoverTip(dungeon.isChallenge ? nil : l.dungeonWinOddsHint)
+                    }
+                } else {
+                    Text(l.dungeonTeamIncomplete).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 }
-                .buttonStyle(.pill())
-                Spacer()
+                Spacer(minLength: 4)
                 let keys = store.keysToEnter(dungeon)
                 Button(keys > 0 ? "\(l.dungeonSetOff) · 🗝️ \(keys)" : l.dungeonSetOff) {
                     if store.startExpedition(dungeon, team: self.team, expectedBoss: shownBoss, keepsMasterBall: !useMasterBall) {
@@ -200,6 +252,13 @@ struct DungeonTeamScreen: View {
                 .buttonStyle(.pill(prominent: true))
                 .disabled(!valid || !store.canEnter(dungeon))
             }
+        }
+    }
+
+    private func oddsLine(_ label: String, _ value: Double?) -> some View {
+        HStack(spacing: 6) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(value.map { "\(Int(($0 * 100).rounded())) %" } ?? "…").font(.caption.weight(.bold)).monospacedDigit()
         }
     }
 
@@ -226,38 +285,181 @@ struct DungeonTeamScreen: View {
     }
 }
 
-/// The candidates of a team, one cell per species, form and shininess (`candidateGroups`), searchable: a click picks or
-/// drops one, the pointer shows its moves (`CandidateMovesPreview`). The team screens' shared grid.
+/// A type in three letters on its color: where a whole badge does not fit (a team card, a move). The letters say it,
+/// not the color alone.
 @MainActor
-struct TeamCandidateGrid: View {
-    let store: CompanionStore
-    let candidates: [DexEntry]
-    let size: Int
-    var query = ""
-    @Binding var team: [String]
-    @Binding var focus: String?
-    @Binding var hovered: String?
+struct TypeMiniBadge: View {
+    let type: PokemonType
+    let l: L
 
     var body: some View {
-        let l = store.l
-        let shown = CompanionStore.DexSearchMatcher(query).map { matcher in candidates.filter { matcher.matches($0) } } ?? candidates
-        if shown.isEmpty {
-            Text(l.dungeonNoCandidate).font(.caption).foregroundStyle(.secondary)
-        } else {
-            let groups = DungeonTeamScreen.candidateGroups(shown, picked: team, loops: store.dungeonProgress.moveLoops)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 6), spacing: 4) {
-                ForEach(groups, id: \.entry.id) { group in
-                    cell(group.entry, count: group.count, l)
-                }
+        Text(String(l.typeName(type).prefix(3)).uppercased())
+            .font(.system(size: 8, weight: .heavy))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 3).padding(.vertical, 1)
+            .background(Capsule().fill(type.color))
+            .fixedSize()
+    }
+}
+
+/// The team as cards: each member's sprite, name and types, a cross to take it out; a click opens its moves. Empty
+/// places wait with a "+".
+@MainActor
+struct TeamMemberRow: View {
+    let store: CompanionStore
+    let picked: [DexEntry]
+    let size: Int
+    let dungeon: DungeonID?
+    @Binding var team: [String]
+    @Binding var focus: String?
+    @Binding var editingSlot: Int?
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(picked, id: \.id) { entry in card(entry) }
+            ForEach(0..<max(0, size - picked.count), id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [3]))
+                    .overlay(Image(systemName: "plus").font(.caption.weight(.bold)).foregroundStyle(.secondary))
+                    .frame(maxWidth: 64, minHeight: 66, maxHeight: 66)
             }
         }
     }
 
-    private func cell(_ entry: DexEntry, count: Int, _ l: L) -> some View {
-        let chosen = team.contains(entry.id)
-        let blocked = !chosen && (team.count >= size
-            || team.contains { id in store.dungeonCandidates.first { $0.id == id }?.finalID == entry.finalID })
+    private func card(_ entry: DexEntry) -> some View {
+        let l = store.l
+        let types = store.dungeonSpec(entry, for: dungeon)?.types ?? PokemonTypeData.types(forSpeciesID: entry.finalID, form: entry.form)
+        let focused = focus == entry.id
         return Button {
+            focus = focused ? nil : entry.id
+            editingSlot = nil
+        } label: {
+            VStack(spacing: 2) {
+                SpriteView(speciesID: entry.finalID, size: 32, shiny: entry.isShiny, form: entry.form, sameScale: true)
+                PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
+                    .font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                HStack(spacing: 2) {
+                    ForEach(types, id: \.self) { TypeMiniBadge(type: $0, l: l) }
+                }
+            }
+            .padding(.vertical, 4).padding(.horizontal, 2)
+            .frame(maxWidth: 64, minHeight: 66)
+            .background(RoundedRectangle(cornerRadius: 8).fill(focused ? Design.actionColor.opacity(0.25) : Color.secondary.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(focused ? Design.actionColor : .clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            Button {
+                team.removeAll { $0 == entry.id }
+                if focused { focus = nil }
+            } label: {
+                Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .padding(2)
+            .accessibilityLabel(l.dungeonRemove)
+        }
+        .speciesNameTooltip(entry.finalID, form: entry.form, language: store.language)
+    }
+}
+
+/// The candidates as a list (redone 2026-11-06), one row per species, form and shininess (`candidateGroups`): its
+/// types and its moves' types, its fit against the types faced, those the rules refuse greyed with the rule, the best
+/// here first. A click picks or drops one. Without a dungeon (the general team), no fit and no rule.
+@MainActor
+struct TeamCandidateList: View {
+    let store: CompanionStore
+    let dungeon: DungeonID?
+    let faced: [PokemonType]
+    let rules: [DungeonRule]
+    let size: Int
+    var query = ""
+    @Binding var team: [String]
+    @Binding var focus: String?
+
+    /// Each candidate's battle self as it would fight here, made off the main thread once (a few hundred).
+    struct Info: Sendable {
+        let types: [PokemonType]
+        let moves: [(slug: String, type: PokemonType)]
+        let fit: TeamMatchup.Fit
+        let total: Int
+    }
+    @State private var infos: [String: Info] = [:]
+
+    var body: some View {
+        let l = store.l
+        let all = store.dungeonCandidates
+        let shown = CompanionStore.DexSearchMatcher(query).map { matcher in all.filter { matcher.matches($0) } } ?? all
+        let groups = DungeonTeamScreen.candidateGroups(shown, picked: team, loops: store.dungeonProgress.moveLoops)
+        let rows = groups.map { group in
+            (entry: group.entry, count: group.count,
+             refusal: rules.first { !DungeonTeamRules.admits(DungeonCandidate(group.entry), rules: [$0]) })
+        }
+        .sorted { a, b in rank(a.entry, a.refusal) < rank(b.entry, b.refusal) }
+        let taken = store.teamSpecies(team)
+        Group {
+            if rows.isEmpty {
+                Text(l.dungeonNoCandidate).font(.caption).foregroundStyle(.secondary)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(rows, id: \.entry.id) { row in
+                        CandidateRow(store: store, entry: row.entry, count: row.count, refusal: row.refusal,
+                                     info: infos[row.entry.id], size: size, taken: taken, team: $team, focus: $focus)
+                    }
+                }
+            }
+        }
+        .task(id: "\(dungeon?.rawValue ?? "")|\(all.count)|\(store.dungeonProgress.moveLoops.count)") { await loadInfos(all) }
+    }
+
+    /// Refused last, then strong, neutral and weak here, the strongest Pokémon first in each.
+    private func rank(_ entry: DexEntry, _ refusal: DungeonRule?) -> (Int, Int, Int) {
+        let info = infos[entry.id]
+        let fit = switch info?.fit { case .strong: 0; case .weak: 2; default: 1 }
+        return (refusal == nil ? 0 : 1, fit, -(info?.total ?? 0))
+    }
+
+    private func loadInfos(_ entries: [DexEntry]) async {
+        let loops = store.dungeonProgress.moveLoops, unlocked = store.dungeonProgress.unlockedMoves
+        let theme = dungeon.map { DungeonCatalog.dungeon($0).themeTypes } ?? []
+        let faced = faced
+        let inputs = entries.map { (entry: $0, loop: loops[$0.id]) }
+        let made = await BattleEngine.offMain { () -> [String: Info] in
+            var out: [String: Info] = [:]
+            for input in inputs {
+                guard let spec = DungeonTeamBuilder.spec(for: input.entry, loop: input.loop, unlocked: unlocked, theme: theme)
+                else { continue }
+                let moves = spec.moves.compactMap(MoveTable.move).map { (slug: $0.slug, type: $0.type(for: spec)) }
+                let total = SpeciesBattleTable.data(speciesID: input.entry.finalID, form: input.entry.form)?.baseStats.reduce(0, +) ?? 0
+                out[input.entry.id] = Info(types: spec.types, moves: moves, fit: TeamMatchup.fit(spec, against: faced), total: total)
+            }
+            return out
+        }
+        infos = made
+    }
+}
+
+/// One candidate: sprite, name, copies, types; its four moves' types (their names on hover); its fit, or the rule
+/// that refuses it; a tick once picked.
+@MainActor
+private struct CandidateRow: View {
+    let store: CompanionStore
+    let entry: DexEntry
+    let count: Int
+    let refusal: DungeonRule?
+    let info: TeamCandidateList.Info?
+    let size: Int
+    /// The team's species, made once per render by the list.
+    let taken: Set<Int>
+    @Binding var team: [String]
+    @Binding var focus: String?
+
+    var body: some View {
+        let l = store.l
+        let chosen = team.contains(entry.id)
+        let blocked = !chosen && (refusal != nil || team.count >= size || taken.contains(entry.finalID))
+        let types = info?.types ?? PokemonTypeData.types(forSpeciesID: entry.finalID, form: entry.form)
+        Button {
             if chosen {
                 team.removeAll { $0 == entry.id }
                 if focus == entry.id { focus = nil }
@@ -265,51 +467,55 @@ struct TeamCandidateGrid: View {
                 team.append(entry.id)
             }
         } label: {
-            SpriteView(speciesID: entry.finalID, size: 40, shiny: entry.isShiny, form: entry.form, sameScale: true)
-                .opacity(blocked ? 0.35 : 1)
-                .background(RoundedRectangle(cornerRadius: 8).fill(chosen ? Design.actionColor.opacity(0.25) : .clear))
-                .overlay(alignment: .bottomTrailing) {
-                    if count > 1 {
-                        Text(l.catchCount(count)).font(.system(size: 9, weight: .bold)).monospacedDigit()
-                            .padding(.horizontal, 3).background(Capsule().fill(.background.opacity(0.85)))
+            HStack(spacing: 8) {
+                SpriteView(speciesID: entry.finalID, size: 30, shiny: entry.isShiny, form: entry.form, sameScale: true)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
+                            .font(.caption.weight(.semibold)).lineLimit(1)
+                        if count > 1 {
+                            Text(l.catchCount(count)).font(.caption2.weight(.semibold)).monospacedDigit().foregroundStyle(.secondary)
+                        }
+                        // Its own types whole, its moves' in three letters below: never mistaken for each other.
+                        ForEach(types, id: \.self) { Badge(l.typeName($0).uppercased(), tint: .type($0)).fixedSize() }
+                    }
+                    // Its four moves' types, then their names: what it would loop here, before it is picked.
+                    if let moves = info?.moves, !moves.isEmpty {
+                        HStack(spacing: 2) {
+                            ForEach(Array(moves.enumerated()), id: \.offset) { _, move in TypeMiniBadge(type: move.type, l: l) }
+                            PokemonNameLabel(items: moves.map { PokemonNameItem(resource: .init(kind: .move, name: $0.slug), suffix: "") },
+                                             language: store.language)
+                                .font(.caption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
+                        }
                     }
                 }
-        }
-        .buttonStyle(.plain)
-        .onHover { inside in
-            if inside { hovered = entry.id } else if hovered == entry.id { hovered = nil }
-        }
-        .speciesNameTooltip(entry.finalID, form: entry.form, language: store.language)
-    }
-}
-
-/// A candidate's four moves with their types, before it is picked: what it would loop in this dungeon.
-@MainActor
-struct CandidateMovesPreview: View {
-    let store: CompanionStore
-    let entry: DexEntry
-    let dungeon: DungeonID?
-
-    var body: some View {
-        let l = store.l
-        let spec = store.dungeonSpec(entry, for: dungeon)
-        VStack(alignment: .leading, spacing: 3) {
-            PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
-                .font(.caption.weight(.semibold))
-            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)],
-                      alignment: .leading, spacing: 3) {
-                ForEach(spec?.moves ?? [], id: \.self) { slug in
-                    HStack(spacing: 4) {
-                        if let move = MoveTable.move(slug) {
-                            let type = spec.map { move.type(for: $0) } ?? move.type
-                            Badge(l.typeName(type).uppercased(), tint: .type(type))
-                        }
-                        PokemonNameLabel(.move, slug, language: store.language).font(.caption2).lineLimit(1)
-                    }
+                Spacer(minLength: 4)
+                if let refusal {
+                    Label(l.dungeonRule(refusal), systemImage: "nosign").font(.caption2).foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else if let fit = info?.fit, fit != .neutral {
+                    fitTag(fit, l)
+                }
+                if chosen {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Design.actionColor)
                 }
             }
+            .padding(.vertical, 3).padding(.horizontal, 6)
+            .opacity(blocked ? 0.45 : 1)
+            .background(RoundedRectangle(cornerRadius: 8).fill(chosen ? Design.actionColor.opacity(0.18) : .clear))
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
+    }
+
+    private func fitTag(_ fit: TeamMatchup.Fit, _ l: L) -> some View {
+        let strong = fit == .strong
+        return Label(strong ? l.dungeonFitStrong : l.dungeonFitWeak,
+                     systemImage: strong ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(strong ? Color.blue : Color.readableOrange)
+            .lineLimit(1).fixedSize()
+            .hoverTip(l.dungeonFitHint)
     }
 }
 
