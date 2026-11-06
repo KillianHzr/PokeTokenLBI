@@ -410,6 +410,26 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(s.runs(of: .diglettsCave).count, DungeonRunRecord.kept - 1)
         let back = try JSONDecoder().decode(CompanionState.self, from: JSONEncoder().encode(s.state))
         XCTAssertEqual(back.dungeons.history, s.dungeonProgress.history)
+        // #133: its journal and team kept, the older records' dropped past the last thirty.
+        XCTAssertEqual(run.log, s.dungeonProgress.history.last?.log)
+        XCTAssertFalse(run.log?.isEmpty ?? true, "the journal")
+        XCTAssertEqual(run.team?.count, 3)
+        XCTAssertEqual(s.allRuns.first, run, "the latest first")
+    }
+
+    /// #133: the last thirty records keep their journal, the hundred kept a line each; a save from before decodes.
+    func testTheLastJournalsAreKept() throws {
+        let entry = ExpeditionLogEntry(id: 0, floor: 1, date: now, kind: .victory)
+        let full = DungeonRunRecord(dungeon: .mtMoon, endedAt: now, won: true, left: false, floor: 8, floors: 8, tokens: 1,
+                                    candies: 0, eggs: 0, items: 0, bossSpeciesID: 36, caught: false, log: [entry], team: [])
+        let trimmed = DungeonRunRecord.trimmed(Array(repeating: full, count: 120))
+        XCTAssertEqual(trimmed.count, DungeonRunRecord.kept)
+        XCTAssertEqual(trimmed.filter { $0.log != nil }.count, DungeonRunRecord.journalsKept)
+        XCTAssertNotNil(trimmed.last?.log, "the latest keep theirs")
+        XCTAssertNil(trimmed.first?.log)
+        XCTAssertNil(trimmed.first?.team)
+        let old = #"{"dungeon":"mtMoon","endedAt":0,"won":true,"left":false,"floor":8,"floors":8,"tokens":1,"candies":0,"eggs":0,"items":0,"bossSpeciesID":36,"caught":false}"#
+        XCTAssertNil(try JSONDecoder().decode(DungeonRunRecord.self, from: Data(old.utf8)).log, "a record from before")
     }
 
     /// One cell per species, form and shininess on the team screen (a player saw nine identical Seedot): the copy picked,
@@ -520,7 +540,10 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertNil(s.dungeonMenuFloor)
         XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
         XCTAssertFalse(s.dungeonNeedsAttention, "the team walks on its own")
-        XCTAssertEqual(s.dungeonMenuFloor, s.l.dungeonFloorTag(1, DungeonTier.t1.floors))
+        XCTAssertEqual(s.dungeonMenuFloor, "1/\(DungeonTier.t1.floors)", "no letter before it (#136)")
+        for language in AppLanguage.allCases {
+            XCTAssertEqual(L(language).dungeonFloorTag(3, 8), "3/8", "\(language)")
+        }
         s.changeDungeons { $0.expedition?.phase = .awaitingHeal(price: 1) }
         XCTAssertTrue(s.dungeonNeedsAttention, "the heal waits for its answer")
         s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
@@ -746,6 +769,37 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(s.state.active?.baseID, 493)
     }
 
+    /// The artifacts in the dungeons (the owner, 2026-11-06): those for everyone, those of a type the dungeon has and
+    /// the badges its types are weak to speed its floors up, added up as growth is; the others do nothing.
+    func testArtifactsSpeedTheFloorsUp() throws {
+        let plain = try store(dex: strong)
+        XCTAssertEqual(plain.dungeonSpeed(.pokemonTower), 1)
+        XCTAssertEqual(plain.dungeonCost(.pokemonTower), DungeonCatalog.dungeon(.pokemonTower).cost(difficulty: 0.1))
+        let s = try store(dex: strong, inventory: [.griseousOrb: 1, .silverWing: 1, .sunFlute: 1, .rustedSword: 1, .zRing: 1]) {
+            $0.claimedAchievements.insert(CompanionState.regionTierKey(.boulderBadge, generation: 1))
+        }
+        XCTAssertEqual(s.dungeonSpeed(.pokemonTower), 1 + 0.3 + 0.25, accuracy: 1e-9, "Ghost: the Orb and the Wing")
+        XCTAssertEqual(s.dungeonSpeed(.mtCoronet), 1 + 0.3 + 0.25 + 0.3, accuracy: 1e-9, "the Orb, the Wing and the Z-Ring, added")
+        XCTAssertEqual(s.dungeonSpeed(.viridianForest), 1 + 0.25 + 0.025, accuracy: 1e-9, "Bug is weak to Rock: Kanto's Boulder Badge")
+        XCTAssertEqual(s.dungeonSpeed(.daily), 1.25, accuracy: 1e-9, "no theme: the Wing only")
+        XCTAssertTrue(s.dungeonGrowthFactors(.pokemonTower).allSatisfy { $0.source != .item(.sunFlute) && $0.source != .item(.rustedSword) },
+                      "a stage or a rarity fits no dungeon")
+        let cost = DungeonCatalog.dungeon(.pokemonTower).cost(difficulty: 0.1)
+        XCTAssertEqual(s.dungeonCost(.pokemonTower), Int((Double(cost) / 1.55).rounded(.up)))
+        let forest = try store(dex: strong, inventory: [.tealMask: 1])
+        XCTAssertTrue(forest.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        let forestCost = DungeonCatalog.dungeon(.viridianForest).cost(difficulty: 0.1)
+        XCTAssertEqual(forest.expedition?.cost, Int((Double(forestCost) / 1.2).rounded(.up)), "the expedition sets off with the lower cost")
+    }
+
+    /// The Shiny Charm and the Reveal Glass raise the floors' shiny meeting as every shiny roll.
+    func testTheShinyMeetingFollowsTheShinyOdds() {
+        XCTAssertEqual(ExpeditionEngine.shinyEncounterPerTenThousand(shinyDenominator: 64), 100)
+        XCTAssertEqual(ExpeditionEngine.shinyEncounterPerTenThousand(shinyDenominator: 48), 133)
+        XCTAssertEqual(ExpeditionEngine.shinyEncounterPerTenThousand(shinyDenominator: 24), 267)
+        XCTAssertEqual(ExpeditionEngine.eventOdds(tier: .t3, risky: false, shinyDenominator: 24).first?.percent ?? 0, 2.67, accuracy: 1e-9)
+    }
+
     func testVictoryExtras() {
         var random = BattleRandom(seed: 1)
         XCTAssertEqual(CompanionStore.victoryExtras(tier: .t3, firstT3Victory: true, random: &random).items[ItemKind.legendaryKey.rawValue], 1,
@@ -755,13 +809,13 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t3), 35)
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t4), 20)
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t5), 15)
-        // About one T3 victory in ten gives a key after the first.
+        // One T3 victory in two gives a key after the first (the owner, 2026-11-06; one in ten before).
         var keys = 0
         for _ in 0..<2_000 {
             keys += CompanionStore.victoryExtras(tier: .t3, firstT3Victory: false, random: &random)
                 .items[ItemKind.legendaryKey.rawValue] ?? 0
         }
-        XCTAssertEqual(Double(keys) / 2_000, 0.10, accuracy: 0.02)
+        XCTAssertEqual(Double(keys) / 2_000, 0.50, accuracy: 0.03)
     }
 
     /// The Dungeons medals sit with the Artifacts: a step per dungeon won once, then the whole tier, each its reward

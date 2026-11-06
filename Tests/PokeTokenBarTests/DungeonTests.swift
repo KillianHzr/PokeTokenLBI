@@ -62,7 +62,9 @@ final class DungeonTests: XCTestCase {
             let data = try XCTUnwrap(SpeciesBattleTable.data(speciesID: 6, form: mega.form))
             let plain = BattleStats.computed(base: data.baseStats, ivs: Array(repeating: 31, count: 6), level: 100,
                                              nature: nil, speciesID: 6)
-            XCTAssertGreaterThan(Double(boss.stats.hp), 4.6 * Double(plain.hp))
+            // Its share one against one (2026-11-06) on top of the challenge's factors.
+            XCTAssertGreaterThan(Double(boss.stats.hp), 4.6 * ExpeditionEngine.oneOnOneChallenge * Double(plain.hp))
+            XCTAssertLessThan(Double(boss.stats.hp), 4.6 * Double(plain.hp), "lowered for one against one")
             return
         }
         XCTFail("no run reached the boss")

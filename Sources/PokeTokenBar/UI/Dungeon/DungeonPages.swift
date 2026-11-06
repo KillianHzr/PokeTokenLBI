@@ -11,7 +11,6 @@ struct MyTeamScreen: View {
     @State private var focus: String?
     @State private var editingSlot: Int?
     @State private var search = ""
-    @State private var hovered: String?
     @State private var loaded = false
 
     static let size = 6
@@ -30,27 +29,16 @@ struct MyTeamScreen: View {
             }
             Text(l.myTeamHint).font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 6) {
-                ForEach(picked, id: \.id) { entry in
-                    Button {
-                        focus = focus == entry.id ? nil : entry.id
-                        editingSlot = nil
-                    } label: {
-                        SpriteView(speciesID: entry.finalID, size: 34, shiny: entry.isShiny, form: entry.form, sameScale: true)
-                            .padding(2)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(focus == entry.id ? Design.actionColor.opacity(0.25) : .clear))
-                    }
-                    .buttonStyle(.plain)
-                    .speciesNameTooltip(entry.finalID, form: entry.form, language: store.language)
-                }
-                ForEach(0..<max(0, Self.size - picked.count), id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [3]))
-                        .frame(width: 38, height: 38)
-                }
-            }
+            TeamMemberRow(store: store, picked: picked, size: Self.size, dungeon: nil, team: $team, focus: $focus,
+                          editingSlot: $editingSlot)
             if let focused = focus, let entry = picked.first(where: { $0.id == focused }) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
+                        Button(l.dungeonMemberDone, systemImage: "chevron.left") {
+                            focus = nil
+                            editingSlot = nil
+                        }
+                        .buttonStyle(.borderless).font(.caption.weight(.semibold))
                         Spacer(minLength: 0)
                         Button(l.dungeonRemove, systemImage: "minus.circle") {
                             team.removeAll { $0 == entry.id }
@@ -59,23 +47,27 @@ struct MyTeamScreen: View {
                         }
                         .buttonStyle(.borderless).controlSize(.small).font(.caption)
                     }
-                    if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
-                        BattleFormChooser(store: store, entry: entry)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
+                                BattleFormChooser(store: store, entry: entry)
+                            }
+                            LoopEditor(store: store, entry: entry, dungeon: nil, editingSlot: $editingSlot)
+                        }
+                        .reservesScrollerLane()
                     }
-                    LoopEditor(store: store, entry: entry, dungeon: nil, editingSlot: $editingSlot)
                 }
-                .layoutPriority(1)
-            } else if let hovered, let entry = store.dungeonCandidates.first(where: { $0.id == hovered }) {
-                CandidateMovesPreview(store: store, entry: entry, dungeon: nil)
+                .frame(maxHeight: .infinity, alignment: .top)
+            } else {
+                TextField(l.dexSearchPlaceholder, text: $search)
+                    .textFieldStyle(.roundedBorder).controlSize(.small)
+                ScrollView {
+                    TeamCandidateList(store: store, dungeon: nil, faced: [], rules: [], size: Self.size, query: search,
+                                      team: $team, focus: $focus)
+                        .reservesScrollerLane()
+                }
+                .frame(minHeight: 46)
             }
-            TextField(l.dexSearchPlaceholder, text: $search)
-                .textFieldStyle(.roundedBorder).controlSize(.small)
-            ScrollView {
-                TeamCandidateGrid(store: store, candidates: store.dungeonCandidates, size: Self.size, query: search,
-                                  team: $team, focus: $focus, hovered: $hovered)
-                    .reservesScrollerLane()
-            }
-            .frame(minHeight: 46)
         }
         .padding(PopoverMetrics.padding)
         .frame(height: 520, alignment: .top)
@@ -92,6 +84,7 @@ struct MyTeamScreen: View {
 @MainActor
 struct DungeonDetailScreen: View {
     let store: CompanionStore
+    let nav: PopoverNavigation
     let id: DungeonID
     let onBack: () -> Void
     let onPrepare: () -> Void
@@ -116,6 +109,7 @@ struct DungeonDetailScreen: View {
                     facts(dungeon, size: size, rules: rules, runs: runs, l)
                     bosses(dungeon, l)
                     loot(dungeon, l)
+                    events(dungeon, l)
                     history(runs, l)
                     // Last: a T2 or later brings a hundred and more.
                     wild(dungeon, l)
@@ -136,7 +130,7 @@ struct DungeonDetailScreen: View {
     private func facts(_ dungeon: Dungeon, size: Int, rules: [DungeonRule], runs: [DungeonRunRecord], _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(([l.dungeonTeamSize(size)] + rules.map(l.dungeonRule)
-                  + [l.dungeonCost(TokenFormatter.compact(dungeon.tier.cost(difficulty: store.growthDifficulty)))])
+                  + [l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id)))])
                 .joined(separator: " · "))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 3) {
@@ -150,6 +144,15 @@ struct DungeonDetailScreen: View {
                     .font(.caption).foregroundStyle(met ? .primary : .secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            // The artifacts that speed it up (the owner, 2026-11-06), each with its share, the cost above counting them.
+            let factors = store.dungeonGrowthFactors(id)
+            if !factors.isEmpty {
+                Label(l.dungeonArtifactsSpeed(Int(((store.dungeonSpeed(id) - 1) * 100).rounded()),
+                                              factors.map { Self.factorName($0.source, l) + " +" + String(Int((($0.multiplier - 1) * 100).rounded())) + " %" }
+                                                .joined(separator: ", ")),
+                      systemImage: "sparkles")
+                    .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             Text(l.dungeonDetailRuns(runs.count, wins: store.dungeonProgress.wins(id)))
                 .font(.caption.weight(.semibold))
         }
@@ -158,20 +161,24 @@ struct DungeonDetailScreen: View {
         .designSurface(cornerRadius: 10)
     }
 
-    /// The bosses as the card shows them (Q17): whole once beaten, a silhouette once reached, nothing before.
+    static func factorName(_ source: CompanionStore.GrowthFactor.Source, _ l: L) -> String {
+        switch source {
+        case .repeatBoost: l.bonusRepeat
+        case .badges: l.collectorGroupTitle(.gymBadges)
+        case .item(let kind): l.itemName(kind)
+        }
+    }
+
+    /// The bosses as the card shows them (Q17, #137): whole once beaten, a silhouette once reached, a "?" before.
     private func bosses(_ dungeon: Dungeon, _ l: L) -> some View {
-        let progress = store.dungeonProgress
-        let met = dungeon.bosses.filter { progress.bossesReached.contains(DungeonProgress.bossKey(id, $0)) }
+        let slots = BossSlots(store: store, id: id, dungeon: dungeon, size: 30, shownAtMost: 16)
         return VStack(alignment: .leading, spacing: 4) {
-            Text(l.dungeonDetailBosses(met: met.count, of: dungeon.bosses.count)).font(.caption.weight(.semibold))
-            if !met.isEmpty {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
-                    ForEach(met, id: \.self) { species in
-                        let beaten = progress.bossesBeaten.contains(DungeonProgress.bossKey(id, species))
-                        SpriteView(speciesID: species, size: 30, isSilhouette: !beaten, sameScale: true)
-                            .speciesNameTooltip(species, language: store.language)
-                    }
-                }
+            Text(l.dungeonDetailBosses(met: slots.met, of: dungeon.bosses.count)).font(.caption.weight(.semibold))
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
+                ForEach(Array(slots.slots.enumerated()), id: \.offset) { _, slot in slot.view(size: 30, language: store.language) }
+            }
+            if slots.hidden > 0 {
+                Text("+\(slots.hidden)").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             }
         }
     }
@@ -211,6 +218,42 @@ struct DungeonDetailScreen: View {
         .designSurface(cornerRadius: 10)
     }
 
+    /// What a floor holds on each path, from the draw's own weights, and the rule of the dice (the owner, 2026-11-06:
+    /// nothing said what they change).
+    private func events(_ dungeon: Dungeon, _ l: L) -> some View {
+        let safe = ExpeditionEngine.eventOdds(tier: dungeon.tier, risky: false)
+        let risky = ExpeditionEngine.eventOdds(tier: dungeon.tier, risky: true)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(l.dungeonDetailEvents).font(.caption.weight(.semibold))
+            Text(l.dungeonPathRule).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 2) {
+                GridRow {
+                    Text("")
+                    Label(l.dungeonPath(risky: false), systemImage: "dice").font(.caption2.weight(.semibold))
+                        .gridColumnAlignment(.trailing)
+                    Label(l.dungeonPath(risky: true), systemImage: "dice.fill").font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.readableOrange).gridColumnAlignment(.trailing)
+                }
+                ForEach(Array(safe.enumerated()), id: \.offset) { i, item in
+                    GridRow {
+                        Text(l.dungeonEventName(item.kind)).font(.caption2)
+                        Text(l.oddsPercent(item.percent)).font(.caption2).monospacedDigit()
+                        Text(l.oddsPercent(risky[i].percent)).font(.caption2.weight(risky[i].percent > item.percent + 0.5 ? .bold : .regular))
+                            .monospacedDigit()
+                    }
+                }
+            }
+            // #141: on top of the floor's event, on either path.
+            if dungeon.tier >= .t2, !id.isChallenge {
+                Label(l.dungeonSecretRule, systemImage: "door.left.hand.open").font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .designSurface(cornerRadius: 10)
+    }
+
     private func line(_ title: String, _ value: String?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(title).font(.caption.weight(value == nil ? .regular : .medium))
@@ -227,26 +270,7 @@ struct DungeonDetailScreen: View {
                 Text(l.dungeonDetailNoRun).font(.caption).foregroundStyle(.secondary)
             }
             ForEach(Array(runs.enumerated()), id: \.offset) { _, run in
-                HStack(spacing: 8) {
-                    SpriteView(speciesID: run.bossSpeciesID, size: 26, isSilhouette: !run.won, sameScale: true)
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 4) {
-                            Text(l.dungeonResultTitle(won: run.won, roped: run.left)).font(.caption.weight(.semibold))
-                                .foregroundStyle(run.won ? Design.actionColor : Color.readableOrange)
-                            if run.caught { Image(systemName: "checkmark.seal.fill").font(.caption2).foregroundStyle(.secondary) }
-                        }
-                        Text([run.endedAt.formatted(.dateTime.day().month().hour().minute().locale(store.language.displayLocale)),
-                              l.dungeonFloorOf(run.floor, run.floors)].joined(separator: " · "))
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 4)
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text("🍬 \(run.candies) · 🥚 \(run.eggs) · 🎒 \(run.items)").font(.caption2).monospacedDigit()
-                        Text(TokenFormatter.compact(run.tokens)).font(.caption2).monospacedDigit()
-                    }
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-                }
+                RunRow(store: store, run: run) { nav.pastRun = run.endedAt }
             }
         }
     }
@@ -365,5 +389,131 @@ struct TypeChartScreen: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .designSurface(cornerRadius: 10)
+    }
+}
+
+/// Every expedition that ended, the latest first (#133): its dungeon, how it ended, its loot; one with its journal
+/// kept opens on it (`PastRunScreen`).
+@MainActor
+struct RunHistoryScreen: View {
+    let store: CompanionStore
+    let nav: PopoverNavigation
+    let onBack: () -> Void
+
+    var body: some View {
+        let l = store.l
+        let runs = store.allRuns
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Button { onBack() } label: { Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon) }
+                    .buttonStyle(.borderless)
+                    .keyboardShortcut(.cancelAction)
+                Spacer(minLength: 4)
+                Image(systemName: "clock.arrow.circlepath").foregroundStyle(.secondary)
+                Text(l.runHistoryTitle).font(.headline)
+            }
+            Text(l.runHistoryHint(DungeonRunRecord.journalsKept)).font(.caption2).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if runs.isEmpty {
+                Text(l.dungeonDetailNoRun).font(.caption).foregroundStyle(.secondary)
+            }
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(runs.enumerated()), id: \.offset) { _, run in
+                        RunRow(store: store, run: run, showsDungeon: true) {
+                            if run.log != nil { nav.pastRun = run.endedAt }
+                        }
+                    }
+                }
+                .reservesScrollerLane()
+            }
+        }
+        .padding(PopoverMetrics.padding)
+        .frame(height: 520, alignment: .top)
+    }
+}
+
+/// One expedition that ended: its boss, how it ended, when, how deep, its loot and tokens; a chevron when its journal
+/// opens.
+@MainActor
+struct RunRow: View {
+    let store: CompanionStore
+    let run: DungeonRunRecord
+    var showsDungeon = false
+    var onOpen: (() -> Void)?
+
+    var body: some View {
+        let l = store.l
+        let opens = run.log != nil && onOpen != nil
+        Button { onOpen?() } label: {
+            HStack(spacing: 8) {
+                SpriteView(speciesID: run.bossSpeciesID, size: 26, isSilhouette: !run.won, sameScale: true)
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 4) {
+                        if showsDungeon {
+                            Text(l.dungeonName(run.dungeon)).font(.caption.weight(.semibold)).lineLimit(1)
+                        }
+                        Text(l.dungeonResultTitle(won: run.won, roped: run.left))
+                            .font(showsDungeon ? .caption2.weight(.semibold) : .caption.weight(.semibold))
+                            .foregroundStyle(run.won ? Design.actionColor : Color.readableOrange)
+                        if run.caught { Image(systemName: "checkmark.seal.fill").font(.caption2).foregroundStyle(.secondary) }
+                    }
+                    Text([run.endedAt.formatted(.dateTime.day().month().hour().minute().locale(store.language.displayLocale)),
+                          l.dungeonFloorOf(run.floor, run.floors)].joined(separator: " · "))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 4)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("🍬 \(run.candies) · 🥚 \(run.eggs) · 🎒 \(run.items)").font(.caption2).monospacedDigit()
+                    Text(TokenFormatter.compact(run.tokens)).font(.caption2).monospacedDigit()
+                }
+                .foregroundStyle(.secondary)
+                .fixedSize()
+                if opens {
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 3).padding(.horizontal, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!opens)
+        .hoverTip(opens ? l.runOpenJournal : nil)
+    }
+}
+
+/// A past expedition's whole journal (#133), its battles replayable as they were fought.
+@MainActor
+struct PastRunScreen: View {
+    let store: CompanionStore
+    let nav: PopoverNavigation
+    let run: DungeonRunRecord
+    let onBack: () -> Void
+
+    var body: some View {
+        let l = store.l
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Button { onBack() } label: { Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon) }
+                    .buttonStyle(.borderless)
+                    .keyboardShortcut(.cancelAction)
+                Spacer(minLength: 4)
+                DungeonIcon(id: run.dungeon, size: 20)
+                Text(l.dungeonName(run.dungeon)).font(.headline).lineLimit(1)
+            }
+            RunRow(store: store, run: run)
+                .padding(6)
+                .designSurface(cornerRadius: 10)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    ForEach((run.log ?? []).reversed()) { entry in
+                        ExpeditionLogRow(store: store, nav: nav, entry: entry, team: run.team ?? [], floors: run.floors)
+                    }
+                }
+                .reservesScrollerLane()
+            }
+        }
+        .padding(PopoverMetrics.padding)
+        .frame(height: 520, alignment: .top)
     }
 }

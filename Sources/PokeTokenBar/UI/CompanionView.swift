@@ -36,6 +36,10 @@ struct ItemIconView: View {
         case .sawsbuckSeasons: .tier(.uncommon)
         case .furfrouTrims, .vivillonPatterns, .unownLetters: .tier(.rare)
         case .fossilEgg: .fossil
+        // #135's achievements: the egg they give, when they give one.
+        case _ where kind.moreFormsSpecies != nil:
+            kind.achievementRewards.contains { $0.kind == .rareEgg } ? .tier(.rare)
+                : kind.achievementRewards.contains { $0.kind == .uncommonEgg } ? .tier(.uncommon) : nil
         default: EventEgg(item: kind).map { .event($0) }
         }
         // A Dungeons medal: its tier's first dungeon, drawn.

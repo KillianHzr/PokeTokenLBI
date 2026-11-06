@@ -42,8 +42,23 @@ struct DungeonRunRecord: Codable, Sendable, Equatable {
     var items: Int
     var bossSpeciesID: Int
     var caught: Bool
+    /// #133: the journal and the team as they ended, every battle replayable; the latest `journalsKept` only, the
+    /// older ones a line (5 to 22 KB each, measured on 2026-11-06).
+    var log: [ExpeditionLogEntry]?
+    var team: [ExpeditionMember]?
 
     static let kept = 100
+    static let journalsKept = 30
+
+    /// The last ones kept, and the journals of the latest `journalsKept` of them.
+    static func trimmed(_ history: [DungeonRunRecord]) -> [DungeonRunRecord] {
+        var kept = Array(history.suffix(kept))
+        for i in kept.indices.dropLast(journalsKept) {
+            kept[i].log = nil
+            kept[i].team = nil
+        }
+        return kept
+    }
 }
 
 /// The dungeons' side of the save, decoded field by field so a damaged one never costs the rest.

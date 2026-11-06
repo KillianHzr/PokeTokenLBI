@@ -125,6 +125,9 @@ final class PopoverNavigation {
     /// The general team (`MyTeamScreen`) and the type chart (`TypeChartScreen`), from the Dungeons tab.
     var showingMyTeam = false
     var showingTypeChart = false
+    /// Every expedition that ended (#133), and one of them opened on its journal (`endedAt` names it).
+    var showingRunHistory = false
+    var pastRun: Date?
     /// A dungeon battle replayed (`BattleReplayScreen`): "Revoir, c'est rejouer".
     var replayBattle: ExpeditionBattle?
     /// Where the replay starts: a battle still being fought opens live, at its present moment.
@@ -194,6 +197,8 @@ final class PopoverNavigation {
         dungeonDetail = nil
         showingMyTeam = false
         showingTypeChart = false
+        showingRunHistory = false
+        pastRun = nil
         replayBattle = nil
         replayStart = 0
         showingExpeditionLog = false
@@ -290,6 +295,10 @@ struct PopoverView: View {
                     nav.replayBattle = nil
                     nav.replayStart = 0
                 }
+            } else if let ended = nav.pastRun, let run = companion.allRuns.first(where: { $0.endedAt == ended }) {
+                PastRunScreen(store: companion, nav: nav, run: run) { nav.pastRun = nil }
+            } else if nav.showingRunHistory {
+                RunHistoryScreen(store: companion, nav: nav) { nav.showingRunHistory = false }
             } else if nav.showingExpeditionLog {
                 ExpeditionLogScreen(store: companion, nav: nav)
             } else if let capsule = nav.capsule {
@@ -301,7 +310,7 @@ struct PopoverView: View {
                     nav.tab = .home
                 }
             } else if let dungeon = nav.dungeonDetail {
-                DungeonDetailScreen(store: companion, id: dungeon) { nav.dungeonDetail = nil } onPrepare: {
+                DungeonDetailScreen(store: companion, nav: nav, id: dungeon) { nav.dungeonDetail = nil } onPrepare: {
                     nav.dungeonTeam = dungeon
                 }
             } else if nav.showingMyTeam {

@@ -19,6 +19,8 @@ struct DungeonsView: View {
                         .buttonStyle(.borderless).hoverTip(l.myTeamTitle)
                     Button { nav.showingTypeChart = true } label: { Image(systemName: "tablecells") }
                         .buttonStyle(.borderless).hoverTip(l.typeChartTitle)
+                    Button { nav.showingRunHistory = true } label: { Image(systemName: "clock.arrow.circlepath") }
+                        .buttonStyle(.borderless).hoverTip(l.runHistoryTitle)
                     ItemIconView(kind: .legendaryKey, size: 16)
                     Text("\(l.itemName(.legendaryKey)) ×\(store.itemCount(.legendaryKey))")
                         .font(.caption.weight(.semibold)).monospacedDigit().foregroundStyle(.secondary)
@@ -111,7 +113,7 @@ struct DungeonCard: View {
                         }
                     }
                     Text(([l.dungeonTeamSize(size)] + rules.map(l.dungeonRule)
-                          + [l.dungeonCost(TokenFormatter.compact(dungeon.tier.cost(difficulty: store.growthDifficulty)))])
+                          + [l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id)))])
                         .joined(separator: " · "))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -161,26 +163,14 @@ struct DungeonCard: View {
         }
     }
 
-    /// Q17: the bosses beaten whole, those only reached as silhouettes, none before.
-    @ViewBuilder
+    /// Q17: the bosses beaten whole, those only reached as silhouettes, a "?" for each one not met yet (#137): how many
+    /// wait there, never who.
     private func bosses(_ dungeon: Dungeon, _ l: L) -> some View {
-        let progress = store.dungeonProgress
-        let met = dungeon.bosses.filter { progress.bossesReached.contains(DungeonProgress.bossKey(id, $0)) }
-        if met.isEmpty {
-            Text(l.dungeonBossUnknown).font(.caption).foregroundStyle(.secondary)
-        } else {
-            // The Ruins of Alph draw any final species: past a few, a count, or the row pushed the popover wider.
-            let shown = Array(met.suffix(Self.bossesShown))
-            HStack(spacing: 2) {
-                ForEach(shown, id: \.self) { species in
-                    let beaten = progress.bossesBeaten.contains(DungeonProgress.bossKey(id, species))
-                    SpriteView(speciesID: species, size: 28, isSilhouette: !beaten, sameScale: true)
-                        .speciesNameTooltip(species, language: store.language)
-                }
-                if met.count > shown.count {
-                    Text("+\(met.count - shown.count)").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                        .fixedSize()
-                }
+        let slots = BossSlots(store: store, id: id, dungeon: dungeon, size: 28, shownAtMost: Self.bossesShown)
+        return HStack(spacing: 2) {
+            ForEach(Array(slots.slots.enumerated()), id: \.offset) { _, slot in slot.view(size: 28, language: store.language) }
+            if slots.hidden > 0 {
+                Text("+\(slots.hidden)").font(.caption.weight(.semibold)).foregroundStyle(.secondary).fixedSize()
             }
         }
     }
@@ -223,7 +213,7 @@ private struct ChallengeCard: View {
         let boss = running ?? store.challengeBoss(id)
         let tried = store.challengeTried(id)
         let details = [l.dungeonFloors(dungeon.floors),
-                       l.dungeonCost(TokenFormatter.compact(dungeon.cost(difficulty: store.growthDifficulty))),
+                       l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id))),
                        id == .daily ? l.challengeOneTryADay : l.challengeOneTryAWeek].joined(separator: " · ")
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top, spacing: 6) {
@@ -296,5 +286,53 @@ struct DungeonIcon: View {
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
+    }
+}
+
+/// A dungeon's bosses as a player knows them (Q17, #137): beaten whole, reached as a silhouette, a "?" when not met.
+/// The Ruins of Alph, whose boss is any final species, show those met and one "?" for the rest.
+@MainActor
+struct BossSlots {
+    @MainActor
+    enum Slot {
+        case met(speciesID: Int, beaten: Bool)
+        case unknown
+
+        @ViewBuilder
+        func view(size: CGFloat, language: AppLanguage) -> some View {
+            switch self {
+            case .met(let species, let beaten):
+                SpriteView(speciesID: species, size: size, isSilhouette: !beaten, sameScale: true)
+                    .speciesNameTooltip(species, language: language)
+            case .unknown:
+                Text("?").font(.system(size: size * 0.45, weight: .bold, design: .rounded)).foregroundStyle(.secondary)
+                    .frame(width: size, height: size)
+                    .background(RoundedRectangle(cornerRadius: size / 4).strokeBorder(.secondary.opacity(0.45),
+                                                                                    style: StrokeStyle(lineWidth: 1, dash: [3])))
+            }
+        }
+    }
+
+    /// Up to `shownAtMost` slots, the latest met last; `hidden` more met past them.
+    let slots: [Slot]
+    let hidden: Int
+    let met: Int
+
+    init(store: CompanionStore, id: DungeonID, dungeon: Dungeon, size: CGFloat, shownAtMost: Int) {
+        let progress = store.dungeonProgress
+        let reached = dungeon.bosses.filter { progress.bossesReached.contains(DungeonProgress.bossKey(id, $0)) }
+        func slot(_ species: Int) -> Slot {
+            .met(speciesID: species, beaten: progress.bossesBeaten.contains(DungeonProgress.bossKey(id, species)))
+        }
+        met = reached.count
+        if dungeon.bosses.count <= shownAtMost {
+            // Every boss has its place, in the catalog's order: its "?" until it is met.
+            slots = dungeon.bosses.map { reached.contains($0) ? slot($0) : .unknown }
+            hidden = 0
+        } else {
+            let shown = Array(reached.suffix(shownAtMost - 1))
+            slots = shown.map(slot) + [.unknown]
+            hidden = reached.count - shown.count
+        }
     }
 }

@@ -239,6 +239,10 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     /// The rewards for Tauros's four breeds and Necrozma's four forms (the owner, 2026-11-05): a complete line weighs
     /// less in every egg, Tauros's by one step, Necrozma's by two (`HatchDraw.completeLineDivisor`).
     case taurosBreeds, necrozmaForms
+    /// #135 (the owner, 2026-11-06: an achievement for every species of three forms or more, items as rewards): each
+    /// puts eggs or candies in the Bag, as the Sawsbuck's seasons do (`moreFormsSpecies`).
+    case deoxysFormes, wormadamCloaks, darmanitanModes, kyuremFusions, genesectDrives, gourgeistSizes, zygardeFormes
+    case lycanrocForms, cramorantForms, calyrexSteeds, squawkabillyPlumages, tatsugiriForms, ogerponMasks, terapagosForms
     case boulderBadge
     case cascadeBadge
     case thunderBadge
@@ -309,8 +313,41 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     }
 
     /// PokéAPI 아이템 스프라이트 파일명(.../sprites/items/{name}.png 또는 badge-{id}). nil = 스프라이트 없음.
+    /// The species each #135 forms achievement asks every form of, a final one: those that evolve show their forms
+    /// as finals only (Meowth's and Basculin's do not, so they have none).
+    var moreFormsSpecies: Int? {
+        switch self {
+        case .deoxysFormes: 386
+        case .wormadamCloaks: 413
+        case .darmanitanModes: 555
+        case .kyuremFusions: 646
+        case .genesectDrives: 649
+        case .gourgeistSizes: 711
+        case .zygardeFormes: 718
+        case .lycanrocForms: 745
+        case .cramorantForms: 845
+        case .calyrexSteeds: 898
+        case .squawkabillyPlumages: 931
+        case .tatsugiriForms: 978
+        case .ogerponMasks: 1017
+        case .terapagosForms: 1024
+        default: nil
+        }
+    }
+
+    /// A #135 achievement's rewards: a legendary's, harder to hatch again, a Rare Egg and five Rare Candies; four
+    /// forms an Uncommon Egg, as the Sawsbuck's seasons; three, three Rare Candies, as the Red Nectar.
+    static func moreFormsRewards(species: Int) -> [(kind: ItemKind, count: Int)] {
+        if SpeciesInfo.all[species]?.isLegendary == true { return [(.rareEgg, 1), (.rareCandy, 5)] }
+        return PokemonForm.forms(speciesID: species).count >= 4 ? [(.uncommonEgg, 1)] : [(.rareCandy, 3)]
+    }
+
     var spriteName: String? {
         if let badgeType { return badgeType.badgeSpriteName }
+        // A #135 achievement shows what it gives: its egg is drawn, its candies are the candy's sprite.
+        if let species = moreFormsSpecies {
+            return Self.moreFormsRewards(species: species).contains { $0.kind.isEggItem } ? nil : "rare-candy"
+        }
         switch self {
         case .rareCandy: return "rare-candy"
         case .mint: return "mental-herb"
@@ -386,6 +423,9 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     }
     /// 스프라이트 로딩 전/미제공/실패 시 폴백 기호.
     var fallbackEmoji: String {
+        if let species = moreFormsSpecies {
+            return Self.moreFormsRewards(species: species).contains { $0.kind.isEggItem } ? "🥚" : "🍬"
+        }
         switch self {
         case .rareCandy: return "🍬"
         case .mint: return "🌿"
@@ -459,6 +499,10 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .leafStone, .fireStone, .waterStone, .thunderStone, .sunStone,
              .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone:
             return "★"
+        // Answered above (`moreFormsSpecies`).
+        case .deoxysFormes, .wormadamCloaks, .darmanitanModes, .kyuremFusions, .genesectDrives, .gourgeistSizes, .zygardeFormes,
+             .lycanrocForms, .cramorantForms, .calyrexSteeds, .squawkabillyPlumages, .tatsugiriForms, .ogerponMasks, .terapagosForms:
+            return "🥚"
         }
     }
     /// Items taken out of the game without deleting them: neither sold nor shown in the Bag, while a save keeps
@@ -488,6 +532,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     }
     /// 보유형(패시브) 아이템 — 소비하지 않고 보유하는 동안 상시 효과. 1회 구매(재구매 불가), 가방엔 "적용 중" 표시.
     var isPassive: Bool {
+        if moreFormsSpecies != nil { return false }
         switch self {
         case .rareCandy, .mint,
              .typeNullEgg, .legendaryEgg, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .legendPlate, .lightBall,
@@ -514,6 +559,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     /// What one claim of this achievement puts in the Bag: the item itself, or for Arceus's Legend Plate and most
     /// forms achievements, candies and eggs.
     var achievementRewards: [(kind: ItemKind, count: Int)] {
+        if let species = moreFormsSpecies { return Self.moreFormsRewards(species: species) }
         switch self {
         case .legendPlate: return [(.rareEgg, 1), (.uncommonEgg, 1)]
         case .cometShard: return [(.rareCandy, 5)]
@@ -562,6 +608,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     /// Achievement group of an item that unlocks through the Pokédex. nil = sold in the shop.
     var collectorGroup: CollectorGroup? {
         if badgeType != nil { return .gymBadges }
+        if moreFormsSpecies != nil { return .forms }
         if stoneType != nil { return .evolutionStones }
         switch self {
         case .rareCandy, .mint, .shinyCharm, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .fossilEgg: return nil
@@ -577,6 +624,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     /// Pokédex condition before this item's achievement can be claimed. nil = sold in the shop.
     /// Each item keeps the Pokémon of the achievement that used to award it.
     var unlock: ItemUnlock? {
+        if let species = moreFormsSpecies { return .forms(FormGoal(species)) }
         switch self {
         case .rareCandy, .mint, .shinyCharm, .birthdayEgg, .pokemonEgg, .uncommonEgg, .rareEgg, .fossilEgg: return nil
         case .newYearEgg, .valentineEgg, .pokemonDayEgg, .easterEgg, .halloweenEgg, .christmasEgg, .companionEgg, .springEgg, .summerEgg, .autumnEgg, .winterEgg: return nil
@@ -661,6 +709,10 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .darkBadge, .fairyBadge:
             // One goal per region (generation); each met goal is a tier to claim (`CompanionStore.regionTiers`).
             return regionGoals.map { .species($0.map(\.goal)) }
+        // Answered above (`moreFormsSpecies`).
+        case .deoxysFormes, .wormadamCloaks, .darmanitanModes, .kyuremFusions, .genesectDrives, .gourgeistSizes, .zygardeFormes,
+             .lycanrocForms, .cramorantForms, .calyrexSteeds, .squawkabillyPlumages, .tatsugiriForms, .ogerponMasks, .terapagosForms:
+            return moreFormsSpecies.map { .forms(FormGoal($0)) }
         }
     }
 

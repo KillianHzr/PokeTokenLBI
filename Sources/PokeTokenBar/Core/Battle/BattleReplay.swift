@@ -26,8 +26,18 @@ struct BattleFrame: Equatable, Sendable {
     }
 
     var units: [Unit]
-    /// The last moves that landed, newest last: (time, attacker, move, target, damage).
-    var recentHits: [(time: Int, attacker: String, move: String, target: String, damage: Int)]
+    /// The last moves that landed, newest last: when, who, which, on whom, how much, how effective, critical or not.
+    var recentHits: [Hit]
+
+    struct Hit: Equatable, Sendable {
+        let time: Int
+        let attacker: String
+        let move: String
+        let target: String
+        let damage: Int
+        var effectiveness = 1.0
+        var critical = false
+    }
 
     static func == (lhs: BattleFrame, rhs: BattleFrame) -> Bool {
         lhs.units == rhs.units && lhs.recentHits.count == rhs.recentHits.count
@@ -45,7 +55,7 @@ struct BattleFrame: Equatable, Sendable {
         }
         var index: [String: Int] = [:]
         for (i, unit) in units.enumerated() { index[unit.id] = i }
-        var hits: [(time: Int, attacker: String, move: String, target: String, damage: Int)] = []
+        var hits: [Hit] = []
         for timed in events where timed.time <= time {
             switch timed.event {
             case .enter(_, _, let id):
@@ -63,9 +73,10 @@ struct BattleFrame: Equatable, Sendable {
                     units[i].castStart = timed.time
                     units[i].castEnds = ends
                 }
-            case .hit(let attacker, let target, let move, let damage, let hp, _, _):
+            case .hit(let attacker, let target, let move, let damage, let hp, let effectiveness, let critical):
                 if let i = index[target] { units[i].hp = hp }
-                hits.append((timed.time, attacker, move, target, damage))
+                hits.append(Hit(time: timed.time, attacker: attacker, move: move, target: target, damage: damage,
+                                effectiveness: effectiveness, critical: critical))
                 if hits.count > keepHits { hits.removeFirst() }
             case .hurt(let id, _, let hp, _), .heal(let id, _, let hp, _):
                 if let i = index[id] {
