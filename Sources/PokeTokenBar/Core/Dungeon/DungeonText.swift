@@ -653,6 +653,25 @@ extension L {
           "Artefakte machen seine Ebenen \(percent) % schneller: \(list)", "Артефакты ускоряют этажи на \(percent)%: \(list)")
     }
 
+    /// The daily and weekly boss's form: not the player's yet, or won already.
+    var challengeFormNew: String {
+        t("아직 없는 모습", "Not yours yet", "まだ持っていない", "Aún no es tuya", "Pas encore à toi", "Ainda não é sua", "Noch nicht deine",
+          "Ещё не ваша")
+    }
+    var challengeFormOwned: String {
+        t("이미 얻은 모습", "Won already", "もう手に入れた", "Ya la tienes", "Déjà obtenue", "Já é sua", "Schon gewonnen", "Уже получена")
+    }
+    var challengeFormNewHint: String {
+        t("이 모습은 아직 없어요: 보스를 쓰러뜨리면 영원히 내 것이 돼요.",
+          "You do not have this form yet: beat the boss and it is yours for good.",
+          "このすがたはまだ持っていません：ボスをたおすとずっと自分のものになります。",
+          "Aún no tienes esta forma: vence al jefe y será tuya para siempre.",
+          "Tu n'as pas encore cette forme : bats le boss et elle est à toi pour de bon.",
+          "Você ainda não tem esta forma: vença o chefe e ela é sua para sempre.",
+          "Du hast diese Form noch nicht: Besiege den Boss, und sie gehört dir für immer.",
+          "У вас ещё нет этой формы: победите босса, и она станет вашей навсегда.")
+    }
+
     /// #133: every expedition that ended.
     var runHistoryTitle: String {
         t("탐험 기록", "Expedition history", "たんけんの記録", "Historial de expediciones", "Historique des expéditions",

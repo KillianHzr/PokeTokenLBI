@@ -233,6 +233,15 @@ private struct ChallengeCard: View {
                         BattleFormTitle(form: boss, language: store.language)
                             .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
+                        // Whether the form is the player's already (the owner, 2026-11-06: is it worth the try?). The
+                        // draw takes forms not won, so it says so; a run's boss won meanwhile says it too.
+                        let owned = store.dungeonProgress.battleForms.contains(boss.key)
+                        Label(owned ? l.challengeFormOwned : l.challengeFormNew,
+                              systemImage: owned ? "checkmark.circle" : "sparkles")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(owned ? Color.secondary : Color.blue)
+                            .lineLimit(1)
+                            .hoverTip(owned ? nil : l.challengeFormNewHint)
                     }
                 }
             }

@@ -1309,6 +1309,16 @@ read_when:
 
 ## 동시성
 
+- **A list never asks the store for a whole collection per row.** The team screen checked each candidate row
+  against the team with `store.dungeonCandidates.first { ... }`, a computed property that filtered the whole Pokédex:
+  585 rows × 6 members × 742 entries, 3.2 s for every render, and hovering a Pokémon re-rendered it (a player's frozen
+  app, 2026-11-06). **Why it was missed:** the tests use a Pokédex of a few entries, where the same code takes no
+  time, and the renders checked the look, not the time. Fix: `dungeonCandidates` made once per state
+  (`dungeonCandidatesCache`, reset with the state as `dexSpeciesCache`), the team's species once per render
+  (`teamSpecies`). Guard: `DungeonStoreTests.testTheCandidatesAreMadeOncePerState` (one build for 500 reads), and the
+  measure `ZZTeamScreenCostTests` on a real save: 0.36 ms a render. Sweep: the other per-row look-ups go through
+  cached state (`dexSpeciesCache`, `formSuspenseCache`); a new computed collection read inside a `ForEach` takes a cache.
+
 - **비동기 완료가 "그 사이 교체된 대상"에 착지하지 않게 하라 — 상태를 통째로 바꾸는 경로를 새로 만들면
   진행 중인 await 를 전수 점검한다.** 이 레포가 세 번 겪은 부류다(#136·#138 스프라이트, 그리고 세이브
   불러오기 중 부화). `isHatching` 같은 중복 실행 락은 *같은 작업의 재진입*만 막을 뿐, await 창에서 상태가

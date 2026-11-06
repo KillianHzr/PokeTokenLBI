@@ -396,6 +396,7 @@ struct TeamCandidateList: View {
              refusal: rules.first { !DungeonTeamRules.admits(DungeonCandidate(group.entry), rules: [$0]) })
         }
         .sorted { a, b in rank(a.entry, a.refusal) < rank(b.entry, b.refusal) }
+        let taken = store.teamSpecies(team)
         Group {
             if rows.isEmpty {
                 Text(l.dungeonNoCandidate).font(.caption).foregroundStyle(.secondary)
@@ -403,7 +404,7 @@ struct TeamCandidateList: View {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(rows, id: \.entry.id) { row in
                         CandidateRow(store: store, entry: row.entry, count: row.count, refusal: row.refusal,
-                                     info: infos[row.entry.id], size: size, team: $team, focus: $focus)
+                                     info: infos[row.entry.id], size: size, taken: taken, team: $team, focus: $focus)
                     }
                 }
             }
@@ -448,14 +449,15 @@ private struct CandidateRow: View {
     let refusal: DungeonRule?
     let info: TeamCandidateList.Info?
     let size: Int
+    /// The team's species, made once per render by the list.
+    let taken: Set<Int>
     @Binding var team: [String]
     @Binding var focus: String?
 
     var body: some View {
         let l = store.l
         let chosen = team.contains(entry.id)
-        let blocked = !chosen && (refusal != nil || team.count >= size
-            || team.contains { id in store.dungeonCandidates.first { $0.id == id }?.finalID == entry.finalID })
+        let blocked = !chosen && (refusal != nil || team.count >= size || taken.contains(entry.finalID))
         let types = info?.types ?? PokemonTypeData.types(forSpeciesID: entry.finalID, form: entry.form)
         Button {
             if chosen {

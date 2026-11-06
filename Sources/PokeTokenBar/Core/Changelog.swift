@@ -67,6 +67,22 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-06", entries: [
+            .fixed("2026-11-06-team-screen-lag", { $0.t("던전 팀 화면에서 포켓몬 위에 마우스를 올리거나 고를 때 앱이 멈추던 문제를 고쳤어요.",
+                                                     "The dungeon team screen no longer freezes the app when you hover or pick a Pokémon.",
+                                                     "ダンジョンのチーム画面で、ポケモンにマウスを乗せたり選んだりするとアプリが固まる問題を直しました。",
+                                                     "La pantalla de equipo de las mazmorras ya no congela la app al pasar el ratón o elegir un Pokémon.",
+                                                     "L'écran d'équipe des donjons ne fige plus l'app quand tu survoles ou choisis un Pokémon.",
+                                                     "A tela de equipe das masmorras não trava mais o app ao passar o mouse ou escolher um Pokémon.",
+                                                     "Der Team-Bildschirm der Dungeons friert die App nicht mehr ein, wenn du ein Pokémon überfährst oder wählst.",
+                                                     "Экран команды подземелий больше не подвешивает приложение при наведении или выборе покемона.") }),
+            .improved("2026-11-06-challenge-form-new", { $0.t("오늘의 던전과 이번 주 던전 카드가 보스의 모습이 아직 없는지 알려 줘요.",
+                                                           "The daily and weekly dungeon cards say whether the boss's form is not yours yet.",
+                                                           "今日と今週のダンジョンのカードに、ボスのすがたをまだ持っていないかが出ます。",
+                                                           "Las tarjetas de las mazmorras del día y de la semana dicen si la forma del jefe aún no es tuya.",
+                                                           "Les cartes des donjons du jour et de la semaine disent si la forme du boss n'est pas encore à toi.",
+                                                           "Os cartões das masmorras do dia e da semana dizem se a forma do chefe ainda não é sua.",
+                                                           "Die Karten des Tages- und Wochen-Dungeons zeigen, ob die Form des Bosses noch nicht dir gehört.",
+                                                           "Карточки подземелий дня и недели показывают, есть ли у вас уже форма босса.") }),
             .improved("2026-11-06-missing-forms-first", { $0.t("알은 이제 그 계열에 아직 없는 폼을 먼저 줘요(알로라 라이츄도 마찬가지). 모든 폼을 모으면 다시 아무 폼이나 나와요.",
                                                            "Eggs now hatch the forms a line is still missing first, Alolan Raichu included; once you have them all, any form comes again.",
                                                            "タマゴは、その系統にまだないフォルムを先にくれるようになりました（アローラのライチュウも）。すべてそろうと、またどのフォルムも出ます。",
