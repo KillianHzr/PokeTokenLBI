@@ -147,9 +147,10 @@ final class FormAchievementsTests: XCTestCase {
             XCTAssertNil(s.state.active, "graduated, seed \(seed)")
             XCTAssertEqual(s.itemCount(.rareCandy), mon.form == PokemonForm("heat") ? 0 : 1,
                            "seed \(seed), \(String(describing: mon.form))")
+            XCTAssertNotEqual(mon.form, PokemonForm("heat"), "a missing form first (`missingFormsFirst`), seed \(seed)")
             paid.insert(s.itemCount(.rareCandy) > 0)
         }
-        XCTAssertEqual(paid, [true, false])
+        XCTAssertEqual(paid, [true], "every hatch brings a form never graduated, so every graduation pays")
 
         let without = try store(dex: [heat])
         await without.hatch(baseID: 479)

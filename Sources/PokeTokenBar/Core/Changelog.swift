@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-06", entries: [
+            .improved("2026-11-06-missing-forms-first", { $0.t("알은 이제 그 계열에 아직 없는 폼을 먼저 줘요(알로라 라이츄도 마찬가지). 모든 폼을 모으면 다시 아무 폼이나 나와요.",
+                                                           "Eggs now hatch the forms a line is still missing first, Alolan Raichu included; once you have them all, any form comes again.",
+                                                           "タマゴは、その系統にまだないフォルムを先にくれるようになりました（アローラのライチュウも）。すべてそろうと、またどのフォルムも出ます。",
+                                                           "Los huevos dan ahora primero las formas que le faltan a una línea, Raichu de Alola incluido; cuando las tienes todas, vuelve a salir cualquiera.",
+                                                           "Les œufs donnent maintenant d'abord les formes qui manquent à une lignée, Raichu d'Alola compris ; une fois toutes obtenues, n'importe laquelle revient.",
+                                                           "Os ovos agora dão primeiro as formas que faltam a uma linha, Raichu de Alola incluído; quando você tem todas, qualquer uma volta a sair.",
+                                                           "Eier bringen jetzt zuerst die Formen, die einer Linie noch fehlen, Alola-Raichu eingeschlossen; hast du alle, kommt wieder jede.",
+                                                           "Яйца теперь сначала дают формы, которых не хватает линии, включая Алольского Райчу; когда собраны все, снова выпадает любая.") }),
             .new("2026-11-06-more-forms-achievements", { $0.t("폼 업적 14개 추가: 모습이 셋 이상인 포켓몬마다 하나씩(큐레무, 테오키스, 게노세크트, 오거폰, 버드렉스, 지가르데, 테라파고스, 불비달마, 펌킨인, 도롱마담, 루가루암, 윽우지, 시비꼬, 싸리용). 보상은 가방에 들어오는 알과 이상한 사탕이에요.",
                                                              "Fourteen new forms achievements, one for every Pokémon of three forms or more (Kyurem, Deoxys, Genesect, Ogerpon, Calyrex, Zygarde, Terapagos, Darmanitan, Gourgeist, Wormadam, Lycanroc, Cramorant, Squawkabilly, Tatsugiri), each rewarded with eggs or Rare Candies in your Bag.",
                                                              "フォルムの実績を14こ追加：すがたが3つ以上あるポケモンごとに1つ（キュレム、デオキシス、ゲノセクト、オーガポン、バドレックス、ジガルデ、テラパゴス、ヒヒダルマ、パンプジン、ミノマダム、ルガルガン、ウッウ、イキリンコ、シャリタツ）。ごほうびはバッグに入るタマゴとふしぎなアメです。",

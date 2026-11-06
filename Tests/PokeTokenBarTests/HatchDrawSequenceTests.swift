@@ -52,7 +52,8 @@ final class HatchDrawSequenceTests: XCTestCase {
             st.collectedFinals = ["19:20", "16:18"]
             st.lastHatchedBaseID = 10
         }
-        XCTAssertEqual(collected.joined(separator: " "), "37/normal 19/normal 585/winter 37/normal 370 74/alola 16 133/starter 16 370 585/autumn 370 133/normal 74/normal 133/starter 585/summer 37/alola 58/normal 19/normal 74/normal 58/hisui 37/alola 1 50/normal")
+        // Rattata graduated Kanto's: from `missingFormsFirst` (2026-11-06) every Rattata hatches Alola's.
+        XCTAssertEqual(collected.joined(separator: " "), "37/normal 19/alola 585/winter 37/normal 370 74/alola 16 133/starter 16 370 585/autumn 370 133/normal 74/normal 133/starter 585/summer 37/alola 58/normal 19/alola 74/normal 58/hisui 37/alola 1 50/normal")
         let flute = try await hatches(0..<24) { st in st.inventory[ItemKind.legendCharm.rawValue] = 1 }
         XCTAssertEqual(flute.joined(separator: " "), "10 74/normal 16 585/spring 370 370 16 102/alola 618/normal 37/normal 37/normal 585/autumn 618/normal 370 370 150 10 19/normal 74/alola 37/normal 19/alola 58/hisui 50/normal 10")
     }
@@ -126,7 +127,8 @@ final class HatchDrawSequenceTests: XCTestCase {
             (EventEgg.winter, "618/galar 618/galar 618/galar 585/winter 618/galar 618/galar 618/galar 585/winter 618/galar 618/galar 618/galar 585/winter 585/winter 618/galar 618/galar 618/galar 618/galar 585/winter 618/galar 585/winter 585/winter 618/galar 618/galar 618/galar"),
             (EventEgg.christmas, "144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal* 144/normal*"),
             (EventEgg.valentine, "370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370* 370*"),
-            (EventEgg.companion, "52/galar* 52/normal* 52/alola* 52/alola* 52/galar* 52/galar* 52/normal* 52/galar* 52/galar* 52/galar* 52/galar* 52/alola* 52/alola* 52/galar* 52/normal* 52/galar* 52/galar* 52/galar* 52/galar* 52/alola* 52/alola* 52/normal* 52/galar* 52/alola*"),
+            // Meowth graduated Kanto's: from `missingFormsFirst`, its egg hatches Alola's or Galar's.
+            (EventEgg.companion, "52/alola* 52/alola* 52/galar* 52/alola* 52/galar* 52/alola* 52/alola* 52/galar* 52/galar* 52/alola* 52/alola* 52/alola* 52/alola* 52/galar* 52/galar* 52/galar* 52/galar* 52/alola* 52/galar* 52/alola* 52/galar* 52/galar* 52/alola* 52/alola*"),
             (EventEgg.newYear, "490 150 490 150 772/normal 151 144/normal 772/normal 151 772/normal 144/galar 150 150 490 151 490 150 490 490 151 490 772/normal 490 144/galar"),
         ] {
             let out = try await hatches(0..<24, event(egg))

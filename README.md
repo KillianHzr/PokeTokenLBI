@@ -78,7 +78,7 @@ The <b>Pokédex</b> folds every species you've owned into one cell — 16 per pa
 <td width="45%" align="center"><img src="assets/screenshot-pokemon-forms.png" width="300" alt="Rotom form picker and form-specific individuals"><br><small>Production UI rendered locally with sample Pokémon.</small></td>
 <td width="55%" valign="middle">
 <h3>Collect more than one look</h3>
-Collect Rotom appliances, Shaymin's Land and Sky Formes, Deerling seasons, Unown letters, Alolan, Galarian, Hisuian and Paldean regional forms, Vivillon patterns, and every other supported form. The Pokédex shows your form count and the individuals in each form. Choose an owned form as your menu-bar and floating-pet representative. An East Sea Shellos keeps its appearance when it becomes Gastrodon, and forms stay in saves and exports. Types, stats, abilities, and moves use the default form’s data.
+Collect Rotom appliances, Shaymin's Land and Sky Formes, Deerling seasons, Unown letters, Alolan, Galarian, Hisuian and Paldean regional forms, Vivillon patterns, and every other supported form. An egg hatches a form its line is still missing first, then any of them once you have them all. The Pokédex shows your form count and the individuals in each form. Choose an owned form as your menu-bar and floating-pet representative. An East Sea Shellos keeps its appearance when it becomes Gastrodon, and forms stay in saves and exports. Types, stats, abilities, and moves use the default form’s data.
 </td>
 </tr>
 <tr>
