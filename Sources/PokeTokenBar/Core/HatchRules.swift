@@ -68,9 +68,9 @@ struct HatchRules: Sendable, Equatable {
         /// no longer closes its shiny for good. Dated at its merge into main, so that every past hatch reads the rule of
         /// its time.
         case caughtBossesInEggs = "2026-11-05T11:08:54Z"
-        /// An egg hatches a form its line still misses first, every line, as the Oval Charm did alone (the owner,
-        /// 2026-11-06, after an Alolan Raichu lost to a Raichu had again). Dated at its merge into main.
-        case missingFormsFirst = "2099-01-01T00:00:00Z"
+        /// #145: an egg hatches a form its line still misses first, every line, as the Oval Charm did alone (the
+        /// owner, 2026-11-06, after an Alolan Raichu lost to a Raichu had again). Dated at its merge into main.
+        case missingFormsFirst = "2026-11-06T10:29:00Z"
 
         private static let instants: [Change: Date] = {
             let formatter = ISO8601DateFormatter()
