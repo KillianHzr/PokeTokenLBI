@@ -34,11 +34,15 @@ final class UpdateChecker {
         let sha: String
         let message: String
         let url: String
+        /// A merge commit's second parent, the merged pull request's head: the CI ran on the pull request alone, so a
+        /// merge commit has no check of its own and is green when that head is (`firstGreen`).
+        var mergedHead: String?
 
-        init(sha: String, message: String = "", url: String) {
+        init(sha: String, message: String = "", url: String, mergedHead: String? = nil) {
             self.sha = sha
             self.message = message
             self.url = url
+            self.mergedHead = mergedHead
         }
 
         // Backwards compatibility alias for tests
@@ -180,7 +184,8 @@ final class UpdateChecker {
             guard let sha = item["sha"] as? String, let html = item["html_url"] as? String else { return nil }
             let message = ((item["commit"] as? [String: Any])?["message"] as? String)?
                 .components(separatedBy: .newlines).first ?? ""
-            return LatestCommit(sha: sha, message: message, url: html)
+            let parents = (item["parents"] as? [[String: Any]])?.compactMap { $0["sha"] as? String } ?? []
+            return LatestCommit(sha: sha, message: message, url: html, mergedHead: parents.count == 2 ? parents[1] : nil)
         }
         let green = await firstGreen(commits, current: current) { sha in
             (await githubJSON("https://api.github.com/repos/\(repo)/commits/\(sha)/check-runs") as? [String: Any])?["check_runs"]
@@ -205,12 +210,18 @@ final class UpdateChecker {
     }
 
     /// The first of `commits` (newest first) whose check runs all passed, or the installed one when it comes first.
-    /// `checkRuns` nil: the request failed, so nothing is offered rather than a commit not known to pass.
+    /// `checkRuns` nil: the request failed, so nothing is offered rather than a commit not known to pass. A merge
+    /// commit with no check at all reads its pull request's head (the owner, 2026-11-06: the CI runs on the pull
+    /// request only; `main` takes an up-to-date one, so what is merged is what was tested).
     nonisolated static func firstGreen(_ commits: [LatestCommit], current: String,
                                        checkRuns: (String) async -> [[String: Any]]?) async -> LatestCommit? {
         for commit in commits {
             if current.count >= 7, commit.sha.hasPrefix(current) { return commit }
-            guard let runs = await checkRuns(commit.sha) else { return nil }
+            guard var runs = await checkRuns(commit.sha) else { return nil }
+            if runs.isEmpty, let head = commit.mergedHead {
+                guard let headRuns = await checkRuns(head) else { return nil }
+                runs = headRuns
+            }
             if isGreen(runs) { return commit }
         }
         return nil
