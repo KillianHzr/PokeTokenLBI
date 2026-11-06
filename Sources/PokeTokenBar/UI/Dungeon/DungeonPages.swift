@@ -444,41 +444,52 @@ struct RunRow: View {
 
     var body: some View {
         let l = store.l
-        let opens = run.log != nil && onOpen != nil
-        Button { onOpen?() } label: {
-            HStack(spacing: 8) {
-                SpriteView(speciesID: run.bossSpeciesID, size: 26, isSilhouette: !run.won, sameScale: true)
-                VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 4) {
-                        if showsDungeon {
-                            Text(l.dungeonName(run.dungeon)).font(.caption.weight(.semibold)).lineLimit(1)
-                        }
-                        Text(l.dungeonResultTitle(won: run.won, roped: run.left))
-                            .font(showsDungeon ? .caption2.weight(.semibold) : .caption.weight(.semibold))
-                            .foregroundStyle(run.won ? Design.actionColor : Color.readableOrange)
-                        if run.caught { Image(systemName: "checkmark.seal.fill").font(.caption2).foregroundStyle(.secondary) }
+        if run.log != nil, let onOpen {
+            Button { onOpen() } label: { content(l, opens: true) }
+                .buttonStyle(.plain)
+                .hoverTip(l.runOpenJournal)
+        } else {
+            // Not a button: a line without its journal reads as plainly as the others, never greyed.
+            content(l, opens: false)
+        }
+    }
+
+    private func content(_ l: L, opens: Bool) -> some View {
+        let result = Text(l.dungeonResultTitle(won: run.won, roped: run.left))
+            .foregroundStyle(run.won ? Design.actionColor : Color.readableOrange)
+        let when = [run.endedAt.formatted(.dateTime.day().month().hour().minute().locale(store.language.displayLocale)),
+                    l.dungeonFloorOf(run.floor, run.floors)].joined(separator: " · ")
+        return HStack(spacing: 8) {
+            SpriteView(speciesID: run.bossSpeciesID, size: 26, isSilhouette: !run.won, sameScale: true)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    // The dungeon first when the list mixes them, its result under it with the date.
+                    if showsDungeon {
+                        Text(l.dungeonName(run.dungeon)).font(.caption.weight(.semibold)).lineLimit(1)
+                    } else {
+                        result.font(.caption.weight(.semibold))
                     }
-                    Text([run.endedAt.formatted(.dateTime.day().month().hour().minute().locale(store.language.displayLocale)),
-                          l.dungeonFloorOf(run.floor, run.floors)].joined(separator: " · "))
-                        .font(.caption2).foregroundStyle(.secondary)
+                    if run.caught { Image(systemName: "checkmark.seal.fill").font(.caption2).foregroundStyle(.secondary) }
                 }
-                Spacer(minLength: 4)
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text("🍬 \(run.candies) · 🥚 \(run.eggs) · 🎒 \(run.items)").font(.caption2).monospacedDigit()
-                    Text(TokenFormatter.compact(run.tokens)).font(.caption2).monospacedDigit()
-                }
-                .foregroundStyle(.secondary)
-                .fixedSize()
-                if opens {
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+                if showsDungeon {
+                    (result + Text(" · ") + Text(when).foregroundStyle(.secondary)).font(.caption2).lineLimit(1)
+                } else {
+                    Text(when).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
-            .padding(.vertical, 3).padding(.horizontal, 4)
-            .contentShape(Rectangle())
+            Spacer(minLength: 4)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("🍬 \(run.candies) · 🥚 \(run.eggs) · 🎒 \(run.items)").font(.caption2).monospacedDigit()
+                Text(TokenFormatter.compact(run.tokens)).font(.caption2).monospacedDigit()
+            }
+            .foregroundStyle(.secondary)
+            .fixedSize()
+            if opens {
+                Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+            }
         }
-        .buttonStyle(.plain)
-        .disabled(!opens)
-        .hoverTip(opens ? l.runOpenJournal : nil)
+        .padding(.vertical, 3).padding(.horizontal, 4)
+        .contentShape(Rectangle())
     }
 }
 
