@@ -1197,6 +1197,17 @@ read_when:
   `nonisolated(unsafe)`, as `UsageStoreTests` does. Sweep: the other `@MainActor` classes with plain properties set up
   there already build on CI (async or isolated overrides).
 
+- **A player's Xcode is the ceiling, and nothing checks it.** The Bag's sections (#156) were one `compactMap` closure
+  returning `nil` or an unlabeled tuple for a labeled result, sorted inside by `bagRank(of:) < bagRank(of:)`, a
+  comparison of tuples. Swift 6.2 (here) and CI's Xcode 16.4 compiled it; a player's Xcode 27.2 gave up on the
+  expression ("failed to produce diagnostic for expression", `BagView.swift:90`), so the in-app update, which builds
+  from source with the player's own Xcode, failed for him. **Why missed:** CI pins the floor toolchain and the local
+  suite runs one newer one; the newest Xcode a player may have is built by no one before them. Keep sort and
+  grouping closures plainly typed: compare through a `Bool` function (`CompanionStore.bagOrdered`) rather than
+  tuples inside the closure, and build sections with a loop when the result is a labeled tuple. Sweep: the recap's
+  loot sort had the same tuple comparison (now `bagOrdered`); `shopSections` has the same `nil`-or-tuple shape but
+  compiled on Xcode 27.2, so it stays.
+
 ## 자격증명·Keychain
 
 - **앱 소유 keychain 항목 금지.** 앱이 만든 keychain 항목은 코드서명(cdhash)이 바뀔 때마다(로컬 재빌드·
