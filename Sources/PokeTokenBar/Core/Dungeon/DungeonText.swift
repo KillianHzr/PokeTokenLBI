@@ -1254,4 +1254,49 @@ extension L {
     var challengeUnderway: String {
         t("진행 중", "Under way", "探検中", "En curso", "En cours", "Em andamento", "Läuft", "Идёт")
     }
+
+    // The challenges' one try, lost or won (the owner, 2026-11-09: a lost daily dungeon shows as such).
+    var challengeLostDay: String {
+        t("오늘 실패", "Lost today", "今日は失敗", "Fallado hoy", "Raté aujourd'hui", "Falhou hoje", "Heute verloren", "Сегодня провал")
+    }
+    var challengeLostWeek: String {
+        t("이번 주 실패", "Lost this week", "今週は失敗", "Fallado esta semana", "Raté cette semaine", "Falhou nesta semana",
+          "Diese Woche verloren", "На этой неделе провал")
+    }
+    var challengeWonDay: String {
+        t("오늘 성공", "Won today", "今日は成功", "Superado hoy", "Réussi aujourd'hui", "Vencido hoje", "Heute geschafft",
+          "Сегодня успех")
+    }
+    var challengeWonWeek: String {
+        t("이번 주 성공", "Won this week", "今週は成功", "Superado esta semana", "Réussi cette semaine", "Vencido nesta semana",
+          "Diese Woche geschafft", "На этой неделе успех")
+    }
+    var challengeNextDay: String {
+        t("내일 새 보스", "New boss tomorrow", "明日は新しいボス", "Nuevo jefe mañana", "Nouveau boss demain", "Novo chefe amanhã",
+          "Morgen ein neuer Boss", "Завтра новый босс")
+    }
+    var challengeNextWeek: String {
+        t("월요일에 새 보스", "New boss on Monday", "月曜日に新しいボス", "Nuevo jefe el lunes", "Nouveau boss lundi",
+          "Novo chefe na segunda", "Montag ein neuer Boss", "Новый босс в понедельник")
+    }
+
+    // The expedition under way, at the top of the Dungeons tab (the owner, 2026-11-09: the line did not show).
+    var expeditionLive: String {
+        t("탐험 진행 중", "Expedition under way", "探検中", "Expedición en curso", "Expédition en cours", "Expedição em andamento",
+          "Expedition läuft", "Экспедиция идёт")
+    }
+    var expeditionWaitsForYou: String {
+        t("답을 기다려요", "Waiting for you", "返事を待っています", "Te espera", "Attend ta réponse", "Esperando você",
+          "Wartet auf dich", "Ждёт тебя")
+    }
+
+    // The battle's journal under its arena.
+    var battleLogEnters: String {
+        t("등장", "comes in", "登場", "entra", "entre en jeu", "entra", "kommt", "выходит")
+    }
+    var battleLogMiss: String { t("빗나감", "missed", "はずれ", "falla", "raté", "errou", "verfehlt", "мимо") }
+    var battleLogNoEffect: String {
+        t("효과 없음", "no effect", "効果なし", "sin efecto", "aucun effet", "sem efeito", "keine Wirkung", "нет эффекта")
+    }
+    var battleLogFailed: String { t("실패", "failed", "失敗", "falló", "échoue", "falhou", "scheitert", "не вышло") }
 }
