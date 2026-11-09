@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-battle-backs", { $0.t("전투 무대에서 내 포켓몬이 게임처럼 뒷모습으로 보여요.",
+                                                     "In the battle arena, your Pokémon are now seen from behind, as in the games.",
+                                                     "バトルのステージで、自分のポケモンがゲームと同じく後ろ姿で映るようになりました。",
+                                                     "En la arena de combate, tus Pokémon se ven ahora de espaldas, como en los juegos.",
+                                                     "Dans l'arène de combat, tes Pokémon sont maintenant vus de dos, comme dans les jeux.",
+                                                     "Na arena de batalha, seus Pokémon agora aparecem de costas, como nos jogos.",
+                                                     "In der Kampfarena siehst du deine Pokémon jetzt von hinten, wie in den Spielen.",
+                                                     "На арене ваши покемоны теперь видны со спины, как в играх.") }),
             .new("2026-11-09-travelling-merchant", { $0.t("닷새에 한 번꼴로 상점에 떠돌이 상인이 와서 자정까지 한 종류의 아이템을 상점 가격의 3분의 1에 사 가요. 화살표로 상인과 오박사를 오갈 수 있어요.",
                                                          "One day in five, a travelling merchant comes to the Shop and buys back one kind of item until midnight, at a third of its price. An arrow switches between him and Prof. Oak.",
                                                          "5日に1回ほど、ショップに旅の商人が来て、真夜中まで1種類の道具を3分の1の値段で買い取ります。矢印で商人とオーキド博士を切り替えられます。",

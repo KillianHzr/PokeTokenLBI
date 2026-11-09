@@ -129,9 +129,15 @@ struct BattleArena: View {
                 ZStack(alignment: .top) {
                     Ellipse().fill(Color.black.opacity(0.18)).frame(width: size * 0.95, height: size * 0.22)
                         .offset(y: size * 0.82)
-                    SpriteView(speciesID: unit.speciesID, size: size, shiny: unit.isShiny, form: unit.form, sameScale: true,
-                               bottomAligned: true)
-                        .scaleEffect(x: mirrored ? -1 : 1, y: 1)
+                    Group {
+                        // The player's side seen from behind, as in the games (the owner, 2026-11-09); the foes face us.
+                        if mirrored {
+                            BackSpriteView(speciesID: unit.speciesID, size: size, shiny: unit.isShiny, form: unit.form)
+                        } else {
+                            SpriteView(speciesID: unit.speciesID, size: size, shiny: unit.isShiny, form: unit.form,
+                                       sameScale: true, bottomAligned: true)
+                        }
+                    }
                         .offset(x: struck && age < 360 ? sin(age / 30) * 4 : 0)
                         .opacity(struck && age < 360 && Int(age / 60) % 2 == 1 ? 0.55 : 1)
                     if struck, let hit {
@@ -263,6 +269,51 @@ struct GenderGlyph: View {
                 .accessibilityLabel(l.genderLabel(gender))
         default:
             EmptyView()
+        }
+    }
+}
+
+/// A Pokémon from behind, for the player's side of the arena: Showdown's back render, drawn as the arena draws the
+/// fronts (one scale, standing on the bottom of its box). Until its back is there, and for the eight forms without one
+/// (the owner, 2026-11-09: "tu les laisses de face"), its front turned toward the foe.
+@MainActor
+struct BackSpriteView: View {
+    let speciesID: Int
+    let size: CGFloat
+    let shiny: Bool
+    let form: PokemonForm?
+    @State private var back: NSImage?
+
+    init(speciesID: Int, size: CGFloat, shiny: Bool, form: PokemonForm?) {
+        self.speciesID = speciesID
+        self.size = size
+        self.shiny = shiny
+        self.form = form
+        _back = State(initialValue: SpriteLoader.cachedBackImage(speciesID: speciesID, shiny: shiny,
+                                                                 form: Self.resolved(speciesID, form)))
+    }
+
+    private static func resolved(_ speciesID: Int, _ form: PokemonForm?) -> PokemonForm? {
+        PokemonForm.resolved(speciesID: speciesID, form: PikachuCostume.displayForm(speciesID: speciesID, form: form))
+    }
+
+    var body: some View {
+        Group {
+            if let back {
+                let fit = SpriteView.imageSize(for: back, box: size, sameScale: true)
+                Image(nsImage: back)
+                    .resizable()
+                    .interpolation(.none)
+                    .frame(width: fit.width, height: fit.height)
+                    .offset(y: fit.height * SpriteFit.bottomMargin(of: back))
+                    .frame(width: size, height: size, alignment: .bottom)
+            } else {
+                SpriteView(speciesID: speciesID, size: size, shiny: shiny, form: form, sameScale: true, bottomAligned: true)
+                    .scaleEffect(x: -1, y: 1)
+            }
+        }
+        .task(id: "\(speciesID)-\(shiny)-\(form?.rawValue ?? "")") {
+            back = await SpriteLoader.backImage(speciesID: speciesID, shiny: shiny, form: Self.resolved(speciesID, form))
         }
     }
 }

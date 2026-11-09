@@ -210,6 +210,47 @@ actor SpriteStore {
         return d
     }
 
+    // MARK: Backs (2026-11-09)
+
+    /// The back of a Pokémon, for the player's side of a battle (the owner, 2026-11-09): Showdown's back render
+    /// (`other/showdown/back/`), its first frame as the arena's fronts are. Every Pokémon with a front render has
+    /// one but eight forms (Libre Pikachu, seven Gigantamax); those keep their front.
+    static func backKey(speciesID: Int, shiny: Bool, form: PokemonForm? = nil) -> String {
+        "\(PokemonForm.assetName(speciesID: speciesID, form: form))-\(shiny ? "sh" : "")b"
+    }
+
+    /// Where the back may be: Showdown's names of the front, in its `back/` folder (Black and White's pixel GIFs
+    /// have no back here).
+    static func backSpriteURLs(speciesID: Int, shiny: Bool, form: PokemonForm? = nil) -> [URL] {
+        spriteURLs(speciesID: speciesID, animated: true, shiny: shiny, form: form)
+            .map(\.absoluteString)
+            .filter { $0.contains("/other/showdown/") }
+            .compactMap { URL(string: $0.replacingOccurrences(of: "/other/showdown/", with: "/other/showdown/back/")) }
+    }
+
+    /// The back's still (`<asset>-[sh]b.png`), downloaded once; nil when Showdown has none, or offline.
+    func backStill(speciesID: Int, shiny: Bool, form: PokemonForm? = nil) async -> Data? {
+        guard PokemonAssets.hasAnimatedSprite(speciesID: speciesID) else { return nil }
+        let key = Self.backKey(speciesID: speciesID, shiny: shiny, form: form)
+        if let d = mem[key] { touch(key); return d }
+        let file = directory.appendingPathComponent("\(key).png")
+        if let d = try? Data(contentsOf: file) { remember(key, d); return d }
+        if failedKeys.contains(key) { return nil }
+        var missing = true
+        for url in Self.backSpriteURLs(speciesID: speciesID, shiny: shiny, form: form) {
+            guard let (d, resp) = try? await URLSession.shared.data(from: url) else { return nil }
+            let status = (resp as? HTTPURLResponse)?.statusCode
+            if status == 200, !d.isEmpty, let still = Self.firstFrame(of: d) {
+                try? still.write(to: file, options: .atomic)
+                remember(key, still)
+                return still
+            }
+            if status != 404 { missing = false }
+        }
+        if missing { failedKeys.insert(key) }
+        return nil
+    }
+
     /// The server has no such sprite (it answered 404): not a request that failed and will be retried.
     func isMissing(speciesID: Int, animated: Bool, shiny: Bool, form: PokemonForm? = nil) -> Bool {
         failedKeys.contains(Self.cacheKey(speciesID: speciesID, animated: animated, shiny: shiny, form: form))
@@ -455,6 +496,31 @@ enum SpriteLoader {
         // shiny 미제공 → 일반 폴백
         guard shiny else { return nil }
         return await image(speciesID: speciesID, animated: animated, shiny: false, store: store, form: form)
+    }
+
+    /// A Pokémon's back already cached (`SpriteStore.backStill`), at once; nil otherwise.
+    static func cachedBackImage(speciesID: Int, shiny: Bool, directory: URL = cacheDir,
+                                form: PokemonForm? = nil) -> NSImage? {
+        let f = directory.appendingPathComponent("\(SpriteStore.backKey(speciesID: speciesID, shiny: shiny, form: form)).png")
+        let imageKey = f.path as NSString
+        if let img = remembered(imageKey) { return img }
+        guard let d = try? Data(contentsOf: f), let img = NSImage(data: d) else { return nil }
+        remember(img, forKey: imageKey)
+        return img
+    }
+
+    /// A Pokémon's back, downloaded if need be; nil when it has none (its front stays) or offline.
+    static func backImage(speciesID: Int, shiny: Bool, store: SpriteStore = .shared,
+                          form: PokemonForm? = nil) async -> NSImage? {
+        if let img = cachedBackImage(speciesID: speciesID, shiny: shiny, directory: store.directory, form: form) {
+            return img
+        }
+        guard let d = await store.backStill(speciesID: speciesID, shiny: shiny, form: form),
+              let img = NSImage(data: d) else { return nil }
+        let key = store.directory.appendingPathComponent(
+            "\(SpriteStore.backKey(speciesID: speciesID, shiny: shiny, form: form)).png").path as NSString
+        remember(img, forKey: key)
+        return img
     }
 
     /// 아이템 스프라이트 — 메모리·디스크 캐시 동기 조회(없으면 nil). 아이콘 즉시 표시용.
