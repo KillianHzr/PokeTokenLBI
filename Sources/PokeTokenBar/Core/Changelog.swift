@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-bag-candies-first") { l in
+                let candy = l.itemName(.rareCandy)
+                return l.t("가방에서 \(KoreanParticle.subject.attach(to: candy)) 알보다 앞, 맨 위로 올라왔어요.",
+                           "In the Bag, the \(candy) now comes first, above the eggs.",
+                           "バッグでは\(candy)がいちばん上、タマゴより前に来ます。",
+                           "En la mochila, el \(candy) va ahora arriba del todo, antes de los huevos.",
+                           "Dans le Sac, le \(candy) passe tout en haut, avant les œufs.",
+                           "Na mochila, o \(candy) agora vem no topo, antes dos ovos.",
+                           "Im Beutel steht das \(candy) jetzt ganz oben, vor den Eiern.",
+                           "В сумке \"\(candy)\" теперь в самом верху, перед яйцами.")
+            },
             .improved("2026-11-09-key-every-victory") { l in
                 let key = l.itemName(.legendaryKey)
                 return l.t("T3 던전 승리마다 \(KoreanParticle.subject.attach(to: key)) 2번에 1번 나와요. 첫 승리도 마찬가지라 더는 확정이 아니에요.",
