@@ -83,14 +83,14 @@ struct BagView: View {
         }
     }
 
-    /// The Items tab's sections in the Shop's order, empty ones left out; the eggs' one also stands for the dungeon
-    /// eggs alone.
+    /// The Items tab's sections in the Bag's order (the candies first, then the Shop's), empty ones left out; the eggs'
+    /// one also stands for the dungeon eggs alone.
     static func itemSections(_ items: [(kind: ItemKind, count: Int)], dungeonEggs: Bool)
         -> [(section: CompanionStore.ShopSection, items: [(kind: ItemKind, count: Int)])] {
         // A plain loop: Xcode 27.2's compiler could not type the closure this was (a nil or an unlabeled tuple, the
         // ranks' tuples compared inside), and a player's update failed on it (2026-11-09).
         var sections: [(section: CompanionStore.ShopSection, items: [(kind: ItemKind, count: Int)])] = []
-        for section in CompanionStore.ShopSection.allCases {
+        for section in CompanionStore.bagSectionOrder {
             let inSection = items.filter { CompanionStore.bagSection(of: $0.kind) == section }
                 .sorted { CompanionStore.bagOrdered($0.kind, $1.kind) }
             if inSection.isEmpty && !(section == .eggs && dungeonEggs) { continue }

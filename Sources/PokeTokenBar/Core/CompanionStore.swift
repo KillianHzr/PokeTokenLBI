@@ -2496,11 +2496,15 @@ final class CompanionStore {
         return kind.isPassive ? .keptForGood : .raising
     }
 
+    /// The Bag's sections, top down: the Rare Candies first, above the eggs (the owner, 2026-11-09 evening: "les
+    /// bonbons tout en haut"), then the Shop's order. The Shop keeps its eggs first.
+    nonisolated static let bagSectionOrder: [ShopSection] = [.raising, .eggs, .dungeons, .keptForGood]
+
     /// An item's place in the Bag and a recap: its section, then among the eggs the Shop's three by rarity with the
     /// Legendary Egg under the Rare one (the owner, 2026-11-09), the other eggs, the stones last; elsewhere the items'
     /// own order.
     nonisolated static func bagRank(of kind: ItemKind) -> (section: Int, place: Int) {
-        let section = ShopSection.allCases.firstIndex(of: bagSection(of: kind)) ?? 0
+        let section = bagSectionOrder.firstIndex(of: bagSection(of: kind)) ?? 0
         let order = ItemKind.allCases.firstIndex(of: kind) ?? 0
         if let lead = [ItemKind.pokemonEgg, .uncommonEgg, .rareEgg, .legendaryEgg].firstIndex(of: kind) { return (section, lead) }
         return (section, (kind.stoneType != nil ? 10_000 : 100) + order)
