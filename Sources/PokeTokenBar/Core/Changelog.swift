@@ -67,6 +67,25 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-aim-at-the-boss", { $0.t("추천 기술과 팀 자동 구성이 던전의 보스도 노려요. 오늘과 이번 주 던전에서는 미리 알려진 보스에게 듣지 않는 기술을 더는 추천하지 않아요.",
+                                                         "The suggested moves and Compose for me aim at the dungeon's boss too: in the daily and weekly dungeons, no move the known boss is immune to is suggested anymore.",
+                                                         "おすすめのわざとおまかせ編成がダンジョンのボスも狙います。今日と今週のダンジョンでは、決まったボスに効かないわざはもうすすめません。",
+                                                         "Los movimientos sugeridos y Componer por mí apuntan también al jefe de la mazmorra: en las mazmorras del día y de la semana ya no se sugiere ningún movimiento al que el jefe conocido sea inmune.",
+                                                         "Les attaques suggérées et Composer pour moi visent aussi le boss du donjon : dans les donjons du jour et de la semaine, plus aucune attaque sans effet sur le boss connu n'est proposée.",
+                                                         "Os golpes sugeridos e Montar por mim miram também o chefe da masmorra: nas masmorras do dia e da semana, nenhum golpe ao qual o chefe conhecido seja imune é sugerido.",
+                                                         "Vorgeschlagene Attacken und Für mich zusammenstellen zielen auch auf den Boss: In Tages- und Wochen-Dungeons wird keine Attacke mehr vorgeschlagen, gegen die der bekannte Boss immun ist.",
+                                                         "Предлагаемые приёмы и автосбор команды учитывают и босса подземелья: в подземельях дня и недели больше не предлагаются приёмы, к которым известный босс невосприимчив.") }),
+            .improved("2026-11-09-bag-sections", { l in
+                let legendary = l.itemName(.legendaryEgg)
+                return l.t("가방이 상점처럼 정리돼요: 알(희귀 알 아래 \(legendary), 그다음 진화의 돌), 키우는 포켓몬에게 쓰는 것, 던전 아이템. \(legendary)은 더 이상 유물 사이에 있지 않고, 탐험 요약은 대박 발견을 따로 보여 줘요.",
+                           "The Bag is sorted like the Shop: eggs (the \(legendary) under the Rare Egg, then the evolution stones), what your Pokémon uses, the dungeons' items. The \(legendary) no longer sits among the artifacts, and an expedition's recap shows exceptional finds apart.",
+                           "バッグがショップと同じ順に並びます：タマゴ（レアのタマゴの下に\(legendary)、そのあと進化の石）、育てているポケモンに使うもの、ダンジョンの道具。\(legendary)はもうアーティファクトの中にはなく、たんけんのまとめはすごい掘り出し物を別に見せます。",
+                           "La bolsa se ordena como la Tienda: huevos (el \(legendary) bajo el huevo raro, luego las piedras evolutivas), lo que usa tu Pokémon y los objetos de mazmorra. El \(legendary) ya no está entre los artefactos, y el resumen de una expedición muestra aparte los hallazgos excepcionales.",
+                           "Le Sac est rangé comme la Boutique : les œufs (l'\(legendary) sous l'œuf rare, puis les pierres d'évolution), ce qui sert à ton Pokémon, les objets de donjon. L'\(legendary) n'est plus rangé avec les artefacts, et le récap d'une expédition met à part les trouvailles exceptionnelles.",
+                           "A bolsa fica organizada como a Loja: ovos (o \(legendary) sob o ovo raro, depois as pedras de evolução), o que seu Pokémon usa e os itens de masmorra. O \(legendary) não fica mais entre os artefatos, e o resumo de uma expedição mostra à parte os achados excepcionais.",
+                           "Der Beutel ist wie der Laden sortiert: Eier (das \(legendary) unter dem seltenen Ei, dann die Entwicklungssteine), was dein Pokémon nutzt, die Dungeon-Items. Das \(legendary) liegt nicht mehr bei den Artefakten, und die Zusammenfassung einer Expedition zeigt außergewöhnliche Funde gesondert.",
+                           "Сумка упорядочена как магазин: яйца (\"\(legendary)\" под редким яйцом, затем камни эволюции), то, что использует ваш покемон, предметы подземелий. \"\(legendary)\" больше не лежит среди артефактов, а итог экспедиции показывает исключительные находки отдельно.")
+            }),
             .improved("2026-11-09-battle-backs", { $0.t("전투 무대에서 내 포켓몬이 게임처럼 뒷모습으로 보여요.",
                                                      "In the battle arena, your Pokémon are now seen from behind, as in the games.",
                                                      "バトルのステージで、自分のポケモンがゲームと同じく後ろ姿で映るようになりました。",

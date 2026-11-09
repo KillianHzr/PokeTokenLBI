@@ -2488,6 +2488,26 @@ final class CompanionStore {
     /// order, the eggs' tiers in theirs; a discount lowers a whole section alike). Empty ones go.
     enum ShopSection: CaseIterable, Sendable { case eggs, raising, dungeons, keptForGood }
 
+    /// Where an item of the Bag's Items tab stands, by the Shop's sections (the owner, 2026-11-09: the balls and eggs
+    /// were mixed): every egg first (the Legendary Egg and Type: Null's included, which the Bag used to file with the
+    /// artifacts) and the evolution stones with them, which trade the Pokémon raised for an egg too (the owner); the
+    /// dungeons' items, what is kept for good, the rest for the Pokémon raised.
+    nonisolated static func bagSection(of kind: ItemKind) -> ShopSection {
+        if kind.isEggItem || kind.rawValue.hasSuffix("Egg") || kind.stoneType != nil { return .eggs }
+        if kind.isDungeonItem { return .dungeons }
+        return kind.isPassive ? .keptForGood : .raising
+    }
+
+    /// An item's place in the Bag and a recap: its section, then among the eggs the Shop's three by rarity with the
+    /// Legendary Egg under the Rare one (the owner, 2026-11-09), the other eggs, the stones last; elsewhere the items'
+    /// own order.
+    nonisolated static func bagRank(of kind: ItemKind) -> (section: Int, place: Int) {
+        let section = ShopSection.allCases.firstIndex(of: bagSection(of: kind)) ?? 0
+        let order = ItemKind.allCases.firstIndex(of: kind) ?? 0
+        if let lead = [ItemKind.pokemonEgg, .uncommonEgg, .rareEgg, .legendaryEgg].firstIndex(of: kind) { return (section, lead) }
+        return (section, (kind.stoneType != nil ? 10_000 : 100) + order)
+    }
+
     var shopSections: [(section: ShopSection, entries: [ShopEntry])] {
         func section(of entry: ShopEntry) -> ShopSection {
             guard case .item(let kind) = entry else { return .eggs }

@@ -421,13 +421,14 @@ struct TeamCandidateList: View {
 
     private func loadInfos(_ entries: [DexEntry]) async {
         let loops = store.dungeonProgress.moveLoops, unlocked = store.dungeonProgress.unlockedMoves
-        let theme = dungeon.map { DungeonCatalog.dungeon($0).themeTypes } ?? []
+        let targets = store.moveTargets(dungeon)
         let faced = faced
         let inputs = entries.map { (entry: $0, loop: loops[$0.id]) }
         let made = await BattleEngine.offMain { () -> [String: Info] in
             var out: [String: Info] = [:]
             for input in inputs {
-                guard let spec = DungeonTeamBuilder.spec(for: input.entry, loop: input.loop, unlocked: unlocked, theme: theme)
+                guard let spec = DungeonTeamBuilder.spec(for: input.entry, loop: input.loop, unlocked: unlocked,
+                                                         theme: targets.theme, bosses: targets.bosses)
                 else { continue }
                 let moves = spec.moves.compactMap(MoveTable.move).map { (slug: $0.slug, type: $0.type(for: spec)) }
                 let total = SpeciesBattleTable.data(speciesID: input.entry.finalID, form: input.entry.form)?.baseStats.reduce(0, +) ?? 0

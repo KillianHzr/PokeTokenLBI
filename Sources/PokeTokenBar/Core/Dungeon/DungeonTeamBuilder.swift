@@ -6,7 +6,7 @@ enum DungeonTeamBuilder {
     /// A graduated Pokémon at level 100 with its IVs, nature and ability; its loop is the one chosen for it, else the
     /// one the app suggests against `theme` with the moves `unlocked` (R4).
     static func spec(for entry: DexEntry, loop: [String]? = nil, unlocked: Set<String> = [],
-                     theme: [PokemonType] = []) -> BattlerSpec? {
+                     theme: [PokemonType] = [], bosses: [[PokemonType]] = []) -> BattlerSpec? {
         let ivs = entry.profile.map { p in
             [p.ivs.hp, p.ivs.attack, p.ivs.defense, p.ivs.specialAttack, p.ivs.specialDefense, p.ivs.speed]
         } ?? Array(repeating: 15, count: 6)
@@ -22,7 +22,8 @@ enum DungeonTeamBuilder {
         let chosen = (loop ?? []).filter { MoveTable.move($0) != nil }
         spec.moves = chosen.isEmpty
             ? MoveSuggester.suggest(data, stats: spec.stats, types: spec.types,
-                                    learnable: entry.profile?.moves.map(\.name) ?? [], unlocked: unlocked, theme: theme)
+                                    learnable: entry.profile?.moves.map(\.name) ?? [], unlocked: unlocked, theme: theme,
+                                    bosses: bosses)
             : Array(chosen.prefix(4))
         if spec.moves.isEmpty { spec.moves = ["struggle"] }
         return spec
@@ -49,18 +50,23 @@ enum DungeonTeamBuilder {
     /// one region) tries each type or region and keeps the best group. Empty when no team of `size` fits. The team
     /// screen then lets the simulation decide among `candidateTeams` (`ComposeChoice`).
     static func compose(_ pool: [(candidate: DungeonCandidate, spec: BattlerSpec)], dungeon: Dungeon, size: Int,
-                        rules: [DungeonRule]) -> [String] {
-        candidateTeams(pool, dungeon: dungeon, size: size, rules: rules).first ?? []
+                        rules: [DungeonRule], boss: ExpeditionBoss? = nil) -> [String] {
+        candidateTeams(pool, dungeon: dungeon, size: size, rules: rules, boss: boss).first ?? []
     }
 
     /// The teams "Compose for me" weighs, the best by theme score first: each group's best (one per type or region a
     /// team-wide rule asks), then each again with the dungeon's bosses counted. The Mt. Moon of 2026-11-05 showed why
     /// the theme score alone is not enough: its best region won 85% of the runs, another one 98%.
+    /// `boss`: a challenge's, known in advance (the owner, 2026-11-09: its teams never counted it, a challenge having
+    /// no boss list), counted as the dungeons' bosses are.
     static func candidateTeams(_ pool: [(candidate: DungeonCandidate, spec: BattlerSpec)], dungeon: Dungeon, size: Int,
-                               rules: [DungeonRule], keep: Int = 6) -> [[String]] {
+                               rules: [DungeonRule], keep: Int = 6, boss: ExpeditionBoss? = nil) -> [[String]] {
         let foes = sampleFoes(dungeon)
         var random = BattleRandom(seed: 1)
-        let bosses = dungeon.bosses.prefix(8).compactMap {
+        let bosses = boss.map { known in
+            [ExpeditionEngine.bossSpec(known, tier: dungeon.tier, challenge: dungeon.id.isChallenge ? dungeon.id : nil,
+                                       random: &random)].compactMap { $0 }
+        } ?? dungeon.bosses.prefix(8).compactMap {
             ExpeditionEngine.bossSpec(ExpeditionBoss(speciesID: $0, form: nil, isShiny: false), tier: dungeon.tier, random: &random)
         }
         let admitted = pool.filter { DungeonTeamRules.admits($0.candidate, rules: rules) }
