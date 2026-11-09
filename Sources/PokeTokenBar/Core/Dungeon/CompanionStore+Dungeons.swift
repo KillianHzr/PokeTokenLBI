@@ -208,11 +208,27 @@ extension CompanionStore {
         return Set(dungeonCandidates.lazy.filter { ids.contains($0.id) }.map(\.finalID))
     }
 
-    /// A graduated Pokémon's battle self for a dungeon: its chosen loop, else the one suggested against the theme (none
-    /// outside a dungeon, as on its Pokédex page).
-    func dungeonSpec(_ entry: DexEntry, for id: DungeonID?) -> BattlerSpec? {
-        DungeonTeamBuilder.spec(for: entry, loop: state.dungeons.moveLoops[entry.id], unlocked: state.dungeons.unlockedMoves,
-                                theme: id.map { DungeonCatalog.dungeon($0).themeTypes } ?? [])
+    /// What a dungeon's moves are suggested against (the owner, 2026-11-09: "l'équipe doit toujours aussi viser le
+    /// boss"): its theme, and its bosses, a challenge's known in advance, a dungeon's each it may draw (not the Ruins of
+    /// Alph's, any species at all).
+    func moveTargets(_ id: DungeonID?) -> (theme: [PokemonType], bosses: [[PokemonType]]) {
+        guard let id else { return ([], []) }
+        let dungeon = DungeonCatalog.dungeon(id)
+        if id.isChallenge {
+            let boss = challengeBoss(id).map { PokemonTypeData.types(forSpeciesID: $0.speciesID, form: $0.form) }
+            return (dungeon.themeTypes, boss.map { [$0] } ?? [])
+        }
+        guard dungeon.bosses.count <= 8 else { return (dungeon.themeTypes, []) }
+        return (dungeon.themeTypes, dungeon.bosses.map { PokemonTypeData.types(forSpeciesID: $0) })
+    }
+
+    /// A graduated Pokémon's battle self for a dungeon: its chosen loop, else the one suggested against the theme and
+    /// the bosses (none outside a dungeon, as on its Pokédex page). `targets`: `moveTargets(id)` worked out once for many.
+    func dungeonSpec(_ entry: DexEntry, for id: DungeonID?,
+                     targets: (theme: [PokemonType], bosses: [[PokemonType]])? = nil) -> BattlerSpec? {
+        let targets = targets ?? moveTargets(id)
+        return DungeonTeamBuilder.spec(for: entry, loop: state.dungeons.moveLoops[entry.id],
+                                       unlocked: state.dungeons.unlockedMoves, theme: targets.theme, bosses: targets.bosses)
     }
 
     /// Its loop is frozen while it explores (R4: set outside an expedition).
@@ -236,7 +252,8 @@ extension CompanionStore {
     /// Q8: the best team the rules allow against the dungeon's theme.
     func composeTeam(for id: DungeonID) -> [String] {
         let (size, rules) = teamRules(id)
-        return DungeonTeamBuilder.compose(composePool(id), dungeon: DungeonCatalog.dungeon(id), size: size, rules: rules)
+        return DungeonTeamBuilder.compose(composePool(id), dungeon: DungeonCatalog.dungeon(id), size: size, rules: rules,
+                                          boss: challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
     }
 
     /// What "Compose for me" runs off the main thread: the candidate teams, as they would set off, and a challenge's boss.
@@ -244,15 +261,18 @@ extension CompanionStore {
         let (size, rules) = teamRules(id)
         let pool = composePool(id)
         let dungeon = DungeonCatalog.dungeon(id)
-        let teams = DungeonTeamBuilder.candidateTeams(pool, dungeon: dungeon, size: size, rules: rules).map { ids in
+        let boss = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
+        let teams = DungeonTeamBuilder.candidateTeams(pool, dungeon: dungeon, size: size, rules: rules, boss: boss).map { ids in
             ids.compactMap { entryID in pool.first { $0.candidate.entryID == entryID }.map { ExpeditionMember(entryID: entryID, spec: $0.spec) } }
         }
-        let boss = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
         return .init(teams: teams, dungeon: dungeon, boss: boss)
     }
 
     private func composePool(_ id: DungeonID) -> [(candidate: DungeonCandidate, spec: BattlerSpec)] {
-        dungeonCandidates.compactMap { entry in dungeonSpec(entry, for: id).map { (DungeonCandidate(entry), $0) } }
+        let targets = moveTargets(id)
+        return dungeonCandidates.compactMap { entry in
+            dungeonSpec(entry, for: id, targets: targets).map { (DungeonCandidate(entry), $0) }
+        }
     }
 
     /// R7: what the odds that this team reaches the boss are run on, off the main thread: the team as it would set

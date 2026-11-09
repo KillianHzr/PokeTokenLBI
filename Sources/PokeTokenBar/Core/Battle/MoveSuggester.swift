@@ -2,10 +2,16 @@ import Foundation
 
 /// R4: the four moves the app suggests for a Pokémon in a dungeon, among those it can learn and the player may use (an
 /// offensive move of 100 power or more only once a Technical Capsule unlocked it). A setup or recovery move first
-/// when it has one, then its strongest moves of its own types, then the best against the dungeon's theme.
+/// when it has one, then its strongest moves of its own types, then the best against the dungeon's theme and its
+/// bosses (the owner, 2026-11-09: the boss is the dungeon's hardest part, and a challenge's Mega Golurk met a Zacian
+/// whose Sacred Sword and Wild Charge could not touch it).
 enum MoveSuggester {
+    /// `bosses`: each boss the dungeon may bring, its types together (a dual type's effectiveness is the product); they
+    /// weigh as much as the whole theme, or plain strength with none. A move a challenge's known boss is immune to is
+    /// never chosen.
     static func suggest(_ data: SpeciesBattleData, stats: BattleStats, types: [PokemonType], learnable: [String] = [],
-                        unlocked: Set<String> = [], theme: [PokemonType] = []) -> [String] {
+                        unlocked: Set<String> = [], theme: [PokemonType] = [],
+                        bosses: [[PokemonType]] = []) -> [String] {
         let physical = stats.attack >= stats.specialAttack
         let candidates = Array(Set(data.pool + learnable)).sorted().compactMap(MoveTable.move).filter { move in
             move.hasEffect && !move.isZOrMax && (!move.isLocked || unlocked.contains(move.slug)) && !avoided.contains(move.slug)
@@ -20,9 +26,16 @@ enum MoveSuggester {
             let type = move.type(types: types, form: nil, hiddenPower: nil)
             let own = types.contains(type) ? 1.5 : 1
             let fits = (move.moveClass == .physical) == physical ? 1 : 0.55
-            let coverage = theme.isEmpty ? 1 : theme.reduce(0.0) {
-                $0 + PokemonTypeData.effectiveness(attacking: type, defending: $1)
-            } / Double(theme.count)
+            let themeSum = theme.reduce(0.0) { $0 + PokemonTypeData.effectiveness(attacking: type, defending: $1) }
+            let bossMean = bosses.isEmpty ? 0 : bosses.reduce(0.0) { sum, boss in
+                sum + boss.reduce(1.0) { $0 * PokemonTypeData.effectiveness(attacking: type, defending: $1) }
+            } / Double(bosses.count)
+            // The bosses weigh as much as the theme; with no theme (a challenge's floors bring any type), as much as
+            // plain strength, so the floors still meet strong moves (an all-boss loop lost a third of the reach odds).
+            let themePart = theme.isEmpty ? 1 : themeSum / Double(theme.count)
+            // A known boss (a challenge's, the only one) immune to it: never chosen.
+            let useless = bosses.count == 1 && bossMean == 0
+            let coverage = bosses.isEmpty ? themePart : useless ? 0 : (themePart + bossMean) / 2
             return power * hits * accuracy * own * fits * coverage
         }
         let ranked = candidates.filter { damage($0) > 0 }.sorted { (damage($0), $1.slug) > (damage($1), $0.slug) }
