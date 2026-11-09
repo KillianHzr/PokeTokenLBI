@@ -849,20 +849,19 @@ final class DungeonStoreTests: XCTestCase {
 
     func testVictoryExtras() {
         var random = BattleRandom(seed: 1)
-        XCTAssertEqual(CompanionStore.victoryExtras(tier: .t3, firstT3Victory: true, random: &random).items[ItemKind.legendaryKey.rawValue], 1,
-                       "the first T3 victory gives a Legendary Key")
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t1), 10)
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t2), 20)
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t3), 35)
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t4), 20)
         XCTAssertEqual(CompanionStore.technicalCapsuleChance(.t5), 15)
-        // One T3 victory in two gives a key after the first (the owner, 2026-11-06; one in ten before).
+        // One T3 victory in two gives a key, the first as the fifteenth (the owner, 2026-11-06 and 2026-11-09; one in
+        // ten before, and the first one sure until 2026-11-09).
         var keys = 0
         for _ in 0..<2_000 {
-            keys += CompanionStore.victoryExtras(tier: .t3, firstT3Victory: false, random: &random)
-                .items[ItemKind.legendaryKey.rawValue] ?? 0
+            keys += CompanionStore.victoryExtras(tier: .t3, random: &random).items[ItemKind.legendaryKey.rawValue] ?? 0
         }
         XCTAssertEqual(Double(keys) / 2_000, 0.50, accuracy: 0.03)
+        XCTAssertEqual(CompanionStore.victoryExtraOdds(.t3).first { $0.item == .legendaryKey }?.percent, 50)
     }
 
     /// The Dungeons medals sit with the Artifacts: a step per dungeon won once, then the whole tier, each its reward
