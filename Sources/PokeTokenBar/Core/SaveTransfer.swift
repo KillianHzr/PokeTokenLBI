@@ -160,6 +160,7 @@ enum SaveTransfer {
         var s = state
         s.usedSinceInstall = clampToken(s.usedSinceInstall)
         s.spentTokens = clampToken(s.spentTokens)
+        s.merchantTokens = clampToken(s.merchantTokens)
         s.eggUsage = clampToken(s.eggUsage)
         s.amberCarry = clampToken(s.amberCarry)
         // Counts are added to (a treasure, a claim, a purchase): one near Int.max trapped at its next add, at every
