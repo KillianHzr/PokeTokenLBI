@@ -67,6 +67,22 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-battle-switches", { $0.t("던전 전투에서 쓰러진 포켓몬 대신 다음 포켓몬이 바로 나와요. 새 상대가 나오면 앞의 포켓몬이 그 상대에게 더 강한 포켓몬과 교대해요.",
+                                                        "In dungeon battles, the next Pokémon steps in at once after a knock-out, and when a new foe comes, your Pokémon in front makes way for one that fares better against it.",
+                                                        "ダンジョンのバトルで、ひんしになるとすぐに次のポケモンが出ます。新しい相手が出ると、前のポケモンはその相手にもっと強いポケモンと交代します。",
+                                                        "En los combates de mazmorra, el siguiente Pokémon entra en cuanto uno cae, y cuando llega un rival nuevo, tu Pokémon al frente cede su sitio a uno que le va mejor.",
+                                                        "Dans les combats de donjon, le Pokémon suivant entre aussitôt après un K.O., et quand un nouvel adversaire arrive, ton Pokémon en place cède sa place à un meilleur contre lui.",
+                                                        "Nas batalhas de masmorra, o próximo Pokémon entra logo após um nocaute, e quando chega um novo rival, seu Pokémon na frente dá lugar a um que se sai melhor contra ele.",
+                                                        "In Dungeon-Kämpfen kommt nach einem K.O. sofort das nächste Pokémon, und bei einem neuen Gegner macht dein Pokémon vorne Platz für eines, das besser gegen ihn ist.",
+                                                        "В боях подземелий следующий покемон выходит сразу после нокаута, а при новом противнике ваш покемон уступает место тому, кто справится с ним лучше.") }),
+            .improved("2026-11-09-challenge-boss-bigger", { $0.t("오늘과 이번 주 던전 카드에 보스가 더 크게 보이고, 이미 얻은 모습일 때만 알려 줘요.",
+                                                              "The daily and weekly dungeon cards show their boss larger, and only say so when its form is yours already.",
+                                                              "今日と今週のダンジョンのカードでボスが大きく見え、そのすがたをもう持っているときだけ知らせます。",
+                                                              "Las tarjetas de las mazmorras del día y de la semana muestran al jefe más grande y solo avisan si su forma ya es tuya.",
+                                                              "Les cartes des donjons du jour et de la semaine montrent leur boss en plus grand, et ne le signalent que si sa forme est déjà à toi.",
+                                                              "Os cartões das masmorras do dia e da semana mostram o chefe maior e só avisam quando a forma dele já é sua.",
+                                                              "Die Karten des Tages- und Wochen-Dungeons zeigen ihren Boss größer und melden nur, wenn seine Form schon dir gehört.",
+                                                              "Карточки подземелий дня и недели показывают босса крупнее и сообщают, только если его форма уже ваша.") }),
             .improved("2026-11-09-heal-wait-grows", { $0.t("던전 팀이 긴급 회복의 답을 기다리는 동안 토큰은 평소처럼 키우는 포켓몬과 알을 키워요. 하루 동안 답하지 못해도 성장을 잃지 않아요.",
                                                          "While a dungeon team waits for your answer to the emergency heal, your tokens grow your Pokémon or egg as usual: a day away no longer costs a day of growth.",
                                                          "ダンジョンのチームがきんきゅう回復の答えを待つあいだ、トークンはいつもどおり育てているポケモンやタマゴを育てます。1日答えられなくても成長はむだになりません。",
