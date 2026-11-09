@@ -6,12 +6,11 @@ extension CompanionStore {
     var expedition: Expedition? { state.dungeons.expedition }
     var dungeonProgress: DungeonProgress { state.dungeons }
 
-    /// Q1: while a team explores or waits for its heal, the Pokémon raised and the egg do not grow.
+    /// Q1: while a team explores, the Pokémon raised and the egg do not grow. Waiting for the heal's answer, they grow
+    /// again (the owner, 2026-11-09: a player away for a day lost that day's growth).
     var growthPaused: Bool {
-        switch expedition?.phase {
-        case .exploring?, .awaitingHeal?: true
-        default: false
-        }
+        if case .exploring? = expedition?.phase { return true }
+        return false
     }
 
     private var expeditionContext: ExpeditionContext? {
@@ -340,13 +339,14 @@ extension CompanionStore {
 
     // MARK: Tokens
 
-    /// Q1: while a team explores or waits for its heal, the tokens walk it instead of growing the Pokémon. Returns
-    /// nil when no team takes them, else those it left once its boss fell or it lost, which growth takes back.
+    /// Q1: while a team explores, the tokens walk it instead of growing the Pokémon. Returns nil when no team takes
+    /// them (none, its boss fallen, or waiting for the heal's answer), else those it left once its boss fell, it lost
+    /// or the heal was offered, which growth takes back.
     func feedExpedition(_ tokens: Int) -> Int? {
         guard var e = expedition, let context = expeditionContext else { return nil }
         switch e.phase {
-        case .exploring, .awaitingHeal: break
-        case .capture, .finished: return nil
+        case .exploring: break
+        case .awaitingHeal, .capture, .finished: return nil
         }
         let reached = e.bossReached
         let left = walkingTheDungeon { ExpeditionEngine.feed(&e, tokens: tokens, context: context) }

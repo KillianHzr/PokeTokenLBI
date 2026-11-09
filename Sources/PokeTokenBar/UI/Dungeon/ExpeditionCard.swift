@@ -157,11 +157,11 @@ struct ExpeditionCard: View {
                 .buttonStyle(.pill(prominent: true))
                 .disabled(available < price)
         }
-        if e.reserve > 0 {
-            Label(l.dungeonReserve(TokenFormatter.compact(e.reserve)), systemImage: "hourglass")
-                .font(.caption2).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        // A reserve only a save from before 2026-11-09 holds; since, the wait's tokens grow the Pokémon raised.
+        Label(e.reserve > 0 ? l.dungeonReserve(TokenFormatter.compact(e.reserve)) : l.dungeonHealGrowthGoesOn,
+              systemImage: e.reserve > 0 ? "hourglass" : "leaf")
+            .font(.caption2).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

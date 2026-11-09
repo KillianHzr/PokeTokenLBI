@@ -4,6 +4,9 @@ import XCTest
 /// The balance simulator (D2): full expeditions in each dungeon with a team "Compose for me" builds, the share that
 /// reaches the boss and the share that wins. Balanced on 2026-11-02 against a full Pokédex (491 graduated) so it
 /// still has to fight: T1 a warm-up near 100%, T2 85 to 100%, T3 70 to 90%, T4 30 to 50%, the Hall of Origin under 10%.
+/// Arceus retuned on 2026-11-09 (`oneOnOneArceus`): the best shiny team beats him 78% of the times it reaches him, a team
+/// of whatever shinies came along 3%. The battle rules 2 of that day made every dungeon easier; the bosses' shares were
+/// raised to keep the odds of before (`ExpeditionEngine.oneOnOneBoss`).
 /// The daily and weekly dungeons, set on 2026-11-03 against 511 graduated: about 50% and 35% (`challengeFactors`); an
 /// average Pokédex about 10% and none. `PTB_DUNGEON_BY_BOSS` shows each boss reached and how often it fell.
 ///

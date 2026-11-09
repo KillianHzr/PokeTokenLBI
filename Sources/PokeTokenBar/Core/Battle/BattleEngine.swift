@@ -403,6 +403,27 @@ struct BattleSimulation {
         guard !battlers[pick].isFainted else { return }
         entryAbility(pick)
         startCast(pick)
+        rematch(pick)
+    }
+
+    /// The wait before the next Pokémon steps into a place left by a knock-out: a second under version 1, none since
+    /// version 2 (the owner, 2026-11-09: "virer le délai de changement de pokémon").
+    private var entryDelay: Int { setup.rules >= 2 ? 0 : BattleRules.benchDelay }
+
+    /// Version 2 (the owner, 2026-11-09): a foe stepping in faces the best the player's bench has against it. The
+    /// Pokémon in front stays unless a bench member fares better by `BattleRules.rematchMargin`; it leaves for it, as a
+    /// switch (`leaveField`), keeping its HP and status for later. Before, it stayed in front of every foe that came,
+    /// a Water one included against a Grass one, until it fell.
+    private mutating func rematch(_ foe: Int) {
+        guard setup.rules >= 2, battlers[foe].side == 1, let slot = battlers[foe].slot, slot < field[0].count,
+              let mine = field[0][slot], !battlers[mine].isFainted, !battlers[mine].ingrained,
+              let next = bestEntrant(side: 0, slot: slot, ordered: false) else { return }
+        let current = BattleMatchup.score(battlers[mine].spec, against: battlers[foe].spec)
+        let better = BattleMatchup.score(battlers[next].spec, against: battlers[foe].spec)
+        guard better > current + BattleRules.rematchMargin else { return }
+        leaveField(mine)
+        place(next, side: 0, slot: slot)
+        enterAfterSwitch(next)
     }
 
     /// The hazards of its side hurt or slow a Pokémon sent in: Spikes (1/8, 1/6, 1/4 by layer) and Sticky Web on the
@@ -1339,7 +1360,7 @@ struct BattleSimulation {
                 guard let occupant = field[old.side][slot], occupant == fallen || battlers[occupant].isFainted else { continue }
                 field[old.side][slot] = nil
                 if !pendingEntries.contains(where: { $0.side == old.side && $0.slot == slot }) {
-                    pendingEntries.append((now + BattleRules.benchDelay, old.side, slot))
+                    pendingEntries.append((now + entryDelay, old.side, slot))
                 }
             }
             log(.heal(battler: revived.spec.id, amount: revived.hp, hp: revived.hp, cause: .move))
@@ -3409,7 +3430,7 @@ struct BattleSimulation {
         guard let slot = battlers[index].slot else { return }
         let side = battlers[index].side
         if !bench(side).isEmpty, !pendingEntries.contains(where: { $0.side == side && $0.slot == slot }) {
-            pendingEntries.append((now + BattleRules.benchDelay, side, slot))
+            pendingEntries.append((now + entryDelay, side, slot))
         }
     }
 

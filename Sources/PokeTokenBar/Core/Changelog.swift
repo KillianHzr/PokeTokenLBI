@@ -66,6 +66,53 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-battle-switches", { $0.t("던전 전투에서 쓰러진 포켓몬 대신 다음 포켓몬이 바로 나와요. 새 상대가 나오면 앞의 포켓몬이 그 상대에게 더 강한 포켓몬과 교대해요.",
+                                                        "In dungeon battles, the next Pokémon steps in at once after a knock-out, and when a new foe comes, your Pokémon in front makes way for one that fares better against it.",
+                                                        "ダンジョンのバトルで、ひんしになるとすぐに次のポケモンが出ます。新しい相手が出ると、前のポケモンはその相手にもっと強いポケモンと交代します。",
+                                                        "En los combates de mazmorra, el siguiente Pokémon entra en cuanto uno cae, y cuando llega un rival nuevo, tu Pokémon al frente cede su sitio a uno que le va mejor.",
+                                                        "Dans les combats de donjon, le Pokémon suivant entre aussitôt après un K.O., et quand un nouvel adversaire arrive, ton Pokémon en place cède sa place à un meilleur contre lui.",
+                                                        "Nas batalhas de masmorra, o próximo Pokémon entra logo após um nocaute, e quando chega um novo rival, seu Pokémon na frente dá lugar a um que se sai melhor contra ele.",
+                                                        "In Dungeon-Kämpfen kommt nach einem K.O. sofort das nächste Pokémon, und bei einem neuen Gegner macht dein Pokémon vorne Platz für eines, das besser gegen ihn ist.",
+                                                        "В боях подземелий следующий покемон выходит сразу после нокаута, а при новом противнике ваш покемон уступает место тому, кто справится с ним лучше.") }),
+            .improved("2026-11-09-challenge-boss-bigger", { $0.t("오늘과 이번 주 던전 카드에 보스가 더 크게 보이고, 이미 얻은 모습일 때만 알려 줘요.",
+                                                              "The daily and weekly dungeon cards show their boss larger, and only say so when its form is yours already.",
+                                                              "今日と今週のダンジョンのカードでボスが大きく見え、そのすがたをもう持っているときだけ知らせます。",
+                                                              "Las tarjetas de las mazmorras del día y de la semana muestran al jefe más grande y solo avisan si su forma ya es tuya.",
+                                                              "Les cartes des donjons du jour et de la semaine montrent leur boss en plus grand, et ne le signalent que si sa forme est déjà à toi.",
+                                                              "Os cartões das masmorras do dia e da semana mostram o chefe maior e só avisam quando a forma dele já é sua.",
+                                                              "Die Karten des Tages- und Wochen-Dungeons zeigen ihren Boss größer und melden nur, wenn seine Form schon dir gehört.",
+                                                              "Карточки подземелий дня и недели показывают босса крупнее и сообщают, только если его форма уже ваша.") }),
+            .improved("2026-11-09-heal-wait-grows", { $0.t("던전 팀이 긴급 회복의 답을 기다리는 동안 토큰은 평소처럼 키우는 포켓몬과 알을 키워요. 하루 동안 답하지 못해도 성장을 잃지 않아요.",
+                                                         "While a dungeon team waits for your answer to the emergency heal, your tokens grow your Pokémon or egg as usual: a day away no longer costs a day of growth.",
+                                                         "ダンジョンのチームがきんきゅう回復の答えを待つあいだ、トークンはいつもどおり育てているポケモンやタマゴを育てます。1日答えられなくても成長はむだになりません。",
+                                                         "Mientras un equipo de mazmorra espera tu respuesta a la curación de urgencia, tus tokens hacen crecer tu Pokémon o tu huevo como siempre: un día fuera ya no cuesta un día de crecimiento.",
+                                                         "Pendant qu'une équipe de donjon attend ta réponse au soin d'urgence, tes tokens font grandir ton Pokémon ou ton œuf comme d'habitude : une journée sans répondre ne coûte plus une journée de croissance.",
+                                                         "Enquanto uma equipe de masmorra espera sua resposta à cura de emergência, seus tokens fazem seu Pokémon ou ovo crescer como sempre: um dia fora não custa mais um dia de crescimento.",
+                                                         "Während ein Dungeon-Team auf deine Antwort zur Notheilung wartet, lassen deine Tokens dein Pokémon oder Ei wie gewohnt wachsen: Ein Tag ohne Antwort kostet keinen Tag Wachstum mehr.",
+                                                         "Пока команда подземелья ждёт ответа о срочном лечении, токены как обычно растят вашего покемона или яйцо: день без ответа больше не стоит дня роста.") }),
+            .improved("2026-11-09-arceus-within-reach") { l in
+                let key = l.itemName(.legendaryKey), master = l.itemName(.masterBall)
+                return l.t("아르세우스에게 닿기 쉬워졌어요: 시작의 방은 \(key) 3개가 아니라 1개로 들어가고, 아르세우스는 조금 덜 강하며, 던질 때마다 3번에 1번 잡혀요(전에는 12%). \(master)로는 여전히 반드시 잡혀요.",
+                           "Arceus is within reach: the Hall of Origin takes one \(key) instead of three, Arceus fights a little less hard, and each throw catches him one time in three instead of 12%. The \(master) still never misses.",
+                           "アルセウスに届きやすくなりました：はじまりのまは\(key)3こではなく1こで入れ、アルセウスは少し弱くなり、1回投げるごとに3回に1回つかまえられます（前は12%）。\(master)は今もかならずつかまえます。",
+                           "Arceus está a tu alcance: la Sala del Origen pide una \(key) en vez de tres, Arceus pelea un poco menos fuerte y cada lanzamiento lo atrapa una vez de cada tres en lugar del 12%. La \(master) sigue sin fallar.",
+                           "Arceus est à ta portée : la Salle Originelle demande une \(key) au lieu de trois, Arceus se bat un peu moins fort, et chaque lancer l'attrape une fois sur trois au lieu de 12 %. La \(master) ne rate toujours jamais.",
+                           "Arceus está ao seu alcance: o Salão da Origem pede uma \(key) em vez de três, Arceus luta um pouco menos forte e cada arremesso o captura uma vez em cada três, em vez de 12%. A \(master) continua sem falhar.",
+                           "Arceus ist in Reichweite: Der Saal des Ursprungs verlangt einen \(key) statt drei, Arceus kämpft etwas schwächer, und jeder Wurf fängt es einmal von dreien statt zu 12 %. Der \(master) trifft weiterhin immer.",
+                           "Арсеус стал ближе: в Зал Истоков нужен один \"\(key)\" вместо трёх, Арсеус сражается чуть слабее, а каждый бросок ловит его в одном случае из трёх вместо 12%. \"\(master)\" по-прежнему не промахивается.")
+            },
+            .new("2026-11-09-oak-advice-toggle") { l in
+                l.t("설정에서 오박사의 조언을 끌 수 있어요. 끄면 상점에서 조언 칸이 사라져요.",
+                    "You can turn off Prof. Oak's advice in Settings: his card leaves the Shop.",
+                    "設定でオーキド博士のアドバイスをオフにできます。オフにするとショップからカードが消えます。",
+                    "Puedes desactivar los consejos del Profesor Oak en Ajustes: su tarjeta desaparece de la Tienda.",
+                    "Tu peux désactiver les conseils du Prof. Chen dans les Réglages : son encart disparaît de la Boutique.",
+                    "Você pode desativar os conselhos do Prof. Carvalho nos Ajustes: o cartão dele some da Loja.",
+                    "Du kannst die Tipps von Prof. Eich in den Einstellungen ausschalten: Seine Karte verschwindet aus dem Laden.",
+                    "Советы профессора Оука можно отключить в настройках: его карточка исчезнет из магазина.")
+            },
+        ]),
         ChangelogDay(date: "2026-11-06", entries: [
             .fixed("2026-11-06-team-screen-lag", { $0.t("던전 팀 화면에서 포켓몬 위에 마우스를 올리거나 고를 때 앱이 멈추던 문제를 고쳤어요.",
                                                      "The dungeon team screen no longer freezes the app when you hover or pick a Pokémon.",
@@ -192,16 +239,6 @@ enum Changelog {
             },
         ]),
         ChangelogDay(date: "2026-11-05", entries: [
-            .new("2026-11-05-oak-advice-toggle") { l in
-                l.t("설정에서 오박사의 조언을 끌 수 있어요. 끄면 상점에서 조언 칸이 사라져요.",
-                    "You can turn off Prof. Oak's advice in Settings: his card leaves the Shop.",
-                    "設定でオーキド博士のアドバイスをオフにできます。オフにするとショップからカードが消えます。",
-                    "Puedes desactivar los consejos del Profesor Oak en Ajustes: su tarjeta desaparece de la Tienda.",
-                    "Tu peux désactiver les conseils du Prof. Chen dans les Réglages : son encart disparaît de la Boutique.",
-                    "Você pode desativar os conselhos do Prof. Carvalho nos Ajustes: o cartão dele some da Loja.",
-                    "Du kannst die Tipps von Prof. Eich in den Einstellungen ausschalten: Seine Karte verschwindet aus dem Laden.",
-                    "Советы профессора Оука можно отключить в настройках: его карточка исчезнет из магазина.")
-            },
             .improved("2026-11-05-explorer-kit-rarer") { l in
                 let kit = l.itemName(.explorerKit), candy = l.itemName(.rareCandy)
                 let uncommon = l.itemName(.uncommonEgg), rare = l.itemName(.rareEgg), legendary = l.itemName(.legendaryEgg)

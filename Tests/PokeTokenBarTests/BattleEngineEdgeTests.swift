@@ -9,9 +9,9 @@ final class BattleEngineEdgeTests: XCTestCase {
     }
 
     private func battle(_ mine: [BattlerSpec], _ theirs: [BattlerSpec], active: Int = 1, theirActive: Int = 1,
-                        seed: UInt64 = 1) -> BattleOutcome {
+                        seed: UInt64 = 1, rules: Int = BattleRules.version) -> BattleOutcome {
         BattleEngine.run(BattleSetup(sides: [BattleSideSpec(battlers: mine, active: active),
-                                             BattleSideSpec(battlers: theirs, active: theirActive)], seed: seed))
+                                             BattleSideSpec(battlers: theirs, active: theirActive)], seed: seed, rules: rules))
     }
 
     private func times(_ outcome: BattleOutcome, _ match: (BattleEvent) -> Bool) -> [Int] {
@@ -105,7 +105,9 @@ final class BattleEngineEdgeTests: XCTestCase {
             // Shuckle's long Dig keeps it busy: its Revival Blessing comes once the place held by the fallen got no one.
             let outcome = battle([try mon("shuckle", 213, moves: ["dig", "revival-blessing"]), try mon("a", 16, level: 5, moves: ["tackle"]),
                                   try mon("c", 19, level: 2, moves: ["tackle"])],
-                                 [try mon("jolt", 135, moves: ["discharge"], isBoss: true)], active: 2, seed: seed)
+                                 [try mon("jolt", 135, moves: ["discharge"], isBoss: true)], active: 2, seed: seed,
+                                 // Its seeds were found under rules 1's second of wait; the place logic is the same since.
+                                 rules: 1)
             func first(_ match: (BattleEvent) -> Bool) -> Int? { times(outcome, match).first }
             guard let aFell = first({ $0 == .faint(battler: "a") }), let cFell = first({ $0 == .faint(battler: "c") }),
                   let cEntry = outcome.events.last(where: { if case .enter(0, _, "c") = $0.event { return true } else { return false } }),

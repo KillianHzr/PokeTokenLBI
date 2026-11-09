@@ -2657,14 +2657,14 @@ struct L {
                      "Gewinne jeden T\(n)-Dungeon einmal: eine Belohnung pro Dungeon, eine weitere für alle.",
                      "Пройди каждое подземелье T\(n) один раз: награда за каждое и ещё одна за все.")
         case .legendaryKey:
-            return t("T4 던전에 한 번 들어가요. 들어갈 때 사라지고, 져도 돌아오지 않아요.",
-                     "Opens a T4 dungeon once: spent at the entry, kept by the dungeon even after a defeat.",
-                     "T4のダンジョンに一度入れます。入るときに使い、負けても戻りません。",
-                     "Abre una vez una mazmorra T4: se gasta al entrar, aunque se pierda.",
-                     "Ouvre une fois un donjon T4 : dépensée à l'entrée, perdue même en cas de défaite.",
-                     "Abre uma vez uma masmorra T4: gasta na entrada, perdida mesmo em caso de derrota.",
-                     "Öffnet einmal einen T4-Dungeon: beim Betreten verbraucht, auch bei einer Niederlage.",
-                     "Открывает подземелье T4 один раз: тратится на входе, даже при поражении.")
+            return t("T4 던전이나 시작의 방에 한 번 들어가요. 들어갈 때 사라지고, 져도 돌아오지 않아요.",
+                     "Opens a T4 dungeon or the Hall of Origin once: spent at the entry, kept by the dungeon even after a defeat.",
+                     "T4のダンジョンかはじまりのまに一度入れます。入るときに使い、負けても戻りません。",
+                     "Abre una vez una mazmorra T4 o la Sala del Origen: se gasta al entrar, aunque se pierda.",
+                     "Ouvre une fois un donjon T4 ou la Salle Originelle : dépensée à l'entrée, perdue même en cas de défaite.",
+                     "Abre uma vez uma masmorra T4 ou o Salão da Origem: gasta na entrada, perdida mesmo em caso de derrota.",
+                     "Öffnet einmal einen T4-Dungeon oder den Saal des Ursprungs: beim Betreten verbraucht, auch bei einer Niederlage.",
+                     "Открывает подземелье T4 или Зал Истоков один раз: тратится на входе, даже при поражении.")
         }
     }
 
