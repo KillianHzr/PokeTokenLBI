@@ -218,7 +218,7 @@ final class OneAgainstOneTests: XCTestCase {
         let share = ExpeditionEngine.oneOnOneBoss
         XCTAssertEqual(Double(boss.stats.hp), Double(full.stats.hp) * share, accuracy: Double(full.stats.hp) * 0.02)
         XCTAssertEqual(Double(boss.stats.attack), Double(full.stats.attack) * share, accuracy: Double(full.stats.attack) * 0.03)
-        XCTAssertLessThan(ExpeditionEngine.oneOnOneBoss, ExpeditionEngine.oneOnOneBossEarly, "T1 and T2 lowered less")
+        XCTAssertLessThan(ExpeditionEngine.oneOnOneBoss, 1, "lowered, one at a time")
     }
 
     /// Arceus alone is lowered further (the owner, 2026-11-09), HP and stats alike; the other legendary bosses keep

@@ -471,16 +471,22 @@ enum ExpeditionEngine {
 
     /// A boss one against one (the owner, 2026-11-06: "1v1 partout, boss affaiblis", its stats with its HP): its HP
     /// and stats were set for three of mine at once (R2 A); one at a time, both are multiplied by its kind's share,
-    /// set so that the dungeons' and the challenges' odds stay what they were (`DungeonSimulatorTests`).
-    static let oneOnOneBoss = 0.6
-    /// T1 and T2: their bosses one against one fell too easily at the T3's share.
-    static let oneOnOneBossEarly = 0.72
-    static let oneOnOneLegendary = 0.7
-    /// Arceus alone (the owner, 2026-11-09: about 2B tokens to reach him, then good odds of having him): at the
-    /// legendaries' share a strong team beat him 58% of the times it reached him; at this one 88%, while a team of
-    /// whatever shinies came along still never does ("elle est beaucoup trop random", `DungeonSimulatorTests`).
-    static let oneOnOneArceus = 0.6
-    static let oneOnOneChallenge = 0.7
+    /// set so that the dungeons' and the challenges' odds stay what they were (`DungeonSimulatorTests`, `ZZLootSim`).
+    /// Raised on 2026-11-09 with the battle rules 2 (a foe stepping in faces the bench's best, no wait after a
+    /// knock-out), which made every dungeon easier: the owner chose to keep the odds of before (T3 0.6 to 0.8, T1 and
+    /// T2 0.72 to 0.77, legendaries 0.7 to 0.8, challenges 0.7 to 0.8). Measured then against the owner's save and an
+    /// average player, before and after: the challenges 55% and 33% to 52% and 32%, Mt. Moon 79% to 82%, the T3s on
+    /// average 82% to 87% (an average player 39% to 45%), the T4 legendaries on average 56% to 53% (the Cerulean Cave
+    /// 47% to 29%, Mt. Coronet 63% to 76%: one share for them all).
+    static let oneOnOneBoss = 0.8
+    /// T1 and T2.
+    static let oneOnOneBossEarly = 0.77
+    static let oneOnOneLegendary = 0.8
+    /// Arceus alone (the owner, 2026-11-09: about 2B tokens to reach him, then good odds of having him, and "ma vraie
+    /// équipe actuelle elle est pas censée réussir, elle est beaucoup trop random"): the best shiny team beats him 78%
+    /// of the times it reaches him, a team of whatever shinies came along 3% (`DungeonSimulatorTests`, battle rules 2).
+    static let oneOnOneArceus = 0.65
+    static let oneOnOneChallenge = 0.8
 
     private static func fight(_ e: inout Expedition, kind: ExpeditionEventKind, foes: [BattlerSpec],
                               random: inout BattleRandom, context: ExpeditionContext) {
