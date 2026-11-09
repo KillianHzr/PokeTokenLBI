@@ -16,24 +16,6 @@ final class OakAdviceToggleTests: XCTestCase {
         return CompanionStore(provider: NoLinesProvider(), fileURL: url, defaults: defaults)
     }
 
-    private func shopContentHeight(_ store: CompanionStore) async throws -> CGFloat {
-        let host = NSHostingController(rootView: ShopView(store: store, nav: PopoverNavigation())
-            .frame(width: PopoverMetrics.width))
-        let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: PopoverMetrics.width, height: 520),
-                              styleMask: [.borderless], backing: .buffered, defer: false)
-        window.contentViewController = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
-        host.view.layoutSubtreeIfNeeded()
-        try await Task.sleep(for: .milliseconds(300))
-        host.view.layoutSubtreeIfNeeded()
-        func scrollViews(in view: NSView) -> [NSScrollView] {
-            ((view as? NSScrollView).map { [$0] } ?? []) + view.subviews.flatMap(scrollViews)
-        }
-        let scroll = try XCTUnwrap(scrollViews(in: host.view).first)
-        return try XCTUnwrap(scroll.documentView).frame.height
-    }
-
     func testAdviceIsOnUntilTurnedOffAndTheChoiceIsKept() throws {
         let suite = "OakAdviceToggle-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -43,14 +25,16 @@ final class OakAdviceToggleTests: XCTestCase {
         XCTAssertFalse(store(defaults).oakAdviceEnabled)
     }
 
-    func testTurningAdviceOffTakesTheCardOutOfTheShop() async throws {
+    /// Turned off, Prof. Oak's card leaves the top of the Shop. A travelling merchant comes every day since 2026-11-09
+    /// (his card is about as tall as Prof. Oak's, so the Shop's height no longer tells them apart): he stands alone
+    /// there then; with the advice on, Prof. Oak's card comes first, the merchant behind the arrow.
+    func testTurningAdviceOffTakesTheCardOutOfTheShop() throws {
         let suite = "OakAdviceToggle-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        let store = store(defaults)
-        let withCard = try await shopContentHeight(store)
-        store.oakAdviceEnabled = false
-        let withoutCard = try await shopContentHeight(store)
-        XCTAssertGreaterThanOrEqual(withCard - withoutCard, 90, "the card is at least as tall as Prof. Oak's bust")
+        XCTAssertNotNil(store(defaults).merchantWare, "a merchant every day")
+        XCTAssertEqual(ShopHeadCards.cards(oakAdvice: true, merchant: true), [.oak, .merchant])
+        XCTAssertEqual(ShopHeadCards.cards(oakAdvice: false, merchant: true), [.merchant])
+        XCTAssertEqual(ShopHeadCards.cards(oakAdvice: true, merchant: false), [.oak])
     }
 }

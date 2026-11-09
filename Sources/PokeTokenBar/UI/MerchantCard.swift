@@ -1,45 +1,63 @@
 import SwiftUI
 
-/// The top of the Shop: Prof. Oak's advice and, the days the travelling merchant comes, his card, an arrow going from
-/// one to the other (the owner, 2026-11-05: "une flèche façon slider"). The merchant comes first: he leaves at midnight.
+/// The top of the Shop: Prof. Oak's advice, then the day's travelling merchant behind an arrow (the owner, 2026-11-05:
+/// "une flèche façon slider"). Prof. Oak comes first since a merchant comes every day (the owner, 2026-11-09); the
+/// arrow wears a dot until the player looked at the day's merchant. With Prof. Oak's advice turned off, the merchant
+/// stands alone.
 @MainActor
 struct ShopHeadCards: View {
     let store: CompanionStore
     let nav: PopoverNavigation
-    @State private var showingOak = false
+    @State private var showingMerchant = false
+
+    /// The cards in their order: Prof. Oak's first when his advice is on.
+    enum Card: Equatable { case oak, merchant }
+    static func cards(oakAdvice: Bool, merchant: Bool) -> [Card] {
+        (oakAdvice ? [.oak] : []) + (merchant ? [.merchant] : [])
+    }
 
     var body: some View {
         let merchant = store.merchantWare
-        let oak = store.oakAdviceEnabled
-        if let merchant, oak {
+        let cards = Self.cards(oakAdvice: store.oakAdviceEnabled, merchant: merchant != nil)
+        if cards.count == 2, let merchant {
             Group {
-                if showingOak {
-                    OakAdviceCard(store: store, nav: nav)
+                if showingMerchant {
+                    MerchantCard(store: store, ware: merchant)
                         .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .trailing)).combined(with: .opacity))
                 } else {
-                    MerchantCard(store: store, ware: merchant)
+                    OakAdviceCard(store: store, nav: nav)
                         .transition(.asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .leading)).combined(with: .opacity))
                 }
             }
             .overlay(alignment: .topTrailing) { pager(store.l) }
             .clipped()
-        } else if let merchant {
+        } else if cards == [.merchant], let merchant {
             MerchantCard(store: store, ware: merchant)
-        } else if oak {
+                .onAppear { store.markMerchantSeen() }
+        } else if cards == [.oak] {
             OakAdviceCard(store: store, nav: nav)
         }
     }
 
-    /// Two dots, the card shown filled, and the arrow to the other one.
+    /// Two dots, the card shown filled, and the arrow to the other one; a dot on the arrow while the day's merchant
+    /// waits to be looked at.
     private func pager(_ l: L) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.25)) { showingOak.toggle() }
+            withAnimation(.easeInOut(duration: 0.25)) { showingMerchant.toggle() }
+            if showingMerchant { store.markMerchantSeen() }
         } label: {
             HStack(spacing: 5) {
-                if showingOak { Image(systemName: "chevron.left").font(.system(size: 9, weight: .bold)) }
-                Circle().fill(showingOak ? Color.secondary.opacity(0.35) : Color.primary.opacity(0.75)).frame(width: 5, height: 5)
-                Circle().fill(showingOak ? Color.primary.opacity(0.75) : Color.secondary.opacity(0.35)).frame(width: 5, height: 5)
-                if !showingOak { Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)) }
+                if showingMerchant { Image(systemName: "chevron.left").font(.system(size: 9, weight: .bold)) }
+                Circle().fill(showingMerchant ? Color.secondary.opacity(0.35) : Color.primary.opacity(0.75)).frame(width: 5, height: 5)
+                Circle().fill(showingMerchant ? Color.primary.opacity(0.75) : Color.secondary.opacity(0.35)).frame(width: 5, height: 5)
+                if !showingMerchant {
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold))
+                        .overlay(alignment: .topTrailing) {
+                            if store.merchantUnseen {
+                                Circle().fill(Design.actionColor).frame(width: 6, height: 6).offset(x: 5, y: -4)
+                            }
+                        }
+                }
             }
             .foregroundStyle(.secondary)
             .padding(.horizontal, 7).padding(.vertical, 4)
@@ -47,8 +65,8 @@ struct ShopHeadCards: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .hoverTip(showingOak ? l.merchantTitle : l.oakAdviceTitle)
-        .accessibilityLabel(showingOak ? l.merchantTitle : l.oakAdviceTitle)
+        .hoverTip(showingMerchant ? l.oakAdviceTitle : l.merchantTitle)
+        .accessibilityLabel(showingMerchant ? l.oakAdviceTitle : l.merchantTitle)
         .padding(Design.cardPadding - 2)
     }
 }

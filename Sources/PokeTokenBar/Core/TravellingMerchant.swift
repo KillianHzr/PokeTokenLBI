@@ -1,16 +1,14 @@
 import Foundation
 
-/// The travelling merchant (the owner's idea of 2026-11-05, built on 2026-11-09): one day in five he comes to the Shop
-/// and buys back one kind of item, as many as the player wants to sell, then leaves at midnight. The same day brings
-/// the same merchant to every player, as the daily dungeon's boss.
+/// The travelling merchant (the owner's idea of 2026-11-05, built on 2026-11-09): every day one comes to the Shop and
+/// buys back one kind of item, as many as the player wants to sell, then leaves at midnight, never the one of the day
+/// before (the owner: one day in five was too rare for one ware each). The same day brings the same merchant to every
+/// player, as the daily dungeon's boss.
 ///
 /// He pays a third of what the Shop asks for what it sells: with the Rainbow Wing (-25%) and the Jade Orb (-20% on eggs)
 /// an egg still costs 0.6 of its price, so buying to sell back never pays. What the Shop does not sell has the owner's
 /// figures (2026-11-09). He never buys a Fossil Egg (one per fossil line missing), an artifact, a badge or a medal.
 enum TravellingMerchant {
-    /// One day in five (the owner).
-    static let chancePercent = 20
-
     /// The evolution stones share one draw and one merchant: ten draws of their own would bring them one day in three.
     static let stones: [ItemKind] = ItemKind.allCases.filter { $0.stoneType != nil }
 
@@ -105,15 +103,47 @@ enum TravellingMerchant {
         ]
     }()
 
-    /// The day's ware (`yyyy-MM-dd`), or nil when he does not come: one draw for whether he comes, one for the ware,
-    /// one for the stone.
+    /// The day's ware (`yyyy-MM-dd`), nil for a day that is no date. Even days draw their merchant freely, odd days among
+    /// those neither neighbour brought: no day needs the history before it, and two days in a row never bring the
+    /// same merchant (the stones' one included). Then the stone, when it is his day.
     static func ware(on day: String) -> ItemKind? {
-        // FNV-1a: `hashValue` changes from launch to launch.
-        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
-        for byte in "merchant:\(day)".utf8 { hash = (hash ^ UInt64(byte)) &* 0x100_0000_01b3 }
-        var random = BattleRandom(seed: hash)
-        guard random.chance(chancePercent) else { return nil }
-        let slot = random.below(wares.count + 1)
+        guard let number = dayNumber(day) else { return nil }
+        let slots = wares.count + 1
+        var random = dayRandom(number)
+        let slot: Int
+        if number.isMultiple(of: 2) {
+            slot = random.below(slots)
+        } else {
+            let taken: Set<Int> = [freeSlot(number - 1), freeSlot(number + 1)]
+            let left = (0..<slots).filter { !taken.contains($0) }
+            slot = left[random.below(left.count)]
+        }
         return slot < wares.count ? wares[slot] : stones[random.below(stones.count)]
+    }
+
+    /// An even day's merchant, drawn first from its own sequence: what its odd neighbours leave out.
+    private static func freeSlot(_ number: Int) -> Int {
+        var random = dayRandom(number)
+        return random.below(wares.count + 1)
+    }
+
+    /// The day's own sequence. FNV-1a: `hashValue` changes from launch to launch.
+    private static func dayRandom(_ number: Int) -> BattleRandom {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in "merchant:\(number)".utf8 { hash = (hash ^ UInt64(byte)) &* 0x100_0000_01b3 }
+        return BattleRandom(seed: hash)
+    }
+
+    /// Days since 1970-01-01 of a `yyyy-MM-dd` date, by the proleptic Gregorian calendar (no time zone involved).
+    static func dayNumber(_ day: String) -> Int? {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3, (1...12).contains(parts[1]), (1...31).contains(parts[2]) else { return nil }
+        let month = parts[1], date = parts[2]
+        let year = parts[0] - (month <= 2 ? 1 : 0)
+        let era = (year >= 0 ? year : year - 399) / 400
+        let yearOfEra = year - era * 400
+        let dayOfYear = (153 * ((month + 9) % 12) + 2) / 5 + date - 1
+        let dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear
+        return era * 146_097 + dayOfEra - 719_468
     }
 }

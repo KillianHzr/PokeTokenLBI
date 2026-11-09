@@ -1,7 +1,7 @@
 import XCTest
 @testable import PokeTokenBar
 
-/// The travelling merchant (the owner, 2026-11-05 and 2026-11-09): one day in five, one ware drawn among all he buys,
+/// The travelling merchant (the owner, 2026-11-05 and 2026-11-09): every day, never the one of the day before, one ware,
 /// a third of the Shop's price, the owner's figures for the rest; never a Fossil Egg.
 @MainActor
 final class TravellingMerchantTests: XCTestCase {
@@ -13,21 +13,35 @@ final class TravellingMerchantTests: XCTestCase {
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
-    /// About one day in five over ten years, every ware some day, the ten stones together about as often as one ware.
-    func testHeComesOneDayInFiveWithEveryWare() {
-        var visits = 0, stones = 0
-        var seen: Set<ItemKind> = []
+    /// A merchant every day, never the one of the day before (the owner, 2026-11-09: one day in five was too rare),
+    /// each about as often over ten years, the ten stones as one.
+    func testAMerchantComesEveryDayNeverTheSameTwiceInARow() throws {
+        func slot(_ ware: ItemKind) -> Int { TravellingMerchant.wares.firstIndex(of: ware) ?? TravellingMerchant.wares.count }
+        var counts: [Int: Int] = [:]
+        var previous: Int?
         for offset in 0..<3650 {
-            guard let ware = TravellingMerchant.ware(on: day(offset)) else { continue }
-            visits += 1
-            seen.insert(ware)
-            if ware.stoneType != nil { stones += 1 }
+            let ware = try XCTUnwrap(TravellingMerchant.ware(on: day(offset)), day(offset))
+            let today = slot(ware)
+            XCTAssertNotEqual(today, previous, "\(day(offset)): the same merchant as the day before")
+            counts[today, default: 0] += 1
+            previous = today
         }
-        XCTAssertEqual(Double(visits) / 3650, 0.20, accuracy: 0.03)
-        XCTAssertTrue(Set(TravellingMerchant.wares).isSubset(of: seen), "every ware comes some day")
-        XCTAssertEqual(Double(stones) / Double(visits), 1.0 / Double(TravellingMerchant.wares.count + 1), accuracy: 0.03,
-                       "the stones share one draw")
+        let slots = TravellingMerchant.wares.count + 1
+        XCTAssertEqual(counts.count, slots, "every merchant comes some day")
+        for (slot, count) in counts {
+            XCTAssertEqual(Double(count) / 3650, 1 / Double(slots), accuracy: 0.02, "slot \(slot)")
+        }
         XCTAssertEqual(TravellingMerchant.ware(on: "2026-11-09"), TravellingMerchant.ware(on: "2026-11-09"), "the same all day")
+        XCTAssertNil(TravellingMerchant.ware(on: "not a day"))
+    }
+
+    /// Days counted from 1970-01-01 without a time zone.
+    func testDayNumbers() {
+        XCTAssertEqual(TravellingMerchant.dayNumber("1970-01-01"), 0)
+        XCTAssertEqual(TravellingMerchant.dayNumber("1969-12-31"), -1)
+        XCTAssertEqual(TravellingMerchant.dayNumber("2000-02-29"), 11_016)
+        XCTAssertEqual(TravellingMerchant.dayNumber("2026-11-09"), 20_766)
+        XCTAssertNil(TravellingMerchant.dayNumber("2026-13-01"))
     }
 
     /// The owner's prices at the players' difficulty (10%): a third of the Shop's, and his figures for the rest.
@@ -80,22 +94,20 @@ final class TravellingMerchantTests: XCTestCase {
                               clock: { clock.date }, fileURL: url, rng: SeededRNG(seed: 3), difficulty: 0.1)
     }
 
-    /// The first day from 2026-11-09 the merchant brings `ware` (or any ware), and one he stays away.
-    private func date(bringing ware: ItemKind?) -> Date {
+    /// The first day from 2026-11-09 the merchant brings `ware`.
+    private func date(bringing ware: ItemKind) -> Date {
         let start = Date(timeIntervalSince1970: 1_793_000_000)
         for offset in 0..<5000 {
             let date = start.addingTimeInterval(Double(offset) * 86_400)
             let c = Calendar(identifier: .iso8601).dateComponents([.year, .month, .day], from: date)
             let key = String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
-            let drawn = TravellingMerchant.ware(on: key)
-            if let ware, drawn == ware { return date }
-            if ware == nil, drawn == nil { return date }
+            if TravellingMerchant.ware(on: key) == ware { return date }
         }
         return start
     }
 
     /// Sold: they leave the Bag, their price goes to the wallet, kept by the save; never more than the Bag holds, never
-    /// another ware, nothing the days he stays away.
+    /// another ware, nothing the Bag does not hold.
     func testSellingFillsTheWallet() throws {
         let clock = Clock()
         clock.date = date(bringing: .rareCandy)
@@ -114,14 +126,27 @@ final class TravellingMerchantTests: XCTestCase {
         XCTAssertFalse(s.sellToMerchant(1), "none left")
         XCTAssertEqual(s.itemCount(.rareEgg), 1, "only today's ware")
         XCTAssertEqual(s.state.merchantTokens, 3 * price, "growth untouched, the wallet only")
-        clock.date = date(bringing: nil)
-        XCTAssertNil(s.merchantWare)
-        XCTAssertFalse(s.sellToMerchant(1))
+        clock.date = date(bringing: .masterBall)
+        XCTAssertEqual(s.merchantWare, .masterBall)
+        XCTAssertFalse(s.sellToMerchant(1), "none in the Bag")
         // Kept by the save and its import.
         let data = try JSONEncoder().encode(s.state)
         let decoded = try JSONDecoder().decode(CompanionState.self, from: data)
         XCTAssertEqual(decoded.merchantTokens, 3 * price)
         XCTAssertEqual(SaveTransfer.sanitized(decoded).merchantTokens, 3 * price)
+    }
+
+    /// The Shop's arrow wears a dot until the player looked at the day's merchant; a new day brings it back.
+    func testTheDayMerchantWaitsToBeSeen() throws {
+        let clock = Clock()
+        clock.date = date(bringing: .rareCandy)
+        let s = try store(clock: clock, inventory: [:])
+        s.merchantSeenDay = nil
+        XCTAssertTrue(s.merchantUnseen)
+        s.markMerchantSeen()
+        XCTAssertFalse(s.merchantUnseen)
+        clock.date = clock.date.addingTimeInterval(86_400)
+        XCTAssertTrue(s.merchantUnseen, "the next day's merchant")
     }
 
     /// A save from before the merchant has no `merchantTokens`: none.

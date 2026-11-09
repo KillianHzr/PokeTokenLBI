@@ -84,6 +84,11 @@ final class CompanionStore {
     var oakAdviceEnabled: Bool {
         didSet { defaults.set(oakAdviceEnabled, forKey: "oakAdviceEnabled") }
     }
+    /// The day (`merchantDay`) the player last looked at the travelling merchant: the Shop's arrow wears a dot until then
+    /// (2026-11-09). A preference of this Mac, as Prof. Oak's switch.
+    var merchantSeenDay: String? {
+        didSet { defaults.set(merchantSeenDay, forKey: "merchantSeenDay") }
+    }
     /// 세션 내 활성 개체 교체 감지용. await 뒤 이전 개체의 결과가 새 개체를 덮지 않게 한다.
     private var activeGeneration = 0
     private var lastAutoSnapshotDate: Date?
@@ -120,6 +125,7 @@ final class CompanionStore {
         self.dittoDisguiseRollingEnabled = dittoDisguiseRollingEnabled
         self.defaults = defaults
         oakAdviceEnabled = defaults.object(forKey: "oakAdviceEnabled") as? Bool ?? true
+        merchantSeenDay = defaults.string(forKey: "merchantSeenDay")
         // The players' difficulty; tests of the mechanics pass 1, the tables as they are.
         growthDifficulty = difficulty
         shopDifficulty = difficulty
@@ -2434,8 +2440,16 @@ final class CompanionStore {
     /// The day (`yyyy-MM-dd`) the merchant's visit belongs to: the daily dungeon's.
     var merchantDay: String { challengePeriod(.daily) }
 
-    /// What the travelling merchant buys back today, or nil when he does not come.
+    /// What the day's travelling merchant buys back (one comes every day).
     var merchantWare: ItemKind? { TravellingMerchant.ware(on: merchantDay) }
+
+    /// Whether the day's merchant waits to be looked at: the Shop's arrow to him wears a dot.
+    var merchantUnseen: Bool { merchantSeenDay != merchantDay }
+
+    /// The player looked at the day's merchant.
+    func markMerchantSeen() {
+        if merchantSeenDay != merchantDay { merchantSeenDay = merchantDay }
+    }
 
     /// What he pays for one, at the players' difficulty; the player's discounts do not change it.
     func merchantPrice(of kind: ItemKind) -> Int? {
