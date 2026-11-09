@@ -1034,33 +1034,13 @@ struct CompanionHeader: View {
         }
     }
 
-    /// The badges after the rarity: a form its line never had, fixed at hatch and kept through evolution, then
-    /// whether sending it off loses anything (`CompanionStore.activeNews`): nothing new through its whole line, or new.
+    /// The badges after the rarity (`ActiveNewsBadges`), shared with the banner the copy button draws.
+    private var activeBadges: some View { ActiveNewsBadges(store: store) }
+
+    /// Its own property, out of `body`: the body is long enough for a newer compiler to give up on it.
     @ViewBuilder
-    private var activeBadges: some View {
-        let l = store.l
-        let isMystery = store.activeNews?.mystery != nil
-        let isNewForm = store.state.active?.hasNewForm == true
-        if isMystery {
-            Badge(l.formMysteryBadge.uppercased(), tint: .blue, style: .tinted)
-                .lineLimit(1).fixedSize()
-                .hoverTip(store.activeNewsHint)
-        } else if isNewForm {
-            Badge(l.newFormBadge.uppercased(), tint: .blue, style: .tinted)
-                .lineLimit(1).fixedSize()
-                .hoverTip(store.activeNewsHint)
-        }
-        if let news = store.activeNews, !isMystery {
-            if news.isDuplicate {
-                Badge(l.activeDuplicateBadge.uppercased(), tint: .secondary, style: .tinted)
-                    .lineLimit(1).fixedSize()
-                    .hoverTip(l.activeDuplicateHint)
-            } else if !isNewForm {
-                Badge(l.activeNewBadge.uppercased(), tint: .green, style: .tinted)
-                    .lineLimit(1).fixedSize()
-                    .hoverTip(store.activeNewsHint)
-            }
-        }
+    private var copyButton: some View {
+        if store.hasActive { CatchCopyButton(store: store).padding(.top, 6).padding(.trailing, 6) }
     }
 
     var body: some View {
@@ -1136,6 +1116,8 @@ struct CompanionHeader: View {
                             }
                             activeBadges
                         }
+                        // Clear of the copy button in the card's corner.
+                        .padding(.trailing, 22)
                     }
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(store.displayName).font(.system(size: 15, weight: .bold, design: .rounded))
@@ -1150,7 +1132,7 @@ struct CompanionHeader: View {
                     if store.hasActive {
                         // The individual's nature and growth; the stage reads off the track below.
                         WrappingHStack(spacing: 5, lineSpacing: 4) {
-                            if let nature = store.currentNature { natureChip(nature) }
+                            if let nature = store.currentNature { NatureBadge(nature: nature, language: store.language) }
                             growthBadge
                         }
                         if store.evolutionTrack.isEmpty {
@@ -1221,6 +1203,9 @@ struct CompanionHeader: View {
             }
         }
         .heroCard(colors: store.themeColors, legendary: store.rarity == .legendary)
+        // A discreet copy of the Pokémon raised as a banner, to paste in a conversation (the owner's friends,
+        // 2026-11-09); none for an egg.
+        .overlay(alignment: .topTrailing) { copyButton }
         // The current form's PokéAPI details, cached after the first fetch: they fill the individual's ability and
         // moves. Same ID as the sprite, so a disguised Ditto loads its disguise's.
         .task(id: store.currentSpeciesID.map { PokemonForm.detailsID(speciesID: $0, form: store.currentForm) }) {
@@ -1303,19 +1288,6 @@ struct CompanionHeader: View {
         } else {
             withAnimation(.default) { eggWiggle = false }
         }
-    }
-
-    /// The individual's nature, a chip beside the growth badge.
-    private func natureChip(_ nature: PokemonNature) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: "leaf.fill").font(.system(size: 8, weight: .bold))
-            Text(nature.name(store.language)).font(.system(size: 10, weight: .semibold, design: .rounded))
-        }
-        .foregroundStyle(.primary.opacity(0.8))
-        .padding(.horizontal, 7).padding(.vertical, 3)
-        .background(Capsule().fill(Color.primary.opacity(0.12)))
-        .fixedSize()
-        .accessibilityElement(children: .combine)
     }
 
     /// The stages along a bar that fills with the growth; what is left under it, the next stage named.
@@ -3276,5 +3248,39 @@ struct ActiveGoalsList: View {
         let list = goals.prefix(inSentence).map { "\(l.activeGoalName($0)) (+\($0.gain))" }.joined(separator: ", ")
             + (goals.count > inSentence ? ", …" : "")
         return l.stillCountsFor(store.displayName, list)
+    }
+}
+
+/// The badges after the rarity: a form its line never had, fixed at hatch and kept through evolution, then whether
+/// sending it off loses anything (`CompanionStore.activeNews`): nothing new through its whole line, or new. On the card
+/// and on the banner its copy button draws.
+@MainActor
+struct ActiveNewsBadges: View {
+    let store: CompanionStore
+
+    var body: some View {
+        let l = store.l
+        let isMystery = store.activeNews?.mystery != nil
+        let isNewForm = store.state.active?.hasNewForm == true
+        if isMystery {
+            Badge(l.formMysteryBadge.uppercased(), tint: .blue, style: .tinted)
+                .lineLimit(1).fixedSize()
+                .hoverTip(store.activeNewsHint)
+        } else if isNewForm {
+            Badge(l.newFormBadge.uppercased(), tint: .blue, style: .tinted)
+                .lineLimit(1).fixedSize()
+                .hoverTip(store.activeNewsHint)
+        }
+        if let news = store.activeNews, !isMystery {
+            if news.isDuplicate {
+                Badge(l.activeDuplicateBadge.uppercased(), tint: .secondary, style: .tinted)
+                    .lineLimit(1).fixedSize()
+                    .hoverTip(l.activeDuplicateHint)
+            } else if !isNewForm {
+                Badge(l.activeNewBadge.uppercased(), tint: .green, style: .tinted)
+                    .lineLimit(1).fixedSize()
+                    .hoverTip(store.activeNewsHint)
+            }
+        }
     }
 }
