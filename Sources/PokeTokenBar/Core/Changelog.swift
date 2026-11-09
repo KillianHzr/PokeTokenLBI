@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-key-every-victory") { l in
+                let key = l.itemName(.legendaryKey)
+                return l.t("T3 던전 승리마다 \(KoreanParticle.subject.attach(to: key)) 2번에 1번 나와요. 첫 승리도 마찬가지라 더는 확정이 아니에요.",
+                           "Each T3 victory gives a \(key) one time in two, the first one too: it is no longer sure the first time.",
+                           "T3のダンジョンで勝つたびに、\(key)が2回に1回手に入ります。はじめての勝利も同じで、もう確定ではありません。",
+                           "Cada victoria en T3 da una \(key) una vez de cada dos, también la primera: ya no es segura la primera vez.",
+                           "Chaque victoire en T3 donne une \(key) une fois sur deux, la première aussi : elle n'est plus assurée la première fois.",
+                           "Cada vitória no T3 dá uma \(key) uma vez em duas, a primeira também: ela não é mais garantida na primeira vez.",
+                           "Jeder Sieg in T3 bringt einen \(key) in einem von zwei Fällen, auch der erste: Beim ersten Mal ist er nicht mehr sicher.",
+                           "Каждая победа в T3 даёт \"\(key)\" в одном случае из двух, и первая тоже: в первый раз он больше не гарантирован.")
+            },
             .new("2026-11-09-mints-back") { l in
                 let mint = l.itemName(.mint)
                 return l.t("\(KoreanParticle.subject.attach(to: mint)) 돌아왔어요: 졸업한 포켓몬의 성격을 무작위로 다른 성격으로 바꿔요. 상점에서 팔고, T2부터 던전 상자에서도 나오고, 떠돌이 상인이 사 가요.",
