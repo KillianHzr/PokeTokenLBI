@@ -99,7 +99,7 @@ Your usage limits pay <b>Rare Candy</b> as they fill, without waiting for the li
 <td width="45%" align="center"><img src="assets/screenshot-shop.png" width="300" alt="Token Shop — Mint, Rare Candy, Pokémon Egg, Uncommon Egg, Shiny Charm, Rare Egg"></td>
 <td width="55%" valign="middle">
 <h3>🛒 A shop that runs on your usage</h3>
-The tokens you've already used are your currency. Buy several consumables at once with a quantity selector and total-price preview: <b>Rare Candy</b> grows your Pokémon, and a <b>Mint</b> re-rolls its nature. A <b>Shiny Charm</b> permanently raises your shiny hatch odds. Eggs send off your companion and start over: a plain <b>Pokémon Egg</b>, an <b>Uncommon Egg</b> guaranteed to hatch Uncommon or better, or a <b>Rare Egg</b> guaranteed to hatch Rare or better. Legendaries stay in both graded pools. An empty Bag links straight to the Shop.
+The tokens you've already used are your currency. Buy several consumables at once with a quantity selector and total-price preview: <b>Rare Candy</b> grows your Pokémon, and a <b>Mint</b> re-rolls its nature. A <b>Shiny Charm</b> permanently raises your shiny hatch odds. Eggs send off your companion and start over: a plain <b>Pokémon Egg</b>, an <b>Uncommon Egg</b> guaranteed to hatch Uncommon or better, or a <b>Rare Egg</b> guaranteed to hatch Rare or better. Legendaries stay in both graded pools. An empty Bag links straight to the Shop. One day in five a <b>travelling merchant</b> comes by and buys back one kind of item until midnight, at a third of its Shop price (fixed prices for what the Shop does not sell, never a Fossil Egg): sell one or all, the tokens go to your balance. An arrow switches between him and Prof. Oak.
 </td>
 </tr>
 <tr>

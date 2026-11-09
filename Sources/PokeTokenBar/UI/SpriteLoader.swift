@@ -232,6 +232,10 @@ actor SpriteStore {
             urlStr = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/\(badgeNum).png"
         } else if itemName == Self.oakPortrait {
             urlStr = "https://images.wikidexcdn.net/mwuploads/wikidex/b/b3/latest/20200210170142/Profesor_Oak_Masters.png"
+        } else if let merchant = TravellingMerchant.portraitURLs[itemName] {
+            urlStr = merchant
+        } else if itemName.hasPrefix("merchant-") {
+            return nil
         } else {
             urlStr = "\(itemBase)/\(itemName).png"
         }

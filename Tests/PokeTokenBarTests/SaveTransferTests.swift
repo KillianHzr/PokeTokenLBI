@@ -518,6 +518,7 @@ final class SaveTransferTests: XCTestCase {
         evil.installBaselineSet = true
         evil.usedSinceInstall = Int.max
         evil.spentTokens = Int.min
+        evil.merchantTokens = Int.max
         evil.eggUsage = Int.max
         evil.claimedTodayTokensByProvider = ["test": -42]
         evil.active = MonState(baseID: 1, pathIDs: [1], plannedPathIDs: [1],
@@ -531,6 +532,7 @@ final class SaveTransferTests: XCTestCase {
 
         XCTAssertEqual(s.usedSinceInstall, SaveTransfer.maxTokenValue)
         XCTAssertEqual(s.spentTokens, 0, "음수는 0 으로")
+        XCTAssertEqual(s.merchantTokens, SaveTransfer.maxTokenValue)
         XCTAssertEqual(s.eggUsage, SaveTransfer.maxTokenValue)
         XCTAssertEqual(s.claimedTodayTokensByProvider?["test"], 0)
         XCTAssertEqual(s.active?.usedAtStage, SaveTransfer.maxTokenValue)
@@ -672,7 +674,8 @@ final class SaveTransferTests: XCTestCase {
     /// 딸려 들어간다(`language` 가 실제로 그랬다). 필드 목록을 테스트로 고정해 **분류를 강제**한다.
     func testEveryCompanionStateFieldIsClassifiedForTransfer() {
         // eggTier(알 등급 보증) = 진행 — 산 물건이지 이 기기의 장부가 아니라 기기를 옮겨도 따라간다.
-        let progress: Set<String> = ["usedSinceInstall", "spentTokens", "eggUsage", "eggTier",
+        // What the travelling merchant paid is the wallet's, with what the Shop took.
+        let progress: Set<String> = ["usedSinceInstall", "spentTokens", "merchantTokens", "eggUsage", "eggTier",
                                      "eggTypeGuarantee", "eggFromTypeNullEgg", "eggFromLegendaryEgg", "pendingHatchID", "pendingForm", "active",
                                      // The draw items the waiting species was rolled with, kept with it.
                                      "pendingHatchItems",

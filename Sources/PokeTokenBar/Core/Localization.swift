@@ -2696,6 +2696,47 @@ struct L {
         t("오박사의 조언", "Prof. Oak's advice", "オーキド博士のアドバイス", "Consejos del Profesor Oak", "Conseils du Prof. Chen",
           "Conselhos do Prof. Carvalho", "Tipps von Prof. Eich", "Советы профессора Оука")
     }
+    // MARK: The travelling merchant (2026-11-09)
+
+    var merchantTitle: String {
+        t("떠돌이 상인", "Travelling merchant", "旅の商人", "Mercader ambulante", "Marchand ambulant", "Mercador ambulante",
+          "Fahrender Händler", "Странствующий торговец")
+    }
+    /// His words in his bubble: the ware and what he pays for one.
+    func merchantOffer(_ item: String, price: String) -> String {
+        t("오늘 매입: \(item), 개당 \(price)", "Today I buy back: \(item), \(price) each.",
+          "本日の買い取り：\(item)、1個 \(price)", "Hoy compro: \(item), a \(price) cada uno.",
+          "Aujourd'hui je rachète : \(item), \(price) l'unité.", "Hoje eu compro: \(item), \(price) cada.",
+          "Heute kaufe ich: \(item), \(price) pro Stück.", "Сегодня покупаю: \"\(item)\", по \(price) за штуку.")
+    }
+    func merchantHeld(_ count: Int) -> String {
+        t("\(count)개 있어요.", "You have \(count).", "\(count)個持っています。", "Tienes \(count).", "Tu en as \(count).",
+          "Você tem \(count).", "Du hast \(count).", "У вас \(count) шт.")
+    }
+    var merchantNoneHeld: String {
+        t("가방에 없어요. 다음에 또 올게요.", "You have none. I will come by another day.", "持っていませんね。また別の日に来ます。",
+          "No tienes ninguno. Volveré otro día.", "Tu n'en as pas. Je repasserai un autre jour.", "Você não tem nenhum. Volto outro dia.",
+          "Du hast keins. Ich komme an einem anderen Tag wieder.", "У вас их нет. Загляну в другой день.")
+    }
+    var merchantSellOne: String { t("1개 팔기", "Sell 1", "1個売る", "Vender 1", "Vendre 1", "Vender 1", "1 verkaufen", "Продать 1") }
+    func merchantSellAll(_ count: Int) -> String {
+        t("모두 팔기 (\(count))", "Sell all (\(count))", "すべて売る（\(count)）", "Vender todo (\(count))", "Tout vendre (\(count))",
+          "Vender tudo (\(count))", "Alle verkaufen (\(count))", "Продать все (\(count))")
+    }
+    /// The second press of "Sell all", the total on it: nothing sold goes back.
+    func merchantConfirm(_ total: String) -> String {
+        t("확인 · +\(total)", "Confirm · +\(total)", "確定 · +\(total)", "Confirmar · +\(total)", "Confirmer · +\(total)",
+          "Confirmar · +\(total)", "Bestätigen · +\(total)", "Подтвердить · +\(total)")
+    }
+    func merchantSold(_ total: String) -> String {
+        t("+\(total) 받았어요", "+\(total) received", "+\(total) 受け取りました", "+\(total) recibidos", "+\(total) reçus",
+          "+\(total) recebidos", "+\(total) erhalten", "Получено +\(total)")
+    }
+    var merchantLeaves: String {
+        t("자정에 떠나요.", "He leaves at midnight.", "真夜中に去ります。", "Se va a medianoche.", "Il repart à minuit.",
+          "Vai embora à meia-noite.", "Er zieht um Mitternacht weiter.", "Уйдёт в полночь.")
+    }
+
     var oakAdviceToggle: String {
         t("오박사의 조언 표시", "Show Prof. Oak's advice", "オーキド博士のアドバイスを表示", "Mostrar los consejos del Profesor Oak",
           "Afficher les conseils du Prof. Chen", "Mostrar os conselhos do Prof. Carvalho", "Tipps von Prof. Eich anzeigen",
