@@ -3906,3 +3906,15 @@ struct L {
           "Получены за использование: \(window). Используйте их, чтобы эволюционировать покемона!")
     }
 }
+
+/// The copy button of the card of the Pokémon raised (2026-11-09).
+extension L {
+    var catchImageCopyHint: String {
+        t("이 포켓몬 이미지를 복사", "Copy an image of this Pokémon", "このポケモンの画像をコピー", "Copiar una imagen de este Pokémon",
+          "Copier une image de ce Pokémon", "Copiar uma imagem deste Pokémon", "Ein Bild dieses Pokémon kopieren",
+          "Скопировать изображение этого покемона")
+    }
+    var catchImageCopied: String {
+        t("복사했어요", "Copied", "コピーしました", "Copiada", "Copiée", "Copiada", "Kopiert", "Скопировано")
+    }
+}
