@@ -78,6 +78,16 @@ enum Changelog {
                            "Arceus ist in Reichweite: Der Saal des Ursprungs verlangt einen \(key) statt drei, Arceus kämpft etwas schwächer, und jeder Wurf fängt es einmal von dreien statt zu 12 %. Der \(master) trifft weiterhin immer.",
                            "Арсеус стал ближе: в Зал Истоков нужен один \"\(key)\" вместо трёх, Арсеус сражается чуть слабее, а каждый бросок ловит его в одном случае из трёх вместо 12%. \"\(master)\" по-прежнему не промахивается.")
             },
+            .new("2026-11-09-oak-advice-toggle") { l in
+                l.t("설정에서 오박사의 조언을 끌 수 있어요. 끄면 상점에서 조언 칸이 사라져요.",
+                    "You can turn off Prof. Oak's advice in Settings: his card leaves the Shop.",
+                    "設定でオーキド博士のアドバイスをオフにできます。オフにするとショップからカードが消えます。",
+                    "Puedes desactivar los consejos del Profesor Oak en Ajustes: su tarjeta desaparece de la Tienda.",
+                    "Tu peux désactiver les conseils du Prof. Chen dans les Réglages : son encart disparaît de la Boutique.",
+                    "Você pode desativar os conselhos do Prof. Carvalho nos Ajustes: o cartão dele some da Loja.",
+                    "Du kannst die Tipps von Prof. Eich in den Einstellungen ausschalten: Seine Karte verschwindet aus dem Laden.",
+                    "Советы профессора Оука можно отключить в настройках: его карточка исчезнет из магазина.")
+            },
         ]),
         ChangelogDay(date: "2026-11-06", entries: [
             .fixed("2026-11-06-team-screen-lag", { $0.t("던전 팀 화면에서 포켓몬 위에 마우스를 올리거나 고를 때 앱이 멈추던 문제를 고쳤어요.",
@@ -205,16 +215,6 @@ enum Changelog {
             },
         ]),
         ChangelogDay(date: "2026-11-05", entries: [
-            .new("2026-11-05-oak-advice-toggle") { l in
-                l.t("설정에서 오박사의 조언을 끌 수 있어요. 끄면 상점에서 조언 칸이 사라져요.",
-                    "You can turn off Prof. Oak's advice in Settings: his card leaves the Shop.",
-                    "設定でオーキド博士のアドバイスをオフにできます。オフにするとショップからカードが消えます。",
-                    "Puedes desactivar los consejos del Profesor Oak en Ajustes: su tarjeta desaparece de la Tienda.",
-                    "Tu peux désactiver les conseils du Prof. Chen dans les Réglages : son encart disparaît de la Boutique.",
-                    "Você pode desativar os conselhos do Prof. Carvalho nos Ajustes: o cartão dele some da Loja.",
-                    "Du kannst die Tipps von Prof. Eich in den Einstellungen ausschalten: Seine Karte verschwindet aus dem Laden.",
-                    "Советы профессора Оука можно отключить в настройках: его карточка исчезнет из магазина.")
-            },
             .improved("2026-11-05-explorer-kit-rarer") { l in
                 let kit = l.itemName(.explorerKit), candy = l.itemName(.rareCandy)
                 let uncommon = l.itemName(.uncommonEgg), rare = l.itemName(.rareEgg), legendary = l.itemName(.legendaryEgg)
