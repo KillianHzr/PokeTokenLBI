@@ -71,13 +71,13 @@ final class CollectorItemsTests: XCTestCase {
         XCTAssertEqual(s.totalAchievementsCount, 282,
                        "10 stones, 39 artifacts and the Legendary Egg's 9 regions, 161 badge regions, 26 forms, 15 digs, "
                        + "16 Dungeons medal steps, 6 Battle Forms Medal steps")
-        XCTAssertEqual(s.purchasableItems, [.rareCandy, .greatBall, .shinyCharm, .ultraBall],
-                       "the Shop sells what main sells and the dungeons' two balls, the Mint retired")
+        XCTAssertEqual(s.purchasableItems, [.mint, .rareCandy, .greatBall, .shinyCharm, .ultraBall],
+                       "the Shop sells what main sells, the Mint (back on 2026-11-09) and the dungeons' two balls")
 
         // An unlocked stone is an achievement to claim, never a Shop item.
         let withFire = store(dex: entries([154, 157, 160]))
         XCTAssertTrue(withFire.isUnlocked(.fireStone))
-        XCTAssertEqual(withFire.purchasableItems, [.rareCandy, .greatBall, .shinyCharm, .ultraBall])
+        XCTAssertEqual(withFire.purchasableItems, [.mint, .rareCandy, .greatBall, .shinyCharm, .ultraBall])
         XCTAssertFalse(withFire.shopEntries.contains(.item(.fireStone)))
         XCTAssertEqual(withFire.unclaimedAchievementsCount, 1)
     }
@@ -91,11 +91,12 @@ final class CollectorItemsTests: XCTestCase {
                 XCTAssertNil(kind.shopPrice)
                 XCTAssertFalse(kind.isAchievement)
             } else if kind.isDungeonItem {
-                // Found in dungeons, never an achievement; only the Great and Ultra Balls are sold (R12 B).
+                // Found in dungeons, never an achievement; only the Great and Ultra Balls are sold (R12 B), and the
+                // Mint (2026-11-09).
                 XCTAssertNil(kind.unlock)
                 XCTAssertFalse(kind.isAchievement)
                 XCTAssertFalse(kind.isPassive, "\(kind) is used up")
-                XCTAssertEqual(kind.shopPrice != nil, [.greatBall, .ultraBall].contains(kind), "\(kind)")
+                XCTAssertEqual(kind.shopPrice != nil, [.greatBall, .ultraBall, .mint].contains(kind), "\(kind)")
             } else if kind.collectorGroup == nil {
                 XCTAssertNil(kind.unlock, "\(kind) is always on sale")
                 XCTAssertNotNil(kind.shopPrice, "\(kind) must have a price")

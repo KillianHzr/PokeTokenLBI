@@ -15,7 +15,7 @@ enum TravellingMerchant {
     /// What he may buy, one draw each, the stones as one.
     static let wares: [ItemKind] = [.rareCandy, .pokemonEgg, .uncommonEgg, .rareEgg, .legendaryEgg, .greatBall, .ultraBall,
                                     .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive, .silverCapsule,
-                                    .goldCapsule, .explorerChest, .legendaryKey, .treasureMap]
+                                    .goldCapsule, .explorerChest, .legendaryKey, .treasureMap, .mint]
 
     /// Everything he may buy, the ten stones included.
     static var sellable: [ItemKind] { wares + stones }
@@ -47,7 +47,7 @@ enum TravellingMerchant {
     static func shopBase(_ kind: ItemKind) -> Int? {
         switch kind {
         case .pokemonEgg, .uncommonEgg, .rareEgg: FreshEgg.price(guaranteeing: kind.bagEggTier)
-        case .rareCandy, .greatBall, .ultraBall: kind.shopPrice
+        case .rareCandy, .greatBall, .ultraBall, .mint: kind.shopPrice
         default: nil
         }
     }

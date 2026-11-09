@@ -126,7 +126,7 @@ final class ShopTests: XCTestCase {
     /// 최대 수량 = 잔액 ÷ 가격(내림). 가격 미만이면 0.
     func testMaxBuyCountIsFloorOfWalletOverPrice() {
         XCTAssertEqual(store(used: 1_200_000_000).maxBuyCount(.rareCandy), 2)
-        XCTAssertEqual(store(used: 1_200_000_000).maxBuyCount(.mint), 0, "the Mint is retired")
+        XCTAssertEqual(store(used: 1_200_000_000).maxBuyCount(.mint), 6, "the Mint is back (2026-11-09)")
         XCTAssertEqual(store(used: RareCandy.price - 1).maxBuyCount(.rareCandy), 0)
     }
 
@@ -191,12 +191,11 @@ final class ShopTests: XCTestCase {
 
     // MARK: 정렬 (가격 저렴한 순 + 구매 완료 보유형 맨 아래)
 
-    /// 상점 목록은 가격 오름차순(사탕 500M < 이로치 부적 3B). The Mint is retired: never sold, still in the code.
+    /// 상점 목록은 가격 오름차순(사탕 500M < 이로치 부적 3B). The Mint is back with the Rare Candy's neighbours.
     func testItemsSortedByPriceAscending() {
         let items = store(used: 0).purchasableItems
-        XCTAssertEqual(items, [.rareCandy, .greatBall, .shinyCharm, .ultraBall])
-        XCTAssertTrue(ItemKind.mint.isRetired)
-        XCTAssertNotNil(ItemKind.mint.shopPrice, "kept, only hidden")
+        XCTAssertEqual(items, [.mint, .rareCandy, .greatBall, .shinyCharm, .ultraBall])
+        XCTAssertFalse(ItemKind.mint.isRetired)
         let prices = items.compactMap(\.shopPrice)
         XCTAssertEqual(prices, prices.sorted(), "shopPrice 오름차순 — 가격 상수가 바뀌어도 정렬 불변식 유지")
     }
@@ -239,7 +238,7 @@ final class ShopTests: XCTestCase {
     private static let sectioned: [ShopEntry] = [
         .egg(nil), .egg(.uncommon), .egg(.rare),      // 1B, 2.5B, 4B
         .item(.rareCandy),                            // 500M
-        .item(.greatBall), .item(.ultraBall),         // 2.5B, 4B
+        .item(.mint), .item(.greatBall), .item(.ultraBall),   // 200M, 2.5B, 4B: the Mint with the dungeons' items
         .item(.shinyCharm),                           // 3B
     ]
 

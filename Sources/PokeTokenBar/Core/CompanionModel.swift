@@ -506,8 +506,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         }
     }
     /// Items taken out of the game without deleting them: neither sold nor shown in the Bag, while a save keeps
-    /// what it holds. The Mint went on 2026-10-28.
-    var isRetired: Bool { self == .mint }
+    /// what it holds. None now: the Mint went on 2026-10-28 and came back on 2026-11-09, for the graduated Pokémon.
+    var isRetired: Bool { false }
 
     /// 상점 판매가(재화 = 사용한 토큰). nil = 상점 미판매(업적 보상).
     var shopPrice: Int? {
@@ -527,6 +527,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         switch self {
         case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
              .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: true
+        // On a graduated Pokémon like the Capsules, and found in the chests from T2 (the owner, 2026-11-09).
+        case .mint: true
         default: false
         }
     }
@@ -964,7 +966,9 @@ enum Mint {
     /// 상점 구매가. 성격 변경은 순수 코스메틱(성장·능력치 무관)이라 밸런스 근거가 없어 "느낌" 값 —
     /// 사탕(500M)의 1/5로 싸게 둬서 성격을 마음에 들 때까지 굴려보는 가벼운 재미. 성장을 안 줘서
     /// 이중계산 이슈도 없음(가격 = 순수 소비).
-    static let price = 100_000_000
+    /// 2026-11-09: back for the graduated Pokémon, at 20M as the players see it (×0.1; the owner: "20M, ça reste du
+    /// random"), though a nature counts in battle now.
+    static let price = 200_000_000
 }
 
 /// 이로치 부적 밸런스 상수 — 보유형(1회 구매·영구, 소비 안 됨).

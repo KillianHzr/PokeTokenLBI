@@ -618,7 +618,18 @@ extension CompanionStore {
     /// The Capsule screen's Pokémon: `query` read as the Pokédex reads it, the shiny ones alone when asked, in `sort`'s
     /// order.
     func capsuleCandidates(query: String, shinyOnly: Bool, sort: CapsuleSortOption) -> [DexEntry] {
-        var result = capsuleCandidates
+        itemTargets(.goldCapsule, query: query, shinyOnly: shinyOnly, sort: sort)
+    }
+
+    /// The sorts the screen of `kind` offers: a Mint has no IVs to gain.
+    static func sortOptions(for kind: ItemKind) -> [CapsuleSortOption] {
+        kind == .mint ? CapsuleSortOption.allCases.filter { $0 != .mostToGain } : CapsuleSortOption.allCases
+    }
+
+    /// The Pokémon `kind` can be used on, searched and sorted as the Capsule screen shows them: a Capsule's those with
+    /// an IV under 31, a Mint's every graduated one.
+    func itemTargets(_ kind: ItemKind, query: String, shinyOnly: Bool, sort: CapsuleSortOption) -> [DexEntry] {
+        var result = kind == .mint ? mintCandidates : capsuleCandidates
         if shinyOnly { result = result.filter(\.isShiny) }
         if let matcher = DexSearchMatcher(query) { result = result.filter { matcher.matches($0) } }
         switch sort {
@@ -674,11 +685,12 @@ extension CompanionStore {
     // MARK: The end
 
     /// The tier's extras on a victory (Q22, Q23, R10, R4): an egg sometimes, the very rare items, a Legendary Key
-    /// from T3 (sure at the first T3 victory, then one in ten: about ten T3 victories a key, a T5 asks three).
-    static func victoryExtras(tier: DungeonTier, firstT3Victory: Bool, random: inout BattleRandom) -> ExpeditionLoot {
+    /// from T3, one victory in two every time (the owner, 2026-11-09: no sure key at the first T3 victory any more,
+    /// "que ça soit la 1e ou 15e fois").
+    static func victoryExtras(tier: DungeonTier, random: inout BattleRandom) -> ExpeditionLoot {
         var loot = ExpeditionLoot()
         // In the table's order, a sure one drawing nothing: the rolls after it stay what they were.
-        for (item, percent) in victoryExtraOdds(tier, firstT3Victory: firstT3Victory)
+        for (item, percent) in victoryExtraOdds(tier)
         where percent >= 100 || Double(random.below(10_000)) < percent * 100 {
             loot.add(item)
         }
@@ -686,12 +698,12 @@ extension CompanionStore {
     }
 
     /// What a victory adds, each with its chance in percent: the roll's own table, which each dungeon's page shows.
-    static func victoryExtraOdds(_ tier: DungeonTier, firstT3Victory: Bool = false) -> [(item: ItemKind, percent: Double)] {
+    static func victoryExtraOdds(_ tier: DungeonTier) -> [(item: ItemKind, percent: Double)] {
         switch tier {
         case .t1: [(.pokemonEgg, 10)]
         case .t2: [(.uncommonEgg, 10)]
         // A Legendary Key one T3 victory in two (the owner, 2026-11-06: one in ten made a key 3B and Arceus 450B).
-        case .t3: [(.rareEgg, 10), (.legendaryKey, firstT3Victory ? 100 : 50), (.treasureMap, 5), (.explorerChest, 0.5)]
+        case .t3: [(.rareEgg, 10), (.legendaryKey, 50), (.treasureMap, 5), (.explorerChest, 0.5)]
         case .t4: [(.rareEgg, 25), (.legendaryEgg, 1), (.masterBall, 2), (.explorerChest, 1)]
         case .t5: [(.legendaryEgg, 5), (.masterBall, 10)]
         }
@@ -715,7 +727,6 @@ extension CompanionStore {
         var random = BattleRandom(seed: e.seed ^ 0xFEED_F00D)
         let openBefore = Set(DungeonID.allCases.filter(isDungeonOpen))
         let firstVictory = won && state.dungeons.wins(e.dungeon) == 0 && !e.dungeon.isChallenge
-        let t3Victories = DungeonCatalog.all.filter { $0.tier == .t3 }.reduce(0) { $0 + state.dungeons.wins($1.id) }
         // A defeat or leaving keeps what the floors crossed gave (the owner, 2026-11-04: their tokens are paid); the
         // floor it fell on gave nothing, a battle lost bringing no loot.
         var loot = e.loot
@@ -736,8 +747,7 @@ extension CompanionStore {
                 let table = ExpeditionEngine.itemTable(dungeon.tier)
                 loot.add(table[random.below(table.count)])
             }
-            loot.add(Self.victoryExtras(tier: dungeon.tier, firstT3Victory: dungeon.tier == .t3 && t3Victories == 0,
-                                        random: &random))
+            loot.add(Self.victoryExtras(tier: dungeon.tier, random: &random))
             if random.below(100) < Self.technicalCapsuleChance(dungeon.tier) {
                 let locked = MoveTable.all.values.filter { $0.isLocked && $0.hasEffect && !state.dungeons.unlockedMoves.contains($0.slug) }
                     .map(\.slug).sorted()

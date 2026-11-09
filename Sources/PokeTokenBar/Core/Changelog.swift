@@ -67,6 +67,44 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-key-every-victory") { l in
+                let key = l.itemName(.legendaryKey)
+                return l.t("T3 던전 승리마다 \(KoreanParticle.subject.attach(to: key)) 2번에 1번 나와요. 첫 승리도 마찬가지라 더는 확정이 아니에요.",
+                           "Each T3 victory gives a \(key) one time in two, the first one too: it is no longer sure the first time.",
+                           "T3のダンジョンで勝つたびに、\(key)が2回に1回手に入ります。はじめての勝利も同じで、もう確定ではありません。",
+                           "Cada victoria en T3 da una \(key) una vez de cada dos, también la primera: ya no es segura la primera vez.",
+                           "Chaque victoire en T3 donne une \(key) une fois sur deux, la première aussi : elle n'est plus assurée la première fois.",
+                           "Cada vitória no T3 dá uma \(key) uma vez em duas, a primeira também: ela não é mais garantida na primeira vez.",
+                           "Jeder Sieg in T3 bringt einen \(key) in einem von zwei Fällen, auch der erste: Beim ersten Mal ist er nicht mehr sicher.",
+                           "Каждая победа в T3 даёт \"\(key)\" в одном случае из двух, и первая тоже: в первый раз он больше не гарантирован.")
+            },
+            .new("2026-11-09-mints-back") { l in
+                let mint = l.itemName(.mint)
+                return l.t("\(KoreanParticle.subject.attach(to: mint)) 돌아왔어요: 졸업한 포켓몬의 성격을 무작위로 다른 성격으로 바꿔요. 상점에서 팔고, T2부터 던전 상자에서도 나오고, 떠돌이 상인이 사 가요.",
+                           "The \(mint) is back: it changes a graduated Pokémon's nature to another one, at random. Sold in the Shop, found in dungeon chests from T2 and bought by the travelling merchant.",
+                           "\(mint)が戻ってきました。卒業したポケモンのせいかくをランダムに別のせいかくに変えます。ショップで買え、T2からダンジョンの宝箱にも入っていて、行商人も買い取ります。",
+                           "La \(mint) vuelve: cambia al azar la naturaleza de un Pokémon graduado por otra. Se vende en la tienda, sale en los cofres de las mazmorras desde T2 y el mercader ambulante la compra.",
+                           "La \(mint) revient : elle change au hasard la nature d'un Pokémon diplômé pour une autre. Elle est vendue en boutique, se trouve dans les coffres des donjons dès le T2 et le marchand ambulant la rachète.",
+                           "A \(mint) voltou: muda ao acaso a natureza de um Pokémon formado para outra. É vendida na loja, aparece nos baús das masmorras desde o T2 e o mercador ambulante a compra.",
+                           "Die \(mint) ist zurück: Sie ändert das Wesen eines verabschiedeten Pokémon zufällig in ein anderes. Es gibt sie im Shop, in Dungeon-Truhen ab T2, und der fahrende Händler kauft sie an.",
+                           "\"\(mint)\" вернулась: она случайно меняет характер выпускника на другой. Продаётся в магазине, попадается в сундуках подземелий с T2, и бродячий торговец её покупает.")
+            },
+            .new("2026-11-09-catch-image", { $0.t("키우는 포켓몬 카드 오른쪽 위의 작은 버튼이 그 포켓몬 이미지(희귀도, 타입, 성격, 개체값)를 복사해요. 대화에 바로 붙여 넣으면 돼요.",
+                                                   "A small button at the top right of the card of the Pokémon you raise copies an image of it (rarity, types, nature, IVs), ready to paste in a conversation.",
+                                                   "育てているポケモンのカード右上の小さなボタンで、そのポケモンの画像（レア度、タイプ、せいかく、個体値）をコピーできます。会話にそのまま貼り付けられます。",
+                                                   "Un pequeño botón arriba a la derecha de la tarjeta del Pokémon que crías copia una imagen suya (rareza, tipos, naturaleza, IV), lista para pegar en una conversación.",
+                                                   "Un petit bouton en haut à droite de la carte du Pokémon que tu élèves copie une image de lui (rareté, types, nature, IV), à coller directement dans une conversation.",
+                                                   "Um pequeno botão no canto superior direito do cartão do Pokémon que você cria copia uma imagem dele (raridade, tipos, natureza, IVs), pronta para colar numa conversa.",
+                                                   "Ein kleiner Knopf oben rechts auf der Karte deines Pokémon kopiert ein Bild davon (Seltenheit, Typen, Wesen, DVs), bereit zum Einfügen in einen Chat.",
+                                                   "Маленькая кнопка в правом верхнем углу карточки выращиваемого покемона копирует его изображение (редкость, типы, характер, IV), чтобы сразу вставить в переписку.") }),
+            .improved("2026-11-09-nature-badge", { $0.t("포켓몬 카드의 성격 표시가 타입·성장 배지와 같은 크기가 됐어요.",
+                                                         "The nature on the Pokémon's card is now the same size as its type and growth badges.",
+                                                         "ポケモンのカードのせいかく表示が、タイプや成長のバッジと同じ大きさになりました。",
+                                                         "La naturaleza en la tarjeta del Pokémon tiene ahora el tamaño de sus etiquetas de tipo y crecimiento.",
+                                                         "La nature sur la carte du Pokémon a maintenant la taille de ses étiquettes de type et de croissance.",
+                                                         "A natureza no cartão do Pokémon agora tem o tamanho das etiquetas de tipo e crescimento.",
+                                                         "Das Wesen auf der Karte des Pokémon ist jetzt so groß wie seine Typ- und Wachstumsabzeichen.",
+                                                         "Характер на карточке покемона теперь того же размера, что и значки типа и роста.") }),
             .improved("2026-11-09-capsule-search", { l in
                 let silver = l.itemName(.silverCapsule), gold = l.itemName(.goldCapsule)
                 return l.t("\(silver)과 \(gold)으로 포켓몬을 고를 때 도감처럼 검색하고, 이로치만 보고, 정렬할 수 있어요(강한 순, 올릴 게 많은 순, 최근, 번호, 이름).",

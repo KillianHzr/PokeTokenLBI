@@ -361,12 +361,16 @@ final class UnownTests: XCTestCase {
     func testNonUnownHatchDoesNotConsumeAnExtraRandomDraw() async throws {
         var original = CompanionState()
         original.inventory = ["mint": 1]
+        var kept = DexEntry(baseID: 143, finalID: 143, chainOrder: [143], rarity: .common, caughtAt: Date(timeIntervalSince1970: 0))
+        kept.id = "kept"
+        kept.nature = .calm
+        original.dex = [kept]
         let s = try store(original, seed: 17)
         var rng = SeededRNG(seed: 17)
         let shiny = rng.next() % PokemonOdds.shinyDenominator == 0
         let nature = PokemonNature.allCases[Int(rng.next() % UInt64(PokemonNature.allCases.count))]
         let profileSeed = rng.next()
-        let mintPool = PokemonNature.allCases.filter { $0 != nature }
+        let mintPool = PokemonNature.allCases.filter { $0 != .calm }
         let nextNature = mintPool[Int(rng.next() % UInt64(mintPool.count))]
 
         await s.hatch(baseID: 25)
@@ -374,7 +378,7 @@ final class UnownTests: XCTestCase {
         XCTAssertEqual(s.currentIsShiny, shiny)
         XCTAssertEqual(s.currentNature, nature)
         XCTAssertEqual(s.state.active?.profile?.seed, profileSeed)
-        XCTAssertEqual(s.useMint(), nextNature)
+        XCTAssertEqual(s.useMint(on: "kept")?.to, nextNature)
     }
 
     func testDexDeduplicatesPerLetterAndScopesShinyAndRaisingFlags() throws {

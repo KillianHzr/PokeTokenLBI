@@ -240,7 +240,6 @@ private struct ItemCard: View {
     private var canUse: Bool {
         switch kind {
         case .rareCandy: return store.canUseRareCandy
-        case .mint:      return store.canUseMint
         // 보유형: 사용 개념 없음(상시 효과). Stones have their own controls (`useControls`).
         default:         return false
         }
@@ -253,7 +252,6 @@ private struct ItemCard: View {
     private func performUse() {
         switch kind {
         case .rareCandy: _ = store.useRareCandy(count: selectedCandyCount)
-        case .mint:      _ = store.useMint()
         default:         break   // 보유형: 사용 동작 없음
         }
     }

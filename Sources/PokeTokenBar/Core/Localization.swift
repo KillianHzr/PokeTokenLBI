@@ -2064,14 +2064,14 @@ struct L {
                      "Gibt deinem aktuellen Pokémon \(xp) EP.",
                      "Увеличивает опыт покемона на \(xp).")
         case .mint:
-            return t("현재 포켓몬의 성격을 랜덤으로 바꿔줘요.",
-                     "Randomly changes your Pokémon's nature.",
-                     "ポケモンのせいかくをランダムに変えます。",
-                     "Cambia aleatoriamente la naturaleza de tu Pokémon.",
-                     "Change aléatoirement la nature de ton Pokémon.",
-                     "Muda a natureza do seu Pokémon aleatoriamente.",
-                     "Ändert das Wesen deines aktuellen Pokémon zufällig.",
-                     "Случайно меняет характер покемона.")
+            return t("졸업한 포켓몬의 성격을 다른 성격으로 무작위로 바꿔요.",
+                     "Changes a graduated Pokémon's nature to another one, at random.",
+                     "卒業したポケモンのせいかくを、ランダムに別のせいかくに変えます。",
+                     "Cambia la naturaleza de un Pokémon graduado por otra, al azar.",
+                     "Change au hasard la nature d'un Pokémon diplômé pour une autre.",
+                     "Muda a natureza de um Pokémon formado para outra, ao acaso.",
+                     "Ändert das Wesen eines verabschiedeten Pokémon zufällig in ein anderes.",
+                     "Случайно меняет характер выпускника на другой.")
         case .shinyCharm:
             return t("보유하면 이로치 포켓몬이 태어날 확률이 올라가요.",
                      "While owned, raises the chance of hatching a shiny.",
@@ -3904,5 +3904,37 @@ struct L {
           "Ganhos com o seu uso: \(window). Use no seu Pokémon para evoluir!",
           "Mit deiner Nutzung verdient: \(window). Verwende sie, um dein Pokémon zu entwickeln!",
           "Получены за использование: \(window). Используйте их, чтобы эволюционировать покемона!")
+    }
+}
+
+/// The copy button of the card of the Pokémon raised (2026-11-09).
+extension L {
+    var catchImageCopyHint: String {
+        t("이 포켓몬 이미지를 복사", "Copy an image of this Pokémon", "このポケモンの画像をコピー", "Copiar una imagen de este Pokémon",
+          "Copier une image de ce Pokémon", "Copiar uma imagem deste Pokémon", "Ein Bild dieses Pokémon kopieren",
+          "Скопировать изображение этого покемона")
+    }
+    var catchImageCopied: String {
+        t("복사했어요", "Copied", "コピーしました", "Copiada", "Copiée", "Copiada", "Kopiert", "Скопировано")
+    }
+}
+
+/// The Mint, back for the graduated Pokémon (2026-11-09).
+extension L {
+    var mintUse: String {
+        t("성격 바꾸기", "Change the nature", "せいかくを変える", "Cambiar la naturaleza", "Changer la nature", "Mudar a natureza",
+          "Wesen ändern", "Сменить характер")
+    }
+    func mintChanged(_ from: String?, _ to: String) -> String {
+        let was = from.map { "\($0) → " } ?? ""
+        return t("성격: \(was)\(to)", "Nature: \(was)\(to)", "せいかく：\(was)\(to)", "Naturaleza: \(was)\(to)",
+                 "Nature : \(was)\(to)", "Natureza: \(was)\(to)", "Wesen: \(was)\(to)", "Характер: \(was)\(to)")
+    }
+    var natureNeutral: String {
+        t("효과 없음", "no effect", "効果なし", "sin efecto", "sans effet", "sem efeito", "ohne Wirkung", "без эффекта")
+    }
+    var mintNoTarget: String {
+        t("졸업한 포켓몬이 없어요", "No graduated Pokémon", "卒業したポケモンがいません", "Ningún Pokémon graduado",
+          "Aucun Pokémon diplômé", "Nenhum Pokémon formado", "Kein verabschiedetes Pokémon", "Нет выпускников")
     }
 }
