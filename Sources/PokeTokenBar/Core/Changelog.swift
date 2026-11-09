@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .new("2026-11-09-mints-back") { l in
+                let mint = l.itemName(.mint)
+                return l.t("\(KoreanParticle.subject.attach(to: mint)) 돌아왔어요: 졸업한 포켓몬의 성격을 무작위로 다른 성격으로 바꿔요. 상점에서 팔고, T2부터 던전 상자에서도 나오고, 떠돌이 상인이 사 가요.",
+                           "The \(mint) is back: it changes a graduated Pokémon's nature to another one, at random. Sold in the Shop, found in dungeon chests from T2 and bought by the travelling merchant.",
+                           "\(mint)が戻ってきました。卒業したポケモンのせいかくをランダムに別のせいかくに変えます。ショップで買え、T2からダンジョンの宝箱にも入っていて、行商人も買い取ります。",
+                           "La \(mint) vuelve: cambia al azar la naturaleza de un Pokémon graduado por otra. Se vende en la tienda, sale en los cofres de las mazmorras desde T2 y el mercader ambulante la compra.",
+                           "La \(mint) revient : elle change au hasard la nature d'un Pokémon diplômé pour une autre. Elle est vendue en boutique, se trouve dans les coffres des donjons dès le T2 et le marchand ambulant la rachète.",
+                           "A \(mint) voltou: muda ao acaso a natureza de um Pokémon formado para outra. É vendida na loja, aparece nos baús das masmorras desde o T2 e o mercador ambulante a compra.",
+                           "Die \(mint) ist zurück: Sie ändert das Wesen eines verabschiedeten Pokémon zufällig in ein anderes. Es gibt sie im Shop, in Dungeon-Truhen ab T2, und der fahrende Händler kauft sie an.",
+                           "\"\(mint)\" вернулась: она случайно меняет характер выпускника на другой. Продаётся в магазине, попадается в сундуках подземелий с T2, и бродячий торговец её покупает.")
+            },
             .new("2026-11-09-catch-image", { $0.t("키우는 포켓몬 카드 오른쪽 위의 작은 버튼이 그 포켓몬 이미지(희귀도, 타입, 성격, 개체값)를 복사해요. 대화에 바로 붙여 넣으면 돼요.",
                                                    "A small button at the top right of the card of the Pokémon you raise copies an image of it (rarity, types, nature, IVs), ready to paste in a conversation.",
                                                    "育てているポケモンのカード右上の小さなボタンで、そのポケモンの画像（レア度、タイプ、せいかく、個体値）をコピーできます。会話にそのまま貼り付けられます。",

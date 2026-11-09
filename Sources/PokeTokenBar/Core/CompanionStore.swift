@@ -63,10 +63,6 @@ final class CompanionStore {
     /// 홈으로 재진입할 때(CompanionHeader 재마운트) @State 가 초기화돼 같은 값이 다시 떠오른다(회귀).
     func consumeCandyFeedback() { candyFeedbackAmount = 0 }
 
-    /// 민트 사용 시 "성격이 X로" 순간 표시 — 사탕 피드백과 동일 1회성 패턴(seq + consume).
-    private(set) var mintFeedbackSeq = 0
-    private(set) var mintFeedbackNature: PokemonNature?
-    func consumeMintFeedback() { mintFeedbackNature = nil }
 
     private let provider: any PokeProviding
     private var dexNameRequests: [Int: Task<EvoLine, Error>] = [:]
@@ -2406,26 +2402,28 @@ final class CompanionStore {
         return .progressed
     }
 
-    // MARK: 민트 (성격 랜덤 재설정)
+    // MARK: Mints (a graduated Pokémon's nature, at random)
 
-    /// 민트 사용 가능 — 활성 포켓몬 + 재고>0. 성격은 MonState 에만 있어 진화 라인 로딩과 무관하다
-    /// (사탕과 달리 currentLine 조건 없음 — 재시작 직후·오프라인에도 사용 가능).
-    var canUseMint: Bool { hasActive && itemCount(.mint) > 0 }
+    /// The graduated Pokémon a Mint can change: every one kept, never the Pokémon raised (the owner, 2026-11-09: "sur
+    /// tous les pokémon comme les capsules, pas sur celui qui se diplôme").
+    var mintCandidates: [DexEntry] { state.dex.filter { !$0.isReleased } }
 
-    /// 민트 1개 사용 — 현재 포켓몬 성격을 '현재와 다른' 무작위 성격으로 교체(반드시 바뀐다). 성장·shiny·
-    /// 종·usedAtStage·통계 전부 무관(순수 코스메틱). 사용 불가면 nil(무소모). 바뀐 성격을 반환(피드백용).
+    /// One Mint on a graduated Pokémon: its nature becomes another one, at random (the owner, 2026-11-09: "au
+    /// hasard"). Nil, and nothing spent, without a Mint or for a Pokémon no Mint reaches. The nature it had (nil for
+    /// a save older than natures) and the new one.
     @discardableResult
-    func useMint() -> PokemonNature? {
-        guard canUseMint, state.active != nil else { return nil }
-        let cur = state.active!.nature
-        let pool = PokemonNature.allCases.filter { $0 != cur }   // cur=nil(구버전 개체)이면 25종 전체
+    func useMint(on entryID: String) -> (from: PokemonNature?, to: PokemonNature)? {
+        guard itemCount(.mint) > 0, let i = state.dex.firstIndex(where: { $0.id == entryID && !$0.isReleased }) else {
+            return nil
+        }
+        let current = state.dex[i].nature
+        let pool = PokemonNature.allCases.filter { $0 != current }
         let new = pool[Int(rng.next() % UInt64(pool.count))]
-        state.active!.nature = new
-        state.inventory[ItemKind.mint.rawValue] = itemCount(.mint) - 1
-        mintFeedbackNature = new
-        mintFeedbackSeq += 1
+        state.dex[i].nature = new
+        changeBag(.mint, by: -1)
+        AppLog.write("mint: \(entryID) \(current?.rawValue ?? "-") -> \(new.rawValue)")
         save()
-        return new
+        return (current, new)
     }
 
     // MARK: 상점 (재화 = 사용한 토큰)
@@ -4729,10 +4727,9 @@ final class CompanionStore {
         eventUntil = nil
         celebration = nil
         isHatchRetryDelayed = false
-        // 이전 개체 기준의 1회성 피드백(사탕 +XP·민트 성격)도 비운다 — 안 비우면 불러온 직후 남의
+        // 이전 개체 기준의 1회성 피드백(사탕 +XP)도 비운다 — 안 비우면 불러온 직후 남의
         // 개체에 대한 "+XP" 가 새 개체 위에 떠오른다.
         candyFeedbackAmount = 0
-        mintFeedbackNature = nil
         displayState = state.active != nil ? .idle : .egg
         migrateToAdditiveGrowthIfNeeded()
         migratePokemonProfilesIfNeeded()

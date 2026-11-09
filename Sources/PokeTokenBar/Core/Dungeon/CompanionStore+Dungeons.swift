@@ -618,7 +618,18 @@ extension CompanionStore {
     /// The Capsule screen's Pokémon: `query` read as the Pokédex reads it, the shiny ones alone when asked, in `sort`'s
     /// order.
     func capsuleCandidates(query: String, shinyOnly: Bool, sort: CapsuleSortOption) -> [DexEntry] {
-        var result = capsuleCandidates
+        itemTargets(.goldCapsule, query: query, shinyOnly: shinyOnly, sort: sort)
+    }
+
+    /// The sorts the screen of `kind` offers: a Mint has no IVs to gain.
+    static func sortOptions(for kind: ItemKind) -> [CapsuleSortOption] {
+        kind == .mint ? CapsuleSortOption.allCases.filter { $0 != .mostToGain } : CapsuleSortOption.allCases
+    }
+
+    /// The Pokémon `kind` can be used on, searched and sorted as the Capsule screen shows them: a Capsule's those with
+    /// an IV under 31, a Mint's every graduated one.
+    func itemTargets(_ kind: ItemKind, query: String, shinyOnly: Bool, sort: CapsuleSortOption) -> [DexEntry] {
+        var result = kind == .mint ? mintCandidates : capsuleCandidates
         if shinyOnly { result = result.filter(\.isShiny) }
         if let matcher = DexSearchMatcher(query) { result = result.filter { matcher.matches($0) } }
         switch sort {

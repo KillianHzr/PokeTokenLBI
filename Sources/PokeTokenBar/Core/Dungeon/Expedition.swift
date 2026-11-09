@@ -614,16 +614,18 @@ enum ExpeditionEngine {
 
     // MARK: Loot
 
-    /// The items a tier's chests hold (Q22 to Q24, without Mints).
+    /// The items a tier's chests hold (Q22 to Q24). A Mint from T2, as one Revive weighs (the owner, 2026-11-09: they
+    /// left the chests with Q24 and came back).
     static func itemTable(_ tier: DungeonTier) -> [ItemKind] {
         switch tier {
-        // Drawn evenly: the Capsules, which raise IVs to 31 for good, one draw in eight or nine.
+        // Drawn evenly: the Capsules, which raise IVs to 31 for good, one draw in nine or ten.
         case .t1: [.oranBerry, .oranBerry, .greatBall]
-        case .t2: [.sitrusBerry, .revive, .ultraBall, .oranBerry]
-        case .t3: [.sitrusBerry, .sitrusBerry, .revive, .revive, .ultraBall, .ultraBall, .silverCapsule]
+        case .t2: [.sitrusBerry, .revive, .ultraBall, .oranBerry, .mint]
+        case .t3: [.sitrusBerry, .sitrusBerry, .revive, .revive, .ultraBall, .ultraBall, .silverCapsule, .mint]
         case .t4: [.sitrusBerry, .sitrusBerry, .maxRevive, .revive, .revive, .ultraBall, .ultraBall, .silverCapsule,
-                   .goldCapsule]
-        case .t5: [.maxRevive, .maxRevive, .ultraBall, .ultraBall, .sitrusBerry, .sitrusBerry, .silverCapsule, .goldCapsule]
+                   .goldCapsule, .mint]
+        case .t5: [.maxRevive, .maxRevive, .ultraBall, .ultraBall, .sitrusBerry, .sitrusBerry, .silverCapsule, .goldCapsule,
+                   .mint]
         }
     }
 
