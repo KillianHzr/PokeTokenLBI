@@ -102,6 +102,9 @@ struct CapsuleScreen: View {
     let onBack: () -> Void
     @State private var selected: String?
     @State private var raised = false
+    @State private var search = ""
+    @State private var shinyOnly = false
+    @State private var sort: CompanionStore.CapsuleSortOption = .strongest
 
     var body: some View {
         let l = store.l
@@ -123,14 +126,20 @@ struct CapsuleScreen: View {
                 detail(entry, l)
             } else {
                 Text(l.dungeonCapsulePick).font(.caption.weight(.semibold))
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 62), spacing: 6)], spacing: 6) {
-                        ForEach(store.capsuleCandidates) { entry in
-                            Button { selected = entry.id } label: { cell(entry) }
-                                .buttonStyle(.plain)
+                toolbar(l)
+                let shown = store.capsuleCandidates(query: search, shinyOnly: shinyOnly, sort: sort)
+                if shown.isEmpty {
+                    noResult(l)
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 62), spacing: 6)], spacing: 6) {
+                            ForEach(shown) { entry in
+                                Button { selected = entry.id } label: { cell(entry) }
+                                    .buttonStyle(.plain)
+                            }
                         }
+                        .reservesScrollerLane()
                     }
-                    .reservesScrollerLane()
                 }
             }
             Spacer(minLength: 0)
@@ -139,9 +148,68 @@ struct CapsuleScreen: View {
         .frame(height: 520, alignment: .top)
     }
 
-    private func total(_ entry: DexEntry) -> Int {
-        guard let ivs = entry.profile?.ivs else { return 0 }
-        return CompanionStore.ivKeyPaths.reduce(0) { $0 + ivs[keyPath: $1] }
+    private func total(_ entry: DexEntry) -> Int { CompanionStore.ivTotal(entry) }
+
+    /// The Pokédex's search, its shiny filter and a sort of the Capsule's own, its choice written beside the arrows.
+    private func toolbar(_ l: L) -> some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 13))
+                TextField(l.dexSearchPlaceholder, text: $search).textFieldStyle(.plain).font(.system(size: 13))
+                if !search.isEmpty {
+                    Button { search = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).font(.system(size: 13))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(l.clearFilters)
+                }
+            }
+            .modifier(CapsuleFilterChip(active: false, tint: .secondary))
+            Button { shinyOnly.toggle() } label: {
+                Image(systemName: shinyOnly ? "sparkles" : "sparkle")
+                    .font(.system(size: 13, weight: shinyOnly ? .bold : .regular))
+                    .foregroundStyle(shinyOnly ? Color.yellow : Color.secondary)
+                    .frame(width: 16, height: 16)
+                    .modifier(CapsuleFilterChip(active: shinyOnly, tint: .yellow))
+            }
+            .buttonStyle(.plain)
+            .hoverTip(l.filterShinyOnly)
+            .accessibilityLabel(l.filterShinyOnly)
+            Menu {
+                ForEach(CompanionStore.CapsuleSortOption.allCases) { option in
+                    Button { sort = option } label: {
+                        HStack {
+                            Text(l.label(for: option))
+                            if sort == option { Image(systemName: "checkmark") }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.arrow.down").font(.system(size: 12))
+                    Text(l.label(for: sort)).font(.system(size: 12)).lineLimit(1)
+                }
+                .foregroundStyle(Color.secondary)
+                .modifier(CapsuleFilterChip(active: false, tint: .secondary))
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .hoverTip(l.sortTitle)
+            .accessibilityLabel(l.sortTitle)
+        }
+    }
+
+    private func noResult(_ l: L) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").font(.system(size: 24)).foregroundStyle(.tertiary)
+            Text(l.noSearchResults).font(.callout.weight(.medium)).foregroundStyle(.secondary)
+            Button(l.clearFilters) { search = ""; shinyOnly = false }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
     }
 
     private func cell(_ entry: DexEntry) -> some View {
@@ -286,5 +354,22 @@ struct BattleFormsMedalPanel: View {
                 }
             }
         }
+    }
+}
+
+/// The Pokédex toolbar's look for the Capsule screen's search, filter and sort: tinted while it narrows the list.
+@MainActor
+struct CapsuleFilterChip: ViewModifier {
+    let active: Bool
+    let tint: Color
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(active ? tint.opacity(0.18) : Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(active ? tint.opacity(0.6) : Color.secondary.opacity(0.2), lineWidth: 0.5))
     }
 }
