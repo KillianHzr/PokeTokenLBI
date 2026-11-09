@@ -111,6 +111,14 @@ final class DungeonStoreTests: XCTestCase {
             $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484", "mtCoronet:487"]
         }
         XCTAssertTrue(all.isDungeonOpen(.hallOfOrigin))
+        // One Legendary Key, as a T4, since 2026-11-09 (the owner): three made Arceus about 5B tokens away.
+        XCTAssertEqual(all.keysToEnter(.hallOfOrigin), 1)
+        XCTAssertFalse(all.canEnter(.hallOfOrigin), "no key in the Bag")
+        let oneKey = try store(dex: strong, inventory: [.legendaryKey: 1]) {
+            Self.winEvery(.t4, &$0)
+            $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484", "mtCoronet:487"]
+        }
+        XCTAssertTrue(oneKey.canEnter(.hallOfOrigin), "one key is enough")
         let bossesOnly = try store(dex: strong) { $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484", "mtCoronet:487"] }
         XCTAssertFalse(bossesOnly.isDungeonOpen(.hallOfOrigin), "the three bosses and every T4")
     }

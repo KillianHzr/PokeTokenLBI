@@ -66,6 +66,19 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-arceus-within-reach") { l in
+                let key = l.itemName(.legendaryKey), master = l.itemName(.masterBall)
+                return l.t("아르세우스에게 닿기 쉬워졌어요: 시작의 방은 \(key) 3개가 아니라 1개로 들어가고, 아르세우스는 조금 덜 강하며, 던질 때마다 3번에 1번 잡혀요(전에는 12%). \(master)로는 여전히 반드시 잡혀요.",
+                           "Arceus is within reach: the Hall of Origin takes one \(key) instead of three, Arceus fights a little less hard, and each throw catches him one time in three instead of 12%. The \(master) still never misses.",
+                           "アルセウスに届きやすくなりました：はじまりのまは\(key)3こではなく1こで入れ、アルセウスは少し弱くなり、1回投げるごとに3回に1回つかまえられます（前は12%）。\(master)は今もかならずつかまえます。",
+                           "Arceus está a tu alcance: la Sala del Origen pide una \(key) en vez de tres, Arceus pelea un poco menos fuerte y cada lanzamiento lo atrapa una vez de cada tres en lugar del 12%. La \(master) sigue sin fallar.",
+                           "Arceus est à ta portée : la Salle Originelle demande une \(key) au lieu de trois, Arceus se bat un peu moins fort, et chaque lancer l'attrape une fois sur trois au lieu de 12 %. La \(master) ne rate toujours jamais.",
+                           "Arceus está ao seu alcance: o Salão da Origem pede uma \(key) em vez de três, Arceus luta um pouco menos forte e cada arremesso o captura uma vez em cada três, em vez de 12%. A \(master) continua sem falhar.",
+                           "Arceus ist in Reichweite: Der Saal des Ursprungs verlangt einen \(key) statt drei, Arceus kämpft etwas schwächer, und jeder Wurf fängt es einmal von dreien statt zu 12 %. Der \(master) trifft weiterhin immer.",
+                           "Арсеус стал ближе: в Зал Истоков нужен один \"\(key)\" вместо трёх, Арсеус сражается чуть слабее, а каждый бросок ловит его в одном случае из трёх вместо 12%. \"\(master)\" по-прежнему не промахивается.")
+            },
+        ]),
         ChangelogDay(date: "2026-11-06", entries: [
             .fixed("2026-11-06-team-screen-lag", { $0.t("던전 팀 화면에서 포켓몬 위에 마우스를 올리거나 고를 때 앱이 멈추던 문제를 고쳤어요.",
                                                      "The dungeon team screen no longer freezes the app when you hover or pick a Pokémon.",

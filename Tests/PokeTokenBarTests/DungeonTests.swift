@@ -86,7 +86,7 @@ final class DungeonTests: XCTestCase {
         XCTAssertEqual(DungeonTier.t4.cost(difficulty: difficulty), 600_000_000)
         XCTAssertEqual(DungeonTier.t5.cost(difficulty: difficulty), 900_000_000)
         XCTAssertEqual(DungeonTier.t4.keys, 1)
-        XCTAssertEqual(DungeonTier.t5.keys, 3)
+        XCTAssertEqual(DungeonTier.t5.keys, 1, "one key for the Hall of Origin since 2026-11-09")
     }
 
     /// Every dungeon has wild Pokémon, none legendary, and bosses the battle table knows; Arceus only at the end of
@@ -274,6 +274,34 @@ final class DungeonTests: XCTestCase {
         XCTAssertEqual(ExpeditionEngine.captureOdds(.uncommon), 0.45)
         XCTAssertEqual(ExpeditionEngine.captureOdds(.rare), 0.30)
         XCTAssertEqual(ExpeditionEngine.captureOdds(.legendary), 0.12)
+    }
+
+    /// Arceus's own odds, one in three a throw (the owner, 2026-11-09), with the balls' factors and the Master Ball
+    /// still sure; the other legendary bosses keep 12%.
+    func testArceusIsCaughtOneThrowInThree() {
+        let arceus = ExpeditionBoss(speciesID: DungeonCatalog.arceusID, form: nil, isShiny: false)
+        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: nil), 1.0 / 3, accuracy: 1e-9)
+        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .greatBall), 0.5, accuracy: 1e-9)
+        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .ultraBall), 2.0 / 3, accuracy: 1e-9)
+        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .masterBall), 1)
+        XCTAssertEqual(1 - pow(1 - ExpeditionEngine.throwOdds(arceus, ball: nil), 3), 0.70, accuracy: 0.01,
+                       "about 70% over the three Poké Balls")
+        let giratina = ExpeditionBoss(speciesID: 487, form: nil, isShiny: false)
+        XCTAssertEqual(ExpeditionEngine.throwOdds(giratina, ball: nil), 0.12, accuracy: 1e-9)
+        XCTAssertEqual(ExpeditionEngine.throwOdds(giratina, ball: .masterBall), 1)
+        // The throws at the fallen Arceus catch him at that rate.
+        var caught = 0
+        for seed in 0..<600 {
+            var e = Expedition(dungeon: .hallOfOrigin, teamSize: 6, rules: [], startedAt: Date(timeIntervalSince1970: 0),
+                               seed: UInt64(seed) &* 7919, cost: 0, team: [], boss: arceus, candiesLeft: 0, berries: [:],
+                               revives: [:])
+            e.phase = .capture(throwsLeft: 1)
+            if ExpeditionEngine.throwBall(&e, ball: nil, context: ExpeditionContext(tier: .t5, shinyDenominator: 64,
+                                                                                  now: Date(timeIntervalSince1970: 0))) {
+                caught += 1
+            }
+        }
+        XCTAssertEqual(Double(caught) / 600, 1.0 / 3, accuracy: 0.06)
     }
 
     /// The chests' eggs grow with the tier (the owner, 2026-11-04): none in T1, which draws nothing for them so its

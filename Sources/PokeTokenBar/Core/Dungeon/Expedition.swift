@@ -195,6 +195,16 @@ enum ExpeditionEngine {
         }
     }
 
+    /// Arceus's throw odds, one in three (the owner, 2026-11-09: reaching him costs about 2B tokens, so a throw should
+    /// not miss as often as at the other legendaries): about 70% over three Poké Balls, the Master Ball still sure.
+    static let arceusCaptureOdds = 1.0 / 3
+
+    /// A throw's odds at this boss before the ball: its line's (Q19), Arceus's own.
+    static func captureOdds(_ boss: ExpeditionBoss) -> Double {
+        boss.speciesID == DungeonCatalog.arceusID ? arceusCaptureOdds
+            : captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID))
+    }
+
     /// The candies a tier's expedition holds, around its average (Q22). Rebalanced on 2026-11-02 at the owner's word
     /// ("10-18, c'est énorme"): they give back about half the tokens walked (a Rare Candy is 100M EXP); a dungeon's
     /// real prize is its boss's egg, its keys and items.
@@ -469,6 +479,10 @@ enum ExpeditionEngine {
     /// T1 and T2: their bosses one against one fell too easily at the T3's share.
     static let oneOnOneBossEarly = 0.72
     static let oneOnOneLegendary = 0.7
+    /// Arceus alone (the owner, 2026-11-09: about 2B tokens to reach him, then good odds of having him): at the
+    /// legendaries' share a strong team beat him 58% of the times it reached him; at this one 88%, while a team of
+    /// whatever shinies came along still never does ("elle est beaucoup trop random", `DungeonSimulatorTests`).
+    static let oneOnOneArceus = 0.6
     static let oneOnOneChallenge = 0.7
 
     private static func fight(_ e: inout Expedition, kind: ExpeditionEventKind, foes: [BattlerSpec],
@@ -569,8 +583,9 @@ enum ExpeditionEngine {
             }
         }
         // Its HP and stats were set for three of mine at once (R2 A); one at a time, both are lowered alike.
-        let oneOnOne = challenge != nil ? oneOnOneChallenge : legendary ? oneOnOneLegendary
-            : tier <= .t2 ? oneOnOneBossEarly : oneOnOneBoss
+        let oneOnOne = challenge != nil ? oneOnOneChallenge
+            : boss.speciesID == DungeonCatalog.arceusID ? oneOnOneArceus
+            : legendary ? oneOnOneLegendary : tier <= .t2 ? oneOnOneBossEarly : oneOnOneBoss
         return BattlerSpec.make(id: "boss-\(boss.speciesID)", speciesID: boss.speciesID, form: boss.form, level: 100,
                                 ivs: ivs, isShiny: boss.isShiny, isBoss: true, hpFactor: hp * oneOnOne,
                                 statFactor: stats * oneOnOne)
@@ -711,7 +726,8 @@ enum ExpeditionEngine {
         if !won { append(&e, .defeat, context: context) }
     }
 
-    /// A throw's odds at this boss: its line's (Q19), a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure.
+    /// A throw's odds at this boss: its line's (Q19) or Arceus's own, a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball
+    /// sure.
     static func throwOdds(_ boss: ExpeditionBoss, ball: ItemKind?) -> Double {
         let factor: Double = switch ball {
         case .greatBall?: 1.5
@@ -719,7 +735,7 @@ enum ExpeditionEngine {
         case .masterBall?: 100
         default: 1
         }
-        return min(1, captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID)) * factor)
+        return min(1, captureOdds(boss) * factor)
     }
 
     /// A throw at the fallen boss (Q18, R12): a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure. Returns
