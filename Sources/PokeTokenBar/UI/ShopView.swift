@@ -13,7 +13,9 @@ struct ShopView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 walletHeader(store.l)
-                OakAdviceCard(store: store, nav: nav)
+                if store.oakAdviceEnabled {
+                    OakAdviceCard(store: store, nav: nav)
+                }
                 // shopEntries = 판매 아이템 + 알 3종(보증 없음·고급 이상·희귀 이상)을 가격 오름차순으로
                 // 병합한 단일 목록. A bought egg goes in the Bag (`EggCard`).
                 ForEach(store.shopSections, id: \.section) { group in

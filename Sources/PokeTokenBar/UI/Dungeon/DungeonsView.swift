@@ -216,34 +216,34 @@ private struct ChallengeCard: View {
                        l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id))),
                        id == .daily ? l.challengeOneTryADay : l.challengeOneTryAWeek].joined(separator: " · ")
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 6) {
-                Group {
-                    if let boss {
-                        SpriteView(speciesID: boss.speciesID, size: 36, form: boss.form, sameScale: true)
-                    } else {
-                        Image(systemName: id == .daily ? "sun.max.fill" : "calendar").font(.title3).foregroundStyle(.secondary)
-                    }
+            Text(l.dungeonName(id)).font(.caption.weight(.semibold)).lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            // The boss large and centred, its name under it (the owner, 2026-11-09: at 36 points beside the title it was
+            // hard to make out). It fills its box: at one scale with the others, a small form stayed small.
+            Group {
+                if let boss {
+                    SpriteView(speciesID: boss.speciesID, size: 84, form: boss.form)
+                } else {
+                    Image(systemName: id == .daily ? "sun.max.fill" : "calendar").font(.largeTitle).foregroundStyle(.secondary)
                 }
-                .frame(width: 38, height: 38)
-                .grayscale(unmet.isEmpty ? 0 : 1).opacity(unmet.isEmpty ? 1 : 0.5)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(l.dungeonName(id)).font(.caption.weight(.semibold)).lineLimit(2)
+            }
+            .frame(width: 86, height: 86)
+            .frame(maxWidth: .infinity)
+            .grayscale(unmet.isEmpty ? 0 : 1).opacity(unmet.isEmpty ? 1 : 0.5)
+            if let boss {
+                VStack(spacing: 2) {
+                    BattleFormTitle(form: boss, language: store.language)
+                        .font(.caption.weight(.medium)).lineLimit(2).multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
-                    if let boss {
-                        BattleFormTitle(form: boss, language: store.language)
-                            .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                        // Whether the form is the player's already (the owner, 2026-11-06: is it worth the try?). The
-                        // draw takes forms not won, so it says so; a run's boss won meanwhile says it too.
-                        let owned = store.dungeonProgress.battleForms.contains(boss.key)
-                        Label(owned ? l.challengeFormOwned : l.challengeFormNew,
-                              systemImage: owned ? "checkmark.circle" : "sparkles")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(owned ? Color.secondary : Color.blue)
+                    // Only when the form is the player's already (the owner, 2026-11-09: a form not won says nothing);
+                    // a run's boss won meanwhile says it too.
+                    if store.dungeonProgress.battleForms.contains(boss.key) {
+                        Label(l.challengeFormOwned, systemImage: "checkmark.circle")
+                            .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                             .lineLimit(1)
-                            .hoverTip(owned ? nil : l.challengeFormNewHint)
                     }
                 }
+                .frame(maxWidth: .infinity)
             }
             Spacer(minLength: 0)
             Group {

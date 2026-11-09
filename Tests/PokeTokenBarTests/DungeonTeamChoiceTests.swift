@@ -218,6 +218,31 @@ final class OneAgainstOneTests: XCTestCase {
         let share = ExpeditionEngine.oneOnOneBoss
         XCTAssertEqual(Double(boss.stats.hp), Double(full.stats.hp) * share, accuracy: Double(full.stats.hp) * 0.02)
         XCTAssertEqual(Double(boss.stats.attack), Double(full.stats.attack) * share, accuracy: Double(full.stats.attack) * 0.03)
-        XCTAssertLessThan(ExpeditionEngine.oneOnOneBoss, ExpeditionEngine.oneOnOneBossEarly, "T1 and T2 lowered less")
+        XCTAssertLessThan(ExpeditionEngine.oneOnOneBoss, 1, "lowered, one at a time")
+    }
+
+    /// Arceus alone is lowered further (the owner, 2026-11-09), HP and stats alike; the other legendary bosses keep
+    /// the legendaries' share.
+    func testArceusIsLoweredMoreThanTheOtherLegendaries() throws {
+        func boss(_ id: Int) throws -> BattlerSpec {
+            var random = BattleRandom(seed: 1)
+            return try XCTUnwrap(ExpeditionEngine.bossSpec(ExpeditionBoss(speciesID: id, form: nil, isShiny: false),
+                                                           tier: .t5, random: &random))
+        }
+        var again = BattleRandom(seed: 1)
+        let ivs = (0..<6).map { _ in 20 + again.below(12) }
+        let arceus = try boss(DungeonCatalog.arceusID)
+        let fullArceus = try XCTUnwrap(BattlerSpec.make(id: "x", speciesID: DungeonCatalog.arceusID, level: 100, ivs: ivs,
+                                                        isBoss: true, hpFactor: 4.5, statFactor: 1.2))
+        let share = ExpeditionEngine.oneOnOneArceus
+        XCTAssertEqual(Double(arceus.stats.hp), Double(fullArceus.stats.hp) * share, accuracy: Double(fullArceus.stats.hp) * 0.02)
+        XCTAssertEqual(Double(arceus.stats.attack), Double(fullArceus.stats.attack) * share,
+                       accuracy: Double(fullArceus.stats.attack) * 0.03)
+        let giratina = try boss(487)
+        let fullGiratina = try XCTUnwrap(BattlerSpec.make(id: "x", speciesID: 487, level: 100, ivs: ivs, isBoss: true,
+                                                          hpFactor: 4, statFactor: 1.18))
+        XCTAssertEqual(Double(giratina.stats.hp), Double(fullGiratina.stats.hp) * ExpeditionEngine.oneOnOneLegendary,
+                       accuracy: Double(fullGiratina.stats.hp) * 0.02)
+        XCTAssertLessThan(ExpeditionEngine.oneOnOneArceus, ExpeditionEngine.oneOnOneLegendary)
     }
 }

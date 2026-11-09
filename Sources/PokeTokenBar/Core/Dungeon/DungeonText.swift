@@ -653,23 +653,9 @@ extension L {
           "Artefakte machen seine Ebenen \(percent) % schneller: \(list)", "Артефакты ускоряют этажи на \(percent)%: \(list)")
     }
 
-    /// The daily and weekly boss's form: not the player's yet, or won already.
-    var challengeFormNew: String {
-        t("아직 없는 모습", "Not yours yet", "まだ持っていない", "Aún no es tuya", "Pas encore à toi", "Ainda não é sua", "Noch nicht deine",
-          "Ещё не ваша")
-    }
+    /// The daily and weekly boss's form, won already (a form not won says nothing, the owner, 2026-11-09).
     var challengeFormOwned: String {
         t("이미 얻은 모습", "Won already", "もう手に入れた", "Ya la tienes", "Déjà obtenue", "Já é sua", "Schon gewonnen", "Уже получена")
-    }
-    var challengeFormNewHint: String {
-        t("이 모습은 아직 없어요: 보스를 쓰러뜨리면 영원히 내 것이 돼요.",
-          "You do not have this form yet: beat the boss and it is yours for good.",
-          "このすがたはまだ持っていません：ボスをたおすとずっと自分のものになります。",
-          "Aún no tienes esta forma: vence al jefe y será tuya para siempre.",
-          "Tu n'as pas encore cette forme : bats le boss et elle est à toi pour de bon.",
-          "Você ainda não tem esta forma: vença o chefe e ela é sua para sempre.",
-          "Du hast diese Form noch nicht: Besiege den Boss, und sie gehört dir für immer.",
-          "У вас ещё нет этой формы: победите босса, и она станет вашей навсегда.")
     }
 
     /// #133: every expedition that ended.
@@ -828,6 +814,17 @@ extension L {
     func dungeonHealPay(_ price: String) -> String {
         t("회복 · \(price)", "Heal · \(price)", "回復・\(price)", "Curar · \(price)", "Soigner · \(price)", "Curar · \(price)",
           "Heilen · \(price)", "Лечить · \(price)")
+    }
+    /// The heal waiting: the tokens grow the Pokémon raised meanwhile (2026-11-09).
+    var dungeonHealGrowthGoesOn: String {
+        t("팀이 답을 기다리는 동안 토큰은 평소처럼 키우는 포켓몬과 알을 키워요. 답하면 팀이 다시 출발해요.",
+          "While the team waits for your answer, your tokens grow your Pokémon or egg as usual; it sets off again once you answer.",
+          "チームが答えを待つあいだ、トークンはいつもどおり育てているポケモンやタマゴを育てます。答えるとチームはまた進みます。",
+          "Mientras el equipo espera tu respuesta, tus tokens hacen crecer tu Pokémon o tu huevo como siempre; sigue en cuanto respondas.",
+          "Pendant que l'équipe attend ta réponse, tes tokens font grandir ton Pokémon ou ton œuf comme d'habitude ; elle repart dès ta réponse.",
+          "Enquanto a equipe espera sua resposta, seus tokens fazem seu Pokémon ou ovo crescer como sempre; ela segue assim que você responder.",
+          "Während das Team auf deine Antwort wartet, lassen deine Tokens dein Pokémon oder Ei wie gewohnt wachsen; es zieht weiter, sobald du antwortest.",
+          "Пока команда ждёт ответа, токены как обычно растят вашего покемона или яйцо; после ответа команда пойдёт дальше.")
     }
     func dungeonReserve(_ tokens: String) -> String {
         t("토큰 \(tokens) 대기 중, 답하면 바로 반영돼요.", "\(tokens) tokens on hold, put in as soon as you answer.",

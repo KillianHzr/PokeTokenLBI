@@ -103,7 +103,7 @@ struct ExpeditionBoss: Codable, Sendable, Equatable {
 /// Where the expedition stands.
 enum ExpeditionPhase: Codable, Sendable, Equatable {
     case exploring
-    /// R5: the team waits for the emergency heal's answer; the tokens go to the reserve.
+    /// R5: the team waits for the emergency heal's answer; the tokens grow the Pokémon raised meanwhile (2026-11-09).
     case awaitingHeal(price: Int)
     /// The boss fell: up to three throws (Q18) to catch it.
     case capture(throwsLeft: Int)
@@ -124,7 +124,8 @@ struct Expedition: Codable, Sendable, Equatable {
     /// The floor being crossed, from 1; the boss waits at the end of the last.
     var floor = 1
     var floorTokens = 0
-    /// Tokens held while the team waits (R5), put in once it moves again.
+    /// Tokens held while the team waited (R5), put in once it moves again. Only a save from before 2026-11-09 has any:
+    /// the tokens of the wait now grow the Pokémon raised.
     var reserve = 0
     var tokensIn = 0
     var loot = ExpeditionLoot()
@@ -195,6 +196,16 @@ enum ExpeditionEngine {
         }
     }
 
+    /// Arceus's throw odds, one in three (the owner, 2026-11-09: reaching him costs about 2B tokens, so a throw should
+    /// not miss as often as at the other legendaries): about 70% over three Poké Balls, the Master Ball still sure.
+    static let arceusCaptureOdds = 1.0 / 3
+
+    /// A throw's odds at this boss before the ball: its line's (Q19), Arceus's own.
+    static func captureOdds(_ boss: ExpeditionBoss) -> Double {
+        boss.speciesID == DungeonCatalog.arceusID ? arceusCaptureOdds
+            : captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID))
+    }
+
     /// The candies a tier's expedition holds, around its average (Q22). Rebalanced on 2026-11-02 at the owner's word
     /// ("10-18, c'est énorme"): they give back about half the tokens walked (a Rare Candy is 100M EXP); a dungeon's
     /// real prize is its boss's egg, its keys and items.
@@ -234,17 +245,16 @@ enum ExpeditionEngine {
 
     // MARK: Tokens
 
-    /// Tokens walk the team on: each floor filled plays its event, the last its boss. While the team waits, they go
-    /// to the reserve. Returns those left once the boss fell or the team lost: the growth they paused takes them back
-    /// (a morning's catch-up finishing the last floor lost hundreds of millions, review of 2026-11-02).
+    /// Tokens walk the team on: each floor filled plays its event, the last its boss. Returns those it did not take,
+    /// once the boss fell, the team lost or while it waits for the heal: the growth they paused takes them back (a
+    /// morning's catch-up finishing the last floor lost hundreds of millions, review of 2026-11-02).
     @discardableResult
     static func feed(_ e: inout Expedition, tokens: Int, context: ExpeditionContext) -> Int {
         guard tokens > 0 else { return 0 }
         switch e.phase {
-        case .awaitingHeal:
-            e.reserve += tokens
-            return 0
-        case .capture, .finished:
+        case .awaitingHeal, .capture, .finished:
+            // The team waiting for the heal takes none either (the owner, 2026-11-09: held for it, a day away from the
+            // app was a day of growth lost); they grow the Pokémon raised.
             return tokens
         case .exploring:
             break
@@ -262,10 +272,7 @@ enum ExpeditionEngine {
             resolveFloor(&e, context: context)
             if case .exploring = e.phase { e.floor += 1 }
         }
-        if case .awaitingHeal = e.phase {
-            e.reserve += left
-            return 0
-        }
+        // The heal offered, the rest goes back to growth with the rest of the wait.
         return left
     }
 
@@ -464,12 +471,22 @@ enum ExpeditionEngine {
 
     /// A boss one against one (the owner, 2026-11-06: "1v1 partout, boss affaiblis", its stats with its HP): its HP
     /// and stats were set for three of mine at once (R2 A); one at a time, both are multiplied by its kind's share,
-    /// set so that the dungeons' and the challenges' odds stay what they were (`DungeonSimulatorTests`).
-    static let oneOnOneBoss = 0.6
-    /// T1 and T2: their bosses one against one fell too easily at the T3's share.
-    static let oneOnOneBossEarly = 0.72
-    static let oneOnOneLegendary = 0.7
-    static let oneOnOneChallenge = 0.7
+    /// set so that the dungeons' and the challenges' odds stay what they were (`DungeonSimulatorTests`, `ZZLootSim`).
+    /// Raised on 2026-11-09 with the battle rules 2 (a foe stepping in faces the bench's best, no wait after a
+    /// knock-out), which made every dungeon easier: the owner chose to keep the odds of before (T3 0.6 to 0.8, T1 and
+    /// T2 0.72 to 0.77, legendaries 0.7 to 0.8, challenges 0.7 to 0.8). Measured then against the owner's save and an
+    /// average player, before and after: the challenges 55% and 33% to 52% and 32%, Mt. Moon 79% to 82%, the T3s on
+    /// average 82% to 87% (an average player 39% to 45%), the T4 legendaries on average 56% to 53% (the Cerulean Cave
+    /// 47% to 29%, Mt. Coronet 63% to 76%: one share for them all).
+    static let oneOnOneBoss = 0.8
+    /// T1 and T2.
+    static let oneOnOneBossEarly = 0.77
+    static let oneOnOneLegendary = 0.8
+    /// Arceus alone (the owner, 2026-11-09: about 2B tokens to reach him, then good odds of having him, and "ma vraie
+    /// équipe actuelle elle est pas censée réussir, elle est beaucoup trop random"): the best shiny team beats him 78%
+    /// of the times it reaches him, a team of whatever shinies came along 3% (`DungeonSimulatorTests`, battle rules 2).
+    static let oneOnOneArceus = 0.65
+    static let oneOnOneChallenge = 0.8
 
     private static func fight(_ e: inout Expedition, kind: ExpeditionEventKind, foes: [BattlerSpec],
                               random: inout BattleRandom, context: ExpeditionContext) {
@@ -569,8 +586,9 @@ enum ExpeditionEngine {
             }
         }
         // Its HP and stats were set for three of mine at once (R2 A); one at a time, both are lowered alike.
-        let oneOnOne = challenge != nil ? oneOnOneChallenge : legendary ? oneOnOneLegendary
-            : tier <= .t2 ? oneOnOneBossEarly : oneOnOneBoss
+        let oneOnOne = challenge != nil ? oneOnOneChallenge
+            : boss.speciesID == DungeonCatalog.arceusID ? oneOnOneArceus
+            : legendary ? oneOnOneLegendary : tier <= .t2 ? oneOnOneBossEarly : oneOnOneBoss
         return BattlerSpec.make(id: "boss-\(boss.speciesID)", speciesID: boss.speciesID, form: boss.form, level: 100,
                                 ivs: ivs, isShiny: boss.isShiny, isBoss: true, hpFactor: hp * oneOnOne,
                                 statFactor: stats * oneOnOne)
@@ -687,8 +705,8 @@ enum ExpeditionEngine {
         e.phase = .awaitingHeal(price: healPrice(cost: e.cost))
     }
 
-    /// R5: paid, the team is back to full and the knocked-out stand; either way it moves on with the reserve.
-    /// The answer to the heal; the reserve walks on, and what the dungeon did not take is returned (`feed`).
+    /// R5: paid, the team is back to full and the knocked-out stand; either way it moves on. A reserve a save from
+    /// before 2026-11-09 still holds walks on, and what the dungeon did not take is returned (`feed`).
     @discardableResult
     static func answerHeal(_ e: inout Expedition, paid: Bool, context: ExpeditionContext) -> Int {
         guard case .awaitingHeal(let price) = e.phase else { return 0 }
@@ -711,7 +729,8 @@ enum ExpeditionEngine {
         if !won { append(&e, .defeat, context: context) }
     }
 
-    /// A throw's odds at this boss: its line's (Q19), a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure.
+    /// A throw's odds at this boss: its line's (Q19) or Arceus's own, a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball
+    /// sure.
     static func throwOdds(_ boss: ExpeditionBoss, ball: ItemKind?) -> Double {
         let factor: Double = switch ball {
         case .greatBall?: 1.5
@@ -719,7 +738,7 @@ enum ExpeditionEngine {
         case .masterBall?: 100
         default: 1
         }
-        return min(1, captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID)) * factor)
+        return min(1, captureOdds(boss) * factor)
     }
 
     /// A throw at the fallen boss (Q18, R12): a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure. Returns

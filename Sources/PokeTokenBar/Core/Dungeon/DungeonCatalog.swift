@@ -61,11 +61,11 @@ enum DungeonTier: Int, Codable, Sendable, CaseIterable, Comparable {
         }
     }
 
-    /// Legendary Keys spent at the entry (R10, R11).
+    /// Legendary Keys spent at the entry (R10, R11): one for a T4 and, since 2026-11-09, one for the Hall of Origin too
+    /// (the owner: three keys and its price came to about 5B tokens before a strong team even reached Arceus).
     var keys: Int {
         switch self {
-        case .t4: 1
-        case .t5: 3
+        case .t4, .t5: 1
         default: 0
         }
     }

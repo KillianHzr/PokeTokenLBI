@@ -81,6 +81,9 @@ final class CompanionStore {
     private let defaults: UserDefaults
     /// The dungeons' in-flight mark (`CompanionStore+Dungeons`).
     var defaultsForDungeons: UserDefaults { defaults }
+    var oakAdviceEnabled: Bool {
+        didSet { defaults.set(oakAdviceEnabled, forKey: "oakAdviceEnabled") }
+    }
     /// 세션 내 활성 개체 교체 감지용. await 뒤 이전 개체의 결과가 새 개체를 덮지 않게 한다.
     private var activeGeneration = 0
     private var lastAutoSnapshotDate: Date?
@@ -116,6 +119,7 @@ final class CompanionStore {
         self.rng = rng
         self.dittoDisguiseRollingEnabled = dittoDisguiseRollingEnabled
         self.defaults = defaults
+        oakAdviceEnabled = defaults.object(forKey: "oakAdviceEnabled") as? Bool ?? true
         // The players' difficulty; tests of the mechanics pass 1, the tables as they are.
         growthDifficulty = difficulty
         shopDifficulty = difficulty
