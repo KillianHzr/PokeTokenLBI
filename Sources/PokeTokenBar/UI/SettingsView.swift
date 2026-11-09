@@ -233,6 +233,10 @@ struct SettingsView: View {
                 birthdayPickers
             }
             Divider()
+            toggleRow(l.oakAdviceToggle, Binding(
+                get: { companion.oakAdviceEnabled },
+                set: { companion.oakAdviceEnabled = $0 }))
+            Divider()
             groupRow {
                 Text(l.refreshInterval)
                 Spacer()
