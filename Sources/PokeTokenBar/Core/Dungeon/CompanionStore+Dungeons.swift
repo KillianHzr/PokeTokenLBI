@@ -591,6 +591,52 @@ extension CompanionStore {
         }
     }
 
+    /// How the Capsule screen orders its Pokémon (the owner, 2026-11-09: a search and a sort, as the Pokédex has).
+    enum CapsuleSortOption: String, CaseIterable, Identifiable, Sendable {
+        /// The highest base stats first, where IVs at 31 weigh most; the most to gain first among equals.
+        case strongest
+        /// The most IV points under 31 first.
+        case mostToGain
+        case recentFirst
+        case numberAsc
+        case nameAsc
+
+        var id: String { rawValue }
+    }
+
+    /// The sum of a graduated Pokémon's six IVs, out of 186.
+    static func ivTotal(_ entry: DexEntry) -> Int {
+        guard let ivs = entry.profile?.ivs else { return 0 }
+        return ivKeyPaths.reduce(0) { $0 + ivs[keyPath: $1] }
+    }
+
+    /// Its species' base stats added up, in its form.
+    static func baseStatTotal(_ entry: DexEntry) -> Int {
+        SpeciesBattleTable.data(speciesID: entry.finalID, form: entry.form)?.baseStats.reduce(0, +) ?? 0
+    }
+
+    /// The Capsule screen's Pokémon: `query` read as the Pokédex reads it, the shiny ones alone when asked, in `sort`'s
+    /// order.
+    func capsuleCandidates(query: String, shinyOnly: Bool, sort: CapsuleSortOption) -> [DexEntry] {
+        var result = capsuleCandidates
+        if shinyOnly { result = result.filter(\.isShiny) }
+        if let matcher = DexSearchMatcher(query) { result = result.filter { matcher.matches($0) } }
+        switch sort {
+        case .strongest, .mostToGain:
+            let keyed = result.map { (entry: $0, base: Self.baseStatTotal($0), gain: 186 - Self.ivTotal($0)) }
+            return keyed.sorted { a, b in
+                let first = sort == .strongest ? (a.base, a.gain, b.base, b.gain) : (a.gain, a.base, b.gain, b.base)
+                if first.0 != first.2 { return first.0 > first.2 }
+                if first.1 != first.3 { return first.1 > first.3 }
+                if a.entry.finalID != b.entry.finalID { return a.entry.finalID < b.entry.finalID }
+                return a.entry.id < b.entry.id
+            }.map(\.entry)
+        case .recentFirst: return sortDexEntries(result, by: .recentFirst)
+        case .numberAsc: return sortDexEntries(result, by: .numberAsc)
+        case .nameAsc: return sortDexEntries(result, by: .nameAsc)
+        }
+    }
+
     /// A Silver Capsule raises one IV (`stat`, 0 for HP to 5 for Speed) to 31, a Gold Capsule all six. Spent only
     /// when it raised something.
     @discardableResult

@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-capsule-search", { l in
+                let silver = l.itemName(.silverCapsule), gold = l.itemName(.goldCapsule)
+                return l.t("\(silver)과 \(gold)으로 포켓몬을 고를 때 도감처럼 검색하고, 이로치만 보고, 정렬할 수 있어요(강한 순, 올릴 게 많은 순, 최근, 번호, 이름).",
+                           "Picking a Pokémon for a \(silver) or a \(gold), you can search as in the Pokédex, show only shinies and sort: strongest, most to gain, latest, number or name.",
+                           "\(silver)や\(gold)を使うポケモンを選ぶとき、図鑑のように検索し、色違いだけを表示し、並べ替えられます（強い順、上げ幅が大きい順、新しい順、番号、名前）。",
+                           "Al elegir un Pokémon para una \(silver) o una \(gold), puedes buscar como en la Pokédex, ver solo los variocolor y ordenar: los más fuertes, más por ganar, recientes, número o nombre.",
+                           "Pour choisir le Pokémon d'une \(silver) ou d'une \(gold), tu peux chercher comme dans le Pokédex, n'afficher que les chromatiques et trier : les plus forts, le plus à gagner, les plus récents, le numéro ou le nom.",
+                           "Ao escolher um Pokémon para uma \(silver) ou uma \(gold), você pode buscar como na Pokédex, ver só os brilhantes e ordenar: mais fortes, mais a ganhar, recentes, número ou nome.",
+                           "Bei der Wahl eines Pokémon für einen \(silver) oder \(gold) kannst du wie im Pokédex suchen, nur schillernde zeigen und sortieren: stärkste, meiste zu gewinnen, neueste, Nummer oder Name.",
+                           "Выбирая покемона для предмета \"\(silver)\" или \"\(gold)\", можно искать как в Покедексе, показывать только шайни и сортировать: сильные, больше прироста, новые, номер или имя.")
+            }),
             .improved("2026-11-09-aim-at-the-boss", { $0.t("추천 기술과 팀 자동 구성이 던전의 보스도 노려요. 오늘과 이번 주 던전에서는 미리 알려진 보스에게 듣지 않는 기술을 더는 추천하지 않아요.",
                                                          "The suggested moves and Compose for me aim at the dungeon's boss too: in the daily and weekly dungeons, no move the known boss is immune to is suggested anymore.",
                                                          "おすすめのわざとおまかせ編成がダンジョンのボスも狙います。今日と今週のダンジョンでは、決まったボスに効かないわざはもうすすめません。",

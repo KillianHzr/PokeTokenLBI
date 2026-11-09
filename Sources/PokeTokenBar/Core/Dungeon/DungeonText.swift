@@ -967,6 +967,19 @@ extension L {
         t("졸업 포켓몬을 고르세요", "Pick a graduated Pokémon", "卒業ポケモンをえらんでね", "Elige un Pokémon graduado",
           "Choisis un diplômé", "Escolha um Pokémon formado", "Wähle ein verabschiedetes Pokémon", "Выбери выпускника")
     }
+    func label(for option: CompanionStore.CapsuleSortOption) -> String {
+        switch option {
+        case .strongest:
+            t("강한 순", "Strongest", "強い順", "Los más fuertes", "Les plus forts", "Mais fortes", "Stärkste zuerst",
+              "Сначала сильные")
+        case .mostToGain:
+            t("올릴 게 많은 순", "Most to gain", "上げ幅が大きい順", "Más por ganar", "Le plus à gagner", "Mais a ganhar",
+              "Meiste zu gewinnen", "Больше всего прироста")
+        case .recentFirst: label(for: CompanionStore.CatchLogSortOption.recentFirst)
+        case .numberAsc: sortDexNumberAsc
+        case .nameAsc: sortNameAsc
+        }
+    }
     var dungeonCapsulePickStat: String {
         t("31로 올릴 개체값을 고르세요", "Pick the IV to raise to 31", "31にする個体値をえらんでね",
           "Elige el IV que subir a 31", "Choisis l'IV à monter à 31", "Escolha o IV a subir para 31",
