@@ -2508,6 +2508,14 @@ final class CompanionStore {
         return (section, (kind.stoneType != nil ? 10_000 : 100) + order)
     }
 
+    /// Whether `a` comes before `b` in the Bag: the ranks compared field by field, never as tuples inside a sort's
+    /// closure, which Xcode 27.2's compiler failed to type (a player's update, 2026-11-09).
+    nonisolated static func bagOrdered(_ a: ItemKind, _ b: ItemKind) -> Bool {
+        let ra = bagRank(of: a), rb = bagRank(of: b)
+        if ra.section != rb.section { return ra.section < rb.section }
+        return ra.place < rb.place
+    }
+
     var shopSections: [(section: ShopSection, entries: [ShopEntry])] {
         func section(of entry: ShopEntry) -> ShopSection {
             guard case .item(let kind) = entry else { return .eggs }

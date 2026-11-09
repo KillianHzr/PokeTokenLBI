@@ -508,7 +508,7 @@ struct ExpeditionResultCard: View {
     /// no longer by their names in code.
     static func lootItems(_ loot: ExpeditionLoot) -> (finds: [(ItemKind, Int)], rest: [(ItemKind, Int)]) {
         let items = loot.items.filter { $0.value > 0 }.compactMap { key, count in ItemKind(rawValue: key).map { ($0, count) } }
-            .sorted { CompanionStore.bagRank(of: $0.0) < CompanionStore.bagRank(of: $1.0) }
+            .sorted { CompanionStore.bagOrdered($0.0, $1.0) }
         return (items.filter { exceptionalFinds.contains($0.0) }, items.filter { !exceptionalFinds.contains($0.0) })
     }
 

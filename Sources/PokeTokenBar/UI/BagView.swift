@@ -87,11 +87,16 @@ struct BagView: View {
     /// eggs alone.
     static func itemSections(_ items: [(kind: ItemKind, count: Int)], dungeonEggs: Bool)
         -> [(section: CompanionStore.ShopSection, items: [(kind: ItemKind, count: Int)])] {
-        CompanionStore.ShopSection.allCases.compactMap { section in
+        // A plain loop: Xcode 27.2's compiler could not type the closure this was (a nil or an unlabeled tuple, the
+        // ranks' tuples compared inside), and a player's update failed on it (2026-11-09).
+        var sections: [(section: CompanionStore.ShopSection, items: [(kind: ItemKind, count: Int)])] = []
+        for section in CompanionStore.ShopSection.allCases {
             let inSection = items.filter { CompanionStore.bagSection(of: $0.kind) == section }
-                .sorted { CompanionStore.bagRank(of: $0.kind) < CompanionStore.bagRank(of: $1.kind) }
-            return inSection.isEmpty && !(section == .eggs && dungeonEggs) ? nil : (section, inSection)
+                .sorted { CompanionStore.bagOrdered($0.kind, $1.kind) }
+            if inSection.isEmpty && !(section == .eggs && dungeonEggs) { continue }
+            sections.append((section: section, items: inSection))
         }
+        return sections
     }
 
     private func itemCards(_ items: [(kind: ItemKind, count: Int)]) -> some View {
