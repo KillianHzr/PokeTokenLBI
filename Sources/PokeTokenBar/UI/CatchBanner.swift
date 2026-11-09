@@ -128,9 +128,10 @@ enum CatchImage {
     static let scale: CGFloat = 3
 
     /// The banner of the Pokémon raised, in `colorScheme`; nil for an egg. `sprite`: its still (the sprite cache, or
-    /// PokéAPI the first time).
+    /// PokéAPI the first time), on the main actor as `SpriteLoader` is: CI's macOS 15 SDK has no `Sendable` NSImage,
+    /// so a nonisolated loader could not hand it back.
     static func render(_ store: CompanionStore, colorScheme: ColorScheme,
-                       sprite load: (_ speciesID: Int, _ shiny: Bool, _ form: PokemonForm?) async -> NSImage? = {
+                       sprite load: @MainActor (_ speciesID: Int, _ shiny: Bool, _ form: PokemonForm?) async -> NSImage? = {
                            await SpriteLoader.image(speciesID: $0, shiny: $1, form: $2)
                        }) async -> CGImage? {
         guard let info = CatchBanner.info(store), let id = store.currentSpeciesID else { return nil }
