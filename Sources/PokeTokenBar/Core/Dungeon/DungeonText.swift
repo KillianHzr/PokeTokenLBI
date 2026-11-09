@@ -815,6 +815,11 @@ extension L {
         t("회복 · \(price)", "Heal · \(price)", "回復・\(price)", "Curar · \(price)", "Soigner · \(price)", "Curar · \(price)",
           "Heilen · \(price)", "Лечить · \(price)")
     }
+    /// Above a Legendary Egg or a Master Ball in a recap (2026-11-09).
+    var dungeonExceptionalFind: String {
+        t("대박 발견!", "Exceptional find!", "すごい掘り出し物！", "¡Hallazgo excepcional!", "Trouvaille exceptionnelle !",
+          "Achado excepcional!", "Außergewöhnlicher Fund!", "Исключительная находка!")
+    }
     /// The heal waiting: the tokens grow the Pokémon raised meanwhile (2026-11-09).
     var dungeonHealGrowthGoesOn: String {
         t("팀이 답을 기다리는 동안 토큰은 평소처럼 키우는 포켓몬과 알을 키워요. 답하면 팀이 다시 출발해요.",

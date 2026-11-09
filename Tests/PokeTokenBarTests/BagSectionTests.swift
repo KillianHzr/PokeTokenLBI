@@ -5,13 +5,14 @@ import XCTest
 @MainActor
 final class BagSectionTests: XCTestCase {
     func testItemsGoToTheirAchievementSection() {
-        for kind in [ItemKind.rareCandy, .mint, .shinyCharm, .fireStone, .shinyStone] {
+        // The Legendary Egg and Type: Null's are eggs to use, in the items since 2026-11-09 (the owner).
+        for kind in [ItemKind.rareCandy, .mint, .shinyCharm, .fireStone, .shinyStone, .typeNullEgg, .legendaryEgg] {
             XCTAssertEqual(BagView.Section.of(kind), .items, "\(kind)")
         }
         for kind in ItemKind.allCases where kind.badgeType != nil {
             XCTAssertEqual(BagView.Section.of(kind), .badges, "\(kind)")
         }
-        for kind in [ItemKind.soulDew, .relicStatue, .typeNullEgg, .legendaryEgg, .ovalCharm] {
+        for kind in [ItemKind.soulDew, .relicStatue, .ovalCharm] {
             XCTAssertEqual(BagView.Section.of(kind), .artifacts, "\(kind)")
         }
     }

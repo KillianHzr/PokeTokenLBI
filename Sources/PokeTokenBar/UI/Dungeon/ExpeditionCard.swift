@@ -501,10 +501,36 @@ struct ExpeditionResultCard: View {
         return balls.isEmpty ? nil : balls.joined(separator: ", ")
     }
 
+    /// What a recap shows apart, above the rest (the owner, 2026-11-09: a Legendary Egg listed among berries).
+    static let exceptionalFinds: [ItemKind] = [.legendaryEgg, .masterBall]
+
+    /// The loot's items: the exceptional finds apart, the rest in the Bag's order (its sections, then the items' own),
+    /// no longer by their names in code.
+    static func lootItems(_ loot: ExpeditionLoot) -> (finds: [(ItemKind, Int)], rest: [(ItemKind, Int)]) {
+        let items = loot.items.filter { $0.value > 0 }.compactMap { key, count in ItemKind(rawValue: key).map { ($0, count) } }
+            .sorted { CompanionStore.bagRank(of: $0.0) < CompanionStore.bagRank(of: $1.0) }
+        return (items.filter { exceptionalFinds.contains($0.0) }, items.filter { !exceptionalFinds.contains($0.0) })
+    }
+
     private func lootRows(_ r: ExpeditionResult, _ l: L) -> some View {
-        let items = r.loot.items.filter { $0.value > 0 }.compactMap { key, count in ItemKind(rawValue: key).map { ($0, count) } }
-            .sorted { $0.0.rawValue < $1.0.rawValue }
+        let (finds, items) = Self.lootItems(r.loot)
         return VStack(alignment: .leading, spacing: 3) {
+            ForEach(finds, id: \.0) { kind, count in
+                HStack(spacing: 8) {
+                    ItemIconView(kind: kind, size: 30)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Label(l.dungeonExceptionalFind, systemImage: "sparkles")
+                            .font(.caption2.weight(.heavy)).foregroundStyle(Color.readableOrange)
+                        Text(count > 1 ? "\(l.itemName(kind)) ×\(count)" : l.itemName(kind))
+                            .font(.callout.weight(.bold))
+                    }
+                }
+                .padding(.vertical, 5).padding(.horizontal, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.16)))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.orange.opacity(0.45)))
+                .padding(.bottom, 3)
+            }
             if r.loot.candies > 0 {
                 lootRow(.rareCandy, r.loot.candies, l, doubled: r.firstVictory)
             }

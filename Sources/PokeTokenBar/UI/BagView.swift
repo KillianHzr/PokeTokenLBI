@@ -17,6 +17,8 @@ struct BagView: View {
         case items, badges, artifacts
 
         static func of(_ kind: ItemKind) -> Section {
+            // An egg is an item to use, whatever achievement gave it (the Legendary Egg, Type: Null's).
+            if CompanionStore.bagSection(of: kind) == .eggs { return .items }
             switch kind.collectorGroup {
             case .gymBadges?: return .badges
             case .legendaryArtifacts?, .forms?: return .artifacts
@@ -58,14 +60,19 @@ struct BagView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             if current == .items {
                                 if let found = chestFound { chestBanner(found) }
-                                ForEach(eggs) { egg in
-                                    DungeonEggCard(store: store, nav: nav, egg: egg)
+                                // The Shop's sections (2026-11-09): the eggs, the dungeon eggs first among them.
+                                ForEach(Self.itemSections(items, dungeonEggs: !eggs.isEmpty), id: \.section) { group in
+                                    SectionTitle(text: store.l.shopSection(group.section))
+                                        .padding(.top, 4)
+                                    if group.section == .eggs {
+                                        ForEach(eggs) { egg in
+                                            DungeonEggCard(store: store, nav: nav, egg: egg)
+                                        }
+                                    }
+                                    itemCards(group.items)
                                 }
-                            }
-                            ForEach(items, id: \.kind) { item in
-                                ItemCard(store: store, nav: nav, kind: item.kind, count: item.count) {
-                                    chestFound = store.openExplorerChest()
-                                }
+                            } else {
+                                itemCards(items)
                             }
                         }
                         .reservesScrollerLane()
@@ -73,6 +80,25 @@ struct BagView: View {
                 }
             }
             .frame(height: height)
+        }
+    }
+
+    /// The Items tab's sections in the Shop's order, empty ones left out; the eggs' one also stands for the dungeon
+    /// eggs alone.
+    static func itemSections(_ items: [(kind: ItemKind, count: Int)], dungeonEggs: Bool)
+        -> [(section: CompanionStore.ShopSection, items: [(kind: ItemKind, count: Int)])] {
+        CompanionStore.ShopSection.allCases.compactMap { section in
+            let inSection = items.filter { CompanionStore.bagSection(of: $0.kind) == section }
+                .sorted { CompanionStore.bagRank(of: $0.kind) < CompanionStore.bagRank(of: $1.kind) }
+            return inSection.isEmpty && !(section == .eggs && dungeonEggs) ? nil : (section, inSection)
+        }
+    }
+
+    private func itemCards(_ items: [(kind: ItemKind, count: Int)]) -> some View {
+        ForEach(items, id: \.kind) { item in
+            ItemCard(store: store, nav: nav, kind: item.kind, count: item.count) {
+                chestFound = store.openExplorerChest()
+            }
         }
     }
 
