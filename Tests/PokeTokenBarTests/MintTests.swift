@@ -1,149 +1,131 @@
 import XCTest
 @testable import PokeTokenBar
 
-// MARK: 민트 (성격 랜덤 재설정) + 상점 구매
-
-/// 라인 로딩이 필요 없는 테스트용 provider — 민트는 currentLine 과 무관(성격은 MonState 에만 있음).
-private struct MintNoProvider: PokeProviding {
-    func line(baseSpeciesID: Int) async throws -> EvoLine { throw URLError(.notConnectedToInternet) }
-    func baseSpeciesIndex() async throws -> [BaseSpecies] { [] }
-    func baseSpecies(id: Int) async throws -> BaseSpecies? { nil }
-}
-
+/// The Mint, back on 2026-11-09 (the owner: "sur tous les pokémon comme les capsules, pas sur celui qui se diplôme",
+/// "au hasard", "100M", in the chests and bought back by the merchant). Retired on 2026-10-28, when it changed the
+/// nature of the Pokémon raised.
 @MainActor
 final class MintTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
 
-    /// 활성 포켓몬 + 민트 재고를 지정한 상태 파일 로드 (라인 미로딩이어도 민트는 사용 가능).
-    /// nature=nil 이면 성격 미지정(구버전 개체) 재현.
-    private func store(nature: String? = "adamant", mint: Int = 1, used: Int = 1_000_000_000,
-                       spent: Int = 0, usedAtStage: Int = 50_000_000, shiny: Bool = false,
-                       seed: UInt64 = 7) -> CompanionStore {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("mint-\(UUID().uuidString).json")
-        let natureField = nature.map { ",\"nature\":\"\($0)\"" } ?? ""
-        let active = "{\"baseID\":1,\"pathIDs\":[1],\"stageIndex\":0,\"usedAtStage\":\(usedAtStage),"
-            + "\"rarity\":\"common\",\"totalForms\":3,\"isShiny\":\(shiny)\(natureField)}"
-        let inv = mint > 0 ? ",\"inventory\":{\"mint\":\(mint)}" : ""
-        let json = "{\"installBaselineSet\":true,\"usedSinceInstall\":\(used),\"spentTokens\":\(spent),"
-            + "\"lastDate\":\"d\",\"active\":\(active),\"dex\":[],\"collectedFinals\":[]\(inv)}"
-        try? json.data(using: .utf8)!.write(to: url)
-        return CompanionStore(provider: MintNoProvider(), clock: { self.now }, fileURL: url, rng: SeededRNG(seed: seed), difficulty: 1)
+    private func graduated(_ id: String, species: Int, nature: PokemonNature?, released: Bool = false) -> DexEntry {
+        var e = DexEntry(baseID: species, finalID: species, chainOrder: [species], rarity: .common,
+                         caughtAt: Date(timeIntervalSince1970: 1_690_000_000))
+        e.id = id
+        e.nature = nature
+        if released { e.releasedAt = Date(timeIntervalSince1970: 1_695_000_000) }
+        return e
     }
 
-    // MARK: 사용
-
-    func testUseMintChangesNatureToDifferent() {
-        let s = store(nature: "adamant", mint: 1)
-        XCTAssertEqual(s.state.active?.nature, .adamant)
-        let new = s.useMint()
-        XCTAssertNotNil(new)
-        XCTAssertNotEqual(new, .adamant, "현재와 다른 성격으로 바뀌어야 함")
-        XCTAssertEqual(s.state.active?.nature, new)
-        XCTAssertEqual(s.itemCount(.mint), 0, "재고 1 소모")
+    /// A Pokémon raised (Adamant) and three graduated: a Modest Pikachu, an old Snorlax with no nature, a released
+    /// Gengar.
+    private func store(mints: Int = 1, used: Int = 0, difficulty: Double = 1, seed: UInt64 = 7,
+                       url: URL? = nil) throws -> CompanionStore {
+        let file = url ?? FileManager.default.temporaryDirectory.appendingPathComponent("mint-\(UUID().uuidString).json")
+        if url == nil || !FileManager.default.fileExists(atPath: file.path) {
+            var st = CompanionState()
+            st.installBaselineSet = true
+            st.lastDate = "d"
+            st.usedSinceInstall = used
+            st.active = MonState(baseID: 1, pathIDs: [1], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 3,
+                                 nature: .adamant)
+            st.dex = [graduated("pika", species: 25, nature: .modest), graduated("lax", species: 143, nature: nil),
+                      graduated("gone", species: 94, nature: .timid, released: true)]
+            st.inventory = mints > 0 ? ["mint": mints] : [:]
+            try JSONEncoder().encode(st).write(to: file)
+            if url == nil { addTeardownBlock { try? FileManager.default.removeItem(at: file) } }
+        }
+        return CompanionStore(provider: StubProvider(value: EvoLine(baseID: 1, tree: EvoNode(speciesID: 1, children: []),
+                                                                    rarity: .common, names: [:])),
+                              clock: { self.now }, fileURL: file, rng: SeededRNG(seed: seed), difficulty: difficulty)
     }
 
-    /// 여러 번 써도 매번 '직전 성격과 다른' 값으로만 바뀐다(현재 제외 롤).
-    func testMintNeverRepeatsCurrentAcrossUses() {
-        let s = store(nature: "adamant", mint: 6)
-        for _ in 0..<6 {
-            let before = s.state.active?.nature
-            let new = s.useMint()
-            XCTAssertNotNil(new)
-            XCTAssertNotEqual(new, before, "매 사용은 직전 성격과 달라야 함")
+    /// Every graduated Pokémon kept, never the one raised nor a released one.
+    func testTheMintReachesTheGraduatedOnly() throws {
+        let s = try store()
+        XCTAssertEqual(s.mintCandidates.map(\.id), ["pika", "lax"])
+        XCTAssertNil(s.useMint(on: "gone"))
+        XCTAssertNil(s.useMint(on: "nobody"))
+        XCTAssertEqual(s.itemCount(.mint), 1, "nothing spent")
+        XCTAssertEqual(s.state.active?.nature, .adamant, "the Pokémon raised keeps its nature")
+    }
+
+    /// Another nature each time, at random, one Mint each: a hundred in a row, so a roll that could keep the nature
+    /// would show (one in 25 each).
+    func testEachMintGivesAnotherNature() throws {
+        let s = try store(mints: 100)
+        for left in (0..<100).reversed() {
+            let before = s.state.dex.first { $0.id == "pika" }?.nature
+            let change = try XCTUnwrap(s.useMint(on: "pika"))
+            XCTAssertEqual(change.from, before)
+            XCTAssertNotEqual(change.to, before)
+            XCTAssertEqual(s.state.dex.first { $0.id == "pika" }?.nature, change.to)
+            XCTAssertEqual(s.itemCount(.mint), left)
+        }
+        XCTAssertNil(s.useMint(on: "pika"), "no Mint left")
+    }
+
+    /// A Pokémon saved before natures gets one of the 25.
+    func testANatureForAnOldSave() throws {
+        let s = try store()
+        let change = try XCTUnwrap(s.useMint(on: "lax"))
+        XCTAssertNil(change.from)
+        XCTAssertTrue(PokemonNature.allCases.contains(change.to))
+    }
+
+    func testTheNewNatureIsSaved() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("mint-saved-\(UUID().uuidString).json")
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        let change = try XCTUnwrap(try store(mints: 2, url: url).useMint(on: "pika"))
+        let reloaded = try store(url: url)
+        XCTAssertEqual(reloaded.state.dex.first { $0.id == "pika" }?.nature, change.to)
+        XCTAssertEqual(reloaded.itemCount(.mint), 1)
+    }
+
+    /// 20M in the Shop as the players see it, with the dungeons' items; bought back for a third.
+    func testTheShopSellsItAgain() throws {
+        let s = try store(mints: 0, used: 400_000_000, difficulty: PokemonBalance.difficulty)
+        XCTAssertFalse(ItemKind.mint.isRetired)
+        XCTAssertEqual(s.price(of: .mint), 20_000_000)
+        XCTAssertTrue(s.purchasableItems.contains(.mint))
+        XCTAssertEqual(CompanionStore.bagSection(of: .mint), .dungeons)
+        XCTAssertTrue(s.buy(.mint))
+        XCTAssertEqual(s.itemCount(.mint), 1)
+        XCTAssertTrue(TravellingMerchant.wares.contains(.mint))
+        XCTAssertEqual(TravellingMerchant.buyBackBase(.mint), Mint.price / 3)
+    }
+
+    /// In the chests from T2, one draw as a Revive; never in T1.
+    func testTheChestsHoldMintsFromT2() {
+        XCTAssertFalse(ExpeditionEngine.itemTable(.t1).contains(.mint))
+        for tier: DungeonTier in [.t2, .t3, .t4, .t5] {
+            XCTAssertEqual(ExpeditionEngine.itemTable(tier).filter { $0 == .mint }.count, 1, "\(tier)")
         }
     }
 
-    /// 성격 nil(구버전 개체) → 유효한 성격이 설정된다.
-    func testUseMintFromNilNatureSetsValid() {
-        let s = store(nature: nil, mint: 1)
-        XCTAssertNil(s.state.active?.nature)
-        let new = s.useMint()
-        XCTAssertNotNil(new)
-        XCTAssertEqual(s.state.active?.nature, new)
+    /// Its screen is the Capsules' one, without "most to gain", and lists a Pokémon whatever its IVs.
+    func testItsScreenListsEveryGraduatedPokemon() throws {
+        let s = try store()
+        XCTAssertFalse(CompanionStore.sortOptions(for: .mint).contains(.mostToGain))
+        XCTAssertTrue(CompanionStore.sortOptions(for: .goldCapsule).contains(.mostToGain))
+        // Every IV at 31: no Capsule's, still a Mint's.
+        let i = try XCTUnwrap(s.state.dex.firstIndex { $0.id == "pika" })
+        XCTAssertNotNil(s.state.dex[i].profile, "profiles are drawn on load")
+        s.changeProfile(of: "pika") { p in for path in CompanionStore.ivKeyPaths { p.ivs[keyPath: path] = 31 } }
+        XCTAssertFalse(s.capsuleCandidates.contains { $0.id == "pika" })
+        XCTAssertEqual(Set(s.itemTargets(.mint, query: "", shinyOnly: false, sort: .numberAsc).map(\.id)), ["pika", "lax"])
     }
 
-    /// 성장·종·shiny·usedAtStage·통계 전부 불변(순수 코스메틱).
-    func testUseMintDoesNotAffectGrowthOrIdentity() {
-        let s = store(nature: "adamant", mint: 1, used: 1_000_000_000, usedAtStage: 50_000_000, shiny: true)
-        let beforeStage = s.state.active?.stageIndex
-        let beforeUsed = s.state.usedSinceInstall
-        let beforeSpecies = s.currentSpeciesID
-        _ = s.useMint()
-        XCTAssertEqual(s.state.active?.usedAtStage, 50_000_000, "진화 진행 불변")
-        XCTAssertEqual(s.state.active?.stageIndex, beforeStage)
-        XCTAssertEqual(s.currentSpeciesID, beforeSpecies)
-        XCTAssertTrue(s.currentIsShiny, "shiny 불변")
-        XCTAssertEqual(s.state.usedSinceInstall, beforeUsed, "실사용 통계 불변")
-    }
-
-    // MARK: 게이트
-
-    func testCannotUseMintOnEgg() {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("mint-egg-\(UUID().uuidString).json")
-        let json = "{\"installBaselineSet\":true,\"usedSinceInstall\":1,\"lastDate\":\"d\","
-            + "\"dex\":[],\"collectedFinals\":[],\"inventory\":{\"mint\":2}}"
-        try? json.data(using: .utf8)!.write(to: url)
-        let s = CompanionStore(provider: MintNoProvider(), clock: { self.now }, fileURL: url, rng: SeededRNG(seed: 1), difficulty: 1)
-        XCTAssertTrue(s.isEgg)
-        XCTAssertFalse(s.canUseMint)
-        XCTAssertNil(s.useMint())
-        XCTAssertEqual(s.itemCount(.mint), 2, "알 상태에선 소모 안 됨")
-    }
-
-    func testCannotUseMintWithoutStock() {
-        let s = store(nature: "adamant", mint: 0)
-        XCTAssertFalse(s.canUseMint)
-        XCTAssertNil(s.useMint())
-    }
-
-    // MARK: 피드백
-
-    func testMintFeedbackSetAndConsumed() {
-        let s = store(nature: "adamant", mint: 1)
-        let before = s.mintFeedbackSeq
-        let new = s.useMint()
-        XCTAssertEqual(s.mintFeedbackNature, new)
-        XCTAssertEqual(s.mintFeedbackSeq, before + 1)
-        s.consumeMintFeedback()
-        XCTAssertNil(s.mintFeedbackNature)
-    }
-
-    // MARK: 영속
-
-    func testUseMintPersistsAcrossRestart() {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("mint-persist-\(UUID().uuidString).json")
-        let json = "{\"installBaselineSet\":true,\"usedSinceInstall\":1,\"lastDate\":\"d\","
-            + "\"active\":{\"baseID\":1,\"pathIDs\":[1],\"stageIndex\":0,\"usedAtStage\":0,\"rarity\":\"common\",\"totalForms\":3,\"nature\":\"adamant\"},"
-            + "\"inventory\":{\"mint\":2},\"dex\":[],\"collectedFinals\":[]}"
-        try? json.data(using: .utf8)!.write(to: url)
-        let s1 = CompanionStore(provider: MintNoProvider(), clock: { self.now }, fileURL: url, rng: SeededRNG(seed: 3), difficulty: 1)
-        let new = s1.useMint()
-        XCTAssertNotNil(new)
-
-        let s2 = CompanionStore(provider: MintNoProvider(), clock: { self.now }, fileURL: url, rng: SeededRNG(seed: 3), difficulty: 1)
-        XCTAssertEqual(s2.state.active?.nature, new, "바뀐 성격 영속")
-        XCTAssertEqual(s2.itemCount(.mint), 1, "재고 감소 영속")
-    }
-
-    // MARK: 상점 구매
-
-    /// The Mint is retired (2026-10-28): kept in the code and in saves, neither sold nor shown in the Bag.
-    func testTheMintIsRetired() {
-        XCTAssertEqual(ItemKind.mint.shopPrice, Mint.price, "its price is kept")
-        let s = store(mint: 2, used: 300_000_000)
-        XCTAssertFalse(s.purchasableItems.contains(.mint))
-        XCTAssertFalse(s.shopEntries.contains(.item(.mint)))
-        XCTAssertFalse(s.canBuy(.mint))
-        XCTAssertFalse(s.buy(.mint))
-        XCTAssertEqual(s.state.spentTokens, 0)
-        XCTAssertEqual(s.itemCount(.mint), 2, "a save keeps what it holds")
-        XCTAssertFalse(s.ownedItems.contains { $0.kind == .mint }, "not shown in the Bag")
-    }
-
-    func testCannotBuyMintBelowPrice() {
-        let s = store(mint: 0, used: Mint.price - 1)
-        XCTAssertFalse(s.canBuy(.mint))
-        XCTAssertFalse(s.buy(.mint))
-        XCTAssertEqual(s.itemCount(.mint), 0)
+    func testItsWordsInEveryLanguage() {
+        for language in AppLanguage.allCases {
+            let l = L(language)
+            for text in [l.mintUse, l.mintChanged("A", "B"), l.mintChanged(nil, "B"), l.natureNeutral, l.mintNoTarget,
+                         l.itemDescription(.mint)] {
+                XCTAssertFalse(text.isEmpty, "\(language)")
+                XCTAssertFalse(text.contains("\u{2014}") || text.contains("\u{2013}"), "\(language): \(text)")
+            }
+        }
+        XCTAssertEqual(CapsuleScreen.effect(of: .naive, L(.fr)), "+\(L(.fr).statLabel("speed")) −\(L(.fr).statLabel("special-defense"))")
+        XCTAssertEqual(CapsuleScreen.effect(of: .hardy, L(.fr)), L(.fr).natureNeutral)
     }
 }

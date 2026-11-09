@@ -71,9 +71,9 @@ struct DungeonItemControls: View {
         let l = store.l
         HStack(spacing: 6) {
             switch kind {
-            case .silverCapsule, .goldCapsule:
-                if store.capsuleCandidates.isEmpty {
-                    Text(l.dungeonNoCapsuleTarget).font(.caption2).foregroundStyle(.tertiary)
+            case .silverCapsule, .goldCapsule, .mint:
+                if kind == .mint ? store.mintCandidates.isEmpty : store.capsuleCandidates.isEmpty {
+                    Text(kind == .mint ? l.mintNoTarget : l.dungeonNoCapsuleTarget).font(.caption2).foregroundStyle(.tertiary)
                 } else {
                     Text(store.effectHint(for: kind)).font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
                     Spacer()
@@ -94,7 +94,8 @@ struct DungeonItemControls: View {
     }
 }
 
-/// A Capsule used on a graduated Pokémon: pick it, then the IV (Silver) or all of them (Gold).
+/// A Capsule or a Mint used on a graduated Pokémon: pick it, then the IV (Silver), all of them (Gold) or a new nature at
+/// random (Mint, again as long as Mints are left).
 @MainActor
 struct CapsuleScreen: View {
     let store: CompanionStore
@@ -105,12 +106,16 @@ struct CapsuleScreen: View {
     @State private var search = ""
     @State private var shinyOnly = false
     @State private var sort: CompanionStore.CapsuleSortOption = .strongest
+    /// The Mint's last change on the Pokémon picked.
+    @State private var mintChange: (from: PokemonNature?, to: PokemonNature)?
 
     var body: some View {
         let l = store.l
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
-                Button { if selected != nil, !raised { selected = nil } else { onBack() } } label: {
+                Button {
+                    if selected != nil, !raised { selected = nil; mintChange = nil } else { onBack() }
+                } label: {
                     Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(.borderless)
@@ -123,11 +128,11 @@ struct CapsuleScreen: View {
             Text(l.itemDescription(kind)).font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let id = selected, let entry = store.state.dex.first(where: { $0.id == id }) {
-                detail(entry, l)
+                if kind == .mint { mintDetail(entry, l) } else { detail(entry, l) }
             } else {
                 Text(l.dungeonCapsulePick).font(.caption.weight(.semibold))
                 toolbar(l)
-                let shown = store.capsuleCandidates(query: search, shinyOnly: shinyOnly, sort: sort)
+                let shown = store.itemTargets(kind, query: search, shinyOnly: shinyOnly, sort: sort)
                 if shown.isEmpty {
                     noResult(l)
                 } else {
@@ -176,7 +181,7 @@ struct CapsuleScreen: View {
             .hoverTip(l.filterShinyOnly)
             .accessibilityLabel(l.filterShinyOnly)
             Menu {
-                ForEach(CompanionStore.CapsuleSortOption.allCases) { option in
+                ForEach(CompanionStore.sortOptions(for: kind)) { option in
                     Button { sort = option } label: {
                         HStack {
                             Text(l.label(for: option))
@@ -215,7 +220,8 @@ struct CapsuleScreen: View {
     private func cell(_ entry: DexEntry) -> some View {
         VStack(spacing: 2) {
             SpriteView(speciesID: entry.finalID, size: 40, shiny: entry.isShiny, form: entry.form, sameScale: true)
-            Text("\(total(entry))/186").font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+            Text(kind == .mint ? entry.nature.map { $0.name(store.language) } ?? "?" : "\(total(entry))/186")
+                .font(.caption2).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 4)
@@ -262,6 +268,43 @@ struct CapsuleScreen: View {
                     .buttonStyle(.pill(prominent: true))
             }
         }
+    }
+
+    /// A Mint on the Pokémon picked: its nature and what it raises and lowers, a new one at random on each Mint.
+    @ViewBuilder
+    private func mintDetail(_ entry: DexEntry, _ l: L) -> some View {
+        HStack(spacing: 10) {
+            SpriteView(speciesID: entry.finalID, size: 56, shiny: entry.isShiny, form: entry.form, sameScale: true)
+            VStack(alignment: .leading, spacing: 3) {
+                PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language).font(.headline)
+                if let nature = entry.nature {
+                    HStack(spacing: 6) {
+                        NatureBadge(nature: nature, language: store.language)
+                        Text(Self.effect(of: nature, l)).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        if let change = mintChange {
+            Label(l.mintChanged(change.from?.name(store.language), change.to.name(store.language)),
+                  systemImage: "leaf.fill")
+                .font(.callout.weight(.semibold)).foregroundStyle(Design.actionColor)
+        }
+        if store.itemCount(.mint) > 0 {
+            HStack {
+                Spacer()
+                Button(l.mintUse) { mintChange = store.useMint(on: entry.id) }
+                    .buttonStyle(.pill(prominent: true))
+            }
+        }
+    }
+
+    /// "+Speed −Sp. Def", or that the nature changes nothing.
+    static func effect(of nature: PokemonNature, _ l: L) -> String {
+        let stats = PokemonStatCalculator.order.dropFirst()
+        guard let up = stats.first(where: { nature.modifier(for: $0) > 1 }),
+              let down = stats.first(where: { nature.modifier(for: $0) < 1 }) else { return l.natureNeutral }
+        return "+\(l.statLabel(up)) −\(l.statLabel(down))"
     }
 }
 

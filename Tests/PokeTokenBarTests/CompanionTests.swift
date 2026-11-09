@@ -1736,19 +1736,17 @@ final class CompanionStoreTests: XCTestCase {
         XCTAssertTrue(isSuspended, "line fetch should be suspended")
 
         s.applyUsage(42)
-        let changedNature = try XCTUnwrap(s.useMint())
         XCTAssertEqual(s.state.active?.usedAtStage, 42)
-        XCTAssertEqual(s.state.active?.nature, changedNature)
 
         await provider.resume()
         let loaded = await waitUntil { s.currentLine != nil }
         XCTAssertTrue(loaded)
 
         XCTAssertEqual(s.state.active?.usedAtStage, 42)
-        XCTAssertEqual(s.state.active?.nature, changedNature)
+        XCTAssertEqual(s.state.active?.nature, .adamant)
         let persisted = try JSONDecoder().decode(CompanionState.self, from: Data(contentsOf: url))
         XCTAssertEqual(persisted.active?.usedAtStage, 42)
-        XCTAssertEqual(persisted.active?.nature, changedNature)
+        XCTAssertEqual(persisted.active?.nature, .adamant)
     }
 
     func testLocalizedName() async {

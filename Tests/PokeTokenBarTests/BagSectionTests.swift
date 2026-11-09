@@ -6,7 +6,7 @@ import XCTest
 final class BagSectionTests: XCTestCase {
     func testItemsGoToTheirAchievementSection() {
         // The Legendary Egg and Type: Null's are eggs to use, in the items since 2026-11-09 (the owner).
-        for kind in [ItemKind.rareCandy, .mint, .shinyCharm, .fireStone, .shinyStone, .typeNullEgg, .legendaryEgg] {
+        for kind in [ItemKind.rareCandy, .mint, .silverCapsule, .shinyCharm, .fireStone, .shinyStone, .typeNullEgg, .legendaryEgg] {
             XCTAssertEqual(BagView.Section.of(kind), .items, "\(kind)")
         }
         for kind in ItemKind.allCases where kind.badgeType != nil {
