@@ -103,7 +103,7 @@ struct ExpeditionBoss: Codable, Sendable, Equatable {
 /// Where the expedition stands.
 enum ExpeditionPhase: Codable, Sendable, Equatable {
     case exploring
-    /// R5: the team waits for the emergency heal's answer; the tokens go to the reserve.
+    /// R5: the team waits for the emergency heal's answer; the tokens grow the Pokémon raised meanwhile (2026-11-09).
     case awaitingHeal(price: Int)
     /// The boss fell: up to three throws (Q18) to catch it.
     case capture(throwsLeft: Int)
@@ -124,7 +124,8 @@ struct Expedition: Codable, Sendable, Equatable {
     /// The floor being crossed, from 1; the boss waits at the end of the last.
     var floor = 1
     var floorTokens = 0
-    /// Tokens held while the team waits (R5), put in once it moves again.
+    /// Tokens held while the team waited (R5), put in once it moves again. Only a save from before 2026-11-09 has any:
+    /// the tokens of the wait now grow the Pokémon raised.
     var reserve = 0
     var tokensIn = 0
     var loot = ExpeditionLoot()
@@ -244,17 +245,16 @@ enum ExpeditionEngine {
 
     // MARK: Tokens
 
-    /// Tokens walk the team on: each floor filled plays its event, the last its boss. While the team waits, they go
-    /// to the reserve. Returns those left once the boss fell or the team lost: the growth they paused takes them back
-    /// (a morning's catch-up finishing the last floor lost hundreds of millions, review of 2026-11-02).
+    /// Tokens walk the team on: each floor filled plays its event, the last its boss. Returns those it did not take,
+    /// once the boss fell, the team lost or while it waits for the heal: the growth they paused takes them back (a
+    /// morning's catch-up finishing the last floor lost hundreds of millions, review of 2026-11-02).
     @discardableResult
     static func feed(_ e: inout Expedition, tokens: Int, context: ExpeditionContext) -> Int {
         guard tokens > 0 else { return 0 }
         switch e.phase {
-        case .awaitingHeal:
-            e.reserve += tokens
-            return 0
-        case .capture, .finished:
+        case .awaitingHeal, .capture, .finished:
+            // The team waiting for the heal takes none either (the owner, 2026-11-09: held for it, a day away from the
+            // app was a day of growth lost); they grow the Pokémon raised.
             return tokens
         case .exploring:
             break
@@ -272,10 +272,7 @@ enum ExpeditionEngine {
             resolveFloor(&e, context: context)
             if case .exploring = e.phase { e.floor += 1 }
         }
-        if case .awaitingHeal = e.phase {
-            e.reserve += left
-            return 0
-        }
+        // The heal offered, the rest goes back to growth with the rest of the wait.
         return left
     }
 
@@ -702,8 +699,8 @@ enum ExpeditionEngine {
         e.phase = .awaitingHeal(price: healPrice(cost: e.cost))
     }
 
-    /// R5: paid, the team is back to full and the knocked-out stand; either way it moves on with the reserve.
-    /// The answer to the heal; the reserve walks on, and what the dungeon did not take is returned (`feed`).
+    /// R5: paid, the team is back to full and the knocked-out stand; either way it moves on. A reserve a save from
+    /// before 2026-11-09 still holds walks on, and what the dungeon did not take is returned (`feed`).
     @discardableResult
     static func answerHeal(_ e: inout Expedition, paid: Bool, context: ExpeditionContext) -> Int {
         guard case .awaitingHeal(let price) = e.phase else { return 0 }

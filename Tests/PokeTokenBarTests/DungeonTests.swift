@@ -222,28 +222,36 @@ final class DungeonTests: XCTestCase {
         XCTAssertTrue(e.log.contains { $0.kind == .defeat })
     }
 
-    /// R5: under a quarter of the team's HP, the team waits for the heal once; the tokens go to the reserve and are
-    /// played once it is answered.
-    func testTheEmergencyHealWaitsWithTheReserve() throws {
+    /// R5: under a quarter of the team's HP, the team waits for the heal once. Since 2026-11-09 it takes no token
+    /// while it waits, nor the rest of the feed that offered the heal: they go back to growth (the owner: a day away
+    /// from the app was a day of growth lost). A reserve a save from before holds still walks on at the answer.
+    func testTheEmergencyHealWaitsAndGivesTheTokensBack() throws {
         let ctx = ExpeditionContext(tier: .t1, shinyDenominator: 64, now: context.now)
         var waiting: Expedition?
         for seed in UInt64(1)...60 where waiting == nil {
             var e = start(.viridianForest, team: [try member(6), try member(9), try member(3)], seed: seed)
             for i in e.team.indices { e.team[i].spec.hp = max(1, e.team[i].spec.stats.hp / 10) }
-            ExpeditionEngine.feed(&e, tokens: 1000, context: ctx)
-            if case .awaitingHeal = e.phase { waiting = e }
+            // A floor and some (a floor is 1000): the rest after the floor that offers the heal.
+            let left = ExpeditionEngine.feed(&e, tokens: 1400, context: ctx)
+            if case .awaitingHeal = e.phase {
+                waiting = e
+                XCTAssertEqual(left, 1400 - e.tokensIn, "the rest of the feed that offered the heal goes back")
+                XCTAssertGreaterThan(left, 0)
+            }
         }
         var e = try XCTUnwrap(waiting, "some floor leaves the team under a quarter of its HP")
         guard case .awaitingHeal(let price) = e.phase else { return XCTFail() }
         XCTAssertEqual(price, ExpeditionEngine.healPrice(cost: e.cost))
-        let floor = e.floor
-        ExpeditionEngine.feed(&e, tokens: 500, context: ctx)
-        XCTAssertEqual(e.reserve, 500)
+        let floor = e.floor, tokensIn = e.tokensIn
+        XCTAssertEqual(ExpeditionEngine.feed(&e, tokens: 500, context: ctx), 500, "the wait's tokens go back")
+        XCTAssertEqual(e.reserve, 0)
+        XCTAssertEqual(e.tokensIn, tokensIn)
         XCTAssertEqual(e.floor, floor, "the team waits")
+        e.reserve = 500  // a save from before 2026-11-09
         ExpeditionEngine.answerHeal(&e, paid: true, context: ctx)
         XCTAssertTrue(e.healUsed)
         XCTAssertEqual(e.reserve, 0)
-        XCTAssertEqual(e.floorTokens, 500, "the reserve went into the next floor")
+        XCTAssertEqual(e.floorTokens, 500, "an old reserve went into the next floor")
         XCTAssertTrue(e.team.allSatisfy { $0.spec.hp == $0.spec.stats.hp })
         // Offered once: falling under a quarter again asks nothing.
         for i in e.team.indices { e.team[i].spec.hp = 1 }

@@ -144,6 +144,26 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertTrue(s.growthPaused, "Prof. Oak reads the pause")
     }
 
+    /// While the team waits for the heal's answer, the tokens grow the Pokémon raised as usual (the owner, 2026-11-09:
+    /// a player away for a day lost that day's growth); the team walks on with the next ones once answered.
+    func testTheHealsWaitGrowsThePokemonRaised() throws {
+        let s = try store(dex: strong)
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
+        credit(s, total: 1_000_000)
+        s.changeDungeons { $0.expedition?.phase = .awaitingHeal(price: 1) }
+        let growth = try XCTUnwrap(s.state.active?.usedAtStage)
+        let walked = s.expedition?.tokensIn
+        credit(s, total: 3_000_000)
+        XCTAssertNotEqual(s.state.active?.usedAtStage, growth, "the wait's tokens grow the Pokémon raised")
+        XCTAssertEqual(s.expedition?.tokensIn, walked, "the team takes none")
+        XCTAssertEqual(s.expedition?.reserve, 0)
+        XCTAssertTrue(s.answerEmergencyHeal(pay: false))
+        let grown = s.state.active?.usedAtStage
+        credit(s, total: 3_500_000)
+        XCTAssertEqual(s.state.active?.usedAtStage, grown, "answered, the team walks again")
+        XCTAssertGreaterThan(s.expedition?.tokensIn ?? 0, walked ?? 0)
+    }
+
     /// The whole dungeon walked: the boss falls to a strong team, the throws go by themselves with the best ball (an
     /// Ultra Ball, sure at a common boss; the Master Ball stays for a legendary one), its loot goes to the Bag with what
     /// was not used, a first victory doubles the candies, and Mt. Moon opens (Diglett's Cave won before: the whole T1).
@@ -565,8 +585,9 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertFalse(s.dungeonNeedsAttention)
     }
 
-    /// Home shrinks the Pokémon raised to a strip only while its growth waits for the team (exploring, the heal); it
-    /// grows again, its card back, as soon as the boss falls or the team loses, the result still shown above it.
+    /// Home shrinks the Pokémon raised to a strip only while its growth waits for the team exploring; it grows again,
+    /// its card back, while the team waits for the heal's answer (2026-11-09) and as soon as the boss falls or the team
+    /// loses, the result still shown above it.
     func testGrowthComesBackWhenTheTeamIsDone() throws {
         for won in [true, false] {
             let s = try store(dex: strong)
@@ -574,7 +595,10 @@ final class DungeonStoreTests: XCTestCase {
             XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
             XCTAssertTrue(s.growthPaused, "exploring")
             s.changeDungeons { $0.expedition?.phase = .awaitingHeal(price: 1) }
-            XCTAssertTrue(s.growthPaused, "the heal")
+            XCTAssertFalse(s.growthPaused, "the heal's wait: growth goes on")
+            XCTAssertNil(s.feedExpedition(1_000), "no team takes the wait's tokens")
+            s.changeDungeons { $0.expedition?.phase = .exploring }
+            XCTAssertTrue(s.growthPaused, "the answer given, the team walks again")
             if won {
                 s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
                 XCTAssertFalse(s.growthPaused, "the boss fell: growth again while the throws wait")

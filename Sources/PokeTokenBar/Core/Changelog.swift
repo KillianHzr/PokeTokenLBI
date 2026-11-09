@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-heal-wait-grows", { $0.t("던전 팀이 긴급 회복의 답을 기다리는 동안 토큰은 평소처럼 키우는 포켓몬과 알을 키워요. 하루 동안 답하지 못해도 성장을 잃지 않아요.",
+                                                         "While a dungeon team waits for your answer to the emergency heal, your tokens grow your Pokémon or egg as usual: a day away no longer costs a day of growth.",
+                                                         "ダンジョンのチームがきんきゅう回復の答えを待つあいだ、トークンはいつもどおり育てているポケモンやタマゴを育てます。1日答えられなくても成長はむだになりません。",
+                                                         "Mientras un equipo de mazmorra espera tu respuesta a la curación de urgencia, tus tokens hacen crecer tu Pokémon o tu huevo como siempre: un día fuera ya no cuesta un día de crecimiento.",
+                                                         "Pendant qu'une équipe de donjon attend ta réponse au soin d'urgence, tes tokens font grandir ton Pokémon ou ton œuf comme d'habitude : une journée sans répondre ne coûte plus une journée de croissance.",
+                                                         "Enquanto uma equipe de masmorra espera sua resposta à cura de emergência, seus tokens fazem seu Pokémon ou ovo crescer como sempre: um dia fora não custa mais um dia de crescimento.",
+                                                         "Während ein Dungeon-Team auf deine Antwort zur Notheilung wartet, lassen deine Tokens dein Pokémon oder Ei wie gewohnt wachsen: Ein Tag ohne Antwort kostet keinen Tag Wachstum mehr.",
+                                                         "Пока команда подземелья ждёт ответа о срочном лечении, токены как обычно растят вашего покемона или яйцо: день без ответа больше не стоит дня роста.") }),
             .improved("2026-11-09-arceus-within-reach") { l in
                 let key = l.itemName(.legendaryKey), master = l.itemName(.masterBall)
                 return l.t("아르세우스에게 닿기 쉬워졌어요: 시작의 방은 \(key) 3개가 아니라 1개로 들어가고, 아르세우스는 조금 덜 강하며, 던질 때마다 3번에 1번 잡혀요(전에는 12%). \(master)로는 여전히 반드시 잡혀요.",

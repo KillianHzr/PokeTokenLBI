@@ -829,6 +829,17 @@ extension L {
         t("회복 · \(price)", "Heal · \(price)", "回復・\(price)", "Curar · \(price)", "Soigner · \(price)", "Curar · \(price)",
           "Heilen · \(price)", "Лечить · \(price)")
     }
+    /// The heal waiting: the tokens grow the Pokémon raised meanwhile (2026-11-09).
+    var dungeonHealGrowthGoesOn: String {
+        t("팀이 답을 기다리는 동안 토큰은 평소처럼 키우는 포켓몬과 알을 키워요. 답하면 팀이 다시 출발해요.",
+          "While the team waits for your answer, your tokens grow your Pokémon or egg as usual; it sets off again once you answer.",
+          "チームが答えを待つあいだ、トークンはいつもどおり育てているポケモンやタマゴを育てます。答えるとチームはまた進みます。",
+          "Mientras el equipo espera tu respuesta, tus tokens hacen crecer tu Pokémon o tu huevo como siempre; sigue en cuanto respondas.",
+          "Pendant que l'équipe attend ta réponse, tes tokens font grandir ton Pokémon ou ton œuf comme d'habitude ; elle repart dès ta réponse.",
+          "Enquanto a equipe espera sua resposta, seus tokens fazem seu Pokémon ou ovo crescer como sempre; ela segue assim que você responder.",
+          "Während das Team auf deine Antwort wartet, lassen deine Tokens dein Pokémon oder Ei wie gewohnt wachsen; es zieht weiter, sobald du antwortest.",
+          "Пока команда ждёт ответа, токены как обычно растят вашего покемона или яйцо; после ответа команда пойдёт дальше.")
+    }
     func dungeonReserve(_ tokens: String) -> String {
         t("토큰 \(tokens) 대기 중, 답하면 바로 반영돼요.", "\(tokens) tokens on hold, put in as soon as you answer.",
           "トークン\(tokens)が待機中。答えるとすぐに反映されます。", "\(tokens) tokens en reserva, aplicados en cuanto respondas.",
