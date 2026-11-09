@@ -950,7 +950,9 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertTrue(team.map(\.finalID).contains(boss.speciesID))
         XCTAssertEqual(s.challengeBoss(.daily), boss, "the same all day")
         let formsBefore = s.graduatedCollectionProgress.forms
+        XCTAssertNil(s.challengeOutcome(.daily), "not tried yet")
         XCTAssertTrue(s.startExpedition(.daily, team: team.map(\.id)))
+        XCTAssertNil(s.challengeOutcome(.daily), "under way: neither won nor lost")
         XCTAssertEqual(s.expedition?.boss.form, boss.form)
         XCTAssertEqual(s.expedition?.floors, 8)
         XCTAssertNil(s.expedition?.bossReward, "a challenge's boss, always one of the player's, gives its form")
@@ -959,6 +961,7 @@ final class DungeonStoreTests: XCTestCase {
         s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
         s.endCapture()
         XCTAssertEqual(s.dungeonProgress.lastResult?.battleForm, boss.key)
+        XCTAssertEqual(s.challengeOutcome(.daily), true, "won today (the owner, 2026-11-09)")
         XCTAssertTrue(s.dungeonProgress.battleForms.contains(boss.key))
         XCTAssertEqual(s.graduatedCollectionProgress.forms, formsBefore + 1)
         XCTAssertFalse(s.canEnter(.daily), "one try a day")
@@ -987,6 +990,8 @@ final class DungeonStoreTests: XCTestCase {
         s.abandonExpedition()
         XCTAssertTrue(s.dungeonProgress.battleForms.isEmpty)
         XCTAssertTrue(s.challengeTried(.weekly))
+        XCTAssertEqual(s.challengeOutcome(.weekly), false, "lost this week: the card crosses its boss out (2026-11-09)")
+        XCTAssertNil(s.challengeOutcome(.daily))
         XCTAssertFalse(s.canEnter(.weekly))
         XCTAssertTrue(s.challengePeriod(.weekly).contains("-W"))
         XCTAssertFalse(s.challengeTried(.daily), "the day's is apart")
@@ -1178,6 +1183,30 @@ final class DungeonStoreTests: XCTestCase {
 
     /// A challenge set off before midnight (or before the week turns) goes on unchanged: its boss, its floors and the
     /// form it gives are the departure's, whatever the day's draw has become; the next try is the new period's.
+    /// Today's try is read from today's run, never the day before's: a won yesterday does not make today's lost try a
+    /// win (the owner, 2026-11-09: a lost daily dungeon shows as such).
+    func testTodaysOutcomeIsTodaysRun() throws {
+        let calendar = Calendar(identifier: .iso8601)
+        var parts = DateComponents(year: 2026, month: 11, day: 9, hour: 18)
+        parts.timeZone = .current
+        let now = try XCTUnwrap(calendar.date(from: parts))
+        let clock = Clock(now)
+        let team = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        func record(_ won: Bool, _ endedAt: Date) -> DungeonRunRecord {
+            DungeonRunRecord(dungeon: .daily, endedAt: endedAt, won: won, left: false, floor: 8, floors: 8, tokens: 1,
+                             candies: 0, eggs: 0, items: 0, bossSpeciesID: 6, caught: false)
+        }
+        let s = try store(dex: team, clock: clock) {
+            $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1
+            $0.dungeons.history = [record(true, now.addingTimeInterval(-86_400))]
+        }
+        XCTAssertNil(s.challengeOutcome(.daily), "yesterday's win, today not tried")
+        s.changeDungeons { $0.dailyTried = s.challengePeriod(.daily) }
+        XCTAssertEqual(s.challengeOutcome(.daily), false, "tried today, its boss not won: yesterday's win does not count")
+        s.changeDungeons { $0.history.append(record(true, now.addingTimeInterval(-60))) }
+        XCTAssertEqual(s.challengeOutcome(.daily), true)
+    }
+
     func testAChallengeGoesOnPastMidnightAndTheWeeksTurn() throws {
         let calendar = Calendar(identifier: .iso8601)
         // Sunday 23:50, local time: the day and the ISO week both turn at the next midnight.
