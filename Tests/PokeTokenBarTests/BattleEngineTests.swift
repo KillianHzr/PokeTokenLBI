@@ -10,9 +10,9 @@ final class BattleEngineTests: XCTestCase {
     }
 
     private func battle(_ mine: [BattlerSpec], _ theirs: [BattlerSpec], active: Int = 1, seed: UInt64 = 1,
-                        berries: [BattleBerry: Int] = [:]) -> BattleOutcome {
+                        berries: [BattleBerry: Int] = [:], rules: Int = BattleRules.version) -> BattleOutcome {
         BattleEngine.run(BattleSetup(sides: [BattleSideSpec(battlers: mine, active: active, berries: berries),
-                                             BattleSideSpec(battlers: theirs, active: active)], seed: seed))
+                                             BattleSideSpec(battlers: theirs, active: active)], seed: seed, rules: rules))
     }
 
     private func events(_ outcome: BattleOutcome, _ match: (BattleEvent) -> Bool) -> [TimedBattleEvent] {
@@ -157,13 +157,41 @@ final class BattleEngineTests: XCTestCase {
 
     // MARK: The bench
 
-    /// The foes keep their order: the first falls, the second steps in a second later.
-    func testTheNextPokemonStepsInOneSecondAfterAKnockOut() throws {
-        let outcome = battle([try mon("foe", 248, moves: ["stone-edge"])],
-                             [try mon("weak", 10, level: 5, moves: ["tackle"]), try mon("next", 445, moves: ["dragon-claw"])])
-        let faint = try XCTUnwrap(events(outcome) { if case .faint("weak") = $0 { return true }; return false }.first)
-        let enter = try XCTUnwrap(events(outcome) { if case .enter(1, 0, "next") = $0 { return true }; return false }.first)
-        XCTAssertEqual(enter.time, faint.time + BattleRules.benchDelay)
+    /// The foes keep their order: the first falls, the second steps in at once (rules 2, the owner, 2026-11-09); a
+    /// battle fought under rules 1 replays its second's wait.
+    func testTheNextPokemonStepsInAtOnceAfterAKnockOut() throws {
+        for rules in [1, 2] {
+            let outcome = battle([try mon("foe", 248, moves: ["stone-edge"])],
+                                 [try mon("weak", 10, level: 5, moves: ["tackle"]), try mon("next", 445, moves: ["dragon-claw"])],
+                                 rules: rules)
+            let faint = try XCTUnwrap(events(outcome) { if case .faint("weak") = $0 { return true }; return false }.first)
+            let enter = try XCTUnwrap(events(outcome) { if case .enter(1, 0, "next") = $0 { return true }; return false }.first)
+            XCTAssertEqual(enter.time, faint.time + (rules == 1 ? BattleRules.benchDelay : 0), "rules \(rules)")
+        }
+    }
+
+    /// Rules 2 (the owner, 2026-11-09): a foe stepping in faces the player's best against it. The Water Pokémon that
+    /// beat the Fire one leaves its place to the Fire one when a Grass foe comes; under rules 1 it stayed.
+    func testAFoeSteppingInFacesTheBestAgainstIt() throws {
+        let mine = [try mon("wave", 9, moves: ["surf"]), try mon("flame", 6, moves: ["flamethrower"])]
+        let foes = [try mon("fire", 4, level: 20, moves: ["ember"]), try mon("leaf", 3, level: 60, moves: ["energy-ball"])]
+        let now = battle(mine, foes)
+        let leafCame = try XCTUnwrap(events(now) { if case .enter(1, 0, "leaf") = $0 { return true }; return false }.first)
+        XCTAssertEqual(events(now) { if case .enter(0, 0, _) = $0 { return true }; return false }.first?.event,
+                       .enter(side: 0, slot: 0, battler: "wave"), "water against fire first")
+        XCTAssertTrue(events(now) { $0 == .leave(battler: "wave") }.contains { $0.time == leafCame.time }, "wave leaves")
+        XCTAssertTrue(events(now) { $0 == .enter(side: 0, slot: 0, battler: "flame") }.contains { $0.time == leafCame.time },
+                      "flame steps in against the Grass foe")
+        let before = battle(mine, foes, rules: 1)
+        XCTAssertTrue(events(before) { $0 == .leave(battler: "wave") }.isEmpty, "rules 1: the replay keeps it in front")
+    }
+
+    /// Rules 2: the Pokémon in front stays when the bench does no better against the foe stepping in.
+    func testThePokemonInFrontStaysWhenTheBenchIsNoBetter() throws {
+        let mine = [try mon("wave", 9, moves: ["surf"]), try mon("other", 10, level: 5, moves: ["tackle"])]
+        let foes = [try mon("fire", 4, level: 20, moves: ["ember"]), try mon("rock", 74, level: 20, moves: ["tackle"])]
+        let outcome = battle(mine, foes)
+        XCTAssertTrue(events(outcome) { if case .leave = $0 { return true }; return false }.isEmpty)
     }
 
     /// Q13: the app sends its best against the foe in front: water against fire.

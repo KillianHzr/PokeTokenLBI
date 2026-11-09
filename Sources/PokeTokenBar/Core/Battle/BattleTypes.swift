@@ -2,7 +2,9 @@ import Foundation
 
 /// The rules a battle was fought under: a replay keeps its version, so a later rule change never rewrites an old one.
 enum BattleRules {
-    static let version = 1
+    /// 2 (the owner, 2026-11-09): the next Pokémon steps in at once after a knock-out, and a foe stepping in faces the
+    /// player's best against it (`BattleSimulation.rematch`). A battle of version 1 replays as it was fought.
+    static let version = 2
     /// Every cast lasts a third of its time (R1: battles three times faster).
     static let speedUp = 3
     /// One turn of the games in battle time (the owner, 2026-11-03): Bide waits two, Counter answers a hit of the last one.
@@ -13,8 +15,11 @@ enum BattleRules {
     static let thawTick = 2000
     /// Weather and terrains last twenty seconds.
     static let fieldDuration = 20000
-    /// The next Pokémon steps in one second after a knock-out.
+    /// Version 1: the next Pokémon stepped in one second after a knock-out. None since version 2.
     static let benchDelay = 1000
+    /// Version 2: how much better a bench member must fare against a foe stepping in for the Pokémon in front to leave
+    /// it its place (`BattleMatchup.score`), so that two near equals never swap for nothing.
+    static let rematchMargin = 0.05
     /// A battle that runs this long ends on the HP left.
     static let timeLimit = 300_000
     /// Spread moves hit each foe at 75% when more than one stands (R3: never an ally).
