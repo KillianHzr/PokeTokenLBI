@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-09", entries: [
+            .new("2026-11-09-travelling-merchant", { $0.t("닷새에 한 번꼴로 상점에 떠돌이 상인이 와서 자정까지 한 종류의 아이템을 상점 가격의 3분의 1에 사 가요. 화살표로 상인과 오박사를 오갈 수 있어요.",
+                                                         "One day in five, a travelling merchant comes to the Shop and buys back one kind of item until midnight, at a third of its price. An arrow switches between him and Prof. Oak.",
+                                                         "5日に1回ほど、ショップに旅の商人が来て、真夜中まで1種類の道具を3分の1の値段で買い取ります。矢印で商人とオーキド博士を切り替えられます。",
+                                                         "Uno de cada cinco días, un mercader ambulante llega a la Tienda y compra un tipo de objeto hasta medianoche, a un tercio de su precio. Una flecha cambia entre él y el Profesor Oak.",
+                                                         "Un jour sur cinq, un marchand ambulant passe à la Boutique et rachète un type d'objet jusqu'à minuit, au tiers de son prix. Une flèche passe de lui au Prof. Chen.",
+                                                         "Um dia em cada cinco, um mercador ambulante passa pela Loja e compra um tipo de item até a meia-noite, por um terço do preço. Uma seta alterna entre ele e o Prof. Carvalho.",
+                                                         "An einem von fünf Tagen kommt ein fahrender Händler in den Laden und kauft bis Mitternacht eine Art Item für ein Drittel des Preises zurück. Ein Pfeil wechselt zwischen ihm und Prof. Eich.",
+                                                         "Раз в пять дней в магазин заходит странствующий торговец и до полуночи скупает один вид предметов за треть цены. Стрелка переключает между ним и профессором Оуком.") }),
             .improved("2026-11-09-battle-switches", { $0.t("던전 전투에서 쓰러진 포켓몬 대신 다음 포켓몬이 바로 나와요. 새 상대가 나오면 앞의 포켓몬이 그 상대에게 더 강한 포켓몬과 교대해요.",
                                                         "In dungeon battles, the next Pokémon steps in at once after a knock-out, and when a new foe comes, your Pokémon in front makes way for one that fares better against it.",
                                                         "ダンジョンのバトルで、ひんしになるとすぐに次のポケモンが出ます。新しい相手が出ると、前のポケモンはその相手にもっと強いポケモンと交代します。",

@@ -2426,7 +2426,35 @@ final class CompanionStore {
 
     /// 상점에서 쓸 수 있는 토큰(재화) = 실사용 누적 − 상점 지출 누적. 성장 미터(usedSinceInstall)는
     /// 여기선 읽기만 — 구매는 spentTokens 만 올려 잔액을 깎는다(진화 진행·오늘/주/월 통계 무영향).
-    var availableTokens: Int { max(0, state.usedSinceInstall - state.spentTokens) }
+    /// What the travelling merchant paid adds to it (`merchantTokens`).
+    var availableTokens: Int { max(0, state.usedSinceInstall + state.merchantTokens - state.spentTokens) }
+
+    // MARK: The travelling merchant (2026-11-09)
+
+    /// The day (`yyyy-MM-dd`) the merchant's visit belongs to: the daily dungeon's.
+    var merchantDay: String { challengePeriod(.daily) }
+
+    /// What the travelling merchant buys back today, or nil when he does not come.
+    var merchantWare: ItemKind? { TravellingMerchant.ware(on: merchantDay) }
+
+    /// What he pays for one, at the players' difficulty; the player's discounts do not change it.
+    func merchantPrice(of kind: ItemKind) -> Int? {
+        TravellingMerchant.buyBackBase(kind).map { PokemonBalance.scaled($0, by: shopDifficulty) }
+    }
+
+    /// Sells `count` of today's ware to the merchant: they leave the Bag, their price goes to the wallet. False when he
+    /// is not here, or the Bag holds fewer.
+    @discardableResult
+    func sellToMerchant(_ count: Int) -> Bool {
+        guard count > 0, let kind = merchantWare, let price = merchantPrice(of: kind), itemCount(kind) >= count else {
+            return false
+        }
+        _ = changeBag(kind, by: -count)
+        state.merchantTokens += price * count
+        AppLog.write("merchant: sold \(count) \(kind.rawValue) for \(price * count)")
+        persist()
+        return true
+    }
 
     /// 상점 판매 아이템 — shopPrice 있는 것만. 가격 저렴한 순, 단 구매 완료한 보유형은 맨 아래로.
     /// Collector items have no price: they are only claimed in the Achievements tab.

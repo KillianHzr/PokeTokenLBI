@@ -22,7 +22,8 @@ struct OakAdviceCard: View {
                 .frame(minHeight: Self.bustHeight, alignment: .top)
                 .padding(.leading, Self.bustWidth + 4)
                 .background(alignment: .topLeading) {
-                    OakBust().frame(width: Self.bustWidth).frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+                    PortraitBust(name: SpriteStore.oakPortrait, width: Self.bustWidth)
+                        .frame(width: Self.bustWidth).frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                         .clipped()
                 }
             if let pause = words.pauseNote {
@@ -96,37 +97,47 @@ struct OakAdviceCard: View {
 
 }
 
-/// Oak from the top, cut by the bottom of his bubble, breathing as the Pokémon's sprites move (`OakIdle`). A view of
-/// its own: each frame redraws the portrait, not the advice. Still with Reduce Motion.
+/// A character from the top (Prof. Oak, the travelling merchant), cut by the bottom of its bubble, breathing as the
+/// Pokémon's sprites move (`OakIdle`). A view of its own: each frame redraws the portrait, not the card. Still with
+/// Reduce Motion.
 @MainActor
-private struct OakBust: View {
+struct PortraitBust: View {
+    let name: String
+    let width: CGFloat
+    var symbol = "graduationcap.fill"
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var oak = SpriteLoader.cachedItemImage(name: SpriteStore.oakPortrait)
+    @State private var oak: NSImage?
     @State private var frames: [(image: NSImage, delay: TimeInterval)] = []
     @State private var frameIndex = 0
+
+    init(name: String, width: CGFloat, symbol: String = "graduationcap.fill") {
+        self.name = name
+        self.width = width
+        self.symbol = symbol
+        _oak = State(initialValue: SpriteLoader.cachedItemImage(name: name))
+    }
 
     var body: some View {
         Group {
             if let oak {
-                let width = OakAdviceCard.bustWidth
                 let image = frames.isEmpty ? oak : frames[frameIndex % frames.count].image
                 Image(nsImage: image)
                     .resizable()
                     .frame(width: width, height: width * image.size.height / max(1, image.size.width))
             } else {
-                Image(systemName: "graduationcap.fill")
+                Image(systemName: symbol)
                     .font(.system(size: 26))
                     .foregroundStyle(.secondary)
             }
         }
         .accessibilityHidden(true)
-        .task(id: reduceMotion) {
-            if oak == nil { oak = await SpriteLoader.itemImage(name: SpriteStore.oakPortrait) }
+        .task(id: "\(name)-\(reduceMotion)") {
+            if oak == nil { oak = await SpriteLoader.itemImage(name: name) }
             guard let oak, !reduceMotion else {
                 frames = []
                 return
             }
-            frames = OakIdle.frames(oak, width: OakAdviceCard.bustWidth)
+            frames = OakIdle.frames(oak, width: width)
             // Cancelled with the view (the Shop left, the popover closed), as `SpriteView.playFrames`.
             while !Task.isCancelled, !frames.isEmpty {
                 try? await Task.sleep(for: .seconds(frames[frameIndex % frames.count].delay))
@@ -436,7 +447,7 @@ private struct OakStepNumber: View {
 }
 
 /// A rounded bubble whose tail points left, to the one speaking.
-private struct SpeechBubble: Shape {
+struct SpeechBubble: Shape {
     let tail: CGFloat
 
     func path(in rect: CGRect) -> Path {

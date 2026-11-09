@@ -1615,6 +1615,9 @@ struct CompanionState: Codable, Sendable, Equatable {
     // 상점에서 쓴 토큰 누적(재화 지출 원장). 쓸 수 있는 재화 = usedSinceInstall − spentTokens.
     // 성장 미터(usedSinceInstall)는 불변 — 구매는 이 값만 올려 잔액을 깎는다(성장 되감김 없음).
     var spentTokens = 0
+    /// What the travelling merchant paid (2026-11-09): added to the wallet, never to growth. Apart from `spentTokens`,
+    /// which a save's import clamps at zero (`SaveTransfer.sanitized`).
+    var merchantTokens = 0
     // 현재 알이 생긴 뒤 쓴 토큰(부화 인큐베이션). 누적(usedSinceInstall)과 별개 — 졸업 후 새 알마다 0.
     var eggUsage = 0
     // 현재 알이 보증하는 등급 하한(프리미엄 알). nil = 보증 없음(무료 알·기본 알).
@@ -1748,6 +1751,7 @@ struct CompanionState: Codable, Sendable, Equatable {
         installBaselineSet = c.lenient(Bool.self, forKey: .installBaselineSet, default: false)
         usedSinceInstall   = c.lenient(Int.self, forKey: .usedSinceInstall, default: 0)
         spentTokens        = c.lenient(Int.self, forKey: .spentTokens, default: 0)
+        merchantTokens     = c.lenient(Int.self, forKey: .merchantTokens, default: 0)
         eggUsage           = c.lenient(Int.self, forKey: .eggUsage, default: 0)
         // 모르는 rawValue 는 nil(보증 없음)로 강등 — 관대 디코딩의 안전한 방향(있지도 않은 보증을 만들지 않는다).
         eggTier            = c.lenientOptional(Rarity.self, forKey: .eggTier)
