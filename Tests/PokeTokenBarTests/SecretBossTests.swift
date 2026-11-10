@@ -54,8 +54,8 @@ final class SecretBossTests: XCTestCase {
         XCTAssertEqual(DungeonCatalog.bosses(of: DungeonCatalog.bossDungeons(before: .mtCoronet)).count, 28)
     }
 
-    /// One expedition in a hundred; one of a trio not caught yet first; caught, it gives the loot only; owned, its egg
-    /// is shiny; the Hall of Origin's comes after Arceus, all three together.
+    /// One expedition in a hundred, among the secrets not caught yet: caught, one never comes back (the owner,
+    /// 2026-11-10), all caught, none; owned, its egg is shiny; the Hall of Origin's comes after Arceus, all three.
     func testOneExpeditionInAHundred() throws {
         let draws = 20_000
         let met = (0..<draws).compactMap { SecretBosses.draw(.viridianForest, seed: UInt64($0), caught: [], owned: { _ in false }) }
@@ -66,9 +66,11 @@ final class SecretBossTests: XCTestCase {
         })
         let twoCaught: Set<String> = ["mtCoronet:480", "mtCoronet:481"]
         XCTAssertEqual(SecretBosses.draw(.mtCoronet, seed: seed, caught: twoCaught, owned: { _ in false })?.boss.speciesID, 482)
-        let all = SecretBosses.draw(.mtCoronet, seed: seed, caught: twoCaught.union(["mtCoronet:482"]), owned: { _ in true })
-        XCTAssertEqual(all?.lootOnly, true, "caught once: beaten only")
-        XCTAssertEqual(all?.boss.isShiny, false)
+        XCTAssertNil(SecretBosses.draw(.mtCoronet, seed: seed, caught: twoCaught.union(["mtCoronet:482"]), owned: { _ in true }),
+                     "all three caught: none comes back")
+        XCTAssertNil(SecretBosses.draw(.viridianForest, seed: UInt64(try XCTUnwrap((0..<draws).first {
+            SecretBosses.draw(.viridianForest, seed: UInt64($0), caught: [], owned: { _ in false }) != nil
+        })), caught: ["viridianForest:251"], owned: { _ in false }), "Celebi caught: Viridian Forest's boss is its own again")
         XCTAssertEqual(SecretBosses.draw(.mtCoronet, seed: seed, caught: [], owned: { _ in true })?.boss.isShiny, true,
                        "owned: its egg is shiny")
         let hall = try XCTUnwrap((0..<UInt64(draws)).lazy.compactMap {

@@ -57,20 +57,18 @@ enum SecretBosses {
         "\(dungeon.rawValue):\(boss.speciesID)" + (boss.form.map { ":\($0.rawValue)" } ?? "")
     }
 
-    /// The expedition's secret, drawn from its seed: one in `odds`. One not caught yet first among several (the lake
-    /// trio, the Origin trio), a caught one only when all are; `owned` makes its egg shiny (the owner: "si on les a
-    /// déjà ça nous donne l'oeuf en shiny").
+    /// The expedition's secret, drawn from its seed: one in `odds`, among those not caught yet. A secret caught never
+    /// comes back (the owner, 2026-11-10: it would take a run from the bosses Mt. Coronet waits for); a dungeon whose
+    /// secrets are all caught has none left. `owned` makes its egg shiny ("si on les a déjà ça nous donne l'oeuf en
+    /// shiny").
     static func draw(_ id: DungeonID, seed: UInt64, caught: Set<String>, owned: (ExpeditionBoss) -> Bool) -> SecretEncounter? {
-        let candidates = candidates(id)
-        guard !candidates.isEmpty else { return nil }
+        let left = candidates(id).filter { !caught.contains(key(id, $0)) }
+        guard !left.isEmpty else { return nil }
         var random = BattleRandom(seed: seed ^ 0x5EC2_E7B0_0D05)
         guard random.below(odds) == 0 else { return nil }
-        let left = candidates.filter { !caught.contains(key(id, $0)) }
-        let pool = left.isEmpty ? candidates : left
-        var boss = pool[random.below(pool.count)]
-        let lootOnly = caught.contains(key(id, boss))
-        boss.isShiny = !lootOnly && owned(boss)
+        var boss = left[random.below(left.count)]
+        boss.isShiny = owned(boss)
         return SecretEncounter(boss: boss, foes: id == .hallOfOrigin ? trinity : nil, after: id == .hallOfOrigin,
-                               lootOnly: lootOnly)
+                               lootOnly: false)
     }
 }

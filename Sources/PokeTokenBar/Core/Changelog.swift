@@ -67,6 +67,22 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-secret-once", { $0.t("잡은 비밀 보스는 다시 나오지 않아요: 그 던전의 원래 보스들을 계속 만날 수 있어요.",
+                                                   "A secret boss you caught never comes back: the dungeon's own bosses stay yours to meet.",
+                                                   "つかまえたひみつのボスは二度と出ません。そのダンジョンのボスにまた出会えます。",
+                                                   "Un jefe secreto capturado no vuelve: los jefes de la mazmorra siguen ahí para ti.",
+                                                   "Un boss secret capturé ne revient plus : les boss du donjon restent à ta portée.",
+                                                   "Um chefe secreto capturado não volta: os chefes da masmorra continuam ao seu alcance.",
+                                                   "Ein gefangener geheimer Boss kommt nicht wieder: Die Bosse des Dungeons bleiben für dich da.",
+                                                   "Пойманный тайный босс больше не появляется: боссы подземелья остаются для вас.") }),
+            .fixed("2026-11-10-oak-dungeon-candies", { $0.t("탐험 중 오박사의 메모가 더는 이상한 사탕 이야기를 하지 않아요.",
+                                                         "Prof. Oak's note during an expedition no longer speaks of Rare Candies.",
+                                                         "探検中のオーキド博士のメモは、もうふしぎなアメの話をしません。",
+                                                         "La nota del Prof. Oak durante una expedición ya no habla de los Caramelos Raros.",
+                                                         "La note du Prof. Chen pendant une expédition ne parle plus des Super Bonbons.",
+                                                         "A nota do Prof. Carvalho durante uma expedição não fala mais dos Doces Raros.",
+                                                         "Prof. Eichs Notiz während einer Expedition spricht nicht mehr von Sonderbonbons.",
+                                                         "Заметка профессора Оука во время экспедиции больше не говорит о редких конфетах.") }),
             .new("2026-11-10-secret-bosses", { $0.t("던전마다 비밀 보스가 숨어 있어요: 그곳의 전설이나 환상의 포켓몬이 100번에 1번 보스 대신 나타나요. 만나기 전에는 보이지 않고, 잡기 전에는 실루엣이에요. 잡으면 비밀의 알을 줘요(이미 있는 포켓몬이면 이로치). 시작의 방에서는 아르세우스 뒤에 셋이 함께 나타나요.",
                                                      "Each dungeon hides a secret boss: a legendary or mythical Pokémon of the place, one time in a hundred instead of the boss. Unseen until met, a silhouette until caught; caught, it gives the Secret Egg (shiny if you have it already). In the Hall of Origin, three come together after Arceus.",
                                                      "ダンジョンごとにひみつのボスがかくれています：その場所のでんせつやまぼろしのポケモンが、100回に1回ボスのかわりにあらわれます。出会うまで見えず、つかまえるまでシルエットです。つかまえるとひみつのタマゴをくれます（もう持っていれば色違い）。はじまりのまでは、アルセウスのあとに3体そろってあらわれます。",
