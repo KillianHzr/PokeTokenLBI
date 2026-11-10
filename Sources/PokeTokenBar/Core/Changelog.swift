@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-team-form-filters", { $0.t("팀 화면에서 이로치, 메가·원시, 거다이맥스로 거를 수 있고, 목록에서 바로 포켓몬의 배틀 폼을 고를 수 있어요.",
+                                                              "The team screen filters shinies, Megas and Primals, and Gigantamax forms, and a Pokémon's battle form can be picked right in the list.",
+                                                              "チーム画面で色違い、メガ・ゲンシ、キョダイマックスで絞り込め、一覧からそのままバトルフォルムを選べます。",
+                                                              "La pantalla del equipo filtra variocolor, Megas y Primigenias, y Gigamax, y la forma de combate de un Pokémon se elige en la misma lista.",
+                                                              "L'écran d'équipe filtre les chromatiques, les Méga et Primo, et les Gigamax, et la forme de combat d'un Pokémon se choisit directement dans la liste.",
+                                                              "A tela da equipe filtra shiny, Megas e Primitivas, e Gigamax, e a forma de batalha de um Pokémon se escolhe direto na lista.",
+                                                              "Der Team-Bildschirm filtert Schillernde, Mega- und Protoformen sowie Gigadynamax-Formen, und die Kampfform eines Pokémon lässt sich direkt in der Liste wählen.",
+                                                              "На экране команды можно отобрать шайни, мега и первичные формы, гигантамакс-формы, а боевую форму покемона выбрать прямо в списке.") }),
             .improved("2026-11-10-weekly-once-a-day", { $0.t("이번 주 던전은 이제 하루에 한 번 도전할 수 있어요. 보스는 한 주 동안 같아요.",
                                                               "The weekly dungeon can now be tried once a day; its boss stays the same all week.",
                                                               "今週のダンジョンは1日1回挑戦できるようになりました。ボスは1週間同じです。",

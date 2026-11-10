@@ -21,6 +21,7 @@ struct DungeonTeamScreen: View {
     /// Checked: the automatic throws may take the Master Ball at a legendary boss (the owner, 2026-11-04).
     @State private var useMasterBall = true
     @State private var search = ""
+    @State private var filter: CompanionStore.TeamFilter?
     @State private var composing = false
 
     var body: some View {
@@ -51,11 +52,14 @@ struct DungeonTeamScreen: View {
             if let focus, let entry = picked.first(where: { $0.id == focus }) {
                 memberPanel(entry, l)
             } else {
-                TextField(l.dexSearchPlaceholder, text: $search)
-                    .textFieldStyle(.roundedBorder).controlSize(.small)
+                HStack(spacing: 5) {
+                    TextField(l.dexSearchPlaceholder, text: $search)
+                        .textFieldStyle(.roundedBorder).controlSize(.small)
+                    filterChips(l)
+                }
                 ScrollView {
                     TeamCandidateList(store: store, dungeon: dungeon, faced: faced, rules: rules, size: size, query: search,
-                                      team: $team, focus: $focus)
+                                      filter: filter, team: $team, focus: $focus)
                         .reservesScrollerLane()
                 }
                 .frame(minHeight: 46)
@@ -162,6 +166,30 @@ struct DungeonTeamScreen: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Shinies, Megas and Primals, Gigantamax forms: one at a time, a second click lifts it.
+    private func filterChips(_ l: L) -> some View {
+        HStack(spacing: 4) {
+            ForEach(CompanionStore.TeamFilter.allCases, id: \.self) { option in
+                let on = filter == option
+                Button { filter = on ? nil : option } label: {
+                    Group {
+                        if option == .shiny {
+                            Image(systemName: on ? "sparkles" : "sparkle").font(.system(size: 11, weight: on ? .bold : .regular))
+                        } else {
+                            Text(option == .megaOrPrimal ? l.teamFilterMega : l.teamFilterGigantamax)
+                                .font(.system(size: 10, weight: .semibold)).lineLimit(1)
+                        }
+                    }
+                    .foregroundStyle(on ? Design.actionColor : Color.secondary)
+                    .modifier(CapsuleFilterChip(active: on, tint: Design.actionColor))
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
+                .hoverTip(option == .shiny ? l.filterShinyOnly : option == .megaOrPrimal ? l.teamFilterMega : l.teamFilterGigantamax)
+            }
+        }
     }
 
     /// The member clicked: its moves (R4) and battle form, in place of the list; back to the list with "Done".
@@ -374,6 +402,7 @@ struct TeamCandidateList: View {
     let rules: [DungeonRule]
     let size: Int
     var query = ""
+    var filter: CompanionStore.TeamFilter? = nil
     @Binding var team: [String]
     @Binding var focus: String?
 
@@ -389,7 +418,8 @@ struct TeamCandidateList: View {
     var body: some View {
         let l = store.l
         let all = store.dungeonCandidates
-        let shown = CompanionStore.DexSearchMatcher(query).map { matcher in all.filter { matcher.matches($0) } } ?? all
+        let searched = CompanionStore.DexSearchMatcher(query).map { matcher in all.filter { matcher.matches($0) } } ?? all
+        let shown = filter.map { f in searched.filter { store.matches($0, f) } } ?? searched
         let groups = DungeonTeamScreen.candidateGroups(shown, picked: team, loops: store.dungeonProgress.moveLoops)
         let rows = groups.map { group in
             (entry: group.entry, count: group.count,
@@ -460,6 +490,7 @@ private struct CandidateRow: View {
         let chosen = team.contains(entry.id)
         let blocked = !chosen && (refusal != nil || team.count >= size || taken.contains(entry.finalID))
         let types = info?.types ?? PokemonTypeData.types(forSpeciesID: entry.finalID, form: entry.form)
+        HStack(spacing: 2) {
         Button {
             if chosen {
                 team.removeAll { $0 == entry.id }
@@ -507,6 +538,44 @@ private struct CandidateRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+            formMenu(l)
+        }
+    }
+
+    /// The battle form it fights in, chosen from the list (the owner, 2026-11-10): a Pokémon that is not shiny joins
+    /// the Hall of Origin as its Mega or its Gigantamax. Only for a species with a form won.
+    @ViewBuilder
+    private func formMenu(_ l: L) -> some View {
+        let forms = store.wonBattleForms(speciesID: entry.finalID)
+        if !forms.isEmpty {
+            let current = store.battleFormChoice(for: entry)
+            Menu {
+                Button { store.setBattleForm(nil, for: entry.id) } label: { Self.menuLine(l.battleFormUsual, on: current == nil) }
+                ForEach(forms, id: \.key) { form in
+                    Button { store.setBattleForm(form, for: entry.id) } label: {
+                        Self.menuLine(Self.formName(form, store), on: current == form)
+                    }
+                }
+            } label: {
+                Text(current.map { Self.formName($0, store) } ?? l.battleFormUsual).lineLimit(1)
+            }
+            .menuStyle(.button)
+            .controlSize(.mini)
+            .font(.caption2.weight(.semibold))
+            .tint(current == nil ? nil : Design.actionColor)
+            .fixedSize()
+            .disabled(store.isExploring(entry.id))
+            .hoverTip(l.battleFormPickTitle)
+        }
+    }
+
+    @ViewBuilder
+    static func menuLine(_ title: String, on: Bool) -> some View {
+        if on { Label(title, systemImage: "checkmark") } else { Text(title) }
+    }
+
+    static func formName(_ form: BattleForm, _ store: CompanionStore) -> String {
+        PokemonForm.label(speciesID: form.speciesID, form: form.form, language: store.language) ?? store.l.battleFormLabel(form)
     }
 
     private func fitTag(_ fit: TeamMatchup.Fit, _ l: L) -> some View {

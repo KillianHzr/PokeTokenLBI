@@ -1266,6 +1266,13 @@ extension L {
         t("내일 새 보스", "New boss tomorrow", "明日は新しいボス", "Nuevo jefe mañana", "Nouveau boss demain", "Novo chefe amanhã",
           "Morgen ein neuer Boss", "Завтра новый босс")
     }
+    // The team screen's filters for the battle forms (2026-11-10).
+    var teamFilterMega: String {
+        t("메가·원시", "Mega/Primal", "メガ・ゲンシ", "Mega/Primigenia", "Méga/Primo", "Mega/Primitiva", "Mega/Proto", "Мега/первичная")
+    }
+    var teamFilterGigantamax: String {
+        t("거다이맥스", "Gigantamax", "キョダイマックス", "Gigamax", "Gigamax", "Gigamax", "Gigadynamax", "Гигантамакс")
+    }
     var challengeTryTomorrow: String {
         t("내일 다시 도전", "Try again tomorrow", "明日また挑戦", "Otro intento mañana", "Nouvel essai demain", "Nova tentativa amanhã",
           "Morgen ein neuer Versuch", "Новая попытка завтра")

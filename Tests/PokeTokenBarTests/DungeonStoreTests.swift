@@ -1183,6 +1183,29 @@ final class DungeonStoreTests: XCTestCase {
 
     /// A challenge set off before midnight (or before the week turns) goes on unchanged: its boss, its floors and the
     /// form it gives are the departure's, whatever the day's draw has become; the next try is the new period's.
+    /// The team screen's filters find the shinies and the species with a Mega, Primal or Gigantamax won, chosen or
+    /// not; a Pokémon that is not shiny joins the Hall of Origin once its form is chosen from the list (2026-11-10).
+    func testTheFiltersFindTheFormsTheHallAsksFor() throws {
+        var pikachu = graduated(25)
+        pikachu.isShiny = true
+        let s = try store(dex: [graduated(6), graduated(94), pikachu]) {
+            $0.dungeons.battleForms = ["6-mega-x", "94-gmax"]
+        }
+        func entry(_ id: Int) throws -> DexEntry { try XCTUnwrap(s.dungeonCandidates.first { $0.finalID == id }) }
+        XCTAssertTrue(s.matches(try entry(6), .megaOrPrimal))
+        XCTAssertFalse(s.matches(try entry(6), .gigantamax))
+        XCTAssertTrue(s.matches(try entry(94), .gigantamax))
+        XCTAssertFalse(s.matches(try entry(94), .megaOrPrimal))
+        XCTAssertTrue(s.matches(try entry(25), .shiny))
+        XCTAssertFalse(s.matches(try entry(6), .shiny))
+        let rules = DungeonCatalog.dungeon(.hallOfOrigin).rules
+        XCTAssertFalse(DungeonTeamRules.admits(DungeonCandidate(try entry(6)), rules: rules), "its usual form, not shiny")
+        let mega = try XCTUnwrap(s.wonBattleForms(speciesID: 6).first)
+        XCTAssertTrue(s.setBattleForm(mega, for: "e6"))
+        XCTAssertTrue(DungeonTeamRules.admits(DungeonCandidate(try entry(6)), rules: rules), "as its Mega")
+        XCTAssertTrue(s.matches(try entry(6), .megaOrPrimal), "still found once chosen")
+    }
+
     /// The week's dungeon has one try a day, its boss the week's (the owner, 2026-11-10: "une tentative par jour
     /// possible pas 1 par semaine").
     func testTheWeeksDungeonHasATryADay() throws {
