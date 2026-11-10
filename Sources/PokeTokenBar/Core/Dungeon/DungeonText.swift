@@ -231,7 +231,7 @@ extension L {
     var dungeonLocked: String { t("잠김", "Locked", "ロック中", "Bloqueada", "Verrouillé", "Bloqueada", "Gesperrt", "Закрыто") }
     var dungeonNew: String { t("새로움", "New", "NEW", "Nueva", "Nouveau", "Nova", "Neu", "Новое") }
     func dungeonWins(_ n: Int) -> String {
-        t("클리어 ×\(n)", "Finished ×\(n)", "クリア ×\(n)", "Superada ×\(n)", "Finie ×\(n)", "Concluída ×\(n)",
+        t("클리어 ×\(n)", "Finished ×\(n)", "クリア ×\(n)", "Superada ×\(n)", "Fini ×\(n)", "Concluída ×\(n)",
           "Geschafft ×\(n)", "Пройдено ×\(n)")
     }
     var dungeonBossUnknown: String {
