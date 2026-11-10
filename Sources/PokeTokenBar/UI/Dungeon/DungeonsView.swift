@@ -180,7 +180,6 @@ struct DungeonCard: View {
                         let met = store.isMet(unlock)
                         Label(store.unlockLine(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
                             .font(.caption).foregroundStyle(met ? .primary : .secondary)
-                        if !met { BossesLeftRow(store: store, unlock: unlock) }
                     }
                 }
             }
@@ -480,33 +479,5 @@ extension CompanionStore {
         guard case .caughtBosses(let ids) = unlock else { return l.dungeonUnlock(unlock) }
         let total = DungeonCatalog.bosses(of: ids).count
         return l.dungeonUnlock(unlock) + " · \(total - bossesLeft(ids).count)/\(total)"
-    }
-}
-
-/// The bosses Mt. Coronet still waits for, each with its name under the pointer: the player sees where to go.
-@MainActor
-struct BossesLeftRow: View {
-    let store: CompanionStore
-    let unlock: DungeonUnlock
-
-    private static let shown = 10
-
-    var body: some View {
-        if case .caughtBosses(let ids) = unlock {
-            let left = store.bossesLeft(ids)
-            if !left.isEmpty {
-                HStack(spacing: 1) {
-                    ForEach(left.prefix(Self.shown), id: \.self) { species in
-                        SpriteView(speciesID: species, size: 24, sameScale: true)
-                            .frame(width: 24, height: 24)
-                            .speciesNameTooltip(species, language: store.language)
-                    }
-                    if left.count > Self.shown {
-                        Text("+\(left.count - Self.shown)").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.leading, 18)
-            }
-        }
     }
 }

@@ -143,7 +143,6 @@ struct DungeonDetailScreen: View {
                 Label(store.unlockLine(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
                     .font(.caption).foregroundStyle(met ? .primary : .secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                if !met { BossesLeftRow(store: store, unlock: unlock) }
             }
             // The artifacts that speed it up (the owner, 2026-11-06), each with its share, the cost above counting them.
             let factors = store.dungeonGrowthFactors(id)

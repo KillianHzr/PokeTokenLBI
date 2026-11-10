@@ -119,8 +119,10 @@ final class DungeonStoreTests: XCTestCase {
             $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484", "mtCoronet:487"]
         }
         XCTAssertTrue(oneKey.canEnter(.hallOfOrigin), "one key is enough")
+        // Mt. Coronet's three bosses are its only door (the owner, 2026-11-10): no T4 to win besides.
         let bossesOnly = try store(dex: strong) { $0.dungeons.bossesBeaten = ["mtCoronet:483", "mtCoronet:484", "mtCoronet:487"] }
-        XCTAssertFalse(bossesOnly.isDungeonOpen(.hallOfOrigin), "the three bosses and every T4")
+        XCTAssertTrue(bossesOnly.isDungeonOpen(.hallOfOrigin), "the three bosses alone")
+        XCTAssertEqual(DungeonCatalog.dungeon(.hallOfOrigin).unlocks, [.beatBosses([483, 484, 487])])
     }
 
     /// Mt. Coronet opens once every boss of the ten dungeons listed before it is both beaten and caught (the owner,

@@ -241,7 +241,8 @@ enum DungeonCatalog {
                            }.sorted(),
                            unlocks: [.treasureMap])
         case .hallOfOrigin:
-            // A Mega or a Primal, a Gigantamax and four shinies (the owner, 2026-11-10; six shinies before).
+            // A Mega or a Primal, a Gigantamax and four shinies (the owner, 2026-11-10; six shinies before). Its door is
+            // Mt. Coronet's three bosses beaten, nothing more (the owner, 2026-11-10): that one waits for every boss before it.
             return Dungeon(id: id, tier: .t5, teamSize: 6,
                            rules: [.shinyOrBattleForm, .needsBattleForm([.mega, .primal]), .needsBattleForm([.gigantamax]),
                                    .atLeastShinies(4)],
@@ -251,7 +252,7 @@ enum DungeonCatalog {
                                      !info.isLegendary, SpeciesInfo.isFinal(id) else { return false }
                                return data.baseStats.reduce(0, +) >= 530
                            }.sorted(),
-                           bosses: [arceusID], unlocks: [.wonEvery(.t4), .beatBosses([483, 484, 487])])
+                           bosses: [arceusID], unlocks: [.beatBosses([483, 484, 487])])
         case .daily:
             // Hard on purpose (the owner): a T4's foes, the strongest finals, a Mega at the end (`challengeBoss`).
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [], themeTypes: [], wild: strongFinals(530),

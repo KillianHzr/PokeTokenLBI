@@ -72,7 +72,7 @@ final class DungeonLayoutTests: XCTestCase {
         }
     }
 
-    /// Mt. Coronet locked, its doors listed with the bosses still to beat and catch: more than a row holds.
+    /// Mt. Coronet locked, its doors listed, the bosses still to beat and catch counted (never shown: no spoiler).
     func testMtCoronetLockedCardFits() throws {
         let available = PopoverMetrics.scrollContentWidth
         for language in AppLanguage.allCases {
@@ -81,11 +81,8 @@ final class DungeonLayoutTests: XCTestCase {
             }
             XCTAssertGreaterThan(s.bossesLeft(DungeonCatalog.bossDungeons(before: .mtCoronet)).count, 10)
             XCTAssertFalse(s.isDungeonOpen(.mtCoronet))
-            for view in [AnyView(DungeonCard(store: s, id: .mtCoronet) {}), AnyView(BossesLeftRow(store: s,
-                         unlock: .caughtBosses(DungeonCatalog.bossDungeons(before: .mtCoronet))))] {
-                let used = width(view, in: available)
-                XCTAssertLessThanOrEqual(used, available + 0.5, "\(language): \(used) pt for \(available)")
-            }
+            let used = width(DungeonCard(store: s, id: .mtCoronet) {}, in: available)
+            XCTAssertLessThanOrEqual(used, available + 0.5, "\(language): \(used) pt for \(available)")
         }
     }
 

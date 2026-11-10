@@ -76,15 +76,15 @@ enum Changelog {
                                                          "Die Sammlung hat ihre Statistik: Ringe für Arten, Formen, Linien und Schillernde, eine Karte der Generationen nach Typen (wie viele in jedem Feld fehlen), die Kategorien und Kampfformen und was fast geschafft ist. Klicke, um zu sehen, wer fehlt.",
                                                          "В коллекции появилась статистика: кольца видов, форм, линий и шайни, карта поколений по типам (сколько осталось в каждой клетке), категории и боевые формы, и то, что почти собрано. Нажмите, чтобы увидеть, кого не хватает.") }),
             .improved("2026-11-10-mt-coronet-bosses") { l in
-                let coronet = l.dungeonName(.mtCoronet)
-                return l.t("\(coronet)에 들어가려면 앞선 던전의 보스를 모두 쓰러뜨리고 잡아야 해요. 카드에 남은 보스가 보여요. 이미 클리어한 던전은 그대로 열려 있어요.",
-                           "\(coronet) now opens once every boss of the dungeons before it is beaten and caught; its card shows the bosses left. A dungeon you have finished stays open.",
-                           "\(coronet)は、これまでのダンジョンのボスをすべて倒してつかまえると開きます。カードにのこりのボスが出ます。クリアしたダンジョンは開いたままです。",
-                           "\(coronet) se abre cuando cada jefe de las mazmorras anteriores está vencido y capturado; su tarjeta muestra los que faltan. Una mazmorra ya superada sigue abierta.",
-                           "\(coronet) s'ouvre quand chaque boss des donjons précédents est battu et capturé ; sa carte montre ceux qui restent. Un donjon déjà fini reste ouvert.",
-                           "\(coronet) abre quando cada chefe das masmorras anteriores foi vencido e capturado; o cartão mostra os que faltam. Uma masmorra já concluída continua aberta.",
-                           "\(coronet) öffnet sich, sobald jeder Boss der vorigen Dungeons besiegt und gefangen ist; seine Karte zeigt die übrigen. Ein abgeschlossener Dungeon bleibt offen.",
-                           "\(coronet) открывается, когда каждый босс прежних подземелий побеждён и пойман; на карточке видны оставшиеся. Пройденное подземелье остаётся открытым.")
+                let coronet = l.dungeonName(.mtCoronet), hall = l.dungeonName(.hallOfOrigin)
+                return l.t("\(coronet)에 들어가려면 앞선 던전의 보스를 모두 쓰러뜨리고 잡아야 해요. 카드에 몇 마리 남았는지 나와요. 이미 클리어했다면 그대로 열려 있어요. \(hall)은 이제 \(coronet)의 세 보스만 쓰러뜨리면 돼요.",
+                           "\(coronet) now opens once every boss of the dungeons before it is beaten and caught; its card counts those left. Finished already, it stays open. The \(hall) now only asks for \(coronet)'s three bosses beaten.",
+                           "\(coronet)は、これまでのダンジョンのボスをすべて倒してつかまえると開きます。カードにのこりの数が出ます。クリアずみなら開いたままです。\(hall)は\(coronet)の3体のボスを倒すだけで入れます。",
+                           "\(coronet) se abre cuando cada jefe de las mazmorras anteriores está vencido y capturado; su tarjeta cuenta los que faltan. Si ya la superaste, sigue abierta. La \(hall) ahora solo pide vencer a los tres jefes de \(coronet).",
+                           "\(coronet) s'ouvre quand chaque boss des donjons précédents est battu et capturé ; sa carte compte ceux qui restent. Déjà fini, il reste ouvert. La \(hall) demande seulement de battre les trois boss du \(coronet).",
+                           "\(coronet) abre quando cada chefe das masmorras anteriores foi vencido e capturado; o cartão conta os que faltam. Se já foi concluído, continua aberto. O \(hall) agora só pede vencer os três chefes do \(coronet).",
+                           "\(coronet) öffnet sich, sobald jeder Boss der vorigen Dungeons besiegt und gefangen ist; seine Karte zählt die übrigen. Schon abgeschlossen, bleibt er offen. Der \(hall) verlangt nur noch die drei Bosse des \(coronet) besiegt.",
+                           "\(coronet) открывается, когда каждый босс прежних подземелий побеждён и пойман; на карточке видно, сколько осталось. Если уже пройдено, остаётся открытым. Для \(hall) теперь нужно лишь победить трёх боссов \(coronet).")
             },
             .improved("2026-11-10-arceus-harder") { l in
                 let poke = l.dungeonPokeBall, great = l.itemName(.greatBall), ultra = l.itemName(.ultraBall)
