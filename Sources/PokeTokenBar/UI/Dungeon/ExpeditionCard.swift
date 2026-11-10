@@ -10,87 +10,55 @@ struct ExpeditionCard: View {
 
     var body: some View {
         if let e = store.expedition {
+            // Prof. Oak's layout (the owner, 2026-11-10, choice C): the dungeon and its guide telling how it goes, a circle
+            // a floor, the team in rings of their HP.
             VStack(alignment: .leading, spacing: 10) {
-                header(e)
+                titleRow(e)
+                ExpeditionGuideHeader(store: store, e: e)
                 switch e.phase {
                 case .awaitingHeal(let price): heal(e, price: price)
                 // The throws go by themselves as the boss falls (`throwAutomatically`): never waits here.
-                case .capture: exploring(e)
-                case .exploring, .finished: exploring(e)
+                case .capture, .exploring, .finished: exploring(e)
                 }
             }
-            .designCard()
+            .heroCard(colors: e.hideout.map { [$0.team.color] } ?? DungeonCard.colors(e.dungeon))
         }
     }
 
     private var l: L { store.l }
 
-    private func header(_ e: Expedition) -> some View {
-        HStack(spacing: 8) {
-            DungeonIcon(id: e.dungeon, size: 30, boss: e.boss, villain: e.hideout?.team)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(e.hideout.map { l.villainHideoutName($0.team) } ?? l.dungeonName(e.dungeon)).font(.callout.weight(.semibold))
-                Text(l.dungeonFloorOf(min(e.floor, e.floors), e.floors)).font(.caption).foregroundStyle(.secondary)
-                    .monospacedDigit()
-                // On its own line: "Ebene 6 von 12 · pausiert" broke at its dot.
-                if case .awaitingHeal = e.phase {
-                    Text(l.dungeonPaused).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .layoutPriority(1)
+    private func titleRow(_ e: Expedition) -> some View {
+        HStack(spacing: 6) {
+            LiveDot()
+            Text(l.expeditionLive.uppercased())
+                .font(.system(size: 10, weight: .heavy)).kerning(0.6).foregroundStyle(Design.actionColor)
             Spacer(minLength: 4)
-            if case .capture = e.phase {
-                EmptyView()
-            } else {
-                // Where the boss waits, never who it is (Q17).
-                Label(l.dungeonBossAt(e.floors), systemImage: "crown.fill")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    .hoverTip(l.dungeonBossHidden)
-            }
+            Text(l.dungeonFloorOf(min(e.floor, e.floors), e.floors)).font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary).monospacedDigit().fixedSize()
         }
     }
 
-    // MARK: Exploring (maquette 3)
+    // MARK: Exploring
 
-    /// What is going on, said once; the floors walked toward the boss; the team; what happened last.
+    /// The floors, what moves the team on, the team, the last of the journal.
     @ViewBuilder
     private func exploring(_ e: Expedition) -> some View {
         let floor = min(e.floor, e.floors)
         let have = TokenFormatter.compact(e.floorTokens)
         let need = TokenFormatter.compact(e.floorCost)
         let toBoss = (e.floors - floor) * e.floorCost + max(0, e.floorCost - e.floorTokens)
-        Text(l.dungeonExploringNow).font(.caption).foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-        VStack(alignment: .leading, spacing: 4) {
-            ExpeditionFloors(floor: floor, floors: e.floors, progress: Double(e.floorTokens) / Double(max(1, e.floorCost)))
+        ExpeditionFloorTrack(store: store, e: e)
+            .hoverTip(l.dungeonExploringNow)
+        HStack(spacing: 4) {
             Text(e.floor >= e.floors ? l.dungeonToBoss(have, need) : l.dungeonToNextFloor(have, need, next: e.floor + 1))
-                .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                .font(.caption2.weight(.semibold)).monospacedDigit()
             if e.floor < e.floors {
-                Text(l.dungeonLeftToBoss(TokenFormatter.compact(toBoss)))
+                Text("· " + l.dungeonLeftToBoss(TokenFormatter.compact(toBoss)))
                     .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
-                // The path the dice gave, said in words, its rule on hover (the owner, 2026-11-06).
-                Label(l.dungeonPath(risky: e.risky), systemImage: e.risky ? "dice.fill" : "dice")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(e.risky ? Color.readableOrange : .secondary)
-                    .hoverTip(l.dungeonPathRule)
             }
         }
-        sectionLabel(l.dungeonTeamTitle)
-        ExpeditionTeamGrid(store: store, team: e.team)
-        let rare = e.log.last(where: \.isRare)
-        let recent = e.log.filter { $0.id != rare?.id }.suffix(4).reversed()
-        if rare != nil || !recent.isEmpty { sectionLabel(l.dungeonRecentTitle) }
-        if let rare {
-            ExpeditionLogRow(store: store, nav: nav, entry: rare, team: e.team, floors: e.floors)
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(LegendaryHeroBackground.gold.opacity(0.16)))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(LegendaryHeroBackground.gold.opacity(0.55)))
-                .overlay(alignment: .topTrailing) {
-                    Badge("✦ " + l.dungeonRare.uppercased(), tint: .orange, style: .tinted).padding(4)
-                }
-        }
+        ExpeditionTeamRings(team: e.team)
+        let recent = e.log.suffix(2).reversed()
         if !recent.isEmpty {
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(Array(recent)) { entry in
@@ -102,7 +70,7 @@ struct ExpeditionCard: View {
             abandonConfirmation
         } else {
             HStack(spacing: 8) {
-                if e.log.count > 4 {
+                if e.log.count > 2 {
                     Button(l.dungeonWholeLog) { nav.showingExpeditionLog = true }
                         .buttonStyle(.borderless).controlSize(.small).font(.caption.weight(.semibold))
                 }
@@ -144,7 +112,7 @@ struct ExpeditionCard: View {
         let available = store.availableTokens
         Label(l.dungeonTeamInDanger(Int((e.hpShare * 100).rounded())), systemImage: "exclamationmark.triangle.fill")
             .font(.callout.weight(.semibold)).foregroundStyle(Color.readableOrange)
-        ExpeditionTeamGrid(store: store, team: e.team)
+        ExpeditionTeamRings(team: e.team)
         Text(l.dungeonHealExplain).font(.caption).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
         Text(l.dungeonHealPrice(TokenFormatter.compact(price), have: TokenFormatter.compact(available)))
@@ -403,19 +371,17 @@ struct ExpeditionResultCard: View {
 
     private func content(_ r: ExpeditionResult, _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                DungeonIcon(id: r.dungeon, size: 30, boss: r.boss, villain: r.villain)
+            HStack(spacing: 6) {
                 Label(l.dungeonResultTitle(won: r.won, roped: r.roped),
                       systemImage: r.won ? "checkmark.seal.fill" : r.roped ? "arrow.uturn.left.circle.fill" : "xmark.seal.fill")
-                    .font(.callout.weight(.semibold))
+                    .font(.system(size: 11, weight: .heavy)).textCase(.uppercase)
                     .foregroundStyle(r.won ? Design.actionColor : Color.readableOrange)
                 Spacer(minLength: 4)
                 if r.firstVictory { Badge(l.dungeonFirstVictory.uppercased(), tint: .blue, style: .tinted) }
             }
-            Text([r.villain.map { l.villainHideoutName($0) } ?? l.dungeonName(r.dungeon), TokenFormatter.compact(r.tokens),
-                  l.longDuration(r.endedAt.timeIntervalSince(r.startedAt)), l.dungeonBattles(r.battles)]
-                .joined(separator: " · "))
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            // The guide tells how it went, beside the dungeon (the owner, 2026-11-10: the same look as the run).
+            ExpeditionResultGuide(store: store, r: r)
+            ExpeditionFloorTrack(store: store, result: r)
             // What a hideout's leader gave back (issue #180).
             if let recovered = r.recovered, !recovered.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -493,7 +459,7 @@ struct ExpeditionResultCard: View {
                     .buttonStyle(.pill(prominent: true))
             }
         }
-        .designCard()
+        .heroCard(colors: r.won ? r.villain.map { [$0.color] } ?? DungeonCard.colors(r.dungeon) : [.gray])
     }
 
     /// The boss's line on the result card: caught or not, or what it gave in place of its own egg (2026-11-04).

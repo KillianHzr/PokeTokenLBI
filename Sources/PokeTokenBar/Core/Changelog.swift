@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-home-guide", { $0.t("홈의 탐험 카드가 새로워졌어요: 던전과 가이드가 상황을 말해 주고, 층마다 원 하나에 그 층에서 일어난 일이 표시돼요(마우스를 올리면 기록이 보여요). 팀은 체력 고리로 보여요.",
+                                                   "Home's expedition card is new: the dungeon and a guide telling how it goes, one circle a floor showing what happened there (hover it for the journal line), the team in rings of their HP.",
+                                                   "ホームの探検カードが新しくなりました。ダンジョンとガイドが様子を伝え、階ごとの丸にそこで起きたことが出ます（カーソルを乗せると記録が見えます）。チームはHPの輪で表示されます。",
+                                                   "La tarjeta de expedición del Inicio es nueva: la mazmorra y un guía que cuenta cómo va, un círculo por piso con lo que pasó allí (pasa el ratón para ver el registro) y el equipo en anillos de PS.",
+                                                   "La carte d'expédition de l'Accueil est nouvelle : le donjon et un guide qui raconte où en est l'équipe, un rond par étage avec ce qui s'y est passé (survole-le pour la ligne du journal), l'équipe en anneaux de PV.",
+                                                   "O cartão de expedição do Início é novo: a masmorra e um guia contando como vai, um círculo por andar com o que aconteceu lá (passe o mouse para ver o registro) e a equipe em anéis de PS.",
+                                                   "Die Expeditionskarte auf dem Start ist neu: der Dungeon und ein Führer, der erzählt, wie es läuft, ein Kreis pro Ebene mit dem, was dort geschah (darüberfahren zeigt den Protokolleintrag), das Team in KP-Ringen.",
+                                                   "Карточка экспедиции на главной обновлена: подземелье и проводник, который рассказывает, как идут дела, по кругу на этаж с тем, что там случилось (наведите, чтобы увидеть запись журнала), и команда в кольцах ОЗ.") }),
             .new("2026-11-10-villain-teams", { $0.t("악의 조직이 가끔 가방의 아이템을 노려요: 내 팀으로 맞서세요. 지면 아이템을 아지트로 가져가고, 아지트 끝의 보스와 포켓몬 3마리를 이기면 되찾아요.",
                                                      "Villains' teams sometimes come for an item in your Bag: defend it with your team. Lose, and they take it to their hideout; beat its boss and three Pokémon at the end to get it back.",
                                                      "悪の組織がときどきバッグのどうぐを狙ってきます。マイチームで迎え撃ちましょう。負けるとアジトに持ち去られ、奥のボスとポケモン3匹に勝てば取り返せます。",
