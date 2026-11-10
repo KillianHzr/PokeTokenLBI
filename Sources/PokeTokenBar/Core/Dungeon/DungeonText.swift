@@ -19,6 +19,18 @@ extension L {
           "Пока команда исследует \"\(dungeon)\", \(name) не растёт. Редкие конфеты по-прежнему работают.")
     }
 
+    var oakUseOnReturn: String {
+        t("팀이 돌아온 뒤에 쓰세요.", "Use it once your team is back.", "チームが戻ってから使おう。",
+          "Se usa cuando vuelva tu equipo.", "À utiliser au retour de ton équipe.", "Use quando sua equipe voltar.",
+          "Erst benutzen, wenn dein Team zurück ist.", "Используйте, когда команда вернётся.")
+    }
+
+    var oakGiveOnReturn: String {
+        t("팀이 돌아온 뒤에 주세요.", "Give them once your team is back.", "チームが戻ってからあげよう。",
+          "Dáselos cuando vuelva tu equipo.", "À donner au retour de ton équipe.", "Dê quando sua equipe voltar.",
+          "Gib sie, sobald dein Team zurück ist.", "Дайте их, когда команда вернётся.")
+    }
+
     func oakDungeonPauseEgg(_ dungeon: String) -> String {
         t("팀이 \(KoreanParticle.object.attach(to: dungeon)) 탐험하는 동안 알은 부화하지 않아요.",
           "While your team explores \(dungeon), your egg doesn't hatch.",

@@ -474,7 +474,8 @@ final class CompanionStore {
     var isRaisingLegendaryBossPokemon: Bool { state.active?.fromLegendaryBossEgg == true }
     /// A Pokémon raised that an egg or a stone may send off: every `canUse…` of them asks this. Not while a team explores:
     /// it is paused until the team is back (the owner, 2026-11-05: an egg used then ended it).
-    var canSendOffActive: Bool { hasActive && !isRaisingLegendaryBossPokemon && expedition == nil }
+    var canSendOffActive: Bool { canSendOffActive(onReturn: false) }
+    func canSendOffActive(onReturn: Bool) -> Bool { hasActive && !isRaisingLegendaryBossPokemon && (onReturn || expedition == nil) }
     var rarity: Rarity? { state.active?.rarity }
     var currentIsShiny: Bool { state.active?.displaysShiny ?? false }   // 위장 중엔 이로치 숨김(리빌 때 공개)
     /// 새 알(리롤) 구매 시 실수로 놓아주지 않도록 2단계 확인이 필요한 고가치 개체인지 판정.
@@ -3237,8 +3238,8 @@ final class CompanionStore {
     }
 
     /// Evolution stone use gate: a stone in the Bag and, like an egg purchase, a companion to send off.
-    func canUseStone(_ kind: ItemKind) -> Bool {
-        kind.stoneType != nil && canSendOffActive && itemCount(kind) > 0
+    func canUseStone(_ kind: ItemKind, onReturn: Bool = false) -> Bool {
+        kind.stoneType != nil && canSendOffActive(onReturn: onReturn) && itemCount(kind) > 0
     }
 
     /// Uses one evolution stone from the Bag. Like an egg purchase, the current Pokémon is sent off right
@@ -3252,7 +3253,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseTypeNullEgg() -> Bool { canSendOffActive && itemCount(.typeNullEgg) > 0 }
+    func canUseTypeNullEgg(onReturn: Bool = false) -> Bool { canSendOffActive(onReturn: onReturn) && itemCount(.typeNullEgg) > 0 }
 
     /// Uses the Type: Null Egg, the reward for all of Silvally's Memories: like a stone, the current Pokémon is
     /// sent off for an egg, which hatches a Type: Null.
@@ -3291,7 +3292,9 @@ final class CompanionStore {
         return true
     }
 
-    func canUseBagEgg(_ kind: ItemKind) -> Bool { kind.isShopEgg && canSendOffActive && itemCount(kind) > 0 }
+    func canUseBagEgg(_ kind: ItemKind, onReturn: Bool = false) -> Bool {
+        kind.isShopEgg && canSendOffActive(onReturn: onReturn) && itemCount(kind) > 0
+    }
 
     /// Uses one of the Shop's eggs from the Bag, bought or given by an achievement. The current Pokémon is sent off
     /// for an egg that hatches anew, a Pokémon of the egg's rarity or better.
@@ -3309,7 +3312,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseLegendaryEgg() -> Bool { canSendOffActive && itemCount(.legendaryEgg) > 0 }
+    func canUseLegendaryEgg(onReturn: Bool = false) -> Bool { canSendOffActive(onReturn: onReturn) && itemCount(.legendaryEgg) > 0 }
 
     /// Uses a Legendary Egg, the reward for a region whose every species is in the Pokédex: like a stone, the
     /// current Pokémon is sent off for an egg, which hatches a legendary or mythical Pokémon (`chooseBase`).
@@ -3324,7 +3327,7 @@ final class CompanionStore {
         return true
     }
 
-    func canUseBirthdayEgg() -> Bool { canSendOffActive && itemCount(.birthdayEgg) > 0 }
+    func canUseBirthdayEgg(onReturn: Bool = false) -> Bool { canSendOffActive(onReturn: onReturn) && itemCount(.birthdayEgg) > 0 }
 
     /// Uses the Birthday Egg: like a stone, the current Pokémon is sent off for an egg, which hatches a mythical
     /// Pokémon not graduated yet (`BirthdayGift.pool`).
@@ -3344,7 +3347,9 @@ final class CompanionStore {
 
     /// Not on a Fossil Egg's own Pokémon: sent off, it gives its egg back, so the egg would cost nothing and fossil
     /// hatches would reroll for free (#90). A stone or a Shop egg sends it off.
-    func canUseFossilEgg() -> Bool { canSendOffActive && !isRaisingFossilEggPokemon && itemCount(.fossilEgg) > 0 }
+    func canUseFossilEgg(onReturn: Bool = false) -> Bool {
+        canSendOffActive(onReturn: onReturn) && !isRaisingFossilEggPokemon && itemCount(.fossilEgg) > 0
+    }
 
     /// Uses a Fossil Egg: like a stone, the current Pokémon is sent off for an egg, which hatches a fossil line not
     /// graduated yet (`FossilDig`).
@@ -3466,7 +3471,9 @@ final class CompanionStore {
         return true
     }
 
-    func canUseEventEgg(_ egg: EventEgg) -> Bool { canSendOffActive && itemCount(egg.item) > 0 }
+    func canUseEventEgg(_ egg: EventEgg, onReturn: Bool = false) -> Bool {
+        canSendOffActive(onReturn: onReturn) && itemCount(egg.item) > 0
+    }
 
     /// Uses an event egg: like a stone, the current Pokémon is sent off for an egg, which hatches the event's Pokémon.
     @discardableResult

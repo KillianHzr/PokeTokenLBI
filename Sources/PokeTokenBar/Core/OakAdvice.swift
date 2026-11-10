@@ -277,6 +277,15 @@ extension CompanionStore {
                          reserve: reserve, candies: max(0, wallet - buyAhead * eggPrice - reserve) / candy)
     }
 
+    func oakWaitsForTheTeam(_ step: OakStep) -> Bool {
+        guard expedition != nil else { return false }
+        switch step {
+        case .release(let release): return release.sendsOffNow
+        case .candies(_, let give, _): return give > 0
+        case .raise, .stock: return false
+        }
+    }
+
     /// The Shiny Charm brings no species nor form, but first shinies more often: proposed until bought, or until the
     /// Glimmering Charm makes every hatch shiny.
     var proposesShinyCharm: Bool { !ownsShinyCharm && !ownsGlimmeringCharm }
@@ -297,14 +306,16 @@ extension CompanionStore {
     /// Whether graduating the Pokémon being raised adds a Rare Candy: the Reins of Unity's, but not for a Common.
     var reinsCandyOnGraduation: Bool { ownsReinsOfUnity && state.active.map { $0.rarity != .common } == true }
 
-    /// Whether this item of the Bag sends the Pokémon raised off for an egg now.
+    /// Whether this item of the Bag sends the Pokémon raised off for an egg, now or once the team exploring is back.
     private func canSendOff(for kind: ItemKind) -> Bool {
         switch kind {
-        case .fossilEgg: return canUseFossilEgg()
-        case .typeNullEgg: return canUseTypeNullEgg()
-        case .legendaryEgg: return canUseLegendaryEgg()
-        case .birthdayEgg: return canUseBirthdayEgg()
-        default: return EventEgg(item: kind).map(canUseEventEgg) ?? (canUseStone(kind) || canUseBagEgg(kind))
+        case .fossilEgg: return canUseFossilEgg(onReturn: true)
+        case .typeNullEgg: return canUseTypeNullEgg(onReturn: true)
+        case .legendaryEgg: return canUseLegendaryEgg(onReturn: true)
+        case .birthdayEgg: return canUseBirthdayEgg(onReturn: true)
+        default:
+            return EventEgg(item: kind).map { canUseEventEgg($0, onReturn: true) }
+                ?? (canUseStone(kind, onReturn: true) || canUseBagEgg(kind, onReturn: true))
         }
     }
 

@@ -64,8 +64,14 @@ struct OakAdviceCard: View {
                 ForEach(Array(words.steps.enumerated()), id: \.offset) { index, step in
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         OakStepNumber(index + 1)
-                        Text(words.title(step)).font(.caption.weight(.semibold))
-                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(words.title(step)).font(.caption.weight(.semibold))
+                                .fixedSize(horizontal: false, vertical: true)
+                            if let note = words.returnNote(step) {
+                                Text(note).font(.caption2).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
                         Spacer(minLength: 4)
                         switch words.place(step) {
                         case .bag?:
@@ -223,7 +229,7 @@ struct OakAdviceScreen: View {
                     ForEach(Array(words.steps.enumerated()), id: \.offset) { index, step in
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             OakStepNumber(index + 1)
-                            explained(words.title(step), words.detail(step))
+                            explained(words.title(step), words.explanation(step))
                         }
                     }
                     if store.proposesShinyCharm, let price = store.price(of: .shinyCharm) {
@@ -332,6 +338,17 @@ private struct OakWords {
             if buy > 0 { return give > 0 ? l.oakBuyAndGiveCandies(buy, give, to: name) : l.oakBuyAndKeepCandies(buy) }
             return give > 0 ? l.oakGiveCandies(give, to: name) : l.oakKeepCandies(keep)
         }
+    }
+
+    func returnNote(_ step: OakStep) -> String? {
+        guard store.oakWaitsForTheTeam(step) else { return nil }
+        if case .candies = step { return l.oakGiveOnReturn }
+        return l.oakUseOnReturn
+    }
+
+    func explanation(_ step: OakStep) -> String? {
+        let parts = [returnNote(step), detail(step)].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
     func detail(_ step: OakStep) -> String? {
