@@ -270,7 +270,7 @@ enum ExpeditionLogText {
             return l.dungeonLogBranch(roll: roll, risky: risky, until: min(entry.floor + 3, floors - 1))
         case .revive(_, let max): return l.dungeonLogItemUsed(l.itemName(max ? .maxRevive : .revive))
         case .emergencyHeal(let paid): return l.dungeonLogHeal(TokenFormatter.compact(paid))
-        case .bossReached: return l.dungeonLogBoss
+        case .bossReached(_, _, _, let secret): return secret == true ? l.dungeonLogSecretBoss : l.dungeonLogBoss
         case .capture(let attempt, let ball, let caught):
             return l.dungeonLogThrow(attempt, ball: ball.flatMap(ItemKind.init(rawValue:)).map(l.itemName) ?? l.dungeonPokeBall,
                                      caught: caught)
@@ -297,8 +297,12 @@ struct ExpeditionResultGuide: View {
     /// whose egg was won once, a boss not caught).
     static func egg(_ r: ExpeditionResult) -> (kind: EggKind, item: ItemKind?, speciesID: Int?)? {
         guard r.won, !r.dungeon.isChallenge, !r.dungeon.isHideout else { return nil }
+        // A secret boss's egg first: the rarest prize of all (the Origin trio's after Arceus included).
+        if let secret = r.loot.eggs.first(where: { $0.isSecret == true }) {
+            return (.secret, nil, secret.sourceSpeciesID)
+        }
         if let own = r.loot.eggs.first(where: { $0.sourceSpeciesID == r.boss.speciesID }) {
-            return (.dungeon(own.sourceSpeciesID), nil, own.sourceSpeciesID)
+            return (own.eggKind, nil, own.sourceSpeciesID)
         }
         let tier = DungeonCatalog.dungeon(r.dungeon).tier
         guard r.caught, let item = ExpeditionEngine.eggInPlace(r.bossReward, tier: tier) else { return nil }

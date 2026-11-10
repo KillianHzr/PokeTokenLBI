@@ -236,6 +236,7 @@ enum EggDesigns {
         case .tier(.uncommon): return emerald
         case .tier(.rare): return sapphire
         case .tier(.legendary): return legendary
+        case .secret: return secret
         case .plain, .tier: return nil
         }
     }
@@ -1081,6 +1082,55 @@ enum EggDesigns {
             sparkles(&canvas, f, [(-0.62, 0.5), (0.65, 0.15), (-0.2, -0.6), (0.4, 0.75), (-0.8, -0.2), (0.75, -0.55)],
                      .white)
         }, outline: EggColor(0.3, 0.32, 0.4))
+    }
+
+    // MARK: Secret Egg
+
+    /// The Secret Egg, every secret boss's (the owner, 2026-11-10): a black egg over a hidden sun, its rim lit, the
+    /// corona's rays turning behind.
+    static var secret: EggDesign {
+        let black = EggColor(0.06, 0.05, 0.09), rim = EggColor(1, 0.86, 0.5)
+        var surface = EggSurface(albedo: { p in
+            let star = EggLight.noise(p.angle * 16 + 11, p.y * 16) > 0.94
+            return star ? EggColor(0.4, 0.36, 0.5) : black
+        }, gloss: 0.35, shininess: 50)
+        surface.emission = { p in
+            // Light only on the edge, as the hidden sun shows round the moon.
+            let edge = 1 - p.normal.z
+            return edge > 0.8 ? rim.mixed(with: .white, (edge - 0.8) * 2) : nil
+        }
+        // The sun's corona round the egg's own shape, a little wider: points of the egg's edge pushed out.
+        func halo(_ f: EggFrame, out: Double) -> [(Double, Double)] {
+            (0..<48).map { i in
+                let y = -0.98 + 1.96 * Double(i) / 47
+                let (x, py) = f.pixel(EggProfile.radius(y) + out, y)
+                return (x, py)
+            } + (0..<48).reversed().map { i in
+                let y = -0.98 + 1.96 * Double(i) / 47
+                let (x, py) = f.pixel(-EggProfile.radius(y) - out, y)
+                return (x, py)
+            }
+        }
+        return EggDesign(surface: surface, back: { canvas, f in
+            canvas.polygon(halo(f, out: 0.16), EggColor(0.95, 0.55, 0.12), shade: false)
+            canvas.polygon(halo(f, out: 0.08), EggColor(1, 0.86, 0.5), shade: false)
+        }, outline: EggColor(0.03, 0.02, 0.05), glow: { canvas, f in
+            // The corona's rays, turning slowly, drawn after the outline: light has no border.
+            let (cx, cy) = f.pixel(0, 0)
+            for i in 0..<14 {
+                let a = Double(i) / 14 * 2 * .pi + f.t * 2 * .pi / 7
+                let (rx, ry) = (f.radius(0) + 4, 24.0 + 4)
+                let long = i.isMultiple(of: 2) ? 5.0 : 3.0
+                canvas.line(cx + cos(a) * rx, cy + sin(a) * ry, cx + cos(a) * (rx + long), cy + sin(a) * (ry + long),
+                            width: 1, EggColor(1, 0.82, 0.45))
+            }
+            for (i, (ex, ey)) in [(-0.95, 0.8), (0.95, -0.5), (0.25, 1.2)].enumerated() {
+                let on = (f.t * 3 + Double(i) / 3).truncatingRemainder(dividingBy: 1) < 0.4
+                guard on else { continue }
+                let (x, y) = f.pixel(ex, ey)
+                canvas.sparkle(x, y, 2, .white)
+            }
+        })
     }
 
     // MARK: Birthday egg

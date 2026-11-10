@@ -256,9 +256,9 @@ struct ExpeditionLogRow: View {
             line(nil, l.dungeonLogItemUsed(l.itemName(max ? .maxRevive : .revive)))
         case .emergencyHeal(let paid):
             line("heart.fill", l.dungeonLogHeal(TokenFormatter.compact(paid)))
-        case .bossReached(let species, let shiny):
-            sprite(species, shiny: shiny)
-            line("crown.fill", l.dungeonLogBoss)
+        case .bossReached(let species, let shiny, let form, let secret):
+            sprite(species, shiny: shiny, form: form)
+            line(secret == true ? "sparkles" : "crown.fill", secret == true ? l.dungeonLogSecretBoss : l.dungeonLogBoss)
         case .capture(let attempt, let ball, let caught):
             let kind = ball.flatMap(ItemKind.init(rawValue:))
             if let kind { ItemIconView(kind: kind, size: 16) }
@@ -344,7 +344,7 @@ struct ExpeditionLootIcons: View {
                 if let kind = ItemKind(rawValue: key) { icon(kind, count) }
             }
             ForEach(loot.eggs) { egg in
-                SpriteView(speciesID: nil, size: 16, egg: .dungeon(egg.sourceSpeciesID))
+                SpriteView(speciesID: nil, size: 16, egg: egg.eggKind)
             }
         }
     }
@@ -518,7 +518,7 @@ struct ExpeditionResultCard: View {
             }
             ForEach(r.loot.eggs) { egg in
                 HStack(spacing: 6) {
-                    SpriteView(speciesID: nil, size: 18, egg: .dungeon(egg.sourceSpeciesID))
+                    SpriteView(speciesID: nil, size: 18, egg: egg.eggKind)
                     DungeonEggTitle(speciesID: egg.baseID, l: l, language: store.language).font(.caption)
                     if egg.isShiny { Image(systemName: "sparkles").font(.caption2).foregroundStyle(.secondary) }
                 }

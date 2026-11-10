@@ -26,6 +26,8 @@ struct ExpeditionResult: Codable, Sendable, Equatable {
     var bossReward: Expedition.BossReward? = nil
     /// What a hideout's leader gave back (issue #180).
     var recovered: [String: Int]? = nil
+    /// The secret boss met, how it went (`SecretBosses`).
+    var secret: SecretEncounter? = nil
     /// Whose hideout it was.
     var villain: VillainTeam? { dungeon.villain }
     var log: [ExpeditionLogEntry]
@@ -114,6 +116,10 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var villainDay: String?
     /// The last day a team stole: never two days in a row.
     var villainLastTheft: String?
+    /// The secret bosses met and those caught (`SecretBosses.key`, "seafoamIslands:144:galar"), apart from the
+    /// dungeons' bosses: they count for none of their records.
+    var secretsMet: Set<String> = []
+    var secretsCaught: Set<String> = []
 
     init() {}
 
@@ -135,6 +141,8 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         weeklyTried = c.lenientOptional(String.self, forKey: .weeklyTried)
         challengeDraws = c.lenient([String: String].self, forKey: .challengeDraws, default: [:])
         legendaryEggsWon = c.lenient(Set<Int>.self, forKey: .legendaryEggsWon, default: [])
+        secretsMet = c.lenient(Set<String>.self, forKey: .secretsMet, default: [])
+        secretsCaught = c.lenient(Set<String>.self, forKey: .secretsCaught, default: [])
         savedTeam = c.lenient([String].self, forKey: .savedTeam, default: [])
         history = c.lenient([Lossy<DungeonRunRecord>].self, forKey: .history, default: []).compactMap(\.value)
         battleFormsWonAt = c.lenient([String: Date].self, forKey: .battleFormsWonAt, default: [:])

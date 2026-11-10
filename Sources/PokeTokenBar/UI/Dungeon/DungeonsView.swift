@@ -377,15 +377,16 @@ struct DungeonIcon: View {
 struct BossSlots {
     @MainActor
     enum Slot {
-        case met(speciesID: Int, beaten: Bool)
+        /// `beaten`: shown whole, else a silhouette (a secret boss: once caught).
+        case met(speciesID: Int, beaten: Bool, form: PokemonForm? = nil)
         case unknown
 
         @ViewBuilder
         func view(size: CGFloat, language: AppLanguage) -> some View {
             switch self {
-            case .met(let species, let beaten):
-                SpriteView(speciesID: species, size: size, isSilhouette: !beaten, sameScale: true)
-                    .speciesNameTooltip(species, language: language)
+            case .met(let species, let beaten, let form):
+                SpriteView(speciesID: species, size: size, form: form, isSilhouette: !beaten, sameScale: true)
+                    .speciesNameTooltip(species, form: form, language: language)
             case .unknown:
                 Text("?").font(.system(size: size * 0.45, weight: .bold, design: .rounded)).foregroundStyle(.secondary)
                     .frame(width: size, height: size)
@@ -396,7 +397,7 @@ struct BossSlots {
     }
 
     /// Up to `shownAtMost` slots, the latest met last; `hidden` more met past them.
-    let slots: [Slot]
+    private(set) var slots: [Slot]
     let hidden: Int
     let met: Int
 
@@ -416,6 +417,11 @@ struct BossSlots {
             slots = shown.map(slot) + [.unknown]
             hidden = reached.count - shown.count
         }
+        // A secret boss shows only once met, after the others, a silhouette until caught (the owner, 2026-11-10): no
+        // "?" gives it away, and the bosses' count stays the dungeon's own.
+        let secrets = SecretBosses.candidates(id).filter { progress.secretsMet.contains(SecretBosses.key(id, $0)) }
+        slots += secrets.map { .met(speciesID: $0.speciesID, beaten: progress.secretsCaught.contains(SecretBosses.key(id, $0)),
+                                    form: $0.form) }
     }
 }
 

@@ -236,8 +236,10 @@ enum DungeonCatalog {
             // boss is any final species but Arceus.
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [], themeTypes: [.psychic],
                            wild: [201] + themed([.psychic, .rock], tier: .t4),
-                           bosses: SpeciesInfo.all.keys.filter {
-                               $0 != arceusID && $0 <= 1025 && SpeciesInfo.isFinal($0) && SpeciesBattleTable.all[$0] != nil
+                           // Never its secret boss, Regigigas, which would be no secret then (2026-11-10).
+                           bosses: SpeciesInfo.all.keys.filter { id in
+                               id != arceusID && id <= 1025 && SpeciesInfo.isFinal(id) && SpeciesBattleTable.all[id] != nil
+                                   && !SecretBosses.candidates(.ruinsOfAlph).contains { $0.speciesID == id }
                            }.sorted(),
                            unlocks: [.treasureMap])
         case .hallOfOrigin:
