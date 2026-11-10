@@ -125,6 +125,8 @@ final class PopoverNavigation {
     /// The general team (`MyTeamScreen`) and the type chart (`TypeChartScreen`), from the Dungeons tab.
     var showingMyTeam = false
     var showingTypeChart = false
+    /// The Collection's statistics (`CollectionStatsScreen`).
+    var showingCollectionStats = false
     /// Every expedition that ended (#133), and one of them opened on its journal (`endedAt` names it).
     var showingRunHistory = false
     var pastRun: Date?
@@ -197,6 +199,7 @@ final class PopoverNavigation {
         dungeonDetail = nil
         showingMyTeam = false
         showingTypeChart = false
+        showingCollectionStats = false
         showingRunHistory = false
         pastRun = nil
         replayBattle = nil
@@ -317,6 +320,8 @@ struct PopoverView: View {
                 MyTeamScreen(store: companion) { nav.showingMyTeam = false }
             } else if nav.showingTypeChart {
                 TypeChartScreen(store: companion) { nav.showingTypeChart = false }
+            } else if nav.showingCollectionStats {
+                CollectionStatsScreen(store: companion) { nav.showingCollectionStats = false }
             } else if nav.showingLuck {
                 LuckScreen(store: companion, nav: nav) { nav.showingLuck = false }
             } else {

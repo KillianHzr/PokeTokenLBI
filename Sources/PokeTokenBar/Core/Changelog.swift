@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .new("2026-11-10-collection-stats", { $0.t("컬렉션에 통계가 생겼어요: 종·모습·계열·이로치 고리, 세대 × 타입 지도(칸마다 남은 수), 분류와 배틀 폼, 거의 다 모은 것. 누르면 없는 포켓몬이 보여요.",
+                                                         "The Collection has its stats: rings for species, forms, lines and shinies, a map of generations by types (how many are left in each cell), the categories and battle forms, and what is almost done. Click to see who is missing.",
+                                                         "コレクションにとうけいができました：しゅるい・すがた・けいとう・いろちがいの輪、せだい × タイプのマップ（マスごとにのこりの数）、ぶんるいとバトルフォーム、もうすこしのもの。クリックでいないポケモンが見られます。",
+                                                         "La Colección tiene sus estadísticas: anillos de especies, formas, líneas y variocolores, un mapa de generaciones por tipos (cuántos faltan en cada casilla), las categorías y formas de combate, y lo que está casi terminado. Haz clic para ver quién falta.",
+                                                         "La Collection a ses statistiques : les anneaux des espèces, formes, lignées et chromatiques, une carte des générations par types (combien il en manque dans chaque case), les catégories et formes de combat, et ce qui est presque fini. Un clic montre qui manque.",
+                                                         "A Coleção tem suas estatísticas: anéis de espécies, formas, linhas e brilhantes, um mapa de gerações por tipos (quantos faltam em cada casa), as categorias e formas de batalha, e o que está quase pronto. Clique para ver quem falta.",
+                                                         "Die Sammlung hat ihre Statistik: Ringe für Arten, Formen, Linien und Schillernde, eine Karte der Generationen nach Typen (wie viele in jedem Feld fehlen), die Kategorien und Kampfformen und was fast geschafft ist. Klicke, um zu sehen, wer fehlt.",
+                                                         "В коллекции появилась статистика: кольца видов, форм, линий и шайни, карта поколений по типам (сколько осталось в каждой клетке), категории и боевые формы, и то, что почти собрано. Нажмите, чтобы увидеть, кого не хватает.") }),
             .improved("2026-11-10-mt-coronet-bosses") { l in
                 let coronet = l.dungeonName(.mtCoronet)
                 return l.t("\(coronet)에 들어가려면 앞선 던전의 보스를 모두 쓰러뜨리고 잡아야 해요. 카드에 남은 보스가 보여요. 이미 클리어한 던전은 그대로 열려 있어요.",
