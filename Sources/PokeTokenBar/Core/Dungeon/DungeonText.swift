@@ -1210,6 +1210,11 @@ extension L {
         t("새 형태: \(form)", "New form: \(form)", "新しいすがた：\(form)", "Nueva forma: \(form)", "Nouvelle forme : \(form)",
           "Nova forma: \(form)", "Neue Form: \(form)", "Новая форма: \(form)")
     }
+    /// The badge of a battle form's line in the catch log.
+    var battleFormBadge: String {
+        t("전투 형태", "Battle form", "バトルのすがた", "Forma de combate", "Forme de combat", "Forma de batalha", "Kampfform",
+          "Боевая форма")
+    }
     var battleFormsTitle: String {
         t("전투 형태", "Battle forms", "バトルのすがた", "Formas de combate", "Formes de combat", "Formas de batalha",
           "Kampfformen", "Боевые формы")
@@ -1261,6 +1266,20 @@ extension L {
     var challengeWonDay: String {
         t("오늘 성공", "Won today", "今日は成功", "Superado hoy", "Réussi aujourd'hui", "Vencido hoje", "Heute geschafft",
           "Сегодня успех")
+    }
+    var challengeWonWeek: String {
+        t("이번 주 성공", "Won this week", "今週は成功", "Superado esta semana", "Réussi cette semaine", "Vencido esta semana",
+          "Diese Woche geschafft", "На этой неделе успех")
+    }
+    var challengeNextWeek: String {
+        t("월요일에 새 보스", "New boss on Monday", "月曜日に新しいボス", "Nuevo jefe el lunes", "Nouveau boss lundi",
+          "Novo chefe na segunda", "Am Montag ein neuer Boss", "В понедельник новый босс")
+    }
+    var challengeWeekWonTip: String {
+        t("이번 주 보스를 이겼어요. 월요일에 새 보스가 나와요.", "This week's boss is beaten: a new boss on Monday.",
+          "今週のボスは倒しました。月曜日に新しいボスが出ます。", "Jefe de la semana vencido: nuevo jefe el lunes.",
+          "Boss de la semaine battu : nouveau boss lundi.", "Chefe da semana vencido: novo chefe na segunda.",
+          "Wochenboss besiegt: am Montag ein neuer Boss.", "Босс недели побеждён: в понедельник новый босс.")
     }
     var challengeNextDay: String {
         t("내일 새 보스", "New boss tomorrow", "明日は新しいボス", "Nuevo jefe mañana", "Nouveau boss demain", "Novo chefe amanhã",

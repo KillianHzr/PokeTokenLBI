@@ -244,6 +244,8 @@ private struct ChallengeCard: View {
         // The one try lost: the card greyed and its boss crossed out (the owner, 2026-11-09); won, said in blue.
         let outcome = running == nil ? store.challengeOutcome(id) : nil
         let lost = outcome == false
+        // The week's won waits for Monday (the owner, 2026-11-10: one of its forms a week at most).
+        let weekWon = id == .weekly && outcome == true
         let details = [l.dungeonFloors(dungeon.floors),
                        l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id))),
                        l.challengeOneTryADay].joined(separator: " · ")
@@ -289,14 +291,15 @@ private struct ChallengeCard: View {
                 } else if let outcome {
                     VStack(alignment: .leading, spacing: 2) {
                         if outcome {
-                            Label(l.challengeWonDay, systemImage: "checkmark.seal.fill")
+                            Label(weekWon ? l.challengeWonWeek : l.challengeWonDay, systemImage: "checkmark.seal.fill")
                                 .fontWeight(.semibold).foregroundStyle(Design.actionColor)
                         } else {
                             Label(l.challengeLostDay, systemImage: "xmark")
                                 .fontWeight(.semibold).foregroundStyle(Color.readableOrange)
                         }
-                        // The day's dungeon draws a new boss tomorrow; the week's keeps its own, tried again tomorrow.
-                        Text(id == .daily ? l.challengeNextDay : l.challengeTryTomorrow)
+                        // The day's dungeon draws a new boss tomorrow; the week's, lost, keeps its boss for tomorrow's try,
+                        // won, draws a new one on Monday.
+                        Text(id == .daily ? l.challengeNextDay : weekWon ? l.challengeNextWeek : l.challengeTryTomorrow)
                     }
                 } else if tried {
                     Label(l.challengeTriedShortDay, systemImage: "hourglass")
@@ -315,6 +318,7 @@ private struct ChallengeCard: View {
         .designSurface(cornerRadius: Design.cornerRadius)
         .opacity(lost ? 0.8 : 1)
         .hoverTip(boss == nil && unmet.isEmpty ? l.challengeAllWon
+                  : weekWon ? l.challengeWeekWonTip
                   : tried ? l.challengeTriedToday
                   : store.expedition != nil && unmet.isEmpty ? l.dungeonOneAtATime
                   : details + "\n" + l.challengeHard)

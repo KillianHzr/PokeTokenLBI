@@ -93,17 +93,15 @@ extension CompanionStore {
     /// Whether a team may set off for it now: open, its keys in the Bag, no other expedition under way.
     func canEnter(_ id: DungeonID) -> Bool {
         guard expedition == nil, isDungeonOpen(id), itemCount(.legendaryKey) >= keysToEnter(id) else { return false }
-        return !id.isChallenge || (challengeBoss(id) != nil && !challengeTried(id))
+        // The week's dungeon, once won, waits for Monday (the owner, 2026-11-10: one of its forms a week at most).
+        return !id.isChallenge || (challengeBoss(id) != nil && !challengeTried(id) && challengeBeaten(id) == nil)
     }
 
     // MARK: The daily and weekly dungeons (2026-11-02)
 
     /// The day (`yyyy-MM-dd`) or the ISO week (`yyyy-Www`) a challenge's one try belongs to.
     func challengePeriod(_ id: DungeonID, at date: Date? = nil) -> String {
-        let calendar = Calendar(identifier: .iso8601)
-        let c = calendar.dateComponents([.year, .month, .day, .yearForWeekOfYear, .weekOfYear], from: date ?? currentDate)
-        if id == .weekly { return String(format: "%04d-W%02d", c.yearForWeekOfYear ?? 0, c.weekOfYear ?? 0) }
-        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+        DungeonProgress.challengePeriod(id, at: date ?? currentDate)
     }
 
     /// The day a challenge's try belongs to: one try a day for both, the week's included (the owner, 2026-11-10: "une
@@ -119,7 +117,10 @@ extension CompanionStore {
     /// 2026-11-09: a lost daily dungeon shows as such). Its run is the one of that challenge ended this day, never the
     /// day before's. A save from before the history counts it lost when its boss's form was not won.
     func challengeOutcome(_ id: DungeonID) -> Bool? {
-        guard challengeTried(id), expedition?.dungeon != id else { return nil }
+        guard expedition?.dungeon != id else { return nil }
+        // The week's boss beaten on Monday is still won on Wednesday.
+        if challengeBeaten(id) != nil { return true }
+        guard challengeTried(id) else { return nil }
         let day = challengeTryPeriod()
         if let run = state.dungeons.history.last(where: { $0.dungeon == id && challengeTryPeriod(at: $0.endedAt) == day }) {
             return run.won
@@ -138,6 +139,7 @@ extension CompanionStore {
     /// once every form a challenge can give is won.
     func challengeBoss(_ id: DungeonID) -> BattleForm? {
         guard id.isChallenge else { return nil }
+        if let beaten = challengeBeaten(id) { return beaten }
         let candidates = challengeCandidates(id)
         guard !candidates.isEmpty else { return nil }
         // Kept once seen (`settleChallengeBosses`): a graduation in the day changed the draw's list, and the boss.
@@ -149,7 +151,15 @@ extension CompanionStore {
         return candidates[Int(hash % UInt64(candidates.count))]
     }
 
-    private func challengeDrawKey(_ id: DungeonID) -> String { "\(id.rawValue):\(challengePeriod(id))" }
+    /// The boss beaten in this period (`DungeonProgress.challengeWins`): it stays the day's boss until the next day
+    /// (the owner, 2026-11-10: Mega Staraptor beaten, its card showed another boss under "won today"), the week's until
+    /// Monday. Won, it had left the draw, which fell on another form.
+    func challengeBeaten(_ id: DungeonID) -> BattleForm? {
+        guard id.isChallenge else { return nil }
+        return state.dungeons.challengeWins[challengeDrawKey(id)].flatMap { BattleForms.form(key: $0) }
+    }
+
+    private func challengeDrawKey(_ id: DungeonID) -> String { DungeonProgress.challengeKey(id, at: currentDate) }
 
     /// Keeps the day's and the week's bosses as first shown, for their whole period; older draws go.
     func settleChallengeBosses() {
@@ -810,7 +820,14 @@ extension CompanionStore {
                 progress.legendaryEggsWon.insert(e.boss.speciesID)
             }
             progress.eggs += loot.eggs
-            if let battleForm { progress.battleForms.insert(battleForm.key) }
+            if let battleForm {
+                progress.battleForms.insert(battleForm.key)
+                progress.battleFormsWonAt[battleForm.key] = record.endedAt
+                // By the period it set off in: a run past midnight won the day before's boss, not the new day's.
+                let current = [DungeonID.daily, .weekly].map { DungeonProgress.challengeKey($0, at: currentDate) }
+                progress.challengeWins = progress.challengeWins.filter { current.contains($0.key) }
+                progress.challengeWins[DungeonProgress.challengeKey(e.dungeon, at: e.startedAt)] = battleForm.key
+            }
             if let unlockedMove { progress.unlockedMoves.insert(unlockedMove) }
             if won {
                 progress.wins[e.dungeon.rawValue, default: 0] += 1

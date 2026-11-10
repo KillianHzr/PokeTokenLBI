@@ -965,7 +965,9 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertTrue(s.dungeonProgress.battleForms.contains(boss.key))
         XCTAssertEqual(s.graduatedCollectionProgress.forms, formsBefore + 1)
         XCTAssertFalse(s.canEnter(.daily), "one try a day")
-        XCTAssertNotEqual(s.challengeBoss(.daily), boss, "won: no longer drawn")
+        XCTAssertEqual(s.challengeBoss(.daily), boss, "won: still the day's boss (the owner, 2026-11-10)")
+        s.settleChallengeBosses()
+        XCTAssertEqual(s.challengeBoss(.daily), boss, "kept once settled")
         // The owner of the species takes it in a dungeon, never using it up.
         let owner = try XCTUnwrap(s.state.dex.first { $0.finalID == boss.speciesID })
         XCTAssertTrue(s.setBattleForm(boss, for: owner.id))
@@ -1254,6 +1256,80 @@ final class DungeonStoreTests: XCTestCase {
         s.changeDungeons { $0.dailyTried = s.challengePeriod(.daily) }
         XCTAssertEqual(s.challengeOutcome(.daily), false, "tried today, its boss not won: yesterday's win does not count")
         s.changeDungeons { $0.history.append(record(true, now.addingTimeInterval(-60))) }
+        XCTAssertEqual(s.challengeOutcome(.daily), true)
+    }
+
+    /// The boss a try beat stays its period's boss (the owner, 2026-11-10: Mega Staraptor beaten, the card showed
+    /// another boss under "won today"): the day's until the next day, the week's until Monday, its dungeon closed till
+    /// then ("une forme de la semaine par semaine au plus").
+    func testTheBossBeatenStaysItsPeriodsBoss() throws {
+        let calendar = Calendar(identifier: .iso8601)
+        // Tuesday 10:00, local time.
+        var parts = DateComponents(year: 2026, month: 11, day: 10, hour: 10)
+        parts.timeZone = .current
+        let team = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        for id in [DungeonID.daily, .weekly] {
+            let clock = Clock(try XCTUnwrap(calendar.date(from: parts)))
+            let s = try store(dex: team, clock: clock) {
+                $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1
+                $0.dungeons.wins[DungeonID.seafoamIslands.rawValue] = 1
+            }
+            let boss = try XCTUnwrap(s.challengeBoss(id))
+            s.settleChallengeBosses()
+            XCTAssertTrue(s.startExpedition(id, team: team.map(\.id)), id.rawValue)
+            clock.date = clock.date.addingTimeInterval(600)
+            s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
+            s.endCapture()
+            XCTAssertEqual(s.dungeonProgress.battleFormsWonAt[boss.key], clock.date, id.rawValue)
+            XCTAssertEqual(s.challengeOutcome(id), true, id.rawValue)
+            XCTAssertEqual(s.challengeBoss(id), boss, "\(id.rawValue): won, still the day's boss")
+            s.settleChallengeBosses()
+            XCTAssertEqual(s.challengeBoss(id), boss, "\(id.rawValue): and once settled")
+            clock.date = clock.date.addingTimeInterval(86_400)
+            if id == .daily {
+                let next = try XCTUnwrap(s.challengeBoss(id))
+                XCTAssertNotEqual(next, boss, "the next day, a form not won")
+                XCTAssertTrue(s.challengeCandidates(id).contains(next))
+                XCTAssertNil(s.challengeOutcome(id))
+                XCTAssertTrue(s.canEnter(id))
+            } else {
+                XCTAssertEqual(s.challengeBoss(id), boss, "the week's boss, beaten, stays the week's")
+                XCTAssertEqual(s.challengeOutcome(id), true, "still won on Wednesday")
+                XCTAssertFalse(s.canEnter(id), "one of its forms a week at most")
+                XCTAssertFalse(s.startExpedition(id, team: team.map(\.id)))
+                // Monday: a new week, a new boss, a new try.
+                clock.date = clock.date.addingTimeInterval(5 * 86_400)
+                let next = try XCTUnwrap(s.challengeBoss(id))
+                XCTAssertNotEqual(next, boss)
+                XCTAssertTrue(s.challengeCandidates(id).contains(next))
+                XCTAssertNil(s.challengeOutcome(id))
+                XCTAssertTrue(s.canEnter(id))
+            }
+        }
+    }
+
+    /// The owner's save (2026-11-10): Mega Staraptor won at 11:04 before the date was kept, the day's draw already moved
+    /// on to Mega Absol. Its win in the history gives its date back, and the day's boss with it.
+    func testASaveFromBeforeFindsTheBossItBeat() throws {
+        let calendar = Calendar(identifier: .iso8601)
+        var parts = DateComponents(year: 2026, month: 11, day: 10, hour: 11, minute: 17)
+        parts.timeZone = .current
+        let clock = Clock(try XCTUnwrap(calendar.date(from: parts)))
+        let wonAt = clock.date.addingTimeInterval(-13 * 60)
+        let team = [398, 359, 9, 25, 143, 130].map { graduated($0) }
+        let staraptor = try XCTUnwrap(BattleForms.daily.first { $0.speciesID == 398 })
+        let absol = try XCTUnwrap(BattleForms.daily.first { $0.speciesID == 359 })
+        let won = DungeonRunRecord(dungeon: .daily, endedAt: wonAt, won: true, left: false, floor: 8, floors: 8, tokens: 1,
+                                   candies: 0, eggs: 0, items: 0, bossSpeciesID: 398, caught: false)
+        let s = try store(dex: team, clock: clock) {
+            $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1
+            $0.dungeons.battleForms = [staraptor.key]
+            $0.dungeons.history = [won]
+            $0.dungeons.dailyTried = "2026-11-10"
+            $0.dungeons.challengeDraws = ["daily:2026-11-10": absol.key]
+        }
+        XCTAssertEqual(s.dungeonProgress.battleFormsWonAt, [staraptor.key: wonAt])
+        XCTAssertEqual(s.challengeBoss(.daily), staraptor)
         XCTAssertEqual(s.challengeOutcome(.daily), true)
     }
 
