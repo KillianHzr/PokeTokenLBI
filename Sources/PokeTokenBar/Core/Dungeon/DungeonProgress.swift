@@ -81,6 +81,9 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var departures = 0
     /// Battle forms won (`BattleForm.key`), never used up: in the Pokédex, and for any graduated Pokémon of the species.
     var battleForms: Set<String> = []
+    /// When each battle form was won, for its line in the catch log (the owner, 2026-11-10); those won before it was
+    /// kept take their challenge's win in the history, none when it is gone.
+    var battleFormsWonAt: [String: Date] = [:]
     /// The battle form each graduated Pokémon fights in, by Pokédex entry; none for its usual form.
     var battleFormChoice: [String: String] = [:]
     /// The day (`yyyy-MM-dd`) and the week (`yyyy-Www`) whose challenge was tried: one try each.
@@ -88,6 +91,10 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var weeklyTried: String?
     /// The challenges' bosses as first shown ("daily:2026-11-02" → `BattleForm.key`), kept for their period.
     var challengeDraws: [String: String] = [:]
+    /// The boss each challenge was beaten against, by the period its run set off in (keyed as `challengeDraws`): the
+    /// day's boss stays until the next day, the week's until Monday, its dungeon closed till then (the owner,
+    /// 2026-11-10: "une forme de la semaine par semaine au plus"). Filled from the history in a save from before.
+    var challengeWins: [String: String] = [:]
     /// The legendary bosses whose egg was won, or the Legendary Egg in its place: once per species (the owner,
     /// 2026-11-04). They give the loot only afterwards.
     var legendaryEggsWon: Set<Int> = []
@@ -118,7 +125,37 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         legendaryEggsWon = c.lenient(Set<Int>.self, forKey: .legendaryEggsWon, default: [])
         savedTeam = c.lenient([String].self, forKey: .savedTeam, default: [])
         history = c.lenient([Lossy<DungeonRunRecord>].self, forKey: .history, default: []).compactMap(\.value)
+        battleFormsWonAt = c.lenient([String: Date].self, forKey: .battleFormsWonAt, default: [:])
+            .filter { battleForms.contains($0.key) }
+        for key in battleForms where battleFormsWonAt[key] == nil {
+            guard let form = BattleForms.form(key: key) else { continue }
+            if let run = history.first(where: { $0.won && $0.dungeon.isChallenge && $0.bossSpeciesID == form.speciesID }) {
+                battleFormsWonAt[key] = run.endedAt
+            }
+        }
+        challengeWins = c.lenient([String: String].self, forKey: .challengeWins, default: [:])
+            .filter { BattleForms.form(key: $0.value) != nil }
+        // A save from before keyed its wins nowhere: each won run counts for the period it ended in.
+        if challengeWins.isEmpty {
+            for run in history where run.won && run.dungeon.isChallenge {
+                let forms = (run.dungeon == .weekly ? BattleForms.weekly : BattleForms.daily)
+                    .filter { $0.speciesID == run.bossSpeciesID && battleForms.contains($0.key) }
+                guard let form = forms.first(where: { battleFormsWonAt[$0.key] == run.endedAt }) ?? forms.first else { continue }
+                challengeWins[Self.challengeKey(run.dungeon, at: run.endedAt)] = form.key
+            }
+        }
     }
+
+    /// The day (`yyyy-MM-dd`) or the ISO week (`yyyy-Www`) a challenge's boss and try belong to, in local time.
+    static func challengePeriod(_ id: DungeonID, at date: Date) -> String {
+        let calendar = Calendar(identifier: .iso8601)
+        let c = calendar.dateComponents([.year, .month, .day, .yearForWeekOfYear, .weekOfYear], from: date)
+        if id == .weekly { return String(format: "%04d-W%02d", c.yearForWeekOfYear ?? 0, c.weekOfYear ?? 0) }
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// "daily:2026-11-10", "weekly:2026-W46": a challenge's period, for its draw and its win.
+    static func challengeKey(_ id: DungeonID, at date: Date) -> String { "\(id.rawValue):\(challengePeriod(id, at: date))" }
 
     func wins(_ id: DungeonID) -> Int { wins[id.rawValue] ?? 0 }
 

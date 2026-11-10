@@ -241,6 +241,7 @@ enum SaveTransfer {
         // The week's try is a day's since 2026-11-10 (a week's key before).
         p.weeklyTried = p.weeklyTried.flatMap { $0.count <= 10 ? $0 : nil }
         p.challengeDraws = p.challengeDraws.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
+        p.challengeWins = p.challengeWins.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
         let battleForms = Set(BattleForms.all.map(\.form.rawValue))
         p.battleFormChoice = p.battleFormChoice.filter { battleForms.contains($0.value) }
         // An expedition already over waits for nothing that would close it, and a boss the app does not know would give an

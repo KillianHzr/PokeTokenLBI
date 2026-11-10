@@ -778,6 +778,16 @@ read_when:
   team screen opened before midnight showed one boss and set off against the next day's. The screen keeps the boss it
   showed (`shownBoss`) and `startExpedition(_:team:expectedBoss:)` refuses when the draw changed, refreshing the screen
   (`DungeonStoreTests.testAChallengeDepartureWaitsForTheBossItShowed`).
+- **A draw kept for the day is kept even once the player's own action takes it out of the pool.** The daily boss was
+  drawn from the forms not won yet and kept only while still among them: beating it took it out, the draw fell on
+  another form, and the card showed that one under "won today" (the owner, 2026-11-10: Mega Staraptor beaten, Mega
+  Absol shown). **Why it was missed:** `testTheDailyDungeonGivesAMega` asserted the boss changed once won ("no longer
+  drawn"), meaning the next days, and checked it the same day. The boss a try beats is now kept apart, by the period
+  its run set off in (`DungeonProgress.challengeWins`): the day's until the next day, the week's until Monday, its
+  dungeon closed till then; a save from before finds it through its run in the history
+  (`testTheBossBeatenStaysItsPeriodsBoss`, `testASaveFromBeforeFindsTheBossItBeat`; a run past midnight won the day
+  before's boss, `testAChallengeGoesOnPastMidnightAndTheWeeksTurn`). Sweep: the travelling merchant draws from a fixed list the player never
+  changes. A draw "fixed for the period" over a set an action shrinks needs the period's result kept apart.
 
 ## 외부 로그·사용량 소스
 

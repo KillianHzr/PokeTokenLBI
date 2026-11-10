@@ -1422,8 +1422,8 @@ struct CollectionView: View {
     /// 팝오버가 리사이즈되지 않는다.
     private static let contentHeight: CGFloat = 520
 
-    private var visibleEntries: [DexEntry] {
-        store.filteredDexEntries(
+    private var visibleEntries: [CatchLogItem] {
+        store.catchLogItems(
             query: searchText,
             rarity: selectedRarity,
             shinyOnly: shinyOnly,
@@ -1655,12 +1655,21 @@ struct CollectionView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 8) {
                             Color.clear.frame(height: 0).id("dexTop")
-                            ForEach(entries) { entry in
-                                // Keeps the segment, so Back from the detail page returns to the log.
-                                DexEntryRow(store: store, entry: entry, dexLinks: dexLinks,
-                                            isDuplicate: duplicates.contains(entry.id), catchRank: ranks[entry.id]) {
-                                    logReturnAnchor = entry.id
-                                    navigation.dexDetailCollectionID = $0
+                            ForEach(entries) { item in
+                                switch item {
+                                case .entry(let entry):
+                                    // Keeps the segment, so Back from the detail page returns to the log.
+                                    DexEntryRow(store: store, entry: entry, dexLinks: dexLinks,
+                                                isDuplicate: duplicates.contains(entry.id), catchRank: ranks[entry.id]) {
+                                        logReturnAnchor = entry.id
+                                        navigation.dexDetailCollectionID = $0
+                                    }
+                                case .battleForm(let won):
+                                    BattleFormCatchRow(store: store, won: won, dexLinks: dexLinks) { collectionID, form in
+                                        logReturnAnchor = won.id
+                                        navigation.dexDetailForm = form
+                                        navigation.dexDetailCollectionID = collectionID
+                                    }
                                 }
                             }
                         }
