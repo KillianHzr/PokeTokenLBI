@@ -2615,7 +2615,9 @@ final class CompanionStore {
     /// on), else the egg's incubation or the Pokémon's growth.
     private func creditGrowth(_ delta: Int) {
         var delta = delta
+        if state.dungeons.budget == nil { state.dungeons.budget = DungeonBudget(start: state.usedSinceInstall - delta) }
         if let left = feedExpedition(delta) {
+            state.dungeons.budget?.dungeonTokens += delta - left
             guard left > 0 else { return }
             delta = left
         }

@@ -234,6 +234,7 @@ enum SaveTransfer {
         var p = progress
         p.wins = p.wins.mapValues(count)
         p.departures = count(p.departures)
+        p.budget = p.budget.map { DungeonBudget(start: clampToken($0.start), dungeonTokens: clampToken($0.dungeonTokens)) }
         // An egg of a species the app cannot hatch would send the Pokémon raised off for an egg that never opens.
         p.eggs = p.eggs.filter(isHatchable)
         // The challenges' days and weeks are short keys; their draws name known battle forms; a member's form is one.
