@@ -519,7 +519,8 @@ struct ExpeditionResultCard: View {
             ForEach(r.loot.eggs) { egg in
                 HStack(spacing: 6) {
                     SpriteView(speciesID: nil, size: 18, egg: egg.eggKind)
-                    DungeonEggTitle(speciesID: egg.baseID, l: l, language: store.language).font(.caption)
+                    DungeonEggTitle(speciesID: egg.baseID, l: l, language: store.language, secret: egg.isSecret == true)
+                        .font(.caption)
                     if egg.isShiny { Image(systemName: "sparkles").font(.caption2).foregroundStyle(.secondary) }
                 }
             }

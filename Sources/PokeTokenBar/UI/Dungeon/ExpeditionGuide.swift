@@ -334,7 +334,7 @@ struct ExpeditionResultGuide: View {
             Group {
                 if let egg = Self.egg(r) {
                     if let species = egg.speciesID {
-                        DungeonEggTitle(speciesID: species, l: l, language: store.language)
+                        DungeonEggTitle(speciesID: species, l: l, language: store.language, secret: egg.kind == .secret)
                     } else if let item = egg.item {
                         Text(l.itemName(item))
                     }
