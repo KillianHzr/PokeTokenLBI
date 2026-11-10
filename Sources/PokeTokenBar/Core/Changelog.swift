@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-dungeons-look", { $0.t("던전 탭이 새로워졌어요: 던전 타입 색, 큰 디오라마, 같은 높이의 오늘·이번 주 카드.",
+                                                       "The Dungeons tab has a new look: each dungeon in its types' colors with its diorama large, the daily and weekly cards side by side at one height.",
+                                                       "ダンジョンのタブが新しくなりました。ダンジョンのタイプの色、大きなジオラマ、同じ高さの今日と今週のカード。",
+                                                       "La pestaña Mazmorras cambia de aspecto: cada mazmorra con los colores de sus tipos y su diorama en grande, las tarjetas del día y de la semana a la misma altura.",
+                                                       "L'onglet Donjons change de look : chaque donjon aux couleurs de ses types avec sa diorama en grand, les cartes du jour et de la semaine à la même hauteur.",
+                                                       "A aba Masmorras mudou: cada masmorra com as cores dos seus tipos e o diorama em tamanho grande, os cartões do dia e da semana na mesma altura.",
+                                                       "Der Dungeon-Tab sieht neu aus: jeder Dungeon in den Farben seiner Typen mit großem Diorama, Tages- und Wochenkarte gleich hoch.",
+                                                       "Вкладка подземелий обновилась: каждое подземелье в цветах своих типов с крупной диорамой, карточки дня и недели одной высоты.") }),
             .improved("2026-11-10-item-descriptions", { $0.t("아이템 설명이 하는 일만 바로 말해요.",
                                                            "Item descriptions now say straight away what each item does.",
                                                            "アイテムの説明が、何をするかだけをすぐに伝えるようになりました。",
