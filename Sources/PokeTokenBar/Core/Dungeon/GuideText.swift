@@ -73,4 +73,63 @@ extension L {
                  "Pas cette fois : le butin des étages est gardé.", "Não desta vez: o butim dos andares fica.",
                  "Diesmal nicht: Die Beute der Ebenen bleibt.", "Не в этот раз: добыча этажей остаётся.")
     }
+
+    /// The badge in place of the path while the team waits for the emergency heal.
+    var guideKOAlert: String {
+        t("기절 경보", "K.O. alert", "ひんし警報", "Alerta K.O.", "Alerte K.O.", "Alerta de nocaute", "K.O.-Alarm", "Тревога: нокаут")
+    }
+
+    func guideFell(floor: Int, of floors: Int, against kind: ExpeditionEventKind?) -> String {
+        switch kind {
+        case .boss?:
+            return t("팀이 \(floors)층에서 보스에게 쓰러졌어요.", "Your team fell to the boss on floor \(floors).",
+                     "チームは\(floors)階でボスに倒されました。", "Tu equipo cayó ante el jefe en el piso \(floors).",
+                     "Ton équipe est tombée face au boss, à l'étage \(floors).", "Sua equipe caiu diante do chefe no andar \(floors).",
+                     "Dein Team ist auf Ebene \(floors) dem Boss unterlegen.", "Ваша команда пала перед боссом на этаже \(floors).")
+        case .horde?:
+            return t("팀이 \(floors)층 중 \(floor)층에서 무리에게 쓰러졌어요.", "Your team fell to a horde on floor \(floor) of \(floors).",
+                     "チームは\(floors)階中\(floor)階で群れに倒されました。", "Tu equipo cayó ante una horda en el piso \(floor) de \(floors).",
+                     "Ton équipe est tombée face à une horde, à l'étage \(floor) sur \(floors).",
+                     "Sua equipe caiu diante de uma horda no andar \(floor) de \(floors).",
+                     "Dein Team ist auf Ebene \(floor) von \(floors) einer Horde unterlegen.",
+                     "Ваша команда пала перед ордой на этаже \(floor) из \(floors).")
+        case .trainer?:
+            return t("팀이 \(floors)층 중 \(floor)층에서 트레이너에게 쓰러졌어요.", "Your team fell to a trainer on floor \(floor) of \(floors).",
+                     "チームは\(floors)階中\(floor)階でトレーナーに倒されました。",
+                     "Tu equipo cayó ante un entrenador en el piso \(floor) de \(floors).",
+                     "Ton équipe est tombée face à un dresseur, à l'étage \(floor) sur \(floors).",
+                     "Sua equipe caiu diante de um treinador no andar \(floor) de \(floors).",
+                     "Dein Team ist auf Ebene \(floor) von \(floors) einem Trainer unterlegen.",
+                     "Ваша команда пала перед тренером на этаже \(floor) из \(floors).")
+        default:
+            return t("팀이 \(floors)층 중 \(floor)층에서 쓰러졌어요.", "Your team fell on floor \(floor) of \(floors).",
+                     "チームは\(floors)階中\(floor)階で倒れました。", "Tu equipo cayó en el piso \(floor) de \(floors).",
+                     "Ton équipe est tombée à l'étage \(floor) sur \(floors).", "Sua equipe caiu no andar \(floor) de \(floors).",
+                     "Dein Team ist auf Ebene \(floor) von \(floors) gefallen.", "Ваша команда пала на этаже \(floor) из \(floors).")
+        }
+    }
+
+    func guideTurnedBack(floor: Int, of floors: Int) -> String {
+        t("팀이 \(floors)층 중 \(floor)층에서 돌아왔어요.", "Your team turned back on floor \(floor) of \(floors).",
+          "チームは\(floors)階中\(floor)階で引き返しました。", "Tu equipo dio la vuelta en el piso \(floor) de \(floors).",
+          "Ton équipe a fait demi-tour à l'étage \(floor) sur \(floors).", "Sua equipe voltou no andar \(floor) de \(floors).",
+          "Dein Team ist auf Ebene \(floor) von \(floors) umgekehrt.", "Ваша команда повернула назад на этаже \(floor) из \(floors).")
+    }
+
+    func guideKept(_ something: Bool) -> String {
+        something
+            ? t("지나온 층의 전리품은 가방에 들어갔어요.", "The floors' loot is in your Bag.", "通った階の戦利品はバッグに入りました。",
+                "El botín de los pisos está en tu bolsa.", "Le butin des étages passés est dans ton sac.",
+                "O butim dos andares está na sua bolsa.", "Die Beute der Ebenen ist in deinem Beutel.", "Добыча этажей в вашей сумке.")
+            : t("그 전에 찾은 건 없어요.", "Nothing was found before.", "それまでに見つけたものはありません。",
+                "No se encontró nada antes.", "Rien n'avait été trouvé avant.", "Nada foi encontrado antes.",
+                "Vorher wurde nichts gefunden.", "До этого ничего не нашли.")
+    }
+
+    var guideTryAgain: String {
+        t("기력의조각을 챙기거나 더 강한 팀으로 다시 도전해 보세요.", "Take Revives along, or a stronger team, and try again.",
+          "げんきのかけらを持たせるか、もっと強いチームでもう一度。", "Lleva Revivir o un equipo más fuerte y vuelve a intentarlo.",
+          "Emporte des Rappels ou une équipe plus forte, et retente.", "Leve Revives ou uma equipe mais forte e tente de novo.",
+          "Nimm Beleber mit oder ein stärkeres Team und versuch es noch mal.", "Возьмите Оживители или команду сильнее и попробуйте снова.")
+    }
 }

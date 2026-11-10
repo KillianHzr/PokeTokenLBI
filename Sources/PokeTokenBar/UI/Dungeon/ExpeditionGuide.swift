@@ -28,12 +28,21 @@ struct ExpeditionGuideHeader: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(e.hideout.map { l.villainHideoutName($0.team) } ?? l.dungeonName(e.dungeon))
                     .font(.system(size: 16, weight: .bold, design: .rounded)).fixedSize(horizontal: false, vertical: true)
-                Text(l.dungeonPath(risky: e.risky).uppercased())
-                    .font(.system(size: 10, weight: .heavy))
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Capsule().fill((e.risky ? Color.readableOrange : Design.actionColor).opacity(0.22)))
-                    .foregroundStyle(e.risky ? Color.readableOrange : Design.actionColor)
-                    .hoverTip(l.dungeonPathRule)
+                // The team down to the heal: an alert in place of the path (the owner, 2026-11-10).
+                if case .awaitingHeal = e.phase {
+                    Label(l.guideKOAlert.uppercased(), systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10, weight: .heavy))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Capsule().fill(Color.readableOrange.opacity(0.3)))
+                        .foregroundStyle(Color.readableOrange)
+                } else {
+                    Text(l.dungeonPath(risky: e.risky).uppercased())
+                        .font(.system(size: 10, weight: .heavy))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Capsule().fill((e.risky ? Color.readableOrange : Design.actionColor).opacity(0.22)))
+                        .foregroundStyle(e.risky ? Color.readableOrange : Design.actionColor)
+                        .hoverTip(l.dungeonPathRule)
+                }
                 Text(Self.words(store, e)).font(.callout).fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 8).padding(.trailing, 10).padding(.leading, 10 + Self.tail)
@@ -81,7 +90,10 @@ struct ExpeditionFloorTrack: View {
         lead = e.team.first { !$0.isFainted } ?? e.team.first
     }
 
-    /// The return: the floors the team reached, each with what happened there.
+    /// The floor the team fell on, crossed in orange (a lost run).
+    var fellOn: Int? = nil
+
+    /// The return: the floors the team reached, each with what happened there; a defeat's floor crossed.
     init(store: CompanionStore, result r: ExpeditionResult) {
         self.store = store
         log = r.log
@@ -90,6 +102,7 @@ struct ExpeditionFloorTrack: View {
         floor = (r.log.map(\.floor).max() ?? 0) + 1
         progress = 0
         lead = nil
+        fellOn = !r.won && !r.roped ? r.log.map(\.floor).max() : nil
     }
 
     var body: some View {
@@ -124,14 +137,18 @@ struct ExpeditionFloorTrack: View {
     }
 
     private func node(_ n: Int, size: CGFloat, @ViewBuilder content: () -> some View) -> some View {
-        let passed = n < floor, here = n == floor && lead != nil
+        let passed = n < floor, here = n == floor && lead != nil, fell = n == fellOn
         let tip = passed || here ? ExpeditionLogText.floor(n, log: log, floors: floors, store: store) : nil
         return ZStack {
-            Circle().fill(here ? Design.actionColor.opacity(0.28) : passed ? Color(nsColor: .textBackgroundColor).opacity(0.9)
-                : Color.primary.opacity(0.05))
-            Circle().strokeBorder(here ? Design.actionColor : Color.primary.opacity(passed ? 0.35 : 0.2),
-                                  style: StrokeStyle(lineWidth: here ? 2 : 1.2, dash: passed || here ? [] : [2, 2]))
-            content()
+            Circle().fill(here ? Design.actionColor.opacity(0.28) : fell ? Color.readableOrange.opacity(0.3)
+                : passed ? Color(nsColor: .textBackgroundColor).opacity(0.9) : Color.primary.opacity(0.05))
+            Circle().strokeBorder(here ? Design.actionColor : fell ? Color.readableOrange : Color.primary.opacity(passed ? 0.35 : 0.2),
+                                  style: StrokeStyle(lineWidth: here || fell ? 2 : 1.2, dash: passed || here ? [] : [2, 2]))
+            if fell {
+                Image(systemName: "xmark").font(.system(size: size * 0.5, weight: .heavy)).foregroundStyle(Color.readableOrange)
+            } else {
+                content()
+            }
         }
         .frame(width: size, height: size)
         .contentShape(Circle())
@@ -265,7 +282,8 @@ enum ExpeditionLogText {
     }
 }
 
-/// The return as the guide tells it: the dungeon and its guide, the run's name, its tokens, length and battles.
+/// The return. Won: its prize large, the egg it gave (drawn, moving), else the form or the boss beaten (the owner,
+/// 2026-11-10). Lost or left: the guide says where, against what, what is kept and what to try.
 @MainActor
 struct ExpeditionResultGuide: View {
     let store: CompanionStore
@@ -273,11 +291,70 @@ struct ExpeditionResultGuide: View {
     private static let tail: CGFloat = 6
 
     var body: some View {
+        if r.won { prize } else { guide }
+    }
+
+    /// The egg the boss gave, its own or the one in its place; nil when it gave none (a challenge, a hideout, a legendary
+    /// whose egg was won once, a boss not caught).
+    static func egg(_ r: ExpeditionResult) -> (kind: EggKind, item: ItemKind?, speciesID: Int?)? {
+        guard r.won, !r.dungeon.isChallenge, !r.dungeon.isHideout else { return nil }
+        if let own = r.loot.eggs.first(where: { $0.sourceSpeciesID == r.boss.speciesID }) {
+            return (.dungeon(own.sourceSpeciesID), nil, own.sourceSpeciesID)
+        }
+        let tier = DungeonCatalog.dungeon(r.dungeon).tier
+        guard r.caught, let item = ExpeditionEngine.eggInPlace(r.bossReward, tier: tier) else { return nil }
+        let kind: EggKind = switch item {
+        case .legendaryEgg: .tier(.legendary)
+        case .rareEgg: .tier(.rare)
+        case .uncommonEgg: .tier(.uncommon)
+        default: .plain
+        }
+        return (kind, item, nil)
+    }
+
+    private var prize: some View {
         let l = store.l
-        HStack(alignment: .top, spacing: 4) {
+        let color = r.villain.map(\.color) ?? DungeonCard.colors(r.dungeon)[0]
+        let form = r.battleForm.flatMap { BattleForms.form(key: $0) }
+        let villainForm = r.villain.flatMap { team in team.leaderTeam.first == r.boss.speciesID ? team.leaderForms[0] : nil }
+        return VStack(spacing: 4) {
+            Group {
+                if let egg = Self.egg(r) {
+                    SpriteView(speciesID: nil, size: 120, animated: true, egg: egg.kind)
+                } else {
+                    SpriteView(speciesID: form?.speciesID ?? r.boss.speciesID, size: 120, animated: true, shiny: r.boss.isShiny,
+                               form: form?.form ?? r.boss.form ?? villainForm, sameScale: true)
+                }
+            }
+            .frame(width: 132, height: 124)
+            .shadow(color: color.opacity(0.7), radius: 16)
+            Group {
+                if let egg = Self.egg(r) {
+                    if let species = egg.speciesID {
+                        DungeonEggTitle(speciesID: species, l: l, language: store.language)
+                    } else if let item = egg.item {
+                        Text(l.itemName(item))
+                    }
+                } else if let form {
+                    BattleFormTitle(form: form, language: store.language, wrap: l.challengeFormWon)
+                } else {
+                    PokemonNameLabel(.pokemonSpecies, String(r.boss.speciesID), language: store.language)
+                }
+            }
+            .font(.system(size: 17, weight: .bold, design: .rounded)).multilineTextAlignment(.center)
+            Text([r.villain.map { l.villainHideoutName($0) } ?? l.dungeonName(r.dungeon), TokenFormatter.compact(r.tokens),
+                  l.longDuration(r.endedAt.timeIntervalSince(r.startedAt)), l.dungeonBattles(r.battles)].joined(separator: " · "))
+                .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var guide: some View {
+        let l = store.l
+        return HStack(alignment: .top, spacing: 4) {
             DungeonIcon(id: r.dungeon, size: 80, boss: r.dungeon.isChallenge ? r.boss : nil, villain: r.villain)
-                .shadow(color: (r.villain.map(\.color) ?? DungeonCard.colors(r.dungeon)[0]).opacity(r.won ? 0.55 : 0), radius: 10)
-                .grayscale(r.won ? 0 : 0.6)
+                .grayscale(0.6)
                 .overlay(alignment: .bottomTrailing) {
                     PortraitBust(name: ExpeditionGuideHeader.guidePortrait, width: 50, symbol: "figure.hiking")
                         .frame(width: 50, height: 62, alignment: .top).clipped()
@@ -288,14 +365,24 @@ struct ExpeditionResultGuide: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(r.villain.map { l.villainHideoutName($0) } ?? l.dungeonName(r.dungeon))
                     .font(.system(size: 16, weight: .bold, design: .rounded)).fixedSize(horizontal: false, vertical: true)
-                Text([TokenFormatter.compact(r.tokens), l.longDuration(r.endedAt.timeIntervalSince(r.startedAt)),
-                      l.dungeonBattles(r.battles)].joined(separator: " · "))
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Text(l.guideResult(won: r.won, roped: r.roped)).font(.callout).fixedSize(horizontal: false, vertical: true)
+                Text(Self.lostWords(r, l)).font(.callout).fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 8).padding(.trailing, 10).padding(.leading, 10 + Self.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(SpeechBubble(tail: Self.tail).fill(Color(nsColor: .textBackgroundColor).opacity(0.85)))
         }
+    }
+
+    /// Lost: on which floor, against what, what stays, what to try. Left: where it turned back, the loot kept.
+    static func lostWords(_ r: ExpeditionResult, _ l: L) -> String {
+        let floor = r.log.map(\.floor).max() ?? 1
+        let floors = DungeonCatalog.dungeon(r.dungeon).floors
+        let kept = !r.loot.isEmpty
+        if r.roped { return [l.guideTurnedBack(floor: floor, of: floors), l.guideKept(kept)].joined(separator: " ") }
+        let last = r.log.reversed().compactMap { entry -> ExpeditionBattle? in
+            if case .battle(let b) = entry.kind, !b.won { return b } else { return nil }
+        }.first
+        return [l.guideFell(floor: floor, of: floors, against: last?.kind), l.guideKept(kept), l.guideTryAgain]
+            .joined(separator: " ")
     }
 }

@@ -45,13 +45,35 @@ final class ExpeditionGuideTests: XCTestCase {
         XCTAssertEqual(ExpeditionLogText.floor(3, log: log, floors: 12, store: store), "", "a floor ahead says nothing")
     }
 
+    /// The return's prize (the owner, 2026-11-10): the boss's own egg, else the one in its place, else none (the boss
+    /// beaten is shown); a challenge and a hideout show their boss.
+    func testTheReturnsPrize() throws {
+        let start = Date(timeIntervalSince1970: 0)
+        func result(_ dungeon: DungeonID, caught: Bool, reward: Expedition.BossReward?, eggs: [DungeonEgg] = []) -> ExpeditionResult {
+            var loot = ExpeditionLoot()
+            loot.eggs = eggs
+            return ExpeditionResult(dungeon: dungeon, won: true, startedAt: start, endedAt: start, tokens: 1, battles: 1,
+                                    boss: ExpeditionBoss(speciesID: 150, form: nil, isShiny: false), caught: caught, loot: loot,
+                                    firstVictory: false, unlocked: [], unlockedMove: nil, bossReward: reward, log: [])
+        }
+        let own = DungeonEgg(id: "a", baseID: 150, form: nil, isShiny: false, sourceSpeciesID: 150)
+        XCTAssertEqual(ExpeditionResultGuide.egg(result(.ceruleanCave, caught: true, reward: nil, eggs: [own]))?.kind, .dungeon(150))
+        XCTAssertEqual(ExpeditionResultGuide.egg(result(.ceruleanCave, caught: true, reward: .legendaryEgg))?.item, .legendaryEgg)
+        XCTAssertNil(ExpeditionResultGuide.egg(result(.ceruleanCave, caught: false, reward: nil)), "not caught: the boss is shown")
+        XCTAssertNil(ExpeditionResultGuide.egg(result(.daily, caught: false, reward: nil)), "a challenge shows its form")
+        XCTAssertNil(ExpeditionResultGuide.egg(result(.hideout, caught: false, reward: nil)), "a hideout shows its leader's ace")
+    }
+
     func testTheGuidesWordsInEveryLanguage() {
         for language in AppLanguage.allCases {
             let l = L(language)
             let words = [l.guideFloors(done: 0), l.guideFloors(done: 5), l.guideFainted(["A"]), l.guideFainted(["A", "B"]),
                          l.guideWeak(["A"]), l.guideWeak(["A", "B", "C"]), l.guideBoss(at: 12), l.guideNeedsHeal, l.guideFoes(1),
                          l.guideFoes(4), l.guideResult(won: true, roped: false), l.guideResult(won: false, roped: true),
-                         l.guideResult(won: false, roped: false), l.listed(["A", "B", "C"])]
+                         l.guideResult(won: false, roped: false), l.listed(["A", "B", "C"]), l.guideKOAlert,
+                         l.guideFell(floor: 5, of: 12, against: nil), l.guideFell(floor: 5, of: 12, against: .horde),
+                         l.guideFell(floor: 5, of: 12, against: .trainer), l.guideFell(floor: 12, of: 12, against: .boss),
+                         l.guideTurnedBack(floor: 4, of: 12), l.guideKept(true), l.guideKept(false), l.guideTryAgain]
             for text in words {
                 XCTAssertFalse(text.isEmpty || text.contains("\u{2014}") || text.contains("\u{2013}"), "\(language): \(text)")
             }

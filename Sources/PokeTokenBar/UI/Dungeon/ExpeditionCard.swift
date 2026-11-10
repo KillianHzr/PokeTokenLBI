@@ -414,9 +414,8 @@ struct ExpeditionResultCard: View {
                 }
             }
             if r.loot.isEmpty, !r.won {
-                // A defeat or leaving keeps the floors' loot, here none.
-                Text(l.dungeonNothingFound(left: r.roped)).font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                // A defeat or leaving keeps the floors' loot, here none: the guide says so.
+                EmptyView()
             } else {
                 if !r.won {
                     Text(l.dungeonLootKept).font(.caption.weight(.semibold))
