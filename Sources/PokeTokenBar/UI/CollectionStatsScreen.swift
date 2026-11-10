@@ -189,6 +189,7 @@ struct CollectionStatsScreen: View {
 }
 
 /// A ring of the counter: its share, its count under.
+@MainActor
 struct StatsRing: View {
     let title: String
     let owned: Int
@@ -214,6 +215,7 @@ struct StatsRing: View {
     }
 }
 
+@MainActor
 struct StatsBar: View {
     let fraction: Double
 
