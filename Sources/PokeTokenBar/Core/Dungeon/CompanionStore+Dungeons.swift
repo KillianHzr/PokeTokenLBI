@@ -175,6 +175,26 @@ extension CompanionStore {
         BattleForms.forms(speciesID: speciesID).filter { state.dungeons.battleForms.contains($0.key) }
     }
 
+    /// The team screen's filters (the owner, 2026-11-10: to find the Megas and the rest the Hall of Origin asks for).
+    enum TeamFilter: CaseIterable, Sendable {
+        case shiny, megaOrPrimal, gigantamax
+
+        var kinds: [BattleFormKind] {
+            switch self {
+            case .shiny: []
+            case .megaOrPrimal: [.mega, .primal]
+            case .gigantamax: [.gigantamax]
+            }
+        }
+    }
+
+    /// Whether a graduated Pokémon shows under a filter: shiny, or its species having won a form of the kind, chosen
+    /// or not yet (it can take it from the list).
+    func matches(_ entry: DexEntry, _ filter: TeamFilter) -> Bool {
+        if filter == .shiny { return entry.isShiny }
+        return wonBattleForms(speciesID: entry.finalID).contains { filter.kinds.contains($0.kind) }
+    }
+
     /// Never used up: a Pokémon takes a won form, or goes back to its usual one with nil; not while it explores.
     @discardableResult
     func setBattleForm(_ form: BattleForm?, for entryID: String) -> Bool {
