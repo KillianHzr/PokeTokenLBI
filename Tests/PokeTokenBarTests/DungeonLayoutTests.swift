@@ -45,10 +45,46 @@ final class DungeonLayoutTests: XCTestCase {
                     }
                 }
             }
-            for dungeon in DungeonCatalog.all where !dungeon.id.isChallenge {
-                XCTAssertTrue(s.unmetUnlocks(dungeon.id).isEmpty, "\(dungeon.id) open")
+            for dungeon in DungeonCatalog.all where !dungeon.id.isChallenge && !dungeon.id.isHideout {
+                // Won, so open: Mt. Coronet's door (every boss before it beaten and caught) is not met one boss in two.
+                XCTAssertTrue(s.isDungeonOpen(dungeon.id), "\(dungeon.id) open")
                 let used = width(DungeonCard(store: s, id: dungeon.id) {}, in: available)
                 XCTAssertLessThanOrEqual(used, available + 0.5, "\(language) \(dungeon.id): \(used) pt for \(available)")
+            }
+        }
+    }
+
+    /// Each team's hideout card, holding what it took, in every language.
+    func testHideoutCardsFit() throws {
+        let available = PopoverMetrics.scrollContentWidth
+        for language in AppLanguage.allCases {
+            let s = try store(language) { st in
+                st.dungeons.stashes = VillainTeam.allCases.map {
+                    VillainStash(team: $0, items: [ItemKind.shinyCharm.rawValue: 1, ItemKind.rareCandy.rawValue: 3,
+                                                   ItemKind.masterBall.rawValue: 1])
+                }
+            }
+            for team in VillainTeam.allCases {
+                XCTAssertTrue(s.isDungeonOpen(team.hideoutID))
+                let used = width(HideoutCard(store: s, team: team) {}, in: available)
+                XCTAssertLessThanOrEqual(used, available + 0.5, "\(language) \(team): \(used) pt for \(available)")
+            }
+        }
+    }
+
+    /// Mt. Coronet locked, its doors listed with the bosses still to beat and catch: more than a row holds.
+    func testMtCoronetLockedCardFits() throws {
+        let available = PopoverMetrics.scrollContentWidth
+        for language in AppLanguage.allCases {
+            let s = try store(language) { st in
+                for id in DungeonMedals.dungeons(.t1) + DungeonMedals.dungeons(.t2) { st.dungeons.wins[id.rawValue] = 1 }
+            }
+            XCTAssertGreaterThan(s.bossesLeft(DungeonCatalog.bossDungeons(before: .mtCoronet)).count, 10)
+            XCTAssertFalse(s.isDungeonOpen(.mtCoronet))
+            for view in [AnyView(DungeonCard(store: s, id: .mtCoronet) {}), AnyView(BossesLeftRow(store: s,
+                         unlock: .caughtBosses(DungeonCatalog.bossDungeons(before: .mtCoronet))))] {
+                let used = width(view, in: available)
+                XCTAssertLessThanOrEqual(used, available + 0.5, "\(language): \(used) pt for \(available)")
             }
         }
     }

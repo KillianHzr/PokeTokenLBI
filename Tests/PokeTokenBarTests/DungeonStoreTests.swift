@@ -123,6 +123,55 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertFalse(bossesOnly.isDungeonOpen(.hallOfOrigin), "the three bosses and every T4")
     }
 
+    /// Mt. Coronet opens once every boss of the ten dungeons listed before it is both beaten and caught (the owner,
+    /// 2026-11-10), its other doors still asked; the Ruins of Alph, the challenges and the hideouts count for nothing.
+    func testMtCoronetWaitsForEveryBossBeforeIt() throws {
+        let before = DungeonCatalog.bossDungeons(before: .mtCoronet)
+        XCTAssertEqual(before, [.viridianForest, .diglettsCave, .mtMoon, .mtEmber, .victoryRoad, .pokemonTower, .dragonsDen,
+                                .powerPlant, .seafoamIslands, .ceruleanCave])
+        let bosses = DungeonCatalog.bosses(of: before)
+        XCTAssertEqual(bosses.count, 28)
+        let legendaries = [144, 145, 146, 150, 243, 244, 245, 249, 250, 380].map { graduated($0, rarity: .legendary) }
+        let caught = bosses.map { graduated($0) } + legendaries
+        func beaten(_ species: [Int]) -> Set<String> {
+            Set(before.flatMap { id in DungeonCatalog.dungeon(id).bosses.filter(species.contains).map { "\(id.rawValue):\($0)" } })
+        }
+        let ready = try store(dex: caught) {
+            Self.winEvery(.t3, &$0)
+            $0.dungeons.bossesBeaten = beaten(bosses)
+        }
+        XCTAssertTrue(ready.isDungeonOpen(.mtCoronet))
+        XCTAssertTrue(ready.bossesLeft(before).isEmpty)
+        // Beaten, not caught: Electrode (#101) of the Power Plant never joined the Pokédex.
+        let notCaught = try store(dex: caught.filter { $0.finalID != 101 }) {
+            Self.winEvery(.t3, &$0)
+            $0.dungeons.bossesBeaten = beaten(bosses)
+        }
+        XCTAssertFalse(notCaught.isDungeonOpen(.mtCoronet))
+        XCTAssertEqual(notCaught.bossesLeft(before), [101])
+        XCTAssertEqual(notCaught.unmetUnlocks(.mtCoronet), [.caughtBosses(before)], "its other doors are open")
+        // Caught, not beaten: a Charizard hatched from an egg does not beat Victory Road's.
+        let notBeaten = try store(dex: caught) {
+            Self.winEvery(.t3, &$0)
+            $0.dungeons.bossesBeaten = beaten(bosses.filter { $0 != 6 })
+        }
+        XCTAssertEqual(notBeaten.bossesLeft(before), [6])
+        XCTAssertFalse(notBeaten.isDungeonOpen(.mtCoronet))
+        // An egg won counts as caught: Electrode's in the Bag, Lugia's won and hatched elsewhere.
+        let eggs = try store(dex: caught.filter { ![101, 249].contains($0.finalID) } + [graduated(251, rarity: .legendary)]) {
+            Self.winEvery(.t3, &$0)
+            $0.dungeons.bossesBeaten = beaten(bosses)
+            $0.dungeons.eggs = [DungeonEgg(id: "x", baseID: 100, form: nil, isShiny: false, sourceSpeciesID: 101)]
+            $0.dungeons.legendaryEggsWon = [249]
+        }
+        XCTAssertTrue(eggs.bossesLeft(before).isEmpty)
+        XCTAssertTrue(eggs.isDungeonOpen(.mtCoronet))
+        // Won under the former doors, it stays open.
+        let won = try store(dex: strong) { $0.dungeons.wins["mtCoronet"] = 1 }
+        XCTAssertTrue(won.isDungeonOpen(.mtCoronet))
+        XCTAssertEqual(won.unlockLine(.caughtBosses(before)), won.l.dungeonUnlock(.caughtBosses(before)) + " · 0/28")
+    }
+
     // MARK: Departure and tokens
 
     /// The team sets off with the Bag's berries and Revives; the tokens then walk it and the Pokémon raised stops

@@ -67,6 +67,29 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-mt-coronet-bosses") { l in
+                let coronet = l.dungeonName(.mtCoronet)
+                return l.t("\(coronet)에 들어가려면 앞선 던전의 보스를 모두 쓰러뜨리고 잡아야 해요. 카드에 남은 보스가 보여요. 이미 클리어한 던전은 그대로 열려 있어요.",
+                           "\(coronet) now opens once every boss of the dungeons before it is beaten and caught; its card shows the bosses left. A dungeon you have finished stays open.",
+                           "\(coronet)は、これまでのダンジョンのボスをすべて倒してつかまえると開きます。カードにのこりのボスが出ます。クリアしたダンジョンは開いたままです。",
+                           "\(coronet) se abre cuando cada jefe de las mazmorras anteriores está vencido y capturado; su tarjeta muestra los que faltan. Una mazmorra ya superada sigue abierta.",
+                           "\(coronet) s'ouvre quand chaque boss des donjons précédents est battu et capturé ; sa carte montre ceux qui restent. Un donjon déjà fini reste ouvert.",
+                           "\(coronet) abre quando cada chefe das masmorras anteriores foi vencido e capturado; o cartão mostra os que faltam. Uma masmorra já concluída continua aberta.",
+                           "\(coronet) öffnet sich, sobald jeder Boss der vorigen Dungeons besiegt und gefangen ist; seine Karte zeigt die übrigen. Ein abgeschlossener Dungeon bleibt offen.",
+                           "\(coronet) открывается, когда каждый босс прежних подземелий побеждён и пойман; на карточке видны оставшиеся. Пройденное подземелье остаётся открытым.")
+            },
+            .improved("2026-11-10-arceus-harder") { l in
+                let poke = l.dungeonPokeBall, great = l.itemName(.greatBall), ultra = l.itemName(.ultraBall)
+                let master = l.itemName(.masterBall)
+                return l.t("아르세우스는 이제 훨씬 잡기 어려워요: \(poke) 10%, \(great) 25%, \(ultra) 45%, \(master)는 여전히 반드시 잡혀요.",
+                           "Arceus is much harder to catch now: \(poke) 10%, \(great) 25%, \(ultra) 45%, and the \(master) still never misses.",
+                           "アルセウスはずっとつかまえにくくなりました：\(poke) 10%、\(great) 25%、\(ultra) 45%。\(master)は今もかならずつかまえます。",
+                           "Arceus es mucho más difícil de atrapar: \(poke) 10%, \(great) 25%, \(ultra) 45%, y la \(master) sigue sin fallar.",
+                           "Arceus est bien plus dur à attraper : \(poke) 10 %, \(great) 25 %, \(ultra) 45 %, et la \(master) ne rate toujours jamais.",
+                           "Arceus está muito mais difícil de capturar: \(poke) 10%, \(great) 25%, \(ultra) 45%, e a \(master) continua sem falhar.",
+                           "Arceus ist jetzt viel schwerer zu fangen: \(poke) 10 %, \(great) 25 %, \(ultra) 45 %, und der \(master) trifft weiterhin immer.",
+                           "Поймать Арсеуса теперь гораздо труднее: \(poke) 10%, \(great) 25%, \(ultra) 45%, а \"\(master)\" по-прежнему не промахивается.")
+            },
             .improved("2026-11-10-home-guide", { $0.t("홈의 탐험 카드가 새로워졌어요: 던전과 가이드가 상황을 말해 주고, 층마다 원 하나에 그 층에서 일어난 일이 표시돼요(마우스를 올리면 기록이 보여요). 팀은 체력 고리로 보여요.",
                                                    "Home's expedition card is new: the dungeon and a guide telling how it goes, one circle a floor showing what happened there (hover it for the journal line), the team in rings of their HP.",
                                                    "ホームの探検カードが新しくなりました。ダンジョンとガイドが様子を伝え、階ごとの丸にそこで起きたことが出ます（カーソルを乗せると記録が見えます）。チームはHPの輪で表示されます。",
@@ -75,14 +98,14 @@ enum Changelog {
                                                    "O cartão de expedição do Início é novo: a masmorra e um guia contando como vai, um círculo por andar com o que aconteceu lá (passe o mouse para ver o registro) e a equipe em anéis de PS.",
                                                    "Die Expeditionskarte auf dem Start ist neu: der Dungeon und ein Führer, der erzählt, wie es läuft, ein Kreis pro Ebene mit dem, was dort geschah (darüberfahren zeigt den Protokolleintrag), das Team in KP-Ringen.",
                                                    "Карточка экспедиции на главной обновлена: подземелье и проводник, который рассказывает, как идут дела, по кругу на этаж с тем, что там случилось (наведите, чтобы увидеть запись журнала), и команда в кольцах ОЗ.") }),
-            .new("2026-11-10-villain-teams", { $0.t("악의 조직이 가끔 가방의 아이템을 노려요: 내 팀으로 맞서세요. 지면 아이템을 아지트로 가져가고, 아지트 끝의 보스와 포켓몬 3마리를 이기면 되찾아요.",
-                                                     "Villains' teams sometimes come for an item in your Bag: defend it with your team. Lose, and they take it to their hideout; beat its boss and three Pokémon at the end to get it back.",
-                                                     "悪の組織がときどきバッグのどうぐを狙ってきます。マイチームで迎え撃ちましょう。負けるとアジトに持ち去られ、奥のボスとポケモン3匹に勝てば取り返せます。",
-                                                     "Los equipos villanos vienen a veces a por un objeto de tu bolsa: defiéndelo con tu equipo. Si pierdes, se lo llevan a su guarida; vence a su jefe y a sus tres Pokémon al fondo para recuperarlo.",
-                                                     "Les teams de méchants viennent parfois voler un objet de ton sac : défends-le avec ton équipe. Si tu perds, ils l'emportent dans leur repaire ; bats leur chef et ses trois Pokémon au bout pour le récupérer.",
-                                                     "As equipes vilãs às vezes vêm atrás de um item da sua bolsa: defenda-o com sua equipe. Se perder, levam-no para o esconderijo; vença o chefe e seus três Pokémon no fim para recuperá-lo.",
-                                                     "Schurken-Teams haben es manchmal auf ein Item in deinem Beutel abgesehen: Verteidige es mit deinem Team. Verlierst du, bringen sie es in ihr Versteck; besiege dort ihren Anführer und seine drei Pokémon, um es zurückzuholen.",
-                                                     "Злодейские команды иногда приходят за предметом из вашей сумки: защищайте его своей командой. Проиграете, и его унесут в логово; победите в конце главаря и трёх его покемонов, чтобы вернуть предмет.") }),
+            .new("2026-11-10-villain-teams", { $0.t("악의 조직이 가끔 가방에서 아이템을 훔쳐 가요. 아이템의 가치에 맞는 조직이 오고, 가장 귀한 것은 로켓단이 노려요. 바로 쫓아가 내 팀으로 이기면 돌려받고, 아니면 아이템은 아지트에 남아요: 끝에서 기다리는 보스와 포켓몬 3마리를 이기면 되찾아요.",
+                                                     "Villains' teams sometimes steal an item from your Bag, the team matching its worth, Team Rocket for the rarest. Chase them with your team and win to get it back; otherwise it waits in their hideout, where their boss and three Pokémon stand at the end.",
+                                                     "悪の組織がときどきバッグのどうぐを盗んでいきます。どうぐの値打ちに合った組織が来て、いちばん貴重なものはロケット団が狙います。マイチームで追いかけて勝てば取り返せます。逃がすとアジトに残り、奥で待つボスとポケモン3匹に勝てば取り返せます。",
+                                                     "Los equipos villanos a veces roban un objeto de tu bolsa, el equipo según su valor, el Team Rocket para lo más raro. Persíguelos con tu equipo y gana para recuperarlo; si no, queda en su guarida, donde su jefe y sus tres Pokémon esperan al fondo.",
+                                                     "Les teams de méchants volent parfois un objet de ton sac, la team selon sa valeur, la Team Rocket pour le plus rare. Rattrape-les avec ton équipe et gagne pour le récupérer ; sinon il reste dans leur repaire, où leur chef et ses trois Pokémon t'attendent au bout.",
+                                                     "As equipes vilãs às vezes roubam um item da sua bolsa, a equipe conforme o valor, a Equipe Rocket para o mais raro. Persiga-as com sua equipe e vença para recuperá-lo; senão ele fica no esconderijo, onde o chefe e seus três Pokémon esperam no fim.",
+                                                     "Schurken-Teams stehlen manchmal ein Item aus deinem Beutel, das Team je nach seinem Wert, Team Rocket für das Seltenste. Verfolge sie mit deinem Team und gewinne, um es zurückzuholen; sonst bleibt es in ihrem Versteck, wo am Ende ihr Anführer und seine drei Pokémon warten.",
+                                                     "Злодейские команды иногда крадут предмет из вашей сумки: команда по его ценности, Команда R за самое редкое. Догоните их своей командой и победите, чтобы вернуть его; иначе он останется в их логове, где в конце ждут главарь и три его покемона.") }),
             .improved("2026-11-10-dungeons-look", { $0.t("던전 탭이 새로워졌어요: 던전 타입 색, 큰 디오라마, 같은 높이의 오늘·이번 주 카드.",
                                                        "The Dungeons tab has a new look: each dungeon in its types' colors with its diorama large, the daily and weekly cards side by side at one height.",
                                                        "ダンジョンのタブが新しくなりました。ダンジョンのタイプの色、大きなジオラマ、同じ高さの今日と今週のカード。",

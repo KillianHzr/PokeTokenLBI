@@ -198,14 +198,15 @@ enum ExpeditionEngine {
         }
     }
 
-    /// Arceus's throw odds, one in three (the owner, 2026-11-09: reaching him costs about 2B tokens, so a throw should
-    /// not miss as often as at the other legendaries): about 70% over three Poké Balls, the Master Ball still sure.
-    static let arceusCaptureOdds = 1.0 / 3
-
-    /// A throw's odds at this boss before the ball: its line's (Q19), Arceus's own.
-    static func captureOdds(_ boss: ExpeditionBoss) -> Double {
-        boss.speciesID == DungeonCatalog.arceusID ? arceusCaptureOdds
-            : captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID))
+    /// Arceus's own odds, ball by ball rather than a factor (the owner, 2026-11-10: "beaucoup plus dur", after one in
+    /// three since 2026-11-09): a Poké Ball 10%, a Great Ball 25%, an Ultra Ball 45%, the Master Ball sure.
+    static func arceusThrowOdds(_ ball: ItemKind?) -> Double {
+        switch ball {
+        case .greatBall?: 0.25
+        case .ultraBall?: 0.45
+        case .masterBall?: 1
+        default: 0.10
+        }
     }
 
     /// The candies a tier's expedition holds, around its average (Q22). Rebalanced on 2026-11-02 at the owner's word
@@ -735,16 +736,17 @@ enum ExpeditionEngine {
         if !won { append(&e, .defeat, context: context) }
     }
 
-    /// A throw's odds at this boss: its line's (Q19) or Arceus's own, a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball
-    /// sure.
+    /// A throw's odds at this boss: its line's (Q19), a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure; Arceus's
+    /// own table (`arceusThrowOdds`).
     static func throwOdds(_ boss: ExpeditionBoss, ball: ItemKind?) -> Double {
+        if boss.speciesID == DungeonCatalog.arceusID { return arceusThrowOdds(ball) }
         let factor: Double = switch ball {
         case .greatBall?: 1.5
         case .ultraBall?: 2
         case .masterBall?: 100
         default: 1
         }
-        return min(1, captureOdds(boss) * factor)
+        return min(1, captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID)) * factor)
     }
 
     /// A throw at the fallen boss (Q18, R12): a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure. Returns

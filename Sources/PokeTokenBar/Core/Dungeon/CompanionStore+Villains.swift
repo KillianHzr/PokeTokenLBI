@@ -19,7 +19,7 @@ extension CompanionStore {
         let day = challengePeriod(.daily)
         guard state.dungeons.villainDay != day else { return }
         let draw = VillainRules.day(day)
-        if draw.comes, Calendar.current.component(.hour, from: currentDate) < draw.hour { return }
+        if draw.comes, LocalUsageReader.gregorianCalendar().component(.hour, from: currentDate) < draw.hour { return }
         changeDungeons { $0.villainDay = day }
         let yesterday = challengePeriod(.daily, at: currentDate.addingTimeInterval(-86_400))
         let wonOne = DungeonCatalog.all.contains { !$0.id.isChallenge && !$0.id.isHideout && state.dungeons.wins($0.id) > 0 }

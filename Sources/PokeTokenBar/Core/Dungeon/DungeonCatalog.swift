@@ -120,6 +120,8 @@ enum DungeonUnlock: Codable, Sendable, Hashable {
     case beatBosses([Int])
     /// A Treasure Map in the Bag, spent at the entry (the Ruins of Alph).
     case treasureMap
+    /// Every boss of these dungeons beaten and caught (Mt. Coronet's door, the owner 2026-11-10).
+    case caughtBosses([DungeonID])
 }
 
 /// The thirteen dungeons (Q25, Q26: places of the series, their official names).
@@ -228,7 +230,7 @@ enum DungeonCatalog {
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [.onlyLegendaries],
                            themeTypes: [.steel, .water, .ghost, .dragon],
                            wild: themed([.steel, .water, .ghost, .dragon], tier: .t4), bosses: [483, 484, 487],
-                           unlocks: [.wonEvery(.t3), .legendariesGraduated(10)])
+                           unlocks: [.wonEvery(.t3), .legendariesGraduated(10), .caughtBosses(bossDungeons(before: id))])
         case .ruinsOfAlph:
             // Q25, Q13: secret, opened once by a Treasure Map; its rules are drawn at random (`alphRules`), its
             // boss is any final species but Arceus.
@@ -260,6 +262,18 @@ enum DungeonCatalog {
         case .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout:
             return VillainRules.hideout(id.villain ?? .rocket)
         }
+    }
+
+    /// The dungeons listed before this one whose bosses are set: the Ruins of Alph (any species), the challenges and
+    /// the hideouts aside.
+    static func bossDungeons(before id: DungeonID) -> [DungeonID] {
+        DungeonID.allCases.prefix { $0 != id }.filter { $0 != .ruinsOfAlph && !$0.isChallenge && !$0.isHideout }
+    }
+
+    /// These dungeons' bosses, each species once, in their order.
+    static func bosses(of ids: [DungeonID]) -> [Int] {
+        var seen = Set<Int>()
+        return ids.flatMap { dungeon($0).bosses }.filter { seen.insert($0).inserted }
     }
 
     /// Final species, never legendary, of at least this base stat total: the challenges' wild Pokémon.

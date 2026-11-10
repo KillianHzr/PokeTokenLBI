@@ -223,7 +223,15 @@ extension L {
                             "Победить трёх боссов горы Коронет")
         case .treasureMap: t("보물지도 1장", "A Treasure Map", "たからのちず1まい", "Un Mapa del Tesoro", "Une Carte au trésor",
                              "Um Mapa do Tesouro", "Eine Schatzkarte", "Карта сокровищ")
+        case .caughtBosses(let ids): dungeonCaughtBosses(DungeonCatalog.bosses(of: ids).count)
         }
+    }
+
+    func dungeonCaughtBosses(_ n: Int) -> String {
+        t("앞선 던전의 보스 \(n)마리를 모두 쓰러뜨리고 잡기", "Beat and catch all \(n) bosses of the dungeons before",
+          "これまでのダンジョンのボス\(n)体をすべて倒してつかまえる", "Vencer y capturar a los \(n) jefes de las mazmorras anteriores",
+          "Battre et capturer les \(n) boss des donjons précédents", "Vencer e capturar os \(n) chefes das masmorras anteriores",
+          "Alle \(n) Bosse der vorigen Dungeons besiegen und fangen", "Победить и поймать всех боссов прежних подземелий: \(n)")
     }
 
     var dungeonPrepare: String { t("준비", "Prepare", "じゅんび", "Preparar", "Préparer", "Preparar", "Vorbereiten", "Подготовить") }

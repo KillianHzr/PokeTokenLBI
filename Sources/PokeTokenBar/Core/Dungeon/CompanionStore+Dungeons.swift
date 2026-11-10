@@ -41,6 +41,15 @@ extension CompanionStore {
             return Set(graduated.filter { $0.rarity == .legendary }.map(\.finalID)).count >= count
         case .beatBosses(let species): return species.allSatisfy(state.dungeons.beat)
         case .treasureMap: return itemCount(.treasureMap) > 0
+        case .caughtBosses(let ids): return bossesLeft(ids).isEmpty
+        }
+    }
+
+    /// These dungeons' bosses not yet both beaten and caught: caught as `hasCaughtBoss` says, or its egg won (a
+    /// legendary's, or one hatching now).
+    func bossesLeft(_ ids: [DungeonID]) -> [Int] {
+        DungeonCatalog.bosses(of: ids).filter { species in
+            !(state.dungeons.beat(species) && (hasCaughtBoss(species) || hasWonLegendaryEgg(species)))
         }
     }
 
