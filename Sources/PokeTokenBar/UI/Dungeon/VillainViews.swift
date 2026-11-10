@@ -44,7 +44,7 @@ struct VillainAmbushCard: View {
         let item = l.itemName(kind) + (ambush.count > 1 ? " ×\(ambush.count)" : "")
         return VStack(alignment: .leading, spacing: 6) {
             switch ambush.won {
-            case true?: Text(l.villainBeaten(ambush.team)).font(.callout.weight(.semibold))
+            case true?: Text(l.villainBeaten(ambush.team, item: item)).font(.callout.weight(.semibold))
             case false?: Text(l.villainGotAway(ambush.team, item: item)).font(.callout.weight(.semibold))
             case nil: Text(l.villainAmbushBubble).font(.callout)
             }
@@ -59,7 +59,7 @@ struct VillainAmbushCard: View {
                 }
                 .hoverTip(l.villainTheirPokemon)
             }
-            .grayscale(ambush.won == true ? 1 : 0)
+            .grayscale(ambush.won == true ? 0.6 : 0)
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(.vertical, 8).padding(.trailing, 10).padding(.leading, 10 + Self.tail)
@@ -74,6 +74,9 @@ struct VillainAmbushCard: View {
                 Text(l.villainDefendWith).font(.caption2).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
+                // Not now: the item waits at their hideout.
+                Button(l.villainLater) { store.dismissVillainAmbush() }
+                    .buttonStyle(.borderless).controlSize(.small).font(.caption).foregroundStyle(.secondary)
                 Button(l.villainDefend) {
                     store.defendAgainstAmbush()
                     nav.replayBattle = store.villainAmbush?.battle
@@ -116,9 +119,8 @@ struct HideoutCard: View {
     var body: some View {
         if let stash = store.villainStash {
             let l = store.l
-            let leader = stash.team.bossIsLeader(stash.tier)
             HStack(alignment: .top, spacing: 12) {
-                PortraitBust(name: leader ? stash.team.leaderPortrait : stash.team.gruntPortrait, width: 84,
+                PortraitBust(name: stash.team.leaderPortrait, width: 84,
                              symbol: "building.2.fill")
                     .frame(width: 84, height: 150, alignment: .top)
                     .clipped()
@@ -143,12 +145,12 @@ struct HideoutCard: View {
                         }
                     }
                     HStack(spacing: 0) {
-                        ForEach(Array(stash.team.leaderTeam(stash.tier).enumerated()), id: \.offset) { _, id in
+                        ForEach(Array(stash.team.leaderTeam.enumerated()), id: \.offset) { _, id in
                             SpriteView(speciesID: id, size: 30, sameScale: true).frame(width: 30, height: 30)
                         }
                     }
-                    .hoverTip(l.villainWaitsAtTheEnd(stash.team, tier: stash.tier))
-                    Text(l.villainWaitsAtTheEnd(stash.team, tier: stash.tier)).font(.caption).foregroundStyle(.secondary)
+                    .hoverTip(l.villainWaitsAtTheEnd(stash.team))
+                    Text(l.villainWaitsAtTheEnd(stash.team)).font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack {
                         Spacer(minLength: 0)

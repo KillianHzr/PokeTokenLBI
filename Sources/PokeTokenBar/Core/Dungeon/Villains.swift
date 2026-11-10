@@ -4,63 +4,61 @@ import Foundation
 /// flies off with nothing; winning, it takes the item to its hideout, a dungeon of the item's tier whose leader keeps it
 /// until a team gets it back.
 enum VillainTeam: String, Codable, Sendable, CaseIterable {
-    case rocket, aqua, magma, galactic, plasma, flare, skull
+    /// One team a tier (the owner, 2026-11-10: "une team de méchant pour chaque tier", Team Rocket at the top).
+    case skull, magma, aqua, galactic, rocket
+
+    /// The team that goes for an item of this tier.
+    static func team(for tier: DungeonTier) -> VillainTeam {
+        switch tier {
+        case .t1: .skull
+        case .t2: .magma
+        case .t3: .aqua
+        case .t4: .galactic
+        case .t5: .rocket
+        }
+    }
+
+    var tier: DungeonTier {
+        switch self {
+        case .skull: .t1
+        case .magma: .t2
+        case .aqua: .t3
+        case .galactic: .t4
+        case .rocket: .t5
+        }
+    }
 
     var themeTypes: [PokemonType] {
         switch self {
-        case .rocket: [.poison, .normal]
-        case .aqua: [.water, .dark]
-        case .magma: [.fire, .ground]
-        case .galactic: [.poison, .steel]
-        case .plasma: [.dark, .ground]
-        case .flare: [.fire, .dark]
         case .skull: [.poison, .bug]
+        case .magma: [.fire, .ground]
+        case .aqua: [.water, .dark]
+        case .galactic: [.poison, .steel]
+        case .rocket: [.poison, .normal]
         }
     }
 
     /// The grunts' Pokémon, as in their games.
     var grunts: [Int] {
         switch self {
-        case .rocket: [20, 24, 42, 89, 110, 97]
-        case .aqua: [262, 319, 342, 73, 42, 279]
-        case .magma: [262, 323, 324, 110, 42, 219]
-        case .galactic: [435, 454, 432, 437, 42, 426]
-        case .plasma: [510, 505, 560, 553, 569, 528]
-        case .flare: [229, 620, 687, 310, 317, 262]
         case .skull: [758, 748, 42, 89, 168, 760]
+        case .magma: [262, 323, 324, 110, 42, 219]
+        case .aqua: [262, 319, 342, 73, 42, 279]
+        case .galactic: [435, 454, 432, 437, 42, 426]
+        case .rocket: [20, 24, 42, 89, 110, 97]
         }
     }
 
-    /// The leader's three at the end of the hideout: their legendary at the top tier (Giovanni and Mewtwo, Persian, the
-    /// owner), their own aces from T3, a grunt's best below.
-    func leaderTeam(_ tier: DungeonTier) -> [Int] {
-        switch tier {
-        case .t5:
-            switch self {
-            case .rocket: [150, 53, 34]
-            case .aqua: [382, 319, 342]
-            case .magma: [383, 323, 169]
-            case .galactic: [483, 461, 430]
-            case .plasma: [646, 635, 625]
-            case .flare: [717, 130, 668]
-            case .skull: [794, 768, 127]
-            }
-        case .t3, .t4:
-            switch self {
-            case .rocket: [53, 34, 112]
-            case .aqua: [319, 342, 73]
-            case .magma: [323, 169, 262]
-            case .galactic: [461, 430, 435]
-            case .plasma: [635, 625, 560]
-            case .flare: [130, 668, 229]
-            case .skull: [768, 127, 168]
-            }
-        case .t1, .t2: Array(grunts.prefix(3))
+    /// The leader's three at the end of the hideout: Giovanni with Mewtwo and Persian (the owner), the others their aces.
+    var leaderTeam: [Int] {
+        switch self {
+        case .skull: [768, 168, 127]
+        case .magma: [323, 169, 262]
+        case .aqua: [319, 342, 73]
+        case .galactic: [461, 430, 130]
+        case .rocket: [150, 53, 34]
         }
     }
-
-    /// Who waits at the end: the leader from T3, a grunt below.
-    func bossIsLeader(_ tier: DungeonTier) -> Bool { tier >= .t3 }
 
     var gruntPortrait: String { "villain-\(rawValue)-grunt" }
     var leaderPortrait: String { "villain-\(rawValue)-leader" }
@@ -68,13 +66,11 @@ enum VillainTeam: String, Codable, Sendable, CaseIterable {
     /// The team's color, for its cards.
     var rgb: (red: Double, green: Double, blue: Double) {
         switch self {
-        case .rocket: (0.86, 0.16, 0.20)
-        case .aqua: (0.16, 0.45, 0.90)
+        case .skull: (0.55, 0.55, 0.62)
         case .magma: (0.90, 0.32, 0.14)
+        case .aqua: (0.16, 0.45, 0.90)
         case .galactic: (0.38, 0.58, 0.72)
-        case .plasma: (0.42, 0.50, 0.86)
-        case .flare: (0.95, 0.45, 0.12)
-        case .skull: (0.55, 0.55, 0.60)
+        case .rocket: (0.86, 0.16, 0.20)
         }
     }
 
@@ -86,15 +82,11 @@ enum VillainTeam: String, Codable, Sendable, CaseIterable {
             "villain-aqua-grunt": base + "5/51/latest/20220727061405/Recluta_del_Equipo_Aqua_masculino_Masters.png",
             "villain-magma-grunt": base + "4/43/latest/20220727061259/Recluta_del_Equipo_Magma_masculino_Masters.png",
             "villain-galactic-grunt": base + "5/53/latest/20211221094210/Recluta_Galaxia_masculino_Masters.png",
-            "villain-plasma-grunt": base + "9/94/latest/20221027063526/Recluta_del_Equipo_Plasma_masculino_Masters.png",
-            "villain-flare-grunt": base + "c/c0/latest/20221226063717/Recluta_del_Team_Flare_%28hombre%29_Masters.png",
             "villain-skull-grunt": base + "b/ba/latest/20250819193111/Recluta_del_Team_Skull_masculino_Masters.png",
             "villain-rocket-leader": base + "b/b2/latest/20200825103758/Giovanni_Masters.png",
             "villain-aqua-leader": base + "d/d5/latest/20210426062209/Aquiles_Masters.png",
             "villain-magma-leader": base + "6/65/latest/20210426062636/Magno_Masters.png",
             "villain-galactic-leader": base + "a/ad/latest/20200929193057/Helio_Masters.png",
-            "villain-plasma-leader": base + "c/c7/latest/20210426062450/Ghechis_Masters.png",
-            "villain-flare-leader": base + "2/20/latest/20210126055647/Lysson_Masters.png",
             "villain-skull-leader": base + "3/3b/latest/20200323132750/Guzm%C3%A1n_Masters.png",
         ]
     }()
@@ -126,7 +118,7 @@ struct VillainStash: Codable, Sendable, Equatable {
 }
 
 enum VillainRules {
-    /// One day in three at most, at an hour of the day between 9 and 21, a team drawn from the day alone.
+    /// One day in three at most, at an hour of the day between 9 and 21.
     static let oneDayIn = 3
 
     /// What an item is worth to a thief: the hideout's tier. Nil: never stolen (badges, medals, form rewards, whose
@@ -153,13 +145,13 @@ enum VillainRules {
     /// Up to three of an everyday item at once, one of anything else.
     static func count(of kind: ItemKind, have: Int) -> Int { tier(of: kind) == .t1 ? min(3, have) : min(1, have) }
 
-    /// The day's draw (`yyyy-MM-dd`), the same all day on every launch: FNV-1a, as the merchant's.
-    static func day(_ day: String) -> (comes: Bool, hour: Int, team: VillainTeam) {
+    /// The day's draw (`yyyy-MM-dd`), the same all day on every launch: FNV-1a, as the merchant's. The team is the one of
+    /// the item it takes (`VillainTeam.team(for:)`).
+    static func day(_ day: String) -> (comes: Bool, hour: Int) {
         var random = random(day)
         let comes = random.below(oneDayIn) == 0
         let hour = 9 + random.below(13)
-        let team = VillainTeam.allCases[random.below(VillainTeam.allCases.count)]
-        return (comes, hour, team)
+        return (comes, hour)
     }
 
     static func random(_ text: String) -> BattleRandom {
@@ -221,7 +213,7 @@ enum VillainRules {
     /// their legendary as one (`ExpeditionEngine.bossSpec`).
     static func leaderSpecs(_ team: VillainTeam, tier: DungeonTier, random: inout BattleRandom) -> [BattlerSpec] {
         var specs: [BattlerSpec] = []
-        for (i, id) in team.leaderTeam(tier).enumerated() {
+        for (i, id) in team.leaderTeam.enumerated() {
             guard var spec = ExpeditionEngine.bossSpec(ExpeditionBoss(speciesID: id, form: nil, isShiny: false), tier: tier,
                                                        random: &random) else { continue }
             spec.id = "leader-\(i)-\(id)"
@@ -239,6 +231,6 @@ enum VillainRules {
     static func hideout(_ stash: VillainStash) -> Dungeon {
         let size = stash.tier == .t1 ? 3 : stash.tier == .t2 ? 4 : 6
         return Dungeon(id: .hideout, tier: stash.tier, teamSize: size, rules: [], themeTypes: stash.team.themeTypes,
-                       wild: stash.team.grunts, bosses: [stash.team.leaderTeam(stash.tier)[0]], unlocks: [])
+                       wild: stash.team.grunts, bosses: [stash.team.leaderTeam[0]], unlocks: [])
     }
 }

@@ -380,7 +380,7 @@ extension CompanionStore {
         let stash = id.isHideout ? state.dungeons.stash : nil
         // A hideout's boss is its leader's ace (`VillainTeam.leaderTeam`), with two more at the end.
         let challenge = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
-            ?? stash.map { ExpeditionBoss(speciesID: $0.team.leaderTeam($0.tier)[0], form: nil, isShiny: false) }
+            ?? stash.map { ExpeditionBoss(speciesID: $0.team.leaderTeam[0], form: nil, isShiny: false) }
         let started = ExpeditionEngine.start(dungeon: dungeon, team: members, rules: rules, teamSize: size, seed: seed,
                                              cost: dungeonCost(id), berries: berries,
                                              revives: revives, context: context, boss: challenge)
