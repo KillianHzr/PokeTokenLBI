@@ -159,7 +159,11 @@ struct Expedition: Codable, Sendable, Equatable {
     /// Nil: its own egg, as an expedition saved before.
     var bossReward: BossReward?
 
-    var floors: Int { DungeonCatalog.dungeon(dungeon).floors }
+    var floors: Int { info.floors }
+    /// A villains' hideout, as it stood at the departure (its team and tier): what its floors and boss are.
+    var hideout: VillainStash?
+    /// The dungeon walked: the hideout's own, else the catalog's.
+    var info: Dungeon { hideout.map(VillainRules.hideout) ?? DungeonCatalog.dungeon(dungeon) }
     var floorCost: Int { max(1, cost / floors) }
     /// The team's HP left, out of its maximum.
     var hpShare: Double {
@@ -278,7 +282,7 @@ enum ExpeditionEngine {
 
     private static func resolveFloor(_ e: inout Expedition, context: ExpeditionContext) {
         var random = BattleRandom(seed: e.seed &+ UInt64(e.floor) &* 0x9E37_79B9_7F4A_7C15)
-        let dungeon = DungeonCatalog.dungeon(e.dungeon)
+        let dungeon = e.info
         if e.floor >= e.floors {
             fightBoss(&e, dungeon: dungeon, random: &random, context: context)
             return
@@ -534,10 +538,12 @@ enum ExpeditionEngine {
             finish(&e, won: false, context: context)
             return
         }
+        // A hideout's leader comes with three (the owner, 2026-11-10: Giovanni with Mewtwo and Persian).
+        let foes = e.hideout.map { VillainRules.leaderSpecs($0.team, tier: $0.tier, random: &random) } ?? [boss]
         // One against the boss too (2026-11-06); it was R2 A, three of mine against it.
         let setup = BattleSetup(sides: [BattleSideSpec(battlers: alive.map(\.spec), active: 1,
                                                        berries: e.berries),
-                                        BattleSideSpec(battlers: [boss], active: 1)], seed: random.next())
+                                        BattleSideSpec(battlers: foes, active: 1)], seed: random.next())
         let outcome = BattleEngine.run(setup)
         for i in e.team.indices {
             if let hp = outcome.hpLeft[e.team[i].spec.id] { e.team[i].spec.hp = hp }
@@ -546,14 +552,14 @@ enum ExpeditionEngine {
         e.battles += 1
         let won = outcome.winner == 0
         append(&e, .battle(ExpeditionBattle(kind: .boss, setup: setup, won: won, duration: outcome.duration,
-                                            foes: [e.boss.speciesID])), rare: won, context: context)
+                                            foes: foes.map(\.speciesID))), rare: won, context: context)
         if won {
             e.loot.candies += e.candiesLeft
             e.candiesLeft = 0
             append(&e, .victory, rare: true, context: context)
             // A challenge's battle form is won as the boss falls: no throws (one try a day, the owner); nor at a
             // legendary whose egg was won once, which gives the loot only.
-            if e.dungeon.isChallenge || e.bossReward == .lootOnly {
+            if e.dungeon.isChallenge || e.bossReward == .lootOnly || e.hideout != nil {
                 finish(&e, won: true, context: context)
             } else {
                 e.phase = .capture(throwsLeft: 3)

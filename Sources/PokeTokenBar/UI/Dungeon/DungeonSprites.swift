@@ -475,6 +475,8 @@ enum DungeonSprites {
         // Never seen while their boss is known: it stands in for them (`DungeonIcon`, the menu bar).
         case .daily: mtCoronet
         case .weekly: hallOfOrigin
+        // The villains' hideout: a building, as the Power Plant's (its card shows the team's leader).
+        case .hideout: powerPlant
         }
     }
 

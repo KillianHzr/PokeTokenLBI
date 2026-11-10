@@ -275,6 +275,8 @@ actor SpriteStore {
             urlStr = "https://images.wikidexcdn.net/mwuploads/wikidex/b/b3/latest/20200210170142/Profesor_Oak_Masters.png"
         } else if let merchant = TravellingMerchant.portraitURLs[itemName] {
             urlStr = merchant
+        } else if let villain = VillainTeam.portraitURLs[itemName] {
+            urlStr = villain
         } else if itemName.hasPrefix("merchant-") {
             return nil
         } else {

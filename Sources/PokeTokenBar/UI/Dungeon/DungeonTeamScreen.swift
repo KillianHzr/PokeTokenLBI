@@ -29,7 +29,7 @@ struct DungeonTeamScreen: View {
         let (size, rules) = store.teamRules(dungeon)
         let picked = team.compactMap { id in store.dungeonCandidates.first { $0.id == id } }
         let members = picked.map(DungeonCandidate.init)
-        let info = DungeonCatalog.dungeon(dungeon)
+        let info = store.dungeonInfo(dungeon)
         let boss = shownBoss ?? store.challengeBoss(dungeon)
         let faced = TeamMatchup.facedTypes(info, boss: boss)
         VStack(alignment: .leading, spacing: 8) {

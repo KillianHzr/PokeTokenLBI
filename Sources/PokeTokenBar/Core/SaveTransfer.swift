@@ -242,6 +242,15 @@ enum SaveTransfer {
         p.weeklyTried = p.weeklyTried.flatMap { $0.count <= 10 ? $0 : nil }
         p.challengeDraws = p.challengeDraws.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
         p.challengeWins = p.challengeWins.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
+        // What a villains' team took: items the app knows, counts in range; none means no hideout (issue #180).
+        if var stash = p.stash {
+            stash.items = stash.items.filter { ItemKind(rawValue: $0.key) != nil && $0.value > 0 }.mapValues(count)
+            p.stash = stash.items.isEmpty ? nil : stash
+        }
+        if var ambush = p.ambush {
+            ambush.count = min(max(1, ambush.count), 3)
+            p.ambush = ambush.kind == nil ? nil : ambush
+        }
         let battleForms = Set(BattleForms.all.map(\.form.rawValue))
         p.battleFormChoice = p.battleFormChoice.filter { battleForms.contains($0.value) }
         // An expedition already over waits for nothing that would close it, and a boss the app does not know would give an

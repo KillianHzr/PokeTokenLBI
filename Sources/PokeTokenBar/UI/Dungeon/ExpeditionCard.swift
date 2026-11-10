@@ -29,7 +29,7 @@ struct ExpeditionCard: View {
         HStack(spacing: 8) {
             DungeonIcon(id: e.dungeon, size: 30, boss: e.boss)
             VStack(alignment: .leading, spacing: 1) {
-                Text(l.dungeonName(e.dungeon)).font(.callout.weight(.semibold))
+                Text(e.hideout.map { l.villainHideoutName($0.team) } ?? l.dungeonName(e.dungeon)).font(.callout.weight(.semibold))
                 Text(l.dungeonFloorOf(min(e.floor, e.floors), e.floors)).font(.caption).foregroundStyle(.secondary)
                     .monospacedDigit()
                 // On its own line: "Ebene 6 von 12 · pausiert" broke at its dot.
@@ -412,12 +412,26 @@ struct ExpeditionResultCard: View {
                 Spacer(minLength: 4)
                 if r.firstVictory { Badge(l.dungeonFirstVictory.uppercased(), tint: .blue, style: .tinted) }
             }
-            Text([l.dungeonName(r.dungeon), TokenFormatter.compact(r.tokens),
+            Text([r.villain.map { l.villainHideoutName($0) } ?? l.dungeonName(r.dungeon), TokenFormatter.compact(r.tokens),
                   l.longDuration(r.endedAt.timeIntervalSince(r.startedAt)), l.dungeonBattles(r.battles)]
                 .joined(separator: " · "))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            // A challenge's boss is no capture: the form it gave says it below.
-            if r.won, !r.dungeon.isChallenge {
+            // What a hideout's leader gave back (issue #180).
+            if let recovered = r.recovered, !recovered.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(l.villainTakenBack.uppercased()).font(.caption2.weight(.bold)).tracking(0.6).foregroundStyle(.secondary)
+                    ForEach(recovered.sorted { $0.key < $1.key }, id: \.key) { key, count in
+                        if let kind = ItemKind(rawValue: key) {
+                            HStack(spacing: 6) {
+                                ItemIconView(kind: kind, size: 20)
+                                Text("\(l.itemName(kind)) ×\(count)").font(.callout.weight(.semibold))
+                            }
+                        }
+                    }
+                }
+            }
+            // A challenge's boss is no capture: the form it gave says it below; nor a hideout's leader.
+            if r.won, !r.dungeon.isChallenge, !r.dungeon.isHideout {
                 HStack(spacing: 8) {
                     SpriteView(speciesID: r.boss.speciesID, size: 36, shiny: r.boss.isShiny, form: r.boss.form,
                                sameScale: true)

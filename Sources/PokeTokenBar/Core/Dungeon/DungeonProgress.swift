@@ -24,6 +24,9 @@ struct ExpeditionResult: Codable, Sendable, Equatable {
     var battleForm: String? = nil
     /// What the boss's capture gave (`Expedition.BossReward`), nil for its own egg: the result card says so.
     var bossReward: Expedition.BossReward? = nil
+    /// What a hideout's leader gave back (issue #180), and whose hideout it was.
+    var recovered: [String: Int]? = nil
+    var villain: VillainTeam? = nil
     var log: [ExpeditionLogEntry]
 }
 
@@ -102,6 +105,12 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var savedTeam: [String] = []
     /// The expeditions that ended, the latest last, a hundred at most: each dungeon's page lists its own.
     var history: [DungeonRunRecord] = []
+    /// A villains' team waiting on Home for the player to defend an item, then how it went (issue #180).
+    var ambush: VillainAmbush?
+    /// What a team took to its hideout: the hideout stays open until its leader falls.
+    var stash: VillainStash?
+    /// The last day (`yyyy-MM-dd`) whose draw was settled: one team a day at most.
+    var villainDay: String?
 
     init() {}
 
@@ -133,6 +142,9 @@ struct DungeonProgress: Codable, Sendable, Equatable {
                 battleFormsWonAt[key] = run.endedAt
             }
         }
+        ambush = c.lenientOptional(VillainAmbush.self, forKey: .ambush)
+        stash = c.lenientOptional(VillainStash.self, forKey: .stash)
+        villainDay = c.lenientOptional(String.self, forKey: .villainDay)
         challengeWins = c.lenient([String: String].self, forKey: .challengeWins, default: [:])
             .filter { BattleForms.form(key: $0.value) != nil }
         // A save from before keyed its wins nowhere: each won run counts for the period it ended in.

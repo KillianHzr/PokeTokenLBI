@@ -31,6 +31,8 @@ struct DungeonsView: View {
                     Text(l.dungeonsIntro).font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // A villains' hideout first while it keeps something (issue #180).
+                HideoutCard(store: store) { nav.dungeonTeam = .hideout }
                 // The daily and weekly dungeons first, side by side: what they give changes with the day and the week.
                 HStack(alignment: .top, spacing: 8) {
                     ForEach([DungeonID.daily, .weekly], id: \.self) { id in
@@ -52,7 +54,7 @@ struct DungeonsView: View {
     /// The Ruins of Alph show only once a Treasure Map, or a visit, made them known.
     private var shown: [DungeonID] {
         DungeonID.allCases.filter { id in
-            !id.isChallenge && (id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0)
+            !id.isChallenge && !id.isHideout && (id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0)
         }
     }
 
