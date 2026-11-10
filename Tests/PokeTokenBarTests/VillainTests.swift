@@ -192,10 +192,16 @@ final class VillainTests: XCTestCase {
         XCTAssertTrue(s.dungeonProgress.bossesBeaten.isEmpty, "Giovanni's Mewtwo opens nothing")
     }
 
-    func testTheLeaderComesWithThree() {
+    func testTheLeaderComesWithThree() throws {
         var random = BattleRandom(seed: 3)
         let giovanni = VillainRules.leaderSpecs(.rocket, tier: .t5, random: &random)
         XCTAssertEqual(giovanni.map(\.speciesID), [150, 53, 34], "Mewtwo, Persian and Nidoking (the owner)")
+        XCTAssertEqual(giovanni.first?.form, ArmoredMewtwo.form, "Team Rocket's armored Mewtwo")
+        let plain = try XCTUnwrap(BattlerSpec.make(id: "m", speciesID: 150, level: 100))
+        let armored = try XCTUnwrap(BattlerSpec.make(id: "m", speciesID: 150, form: ArmoredMewtwo.form, level: 100))
+        XCTAssertEqual(armored.stats, plain.stats, "Mewtwo's own battle data")
+        XCTAssertEqual(SpriteStore.spriteURLs(speciesID: 150, animated: true, shiny: false, form: ArmoredMewtwo.form).first?.absoluteString,
+                       ArmoredMewtwo.spriteURL)
         XCTAssertTrue(giovanni.allSatisfy(\.isBoss))
         for team in VillainTeam.allCases {
             XCTAssertEqual(VillainRules.leaderSpecs(team, tier: team.tier, random: &random).count, 3, "\(team)")

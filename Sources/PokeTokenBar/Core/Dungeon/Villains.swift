@@ -60,6 +60,9 @@ enum VillainTeam: String, Codable, Sendable, CaseIterable {
         }
     }
 
+    /// The leader's three as they stand: Giovanni's Mewtwo in its armor (the owner, 2026-11-10), the others as usual.
+    var leaderForms: [PokemonForm?] { self == .rocket ? [ArmoredMewtwo.form, nil, nil] : [nil, nil, nil] }
+
     var gruntPortrait: String { "villain-\(rawValue)-grunt" }
     var leaderPortrait: String { "villain-\(rawValue)-leader" }
 
@@ -214,7 +217,8 @@ enum VillainRules {
     static func leaderSpecs(_ team: VillainTeam, tier: DungeonTier, random: inout BattleRandom) -> [BattlerSpec] {
         var specs: [BattlerSpec] = []
         for (i, id) in team.leaderTeam.enumerated() {
-            guard var spec = ExpeditionEngine.bossSpec(ExpeditionBoss(speciesID: id, form: nil, isShiny: false), tier: tier,
+            let form = team.leaderForms[i]
+            guard var spec = ExpeditionEngine.bossSpec(ExpeditionBoss(speciesID: id, form: form, isShiny: false), tier: tier,
                                                        random: &random) else { continue }
             spec.id = "leader-\(i)-\(id)"
             if !(SpeciesInfo.all[id]?.isLegendary ?? false) {
@@ -233,4 +237,15 @@ enum VillainRules {
         return Dungeon(id: .hideout, tier: stash.tier, teamSize: size, rules: [], themeTypes: stash.team.themeTypes,
                        wild: stash.team.grunts, bosses: [stash.team.leaderTeam[0]], unlocks: [])
     }
+}
+
+/// Team Rocket's armored Mewtwo (the owner, 2026-11-10: "le mewtwo de la team rocket avec l'armure", for Giovanni).
+/// Neither PokéAPI nor Showdown has it: its sprite is Pokémon GO's render (PokeMiners), its battle data Mewtwo's own
+/// (`SpeciesBattleTable.data` falls back to the species for a form it does not know).
+enum ArmoredMewtwo {
+    static let speciesID = 150
+    static let form = PokemonForm("armor")
+    static let spriteURL = "https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon%20-%20256x256/Addressable%20Assets/pm150.fA.icon.png"
+
+    static func matches(speciesID: Int, form: PokemonForm?) -> Bool { speciesID == Self.speciesID && form == Self.form }
 }

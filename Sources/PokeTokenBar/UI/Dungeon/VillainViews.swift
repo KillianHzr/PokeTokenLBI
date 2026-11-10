@@ -150,8 +150,9 @@ struct HideoutCard: View {
                         }
                     }
                     HStack(spacing: 0) {
-                        ForEach(Array(stash.team.leaderTeam.enumerated()), id: \.offset) { _, id in
-                            SpriteView(speciesID: id, size: 30, sameScale: true).frame(width: 30, height: 30)
+                        ForEach(Array(stash.team.leaderTeam.enumerated()), id: \.offset) { i, id in
+                            SpriteView(speciesID: id, size: 30, form: stash.team.leaderForms[i], sameScale: true)
+                                .frame(width: 30, height: 30)
                         }
                     }
                     .hoverTip(l.villainWaitsAtTheEnd(stash.team))
