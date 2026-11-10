@@ -85,6 +85,20 @@ enum DungeonRule: Codable, Sendable, Hashable {
     case maxRarity(Rarity)
     case bannedType(PokemonType)
     case onlyShinies
+    /// Each member shiny or in a battle form (the Hall of Origin, the owner, 2026-11-10).
+    case shinyOrBattleForm
+    /// At least this many shinies in the team.
+    case atLeastShinies(Int)
+    /// At least one member in one of these battle forms, shiny or not.
+    case needsBattleForm([BattleFormKind])
+
+    /// A rule the whole team meets only once enough members are in: a team being formed does not break it yet.
+    var isTeamMinimum: Bool {
+        switch self {
+        case .atLeastShinies, .needsBattleForm: true
+        default: false
+        }
+    }
 }
 
 /// What opens a dungeon (Q27).
@@ -209,7 +223,11 @@ enum DungeonCatalog {
                            }.sorted(),
                            unlocks: [.treasureMap])
         case .hallOfOrigin:
-            return Dungeon(id: id, tier: .t5, teamSize: 6, rules: [.onlyShinies], themeTypes: [.normal],
+            // A Mega or a Primal, a Gigantamax and four shinies (the owner, 2026-11-10; six shinies before).
+            return Dungeon(id: id, tier: .t5, teamSize: 6,
+                           rules: [.shinyOrBattleForm, .needsBattleForm([.mega, .primal]), .needsBattleForm([.gigantamax]),
+                                   .atLeastShinies(4)],
+                           themeTypes: [.normal],
                            wild: SpeciesInfo.all.keys.filter { id in
                                guard id <= 1025, let data = SpeciesBattleTable.all[id], let info = SpeciesInfo.all[id],
                                      !info.isLegendary, SpeciesInfo.isFinal(id) else { return false }

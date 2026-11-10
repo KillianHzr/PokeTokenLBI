@@ -67,6 +67,22 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-weekly-once-a-day", { $0.t("이번 주 던전은 이제 하루에 한 번 도전할 수 있어요. 보스는 한 주 동안 같아요.",
+                                                              "The weekly dungeon can now be tried once a day; its boss stays the same all week.",
+                                                              "今週のダンジョンは1日1回挑戦できるようになりました。ボスは1週間同じです。",
+                                                              "La mazmorra de la semana se puede intentar ahora una vez al día; su jefe es el mismo toda la semana.",
+                                                              "Le donjon de la semaine se tente maintenant une fois par jour ; son boss reste le même toute la semaine.",
+                                                              "A masmorra da semana agora pode ser tentada uma vez por dia; o chefe continua o mesmo a semana toda.",
+                                                              "Der Wochen-Dungeon kann jetzt einmal am Tag versucht werden; sein Boss bleibt die ganze Woche gleich.",
+                                                              "Подземелье недели теперь можно проходить раз в день; босс остаётся тем же всю неделю.") }),
+            .improved("2026-11-10-origin-team", { $0.t("시작의 방 팀: 이제 메가나 원시 형태 하나, 거다이맥스 하나, 이로치 넷이면 돼요(형태는 이로치가 아니어도 돼요). 전에는 모두 이로치여야 했어요.",
+                                                        "The Hall of Origin's team: a Mega or Primal form, a Gigantamax form and four shinies now (the forms need not be shiny); it had to be six shinies.",
+                                                        "はじまりのまのチーム：メガかゲンシのすがた1匹、キョダイマックス1匹、色違い4匹になりました（すがたは色違いでなくてもかまいません）。前は6匹とも色違いでした。",
+                                                        "El equipo de la Sala del Origen: ahora una forma Mega o Primigenia, una Gigamax y cuatro variocolor (las formas no tienen que ser variocolor); antes debían ser seis variocolor.",
+                                                        "L'équipe de la Salle Originelle : désormais une forme Méga ou Primo, une Gigamax et quatre chromatiques (les formes n'ont pas à être chromatiques) ; il fallait six chromatiques.",
+                                                        "A equipe do Salão da Origem: agora uma forma Mega ou Primitiva, uma Gigamax e quatro shiny (as formas não precisam ser shiny); antes eram seis shiny.",
+                                                        "Das Team für den Saal des Ursprungs: jetzt eine Mega- oder Protoform, eine Gigadynamax-Form und vier Schillernde (die Formen müssen nicht schillernd sein); vorher mussten es sechs Schillernde sein.",
+                                                        "Команда для Зала Истоков: теперь одна мега или первичная форма, одна гигантамакс-форма и четыре шайни (формы не обязаны быть шайни); раньше нужно было шесть шайни.") }),
             .improved("2026-11-10-dragon-egg", { $0.t("드래곤 타입 알이 새로워졌어요: 커다란 비늘, 크림색 배, 날갯짓하는 날개, 금색 뿔.",
                                                        "The Dragon-type egg has a new look: large scales, a cream belly, beating wings and golden horns.",
                                                        "ドラゴンタイプのタマゴが新しくなりました。大きなうろこ、クリーム色のおなか、はばたく翼、金色のつの。",

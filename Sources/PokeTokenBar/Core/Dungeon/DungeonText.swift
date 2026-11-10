@@ -72,6 +72,19 @@ extension L {
                                       "Тип \(typeName(type)) запрещён")
         case .onlyShinies: t("이로치만", "Shinies only", "色違いのみ", "Solo variocolor", "Que des chromatiques", "Só shiny",
                              "Nur Schillernde", "Только шайни")
+        case .shinyOrBattleForm:
+            t("이로치 또는 배틀 폼", "Shinies or battle forms", "色違いかバトルフォルム", "Variocolor o formas de combate",
+              "Chromatiques ou formes de combat", "Shiny ou formas de batalha", "Schillernde oder Kampfformen",
+              "Шайни или боевые формы")
+        case .atLeastShinies(let n):
+            t("이로치 \(n)마리 이상", "At least \(n) shinies", "色違い\(n)匹以上", "Al menos \(n) variocolor",
+              "Au moins \(n) chromatiques", "Pelo menos \(n) shiny", "Mindestens \(n) Schillernde", "Не меньше \(n) шайни")
+        case .needsBattleForm(let kinds) where kinds.contains(.gigantamax):
+            t("거다이맥스 1마리", "A Gigantamax", "キョダイマックス1匹", "Una Gigamax", "Une Gigamax", "Uma Gigamax",
+              "Eine Gigadynamax-Form", "Одна гигантамакс-форма")
+        case .needsBattleForm:
+            t("메가 또는 원시 1마리", "A Mega or a Primal", "メガかゲンシ1匹", "Una Mega o Primigenia", "Une Méga ou Primo",
+              "Uma Mega ou Primitiva", "Eine Mega- oder Protoform", "Одна мега или первичная форма")
         }
     }
 
@@ -1171,10 +1184,6 @@ extension L {
         t("하루 한 번", "one try a day", "1日1回", "un intento al día", "une tentative par jour", "uma tentativa por dia",
           "ein Versuch pro Tag", "одна попытка в день")
     }
-    var challengeOneTryAWeek: String {
-        t("주 한 번", "one try a week", "1週間に1回", "un intento por semana", "une tentative par semaine",
-          "uma tentativa por semana", "ein Versuch pro Woche", "одна попытка в неделю")
-    }
     var challengeAllWon: String {
         t("졸업한 포켓몬의 형태를 모두 얻었어요. 새로 졸업하면 더 생겨요.",
           "Every form your graduated Pokémon can take is won. New graduations bring more.",
@@ -1190,12 +1199,6 @@ extension L {
           "Ya lo intentaste hoy: mañana, un jefe nuevo.", "Déjà tenté aujourd'hui : nouveau boss demain.",
           "Já tentou hoje: amanhã, um chefe novo.", "Heute schon versucht: morgen ein neuer Boss.",
           "Сегодня уже была попытка: завтра новый босс.")
-    }
-    var challengeTriedThisWeek: String {
-        t("이번 주는 이미 도전했어요. 다음 주에 새 보스가 나와요.", "Tried this week: a new boss next week.",
-          "今週は挑戦済み。来週は新しいボス。", "Ya lo intentaste esta semana: la próxima, un jefe nuevo.",
-          "Déjà tenté cette semaine : nouveau boss la semaine prochaine.", "Já tentou nesta semana: na próxima, um chefe novo.",
-          "Diese Woche schon versucht: nächste Woche ein neuer Boss.", "На этой неделе уже была попытка: новый босс на следующей.")
     }
     var challengeHard: String {
         t("어려워요: 한 번뿐이니 최강의 팀으로.", "Hard: one try only, send your best team.", "手ごわい：1回だけなので最強のチームで。",
@@ -1243,10 +1246,6 @@ extension L {
         t("오늘 도전함", "Tried today", "今日は挑戦済み", "Intentado hoy", "Tenté aujourd'hui", "Tentado hoje", "Heute versucht",
           "Сегодня было")
     }
-    var challengeTriedShortWeek: String {
-        t("이번 주 도전함", "Tried this week", "今週は挑戦済み", "Intentado esta semana", "Tenté cette semaine",
-          "Tentado nesta semana", "Diese Woche versucht", "На этой неделе было")
-    }
     var challengeAllWonShort: String {
         t("모두 획득", "All won", "すべて入手", "Todo ganado", "Tout gagné", "Tudo ganho", "Alle gewonnen", "Всё получено")
     }
@@ -1259,25 +1258,17 @@ extension L {
     var challengeLostDay: String {
         t("오늘 실패", "Lost today", "今日は失敗", "Fallado hoy", "Raté aujourd'hui", "Falhou hoje", "Heute verloren", "Сегодня провал")
     }
-    var challengeLostWeek: String {
-        t("이번 주 실패", "Lost this week", "今週は失敗", "Fallado esta semana", "Raté cette semaine", "Falhou nesta semana",
-          "Diese Woche verloren", "На этой неделе провал")
-    }
     var challengeWonDay: String {
         t("오늘 성공", "Won today", "今日は成功", "Superado hoy", "Réussi aujourd'hui", "Vencido hoje", "Heute geschafft",
           "Сегодня успех")
-    }
-    var challengeWonWeek: String {
-        t("이번 주 성공", "Won this week", "今週は成功", "Superado esta semana", "Réussi cette semaine", "Vencido nesta semana",
-          "Diese Woche geschafft", "На этой неделе успех")
     }
     var challengeNextDay: String {
         t("내일 새 보스", "New boss tomorrow", "明日は新しいボス", "Nuevo jefe mañana", "Nouveau boss demain", "Novo chefe amanhã",
           "Morgen ein neuer Boss", "Завтра новый босс")
     }
-    var challengeNextWeek: String {
-        t("월요일에 새 보스", "New boss on Monday", "月曜日に新しいボス", "Nuevo jefe el lunes", "Nouveau boss lundi",
-          "Novo chefe na segunda", "Montag ein neuer Boss", "Новый босс в понедельник")
+    var challengeTryTomorrow: String {
+        t("내일 다시 도전", "Try again tomorrow", "明日また挑戦", "Otro intento mañana", "Nouvel essai demain", "Nova tentativa amanhã",
+          "Morgen ein neuer Versuch", "Новая попытка завтра")
     }
 
     // The expedition under way, at the top of the Dungeons tab (the owner, 2026-11-09: the line did not show).

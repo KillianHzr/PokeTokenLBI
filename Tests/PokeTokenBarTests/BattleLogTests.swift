@@ -72,8 +72,8 @@ final class BattleLogTests: XCTestCase {
         for language in AppLanguage.allCases {
             let l = L(language)
             for text in [l.battleLogEnters, l.battleLogMiss, l.battleLogNoEffect, l.battleLogFailed, l.expeditionLive,
-                         l.expeditionWaitsForYou, l.challengeLostDay, l.challengeLostWeek, l.challengeWonDay,
-                         l.challengeWonWeek, l.challengeNextDay, l.challengeNextWeek] {
+                         l.expeditionWaitsForYou, l.challengeLostDay, l.challengeWonDay, l.challengeNextDay,
+                         l.challengeTryTomorrow] {
                 XCTAssertFalse(text.isEmpty, "\(language)")
                 XCTAssertFalse(text.contains("\u{2014}") || text.contains("\u{2013}"), "\(language): \(text)")
             }
