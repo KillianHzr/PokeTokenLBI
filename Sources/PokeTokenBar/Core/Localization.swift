@@ -2073,261 +2073,261 @@ struct L {
                      "Ändert das Wesen eines verabschiedeten Pokémon zufällig in ein anderes.",
                      "Случайно меняет характер выпускника на другой.")
         case .shinyCharm:
-            return t("보유하면 이로치 포켓몬이 태어날 확률이 올라가요.",
-                     "While owned, raises the chance of hatching a shiny.",
-                     "持っていると色違いが生まれる確率が上がります。",
-                     "Mientras lo tengas, aumenta la probabilidad de que nazca un Pokémon variocolor.",
-                     "Tant que tu le possèdes, augmente les chances qu'un Pokémon chromatique éclose.",
-                     "Enquanto estiver na sua bolsa, aumenta a chance de nascer um Pokémon shiny.",
-                     "Erhöht im Beutel die Chance, dass ein schillerndes Pokémon schlüpft.",
-                     "Пока он у вас, повышает шанс, что вылупится шайни.")
+            return t("이로치 포켓몬이 태어날 확률이 올라가요.",
+                     "Raises the chance of hatching a shiny.",
+                     "色違いが生まれる確率が上がります。",
+                     "Aumenta la probabilidad de que nazca un Pokémon variocolor.",
+                     "Augmente les chances qu'un Pokémon chromatique éclose.",
+                     "Aumenta a chance de nascer um Pokémon shiny.",
+                     "Erhöht die Chance, dass ein schillerndes Pokémon schlüpft.",
+                     "Повышает шанс, что вылупится шайни.")
         case .legendCharm:
-            return t("보유하면 전설의 포켓몬이 태어날 확률이 2배가 돼요.",
-                     "While owned, doubles the chance of hatching a legendary Pokémon.",
-                     "持っていると伝説のポケモンが生まれる確率が2倍になります。",
-                     "Mientras lo tengas, duplica la probabilidad de eclosionar un Pokémon legendario.",
-                     "Tant que tu la possèdes, double les chances de faire éclore un Pokémon légendaire.",
-                     "Enquanto estiver na bolsa, dobra a chance de chocar um Pokémon lendário.",
-                     "Verdoppelt im Beutel die Chance auf ein legendäres Pokémon.",
-                     "Пока она у вас, вдвое повышает шанс вылупления легендарного покемона.")
+            return t("전설의 포켓몬이 태어날 확률이 2배가 돼요.",
+                     "Doubles the chance of hatching a legendary Pokémon.",
+                     "伝説のポケモンが生まれる確率が2倍になります。",
+                     "Duplica la probabilidad de eclosionar un Pokémon legendario.",
+                     "Double les chances de faire éclore un Pokémon légendaire.",
+                     "Dobra a chance de chocar um Pokémon lendário.",
+                     "Verdoppelt die Chance auf ein legendäres Pokémon.",
+                     "Вдвое повышает шанс вылупления легендарного покемона.")
         case .silverWing:
-            return t("보유하면 모든 포켓몬이 25% 더 빨리 자라고, 알이 2배 빨리 부화합니다.",
-                     "While owned, every Pokémon grows 25% faster, and eggs hatch twice as fast.",
-                     "持っているとすべてのポケモンが25%早く育ち、タマゴが2倍早くかえります。",
-                     "Mientras la tengas, todos los Pokémon crecen un 25% más rápido y los huevos eclosionan el doble de rápido.",
-                     "Tant que tu la possèdes, tous tes Pokémon grandissent 25 % plus vite, et les œufs éclosent 2 fois plus vite.",
-                     "Enquanto estiver na bolsa, todos os Pokémon crescem 25% mais rápido e os ovos chocam 2 vezes mais rápido.",
-                     "Lässt im Beutel jedes Pokémon 25 % schneller wachsen und Eier doppelt so schnell schlüpfen.",
-                     "Пока оно у вас, все покемоны растут на 25% быстрее, а яйца вылупляются в 2 раза быстрее.")
+            return t("모든 포켓몬이 25% 더 빨리 자라고, 알이 2배 빨리 부화합니다.",
+                     "Every Pokémon grows 25% faster, and eggs hatch twice as fast.",
+                     "すべてのポケモンが25%早く育ち、タマゴが2倍早くかえります。",
+                     "Todos los Pokémon crecen un 25% más rápido y los huevos eclosionan el doble de rápido.",
+                     "Tous tes Pokémon grandissent 25 % plus vite, et les œufs éclosent 2 fois plus vite.",
+                     "Todos os Pokémon crescem 25% mais rápido e os ovos chocam 2 vezes mais rápido.",
+                     "Lässt jedes Pokémon 25 % schneller wachsen und Eier doppelt so schnell schlüpfen.",
+                     "Все покемоны растут на 25% быстрее, а яйца вылупляются в 2 раза быстрее.")
         case .oldSeaMap:
-            return t("보유하면 토큰으로 얻는 포켓몬 성장 경험치가 20% 늘어납니다.",
-                     "While owned, the tokens you use grow your Pokémon 20% faster.",
-                     "持っているとトークンで得るポケモンの成長経験値が20%増えます。",
-                     "Mientras lo tengas, los tokens que usas hacen crecer a tu Pokémon un 20% más rápido.",
-                     "Tant que tu la possèdes, les tokens que tu utilises font grandir ton Pokémon 20 % plus vite.",
-                     "Enquanto estiver na bolsa, os tokens que você usa fazem seu Pokémon crescer 20% mais rápido.",
-                     "Lässt im Beutel dein Pokémon durch verbrauchte Tokens 20 % schneller wachsen.",
-                     "Пока она у вас, токены растят покемона на 20% быстрее.")
+            return t("토큰으로 얻는 포켓몬 성장 경험치가 20% 늘어납니다.",
+                     "The tokens you use grow your Pokémon 20% faster.",
+                     "トークンで得るポケモンの成長経験値が20%増えます。",
+                     "Los tokens que usas hacen crecer a tu Pokémon un 20% más rápido.",
+                     "Les tokens que tu utilises font grandir ton Pokémon 20 % plus vite.",
+                     "Os tokens que você usa fazem seu Pokémon crescer 20% mais rápido.",
+                     "Lässt dein Pokémon durch verbrauchte Tokens 20 % schneller wachsen.",
+                     "Токены растят покемона на 20% быстрее.")
         case .clearBell:
-            return t("보유하면 희귀(Rare) 등급 포켓몬이 25% 더 빨리 성장합니다.",
-                     "While owned, Rare Pokémon grow 25% faster.",
-                     "持っているとレアなポケモンが25%早く育ちます。",
-                     "Mientras la tengas, los Pokémon raros crecen un 25% más rápido.",
-                     "Tant que tu la possèdes, les Pokémon Rares grandissent 25% plus vite.",
-                     "Enquanto estiver na bolsa, os Pokémon Raros crescem 25% mais rápido.",
-                     "Lässt im Beutel seltene Pokémon 25% schneller wachsen.",
-                     "Пока он у вас, редкие покемоны растут на 25% быстрее.")
+            return t("희귀(Rare) 등급 포켓몬이 25% 더 빨리 성장합니다.",
+                     "Rare Pokémon grow 25% faster.",
+                     "レアなポケモンが25%早く育ちます。",
+                     "Los Pokémon raros crecen un 25% más rápido.",
+                     "Les Pokémon Rares grandissent 25% plus vite.",
+                     "Os Pokémon Raros crescem 25% mais rápido.",
+                     "Lässt seltene Pokémon 25% schneller wachsen.",
+                     "Редкие покемоны растут на 25% быстрее.")
         case .rainbowWing:
-            return t("보유하면 상점의 모든 상품이 25% 할인됩니다.",
-                     "While owned, everything in the Shop costs 25% less.",
-                     "持っているとショップの全商品が25%安くなります。",
-                     "Mientras lo tengas, todo en la tienda cuesta un 25% menos.",
-                     "Tant que tu l'as, tout coûte 25 % de moins dans la boutique.",
-                     "Enquanto estiver na bolsa, tudo na loja custa 25% menos.",
-                     "Im Beutel kostet alles im Shop 25 % weniger.",
-                     "Пока оно у вас, всё в магазине стоит на 25% дешевле.")
+            return t("상점의 모든 상품이 25% 할인됩니다.",
+                     "Everything in the Shop costs 25% less.",
+                     "ショップの全商品が25%安くなります。",
+                     "Todo en la tienda cuesta un 25% menos.",
+                     "Tout coûte 25 % de moins dans la boutique.",
+                     "Tudo na loja custa 25% menos.",
+                     "Alles im Shop kostet 25 % weniger.",
+                     "Всё в магазине стоит на 25% дешевле.")
         case .magmaStone:
-            return t("보유하면 이 모습으로 이미 졸업시킨 적 있는 라인을 육성할 때 토큰 소모가 25% 감소합니다.",
-                     "While owned, reduces token cost by 25% when raising a line you have already graduated in this form.",
-                     "持っているとこの姿で卒業させたことのある系統の育成トークン消費が25%減少します。",
-                     "Mientras la tengas, reduce un 25% el coste de tokens al criar una línea que ya graduaste en esta forma.",
-                     "Tant que tu la possèdes, réduit le coût de 25% lors de l'élevage d'une lignée déjà diplômée sous cette forme.",
-                     "Enquanto estiver na bolsa, reduz em 25% o custo de tokens ao criar uma linha que você já formou nesta forma.",
-                     "Reduziert im Beutel die Token-Kosten um 25%, wenn eine in dieser Form bereits verabschiedete Entwicklungsreihe trainiert wird.",
-                     "Пока он у вас, снижает расход токенов на 25% при выращивании линии, которую вы уже выпускали в этой форме.")
+            return t("이 모습으로 이미 졸업시킨 적 있는 라인을 육성할 때 토큰 소모가 25% 감소합니다.",
+                     "Reduces token cost by 25% when raising a line you have already graduated in this form.",
+                     "この姿で卒業させたことのある系統の育成トークン消費が25%減少します。",
+                     "Reduce un 25% el coste de tokens al criar una línea que ya graduaste en esta forma.",
+                     "Réduit le coût de 25% lors de l'élevage d'une lignée déjà diplômée sous cette forme.",
+                     "Reduz em 25% o custo de tokens ao criar uma linha que você já formou nesta forma.",
+                     "Reduziert die Token-Kosten um 25%, wenn eine in dieser Form bereits verabschiedete Entwicklungsreihe trainiert wird.",
+                     "Снижает расход токенов на 25% при выращивании линии, которую вы уже выпускали в этой форме.")
         case .soulDew:
-            return t("보유하면 사탕 사용 시 얻는 경험치가 50% 증가합니다.",
-                     "While owned, boosts EXP gained from using candies by 50%.",
-                     "持っているとアメ使用時の獲得EXPが50%増加します。",
-                     "Mientras lo tengas, aumenta un 50% la EXP obtenida al usar caramelos.",
-                     "Tant que tu la possèdes, augmente l'EXP obtenue via les bonbons de 50%.",
-                     "Enquanto estiver na bolsa, aumenta em 50% a EXP obtida ao usar doces.",
-                     "Erhöht im Beutel die durch Bonbons erhaltenen EP um 50%.",
-                     "Пока она у вас, увеличивает опыт от конфет на 50%.")
+            return t("사탕 사용 시 얻는 경험치가 50% 증가합니다.",
+                     "Boosts EXP gained from using candies by 50%.",
+                     "アメ使用時の獲得EXPが50%増加します。",
+                     "Aumenta un 50% la EXP obtenida al usar caramelos.",
+                     "Augmente l'EXP obtenue via les bonbons de 50%.",
+                     "Aumenta em 50% a EXP obtida ao usar doces.",
+                     "Erhöht die durch Bonbons erhaltenen EP um 50%.",
+                     "Увеличивает опыт от конфет на 50%.")
         case .jadeOrb:
-            return t("보유하면 알 구매 시 토큰 소모가 20% 추가 할인됩니다.",
-                     "While owned, grants an additional 20% discount on egg purchases.",
-                     "持っているとタマゴ購入時の消費トークンがさらに20%割引されます。",
-                     "Mientras lo tengas, otorga un 20% de descuento adicional al comprar huevos.",
-                     "Tant que tu l'as, offre une réduction supplémentaire de 20% sur l'achat d'œufs.",
-                     "Enquanto estiver na bolsa, concede 20% de desconto adicional na compra de ovos.",
-                     "Gewährt im Beutel zusätzliche 20% Rabatt beim Kauf von Eiern.",
-                     "Пока она у вас, даёт дополнительную скидку 20% на покупку яиц.")
+            return t("알 구매 시 토큰 소모가 20% 추가 할인됩니다.",
+                     "Grants an additional 20% discount on egg purchases.",
+                     "タマゴ購入時の消費トークンがさらに20%割引されます。",
+                     "Otorga un 20% de descuento adicional al comprar huevos.",
+                     "Offre une réduction supplémentaire de 20% sur l'achat d'œufs.",
+                     "Concede 20% de desconto adicional na compra de ovos.",
+                     "Gewährt zusätzliche 20% Rabatt beim Kauf von Eiern.",
+                     "Даёт дополнительную скидку 20% на покупку яиц.")
         case .gracidea:
-            return t("보유하면 진화할 포켓몬이 첫 단계에서 25% 더 빨리 성장합니다.",
-                     "While owned, a Pokémon that will evolve grows 25% faster at its first stage.",
-                     "持っていると進化するポケモンが最初の段階で25%早く育ちます。",
-                     "Mientras la tengas, un Pokémon que evolucionará crece un 25% más rápido en su primera etapa.",
-                     "Tant que tu la possèdes, un Pokémon qui évoluera grandit 25% plus vite à son premier stade.",
-                     "Enquanto estiver na bolsa, um Pokémon que vai evoluir cresce 25% mais rápido no primeiro estágio.",
-                     "Lässt im Beutel Pokémon, die sich noch entwickeln, in ihrer ersten Stufe 25% schneller wachsen.",
-                     "Пока она у вас, покемон, который будет эволюционировать, растёт на 25% быстрее на первой стадии.")
+            return t("진화할 포켓몬이 첫 단계에서 25% 더 빨리 성장합니다.",
+                     "A Pokémon that will evolve grows 25% faster at its first stage.",
+                     "進化するポケモンが最初の段階で25%早く育ちます。",
+                     "Un Pokémon que evolucionará crece un 25% más rápido en su primera etapa.",
+                     "Un Pokémon qui évoluera grandit 25% plus vite à son premier stade.",
+                     "Um Pokémon que vai evoluir cresce 25% mais rápido no primeiro estágio.",
+                     "Lässt Pokémon, die sich noch entwickeln, in ihrer ersten Stufe 25% schneller wachsen.",
+                     "Покемон, который будет эволюционировать, растёт на 25% быстрее на первой стадии.")
         case .griseousOrb:
-            return t("보유하면 고스트·드래곤 타입 포켓몬이 30% 더 빨리 성장합니다.",
-                     "While owned, Ghost- and Dragon-type Pokémon grow 30% faster.",
-                     "持っているとゴースト・ドラゴンタイプのポケモンが30%早く育ちます。",
-                     "Mientras la tengas, los Pokémon de tipo Fantasma y Dragón crecen un 30% más rápido.",
-                     "Tant que tu l'as, les Pokémon de type Spectre et Dragon grandissent 30% plus vite.",
-                     "Enquanto estiver na bolsa, Pokémon dos tipos Fantasma e Dragão crescem 30% mais rápido.",
-                     "Lässt im Beutel Geist- und Drachen-Pokémon 30% schneller wachsen.",
-                     "Пока она у вас, покемоны типов Призрак и Дракон растут на 30% быстрее.")
+            return t("고스트·드래곤 타입 포켓몬이 30% 더 빨리 성장합니다.",
+                     "Ghost- and Dragon-type Pokémon grow 30% faster.",
+                     "ゴースト・ドラゴンタイプのポケモンが30%早く育ちます。",
+                     "Los Pokémon de tipo Fantasma y Dragón crecen un 30% más rápido.",
+                     "Les Pokémon de type Spectre et Dragon grandissent 30% plus vite.",
+                     "Pokémon dos tipos Fantasma e Dragão crescem 30% mais rápido.",
+                     "Lässt Geist- und Drachen-Pokémon 30% schneller wachsen.",
+                     "Покемоны типов Призрак и Дракон растут на 30% быстрее.")
         case .libertyPass:
-            return t("보유하면 이 모습으로 한 번도 졸업시킨 적 없는 라인을 육성할 때 토큰 소모가 25% 감소합니다.",
-                     "While owned, reduces token cost by 25% when raising a line you have never graduated in this form.",
-                     "持っているとこの姿で一度も卒業させていない系統の育成トークン消費が25%減少します。",
-                     "Mientras lo tengas, reduce un 25% el coste de tokens al criar una línea que nunca graduaste en esta forma.",
-                     "Tant que tu l'as, réduit le coût de 25% lors de l'élevage d'une lignée jamais diplômée sous cette forme.",
-                     "Enquanto estiver na bolsa, reduz em 25% o custo de tokens ao criar uma linha que você nunca formou nesta forma.",
-                     "Reduziert im Beutel die Token-Kosten um 25%, wenn eine in dieser Form noch nie verabschiedete Entwicklungsreihe trainiert wird.",
-                     "Пока он у вас, снижает расход токенов на 25% при выращивании линии, которую вы ещё не выпускали в этой форме.")
+            return t("이 모습으로 한 번도 졸업시킨 적 없는 라인을 육성할 때 토큰 소모가 25% 감소합니다.",
+                     "Reduces token cost by 25% when raising a line you have never graduated in this form.",
+                     "この姿で一度も卒業させていない系統の育成トークン消費が25%減少します。",
+                     "Reduce un 25% el coste de tokens al criar una línea que nunca graduaste en esta forma.",
+                     "Réduit le coût de 25% lors de l'élevage d'une lignée jamais diplômée sous cette forme.",
+                     "Reduz em 25% o custo de tokens ao criar uma linha que você nunca formou nesta forma.",
+                     "Reduziert die Token-Kosten um 25%, wenn eine in dieser Form noch nie verabschiedete Entwicklungsreihe trainiert wird.",
+                     "Снижает расход токенов на 25% при выращивании линии, которую вы ещё не выпускали в этой форме.")
         case .revealGlass:
             let charm = itemName(.shinyCharm)
-            return t("보유하면 이로치 확률이 두 배가 돼요: 64분의 1이 32분의 1로, \(charm) 보유 시 48분의 1이 24분의 1로.",
-                     "While owned, shiny odds double: 1 in 64 becomes 1 in 32, or 1 in 48 becomes 1 in 24 with the \(charm).",
-                     "持っていると色違いの確率が2倍になります。64分の1が32分の1に、\(charm)と一緒なら48分の1が24分の1になります。",
-                     "Mientras lo tengas, la probabilidad variocolor se duplica: 1 de 64 pasa a 1 de 32, o 1 de 48 a 1 de 24 con el \(charm).",
-                     "Tant que tu l'as, les chances de chromatique doublent : 1 sur 64 devient 1 sur 32, ou 1 sur 48 devient 1 sur 24 avec le \(charm).",
-                     "Enquanto estiver na bolsa, a chance de shiny dobra: 1 em 64 vira 1 em 32, ou 1 em 48 vira 1 em 24 com o \(charm).",
-                     "Im Beutel verdoppelt sich die Schillerchance: aus 1 zu 64 wird 1 zu 32, mit dem \(charm) aus 1 zu 48 wird 1 zu 24.",
-                     "Пока оно у вас, шанс на шайни удваивается: 1 из 64 становится 1 из 32, а с \"\(charm)\" 1 из 48 становится 1 из 24.")
+            return t("이로치 확률이 두 배가 돼요: 64분의 1이 32분의 1로, \(charm) 보유 시 48분의 1이 24분의 1로.",
+                     "Shiny odds double: 1 in 64 becomes 1 in 32, or 1 in 48 becomes 1 in 24 with the \(charm).",
+                     "色違いの確率が2倍になります。64分の1が32分の1に、\(charm)と一緒なら48分の1が24分の1になります。",
+                     "La probabilidad variocolor se duplica: 1 de 64 pasa a 1 de 32, o 1 de 48 a 1 de 24 con el \(charm).",
+                     "Les chances de chromatique doublent : 1 sur 64 devient 1 sur 32, ou 1 sur 48 devient 1 sur 24 avec le \(charm).",
+                     "A chance de shiny dobra: 1 em 64 vira 1 em 32, ou 1 em 48 vira 1 em 24 com o \(charm).",
+                     "Verdoppelt die Schillerchance: aus 1 zu 64 wird 1 zu 32, mit dem \(charm) aus 1 zu 48 wird 1 zu 24.",
+                     "Шанс на шайни удваивается: 1 из 64 становится 1 из 32, а с \"\(charm)\" 1 из 48 становится 1 из 24.")
         case .dnaSplicers:
-            return t("보유하면 토큰 소모를 통한 포켓몬 성장 경험치가 대폭 증가합니다 (+50%).",
-                     "While owned, massively boosts growth EXP from token usage (+50%).",
-                     "持っているとトークン消費によるポケモンの成長経験値が大幅に増加します（+50%）。",
-                     "Mientras lo tengas, aumenta enormemente la EXP de crecimiento por gasto de tokens (+50%).",
-                     "Tant que tu les possèdes, augmente massivement l'EXP de croissance reçue via tes tokens (+50%).",
-                     "Enquanto estiver na bolsa, aumenta bastante a EXP de crescimento ao gastar tokens (+50%).",
-                     "Erhöht im Beutel die Wachstums-EP durch Token-Verbrauch drastisch (+50%).",
-                     "Пока они у вас, увеличивают опыт роста покемона на 50%.")
+            return t("토큰으로 얻는 포켓몬 성장 경험치가 50% 늘어납니다.",
+                     "The tokens you use grow your Pokémon 50% faster.",
+                     "トークンで得るポケモンの成長経験値が50%増えます。",
+                     "Los tokens que usas hacen crecer a tu Pokémon un 50% más rápido.",
+                     "Les tokens que tu utilises font grandir ton Pokémon 50 % plus vite.",
+                     "Os tokens que você usa fazem seu Pokémon crescer 50% mais rápido.",
+                     "Lässt dein Pokémon durch verbrauchte Tokens 50 % schneller wachsen.",
+                     "Токены растят покемона на 50% быстрее.")
         case .zygardeCube:
-            return t("보유하면 졸업시킨 25종마다 토큰 성장 경험치가 1% 늘어납니다 (최대 +40%).",
-                     "While owned, grants +1% growth EXP from token usage for every 25 species you have graduated (up to +40%).",
-                     "持っていると卒業させた25種ごとにトークンの育成経験値が1%増えます（最大+40%）。",
-                     "Mientras la tengas, otorga +1% de EXP de crecimiento por tokens por cada 25 especies graduadas (hasta +40%).",
-                     "Tant que tu la possèdes, +1% d'EXP de croissance via tes tokens par tranche de 25 espèces diplômées (jusqu'à +40%).",
-                     "Enquanto estiver na bolsa, concede +1% de EXP de crescimento por tokens a cada 25 espécies formadas (até +40%).",
-                     "Gibt im Beutel +1% Wachstums-EP durch Token-Verbrauch je 25 verabschiedete Arten (bis +40%).",
-                     "Пока он у вас, даёт +1% опыта роста за каждые 25 выпущенных видов (до +40%).")
+            return t("졸업시킨 25종마다 토큰 성장 경험치가 1% 늘어납니다 (최대 +40%).",
+                     "Grants +1% growth EXP from token usage for every 25 species you have graduated (up to +40%).",
+                     "卒業させた25種ごとにトークンの育成経験値が1%増えます（最大+40%）。",
+                     "Otorga +1% de EXP de crecimiento por tokens por cada 25 especies graduadas (hasta +40%).",
+                     "+1% d'EXP de croissance via tes tokens par tranche de 25 espèces diplômées (jusqu'à +40%).",
+                     "Concede +1% de EXP de crescimento por tokens a cada 25 espécies formadas (até +40%).",
+                     "Gibt +1% Wachstums-EP durch Token-Verbrauch je 25 verabschiedete Arten (bis +40%).",
+                     "Даёт +1% опыта роста за каждые 25 выпущенных видов (до +40%).")
         case .prisonBottle:
-            return t("보유하면 그 라인이 아직 모으지 못한 모습으로 태어난 포켓몬이 50% 더 빨리 성장합니다(여러 모습이 있는 종).",
-                     "While owned, a Pokémon that hatched in a form its line hasn't collected yet grows 50% faster (species with alternate forms).",
-                     "持っているとその系統がまだ集めていない姿で生まれたポケモンが50%早く育ちます（複数の姿がある種）。",
-                     "Mientras la tengas, un Pokémon que nazca en una forma que su línea aún no reunió crece un 50% más rápido (especies con formas alternativas).",
-                     "Tant que tu le possèdes, un Pokémon éclos sous une forme que sa lignée n'a pas encore grandit 50% plus vite (espèces à plusieurs formes).",
-                     "Enquanto estiver na bolsa, um Pokémon que nascer numa forma que sua linha ainda não coletou cresce 50% mais rápido (espécies com formas alternativas).",
-                     "Lässt im Beutel Pokémon, die in einer Form schlüpfen, die ihre Entwicklungsreihe noch nicht hat, 50% schneller wachsen (Arten mit mehreren Formen).",
-                     "Пока он у вас, покемон, вылупившийся в форме, которой ещё нет у его линии, растёт на 50% быстрее (виды с несколькими формами).")
+            return t("그 라인이 아직 모으지 못한 모습으로 태어난 포켓몬이 50% 더 빨리 성장합니다(여러 모습이 있는 종).",
+                     "A Pokémon that hatched in a form its line hasn't collected yet grows 50% faster (species with alternate forms).",
+                     "その系統がまだ集めていない姿で生まれたポケモンが50%早く育ちます（複数の姿がある種）。",
+                     "Un Pokémon que nazca en una forma que su línea aún no reunió crece un 50% más rápido (especies con formas alternativas).",
+                     "Un Pokémon éclos sous une forme que sa lignée n'a pas encore grandit 50% plus vite (espèces à plusieurs formes).",
+                     "Um Pokémon que nascer numa forma que sua linha ainda não coletou cresce 50% mais rápido (espécies com formas alternativas).",
+                     "Lässt Pokémon, die in einer Form schlüpfen, die ihre Entwicklungsreihe noch nicht hat, 50% schneller wachsen (Arten mit mehreren Formen).",
+                     "Покемон, вылупившийся в форме, которой ещё нет у его линии, растёт на 50% быстрее (виды с несколькими формами).")
         case .sparklingStone:
             let fairy = typeName(.fairy)
-            return t("보유하면 \(fairy)타입 포켓몬이 30% 더 빨리 성장합니다.",
-                     "While owned, \(fairy)-type Pokémon grow 30% faster.",
-                     "持っていると\(fairy)タイプのポケモンが30%早く育ちます。",
-                     "Mientras la tengas, los Pokémon de tipo \(fairy) crecen un 30% más rápido.",
-                     "Tant que tu la possèdes, les Pokémon de type \(fairy) grandissent 30% plus vite.",
-                     "Enquanto estiver na bolsa, Pokémon do tipo \(fairy) crescem 30% mais rápido.",
-                     "Lässt im Beutel Pokémon vom Typ \(fairy) 30% schneller wachsen.",
-                     "Пока он у вас, покемоны типа \(fairy) растут на 30% быстрее.")
+            return t("\(fairy)타입 포켓몬이 30% 더 빨리 성장합니다.",
+                     "\(fairy)-type Pokémon grow 30% faster.",
+                     "\(fairy)タイプのポケモンが30%早く育ちます。",
+                     "Los Pokémon de tipo \(fairy) crecen un 30% más rápido.",
+                     "Les Pokémon de type \(fairy) grandissent 30% plus vite.",
+                     "Pokémon do tipo \(fairy) crescem 30% mais rápido.",
+                     "Lässt Pokémon vom Typ \(fairy) 30% schneller wachsen.",
+                     "Покемоны типа \(fairy) растут на 30% быстрее.")
         case .sunFlute:
-            return t("보유하면 최종 진화 단계의 포켓몬이 25% 더 빨리 성장합니다.",
-                     "While owned, a Pokémon at its final stage grows 25% faster.",
-                     "持っていると最終進化のポケモンが25%早く育ちます。",
-                     "Mientras la tengas, un Pokémon en su última etapa crece un 25% más rápido.",
-                     "Tant que tu la possèdes, un Pokémon à son dernier stade grandit 25% plus vite.",
-                     "Enquanto estiver na bolsa, um Pokémon no último estágio cresce 25% mais rápido.",
-                     "Lässt im Beutel Pokémon in ihrer letzten Stufe 25% schneller wachsen.",
-                     "Пока она у вас, покемон на последней стадии растёт на 25% быстрее.")
+            return t("최종 진화 단계의 포켓몬이 25% 더 빨리 성장합니다.",
+                     "A Pokémon at its final stage grows 25% faster.",
+                     "最終進化のポケモンが25%早く育ちます。",
+                     "Un Pokémon en su última etapa crece un 25% más rápido.",
+                     "Un Pokémon à son dernier stade grandit 25% plus vite.",
+                     "Um Pokémon no último estágio cresce 25% mais rápido.",
+                     "Lässt Pokémon in ihrer letzten Stufe 25% schneller wachsen.",
+                     "Покемон на последней стадии растёт на 25% быстрее.")
         case .beastBall:
-            return t("보유하면 울트라비스트가 50% 더 빨리 성장합니다.",
-                     "While owned, Ultra Beasts grow 50% faster.",
-                     "持っているとウルトラビーストが50%早く育ちます。",
-                     "Mientras la tengas, los Ultraentes crecen un 50% más rápido.",
-                     "Tant que tu la possèdes, les Ultra-Chimères grandissent 50% plus vite.",
-                     "Enquanto estiver na bolsa, as Ultracriaturas crescem 50% mais rápido.",
-                     "Lässt im Beutel Ultrabestien 50% schneller wachsen.",
-                     "Пока он у вас, Ультрачудовища растут на 50% быстрее.")
+            return t("울트라비스트가 50% 더 빨리 성장합니다.",
+                     "Ultra Beasts grow 50% faster.",
+                     "ウルトラビーストが50%早く育ちます。",
+                     "Los Ultraentes crecen un 50% más rápido.",
+                     "Les Ultra-Chimères grandissent 50% plus vite.",
+                     "As Ultracriaturas crescem 50% mais rápido.",
+                     "Lässt Ultrabestien 50% schneller wachsen.",
+                     "Ультрачудовища растут на 50% быстрее.")
         case .rustedSword:
-            return t("보유하면 전설의 포켓몬이 25% 더 빨리 성장합니다.",
-                     "While owned, legendary Pokémon grow 25% faster.",
-                     "持っていると伝説のポケモンが25%早く育ちます。",
-                     "Mientras la tengas, los Pokémon legendarios crecen un 25% más rápido.",
-                     "Tant que tu la possèdes, les Pokémon légendaires grandissent 25% plus vite.",
-                     "Enquanto estiver na bolsa, os Pokémon lendários crescem 25% mais rápido.",
-                     "Lässt im Beutel legendäre Pokémon 25% schneller wachsen.",
-                     "Пока он у вас, легендарные покемоны растут на 25% быстрее.")
+            return t("전설의 포켓몬이 25% 더 빨리 성장합니다.",
+                     "Legendary Pokémon grow 25% faster.",
+                     "伝説のポケモンが25%早く育ちます。",
+                     "Los Pokémon legendarios crecen un 25% más rápido.",
+                     "Les Pokémon légendaires grandissent 25% plus vite.",
+                     "Os Pokémon lendários crescem 25% mais rápido.",
+                     "Lässt legendäre Pokémon 25% schneller wachsen.",
+                     "Легендарные покемоны растут на 25% быстрее.")
         case .reinsOfUnity:
-            return t("보유하면 일반 등급을 뺀 포켓몬이 졸업할 때마다 이상한 사탕을 1개 받습니다.",
-                     "While owned, every Pokémon that graduates gives you a Rare Candy, Common ones apart.",
-                     "持っていると、ノーマル以外のポケモンが卒業するたびにふしぎなアメを1個もらえます。",
-                     "Mientras las tengas, recibes un Caramelo Raro cada vez que se gradúa un Pokémon que no sea Común.",
-                     "Tant que tu les possèdes, chaque Pokémon diplômé te donne un Super Bonbon, sauf les Communs.",
-                     "Enquanto estiverem na bolsa, você recebe um Doce Raro sempre que se forma um Pokémon que não seja Comum.",
-                     "Gibt im Beutel für jedes verabschiedete Pokémon ein Sonderbonbon, außer für gewöhnliche.",
-                     "Пока они у вас, за каждого выпущенного покемона, кроме обычных, вы получаете Редкую конфету.")
+            return t("일반 등급을 뺀 포켓몬이 졸업할 때마다 이상한 사탕을 1개 받습니다.",
+                     "Every Pokémon that graduates gives you a Rare Candy, Common ones apart.",
+                     "ノーマル以外のポケモンが卒業するたびにふしぎなアメを1個もらえます。",
+                     "Recibes un Caramelo Raro cada vez que se gradúa un Pokémon que no sea Común.",
+                     "Chaque Pokémon diplômé te donne un Super Bonbon, sauf les Communs.",
+                     "Você recebe um Doce Raro sempre que se forma um Pokémon que não seja Comum.",
+                     "Gibt für jedes verabschiedete Pokémon ein Sonderbonbon, außer für gewöhnliche.",
+                     "За каждого выпущенного покемона, кроме обычных, вы получаете Редкую конфету.")
         case .boosterEnergy:
-            return t("보유하면 패러독스 포켓몬이 50% 더 빨리 성장합니다.",
-                     "While owned, Paradox Pokémon grow 50% faster.",
-                     "持っているとパラドックスポケモンが50%早く育ちます。",
-                     "Mientras la tengas, los Pokémon paradójicos crecen un 50% más rápido.",
-                     "Tant que tu la possèdes, les Pokémon Paradoxe grandissent 50% plus vite.",
-                     "Enquanto estiver na bolsa, os Pokémon Paradoxo crescem 50% mais rápido.",
-                     "Lässt im Beutel paradoxe Pokémon 50% schneller wachsen.",
-                     "Пока она у вас, парадоксальные покемоны растут на 50% быстрее.")
+            return t("패러독스 포켓몬이 50% 더 빨리 성장합니다.",
+                     "Paradox Pokémon grow 50% faster.",
+                     "パラドックスポケモンが50%早く育ちます。",
+                     "Los Pokémon paradójicos crecen un 50% más rápido.",
+                     "Les Pokémon Paradoxe grandissent 50% plus vite.",
+                     "Os Pokémon Paradoxo crescem 50% mais rápido.",
+                     "Lässt paradoxe Pokémon 50% schneller wachsen.",
+                     "Парадоксальные покемоны растут на 50% быстрее.")
         case .tealMask:
             let names = CollectorBonus.tealMaskTypeList.map(typeName)
             let (g, w, f, r) = (names[0], names[1], names[2], names[3])
-            return t("보유하면 \(g)·\(w)·\(f)·\(r) 타입 포켓몬이 20% 더 빨리 성장합니다.",
-                     "While owned, \(g)-, \(w)-, \(f)- and \(r)-type Pokémon grow 20% faster.",
-                     "持っていると\(g)・\(w)・\(f)・\(r)タイプのポケモンが20%早く育ちます。",
-                     "Mientras la tengas, los Pokémon de tipo \(g), \(w), \(f) y \(r) crecen un 20% más rápido.",
-                     "Tant que tu le possèdes, les Pokémon de type \(g), \(w), \(f) et \(r) grandissent 20% plus vite.",
-                     "Enquanto estiver na bolsa, Pokémon dos tipos \(g), \(w), \(f) e \(r) crescem 20% mais rápido.",
-                     "Lässt im Beutel Pokémon vom Typ \(g), \(w), \(f) und \(r) 20% schneller wachsen.",
-                     "Пока она у вас, покемоны типов \(g), \(w), \(f) и \(r) растут на 20% быстрее.")
+            return t("\(g)·\(w)·\(f)·\(r) 타입 포켓몬이 20% 더 빨리 성장합니다.",
+                     "\(g)-, \(w)-, \(f)- and \(r)-type Pokémon grow 20% faster.",
+                     "\(g)・\(w)・\(f)・\(r)タイプのポケモンが20%早く育ちます。",
+                     "Los Pokémon de tipo \(g), \(w), \(f) y \(r) crecen un 20% más rápido.",
+                     "Les Pokémon de type \(g), \(w), \(f) et \(r) grandissent 20% plus vite.",
+                     "Pokémon dos tipos \(g), \(w), \(f) e \(r) crescem 20% mais rápido.",
+                     "Lässt Pokémon vom Typ \(g), \(w), \(f) und \(r) 20% schneller wachsen.",
+                     "Покемоны типов \(g), \(w), \(f) и \(r) растут на 20% быстрее.")
         case .teraOrb:
-            return t("보유하면 진화의 돌로 받은 알이 2배 빨리 부화하고, 그 알에서 나온 포켓몬이 30% 더 빨리 자랍니다.",
-                     "While owned, eggs from an evolution stone hatch twice as fast, and the Pokémon from them grow 30% faster.",
-                     "持っていると進化の石でもらったタマゴが2倍早くかえり、そこから生まれたポケモンが30%早く育ちます。",
-                     "Mientras lo tengas, los huevos obtenidos con una piedra evolutiva eclosionan el doble de rápido y sus Pokémon crecen un 30% más rápido.",
-                     "Tant que tu le possèdes, les œufs obtenus avec une pierre d'évolution éclosent 2 fois plus vite, et leurs Pokémon grandissent 30 % plus vite.",
-                     "Enquanto estiver na bolsa, ovos obtidos com uma pedra de evolução chocam 2 vezes mais rápido e seus Pokémon crescem 30% mais rápido.",
-                     "Lässt im Beutel Eier aus Entwicklungssteinen doppelt so schnell schlüpfen, und ihre Pokémon wachsen 30 % schneller.",
-                     "Пока она у вас, яйца, полученные за камень эволюции, вылупляются в 2 раза быстрее, а их покемоны растут на 30% быстрее.")
+            return t("진화의 돌로 받은 알이 2배 빨리 부화하고, 그 알에서 나온 포켓몬이 30% 더 빨리 자랍니다.",
+                     "Eggs from an evolution stone hatch twice as fast, and the Pokémon from them grow 30% faster.",
+                     "進化の石でもらったタマゴが2倍早くかえり、そこから生まれたポケモンが30%早く育ちます。",
+                     "Los huevos obtenidos con una piedra evolutiva eclosionan el doble de rápido y sus Pokémon crecen un 30% más rápido.",
+                     "Les œufs obtenus avec une pierre d'évolution éclosent 2 fois plus vite, et leurs Pokémon grandissent 30 % plus vite.",
+                     "Ovos obtidos com uma pedra de evolução chocam 2 vezes mais rápido e seus Pokémon crescem 30% mais rápido.",
+                     "Lässt Eier aus Entwicklungssteinen doppelt so schnell schlüpfen, und ihre Pokémon wachsen 30 % schneller.",
+                     "Яйца, полученные за камень эволюции, вылупляются в 2 раза быстрее, а их покемоны растут на 30% быстрее.")
         case .ovalCharm:
-            return t("보유하면 아직 모으지 못한 폼이 있는 포켓몬이 그 폼으로 알에서 태어나요. 그런 계열이 없으면 다른 계열이 태어나요. 생일 알과 화석 알에는 적용되지 않아요.",
-                     "While owned, eggs hatch Pokémon with a form you are missing, in a form you don't have; when no line misses one, any other. Birthday and Fossil Eggs keep their own rules.",
-                     "持っていると、まだ集めていないフォルムがあるポケモンが、そのフォルムでタマゴから生まれます。そういう系統がなければほかの系統が生まれます。誕生日と化石のタマゴには効きません。",
-                     "Mientras lo tengas, de los huevos salen Pokémon con una forma que te falta, en una forma que no tienes; si a ninguna línea le falta una, cualquier otra. No actúa en los huevos de cumpleaños ni fósiles.",
-                     "Tant que tu le possèdes, les œufs font éclore des Pokémon dont il te manque une forme, dans une forme que tu n'as pas ; quand aucune lignée n'en manque, n'importe quelle autre. Il ne joue pas sur les œufs d'anniversaire et fossiles.",
-                     "Enquanto estiver na bolsa, dos ovos nascem Pokémon com uma forma que falta, numa forma que você não tem; se nenhuma linha tiver forma faltando, qualquer outra. Não vale para os ovos de aniversário e fósseis.",
-                     "Lässt im Beutel Pokémon schlüpfen, denen dir noch eine Form fehlt, in einer Form, die du nicht hast; fehlt keiner Linie eine, dann jedes andere. Bei Geburtstags- und Fossil-Eiern wirkt es nicht.",
-                     "Пока он у вас, из яиц вылупляются покемоны с недостающей формой, в форме, которой у вас нет; если ни одной линии форма не нужна, то любые другие. На яйца дня рождения и окаменелостей не действует.")
+            return t("아직 모으지 못한 폼이 있는 포켓몬이 그 폼으로 알에서 태어나요. 그런 계열이 없으면 다른 계열이 태어나요. 생일 알과 화석 알에는 적용되지 않아요.",
+                     "Eggs hatch Pokémon with a form you are missing, in a form you don't have; when no line misses one, any other. Birthday and Fossil Eggs keep their own rules.",
+                     "まだ集めていないフォルムがあるポケモンが、そのフォルムでタマゴから生まれます。そういう系統がなければほかの系統が生まれます。誕生日と化石のタマゴには効きません。",
+                     "De los huevos salen Pokémon con una forma que te falta, en una forma que no tienes; si a ninguna línea le falta una, cualquier otra. No actúa en los huevos de cumpleaños ni fósiles.",
+                     "Les œufs font éclore des Pokémon dont il te manque une forme, dans une forme que tu n'as pas ; quand aucune lignée n'en manque, n'importe quelle autre. Il ne joue pas sur les œufs d'anniversaire et fossiles.",
+                     "Dos ovos nascem Pokémon com uma forma que falta, numa forma que você não tem; se nenhuma linha tiver forma faltando, qualquer outra. Não vale para os ovos de aniversário e fósseis.",
+                     "Lässt Pokémon schlüpfen, denen dir noch eine Form fehlt, in einer Form, die du nicht hast; fehlt keiner Linie eine, dann jedes andere. Bei Geburtstags- und Fossil-Eiern wirkt es nicht.",
+                     "Из яиц вылупляются покемоны с недостающей формой, в форме, которой у вас нет; если ни одной линии форма не нужна, то любые другие. На яйца дня рождения и окаменелостей не действует.")
         case .taurosBreeds:
-            return t("보유하면 이미 다 모은 계열(모든 종과 폼이 졸업)이 알에서 2분의 1 대신 3분의 1만큼만 나와요. 새것을 주지 않는 알이 줄어들어요. 네크로즈마의 네 가지 모습과 함께면 5분의 1이에요.",
-                     "While owned, a line you have whole (every species and form graduated) hatches a third as often instead of half: fewer eggs bring nothing new. With Necrozma's Four Forms, a fifth.",
-                     "持っていると、すでにそろった系統（すべての種とフォルムが卒業）が、タマゴから2分の1ではなく3分の1しか生まれません。新しいものをくれないタマゴが減ります。ネクロズマの4つのすがたと合わせると5分の1です。",
-                     "Mientras lo tengas, una línea que ya tienes entera (todas sus especies y formas graduadas) sale de los huevos un tercio de las veces en lugar de la mitad: menos huevos sin nada nuevo. Con Las cuatro formas de Necrozma, un quinto.",
-                     "Tant que tu le possèdes, une lignée que tu as en entier (toutes ses espèces et formes diplômées) sort des œufs trois fois moins souvent au lieu de deux : moins d'œufs sans rien de nouveau. Avec Les quatre formes de Necrozma, cinq fois moins.",
-                     "Enquanto estiver na bolsa, uma linha que você já tem inteira (todas as espécies e formas formadas) sai dos ovos um terço das vezes em vez da metade: menos ovos sem nada novo. Com As quatro formas de Necrozma, um quinto.",
-                     "Im Beutel schlüpft eine Linie, die du vollständig hast (alle Spezies und Formen verabschiedet), nur noch ein Drittel statt halb so oft: weniger Eier ohne Neues. Mit Die vier Formen von Necrozma ein Fünftel.",
-                     "Пока он у вас, линия, собранная полностью (все виды и формы выпущены), вылупляется в 3 раза реже вместо 2: меньше яиц без нового. Вместе с \"Четыре формы Некрозмы\" в 5 раз реже.")
+            return t("이미 다 모은 계열(모든 종과 폼이 졸업)이 알에서 2분의 1 대신 3분의 1만큼만 나와요. 새것을 주지 않는 알이 줄어들어요. 네크로즈마의 네 가지 모습과 함께면 5분의 1이에요.",
+                     "A line you have whole (every species and form graduated) hatches a third as often instead of half: fewer eggs bring nothing new. With Necrozma's Four Forms, a fifth.",
+                     "すでにそろった系統（すべての種とフォルムが卒業）が、タマゴから2分の1ではなく3分の1しか生まれません。新しいものをくれないタマゴが減ります。ネクロズマの4つのすがたと合わせると5分の1です。",
+                     "Una línea que ya tienes entera (todas sus especies y formas graduadas) sale de los huevos un tercio de las veces en lugar de la mitad: menos huevos sin nada nuevo. Con Las cuatro formas de Necrozma, un quinto.",
+                     "Une lignée que tu as en entier (toutes ses espèces et formes diplômées) sort des œufs trois fois moins souvent au lieu de deux : moins d'œufs sans rien de nouveau. Avec Les quatre formes de Necrozma, cinq fois moins.",
+                     "Uma linha que você já tem inteira (todas as espécies e formas formadas) sai dos ovos um terço das vezes em vez da metade: menos ovos sem nada novo. Com As quatro formas de Necrozma, um quinto.",
+                     "Eine Linie, die du vollständig hast (alle Spezies und Formen verabschiedet), schlüpft nur noch ein Drittel statt halb so oft: weniger Eier ohne Neues. Mit Die vier Formen von Necrozma ein Fünftel.",
+                     "Линия, собранная полностью (все виды и формы выпущены), вылупляется в 3 раза реже вместо 2: меньше яиц без нового. Вместе с \"Четыре формы Некрозмы\" в 5 раз реже.")
         case .necrozmaForms:
-            return t("보유하면 이미 다 모은 계열(모든 종과 폼이 졸업)이 알에서 2분의 1 대신 4분의 1만큼만 나와요. 새것을 주지 않는 알이 줄어들어요. 켄타로스의 네 품종과 함께면 5분의 1이에요.",
-                     "While owned, a line you have whole (every species and form graduated) hatches a quarter as often instead of half: fewer eggs bring nothing new. With Tauros's Four Breeds, a fifth.",
-                     "持っていると、すでにそろった系統（すべての種とフォルムが卒業）が、タマゴから2分の1ではなく4分の1しか生まれません。新しいものをくれないタマゴが減ります。ケンタロスの4つの品種と合わせると5分の1です。",
-                     "Mientras lo tengas, una línea que ya tienes entera (todas sus especies y formas graduadas) sale de los huevos un cuarto de las veces en lugar de la mitad: menos huevos sin nada nuevo. Con Las cuatro razas de Tauros, un quinto.",
-                     "Tant que tu le possèdes, une lignée que tu as en entier (toutes ses espèces et formes diplômées) sort des œufs quatre fois moins souvent au lieu de deux : moins d'œufs sans rien de nouveau. Avec Les quatre races de Tauros, cinq fois moins.",
-                     "Enquanto estiver na bolsa, uma linha que você já tem inteira (todas as espécies e formas formadas) sai dos ovos um quarto das vezes em vez da metade: menos ovos sem nada novo. Com As quatro raças de Tauros, um quinto.",
-                     "Im Beutel schlüpft eine Linie, die du vollständig hast (alle Spezies und Formen verabschiedet), nur noch ein Viertel statt halb so oft: weniger Eier ohne Neues. Mit Die vier Rassen von Tauros ein Fünftel.",
-                     "Пока он у вас, линия, собранная полностью (все виды и формы выпущены), вылупляется в 4 раза реже вместо 2: меньше яиц без нового. Вместе с \"Четыре породы Тауроса\" в 5 раз реже.")
+            return t("이미 다 모은 계열(모든 종과 폼이 졸업)이 알에서 2분의 1 대신 4분의 1만큼만 나와요. 새것을 주지 않는 알이 줄어들어요. 켄타로스의 네 품종과 함께면 5분의 1이에요.",
+                     "A line you have whole (every species and form graduated) hatches a quarter as often instead of half: fewer eggs bring nothing new. With Tauros's Four Breeds, a fifth.",
+                     "すでにそろった系統（すべての種とフォルムが卒業）が、タマゴから2分の1ではなく4分の1しか生まれません。新しいものをくれないタマゴが減ります。ケンタロスの4つの品種と合わせると5分の1です。",
+                     "Una línea que ya tienes entera (todas sus especies y formas graduadas) sale de los huevos un cuarto de las veces en lugar de la mitad: menos huevos sin nada nuevo. Con Las cuatro razas de Tauros, un quinto.",
+                     "Une lignée que tu as en entier (toutes ses espèces et formes diplômées) sort des œufs quatre fois moins souvent au lieu de deux : moins d'œufs sans rien de nouveau. Avec Les quatre races de Tauros, cinq fois moins.",
+                     "Uma linha que você já tem inteira (todas as espécies e formas formadas) sai dos ovos um quarto das vezes em vez da metade: menos ovos sem nada novo. Com As quatro raças de Tauros, um quinto.",
+                     "Eine Linie, die du vollständig hast (alle Spezies und Formen verabschiedet), schlüpft nur noch ein Viertel statt halb so oft: weniger Eier ohne Neues. Mit Die vier Rassen von Tauros ein Fünftel.",
+                     "Линия, собранная полностью (все виды и формы выпущены), вылупляется в 4 раза реже вместо 2: меньше яиц без нового. Вместе с \"Четыре породы Тауроса\" в 5 раз реже.")
         case .glimmeringCharm:
-            return t("보유하면 알에서 태어나는 포켓몬이 모두 이로치입니다.",
-                     "While owned, every Pokémon that hatches is shiny.",
-                     "持っているとタマゴから生まれるポケモンがすべて色違いになります。",
-                     "Mientras lo tengas, todos los Pokémon que nacen son variocolor.",
-                     "Tant que tu le possèdes, chaque Pokémon qui éclot est chromatique.",
-                     "Enquanto estiver na bolsa, todo Pokémon que nascer é shiny.",
-                     "Lässt im Beutel jedes schlüpfende Pokémon schillern.",
-                     "Пока он у вас, каждый вылупившийся покемон шайни.")
+            return t("알에서 태어나는 포켓몬이 모두 이로치입니다.",
+                     "Every Pokémon that hatches is shiny.",
+                     "タマゴから生まれるポケモンがすべて色違いになります。",
+                     "Todos los Pokémon que nacen son variocolor.",
+                     "Chaque Pokémon qui éclot est chromatique.",
+                     "Todo Pokémon que nascer é shiny.",
+                     "Lässt jedes schlüpfende Pokémon schillern.",
+                     "Каждый вылупившийся покемон шайни.")
         case .typeNullEgg:
             return t("실버디의 메모리 17개를 모은 보상. 지금 포켓몬을 놓아주고 타입:널이 확정으로 태어나는 알을 받아요.",
                      "The reward for all 17 of Silvally's Memories. Send off your current Pokémon for an egg that hatches a Type: Null.",
@@ -2366,110 +2366,110 @@ struct L {
                      "Die Belohnung für jede Region, deren Pokémon alle ihren Abschied hatten. Gib dein aktuelles Pokémon ab für ein Ei, aus dem ein legendäres oder mysteriöses Pokémon schlüpft.",
                      "Награда за каждый регион, все покемоны которого выпущены. Отпустите текущего покемона ради яйца, из которого вылупится легендарный или мифический покемон.")
         case .relicStatue:
-            return t("보유하면 진화하지 않는 포켓몬이 25% 더 빨리 성장합니다.",
-                     "While owned, a Pokémon that does not evolve grows 25% faster.",
-                     "持っていると進化しないポケモンが25%早く育ちます。",
-                     "Mientras la tengas, un Pokémon que no evoluciona crece un 25% más rápido.",
-                     "Tant que tu le possèdes, un Pokémon qui n'évolue pas grandit 25% plus vite.",
-                     "Enquanto estiver na bolsa, um Pokémon que não evolui cresce 25% mais rápido.",
-                     "Lässt im Beutel Pokémon, die sich nicht entwickeln, 25% schneller wachsen.",
-                     "Пока она у вас, покемон, который не эволюционирует, растёт на 25% быстрее.")
+            return t("진화하지 않는 포켓몬이 25% 더 빨리 성장합니다.",
+                     "A Pokémon that does not evolve grows 25% faster.",
+                     "進化しないポケモンが25%早く育ちます。",
+                     "Un Pokémon que no evoluciona crece un 25% más rápido.",
+                     "Un Pokémon qui n'évolue pas grandit 25% plus vite.",
+                     "Um Pokémon que não evolui cresce 25% mais rápido.",
+                     "Lässt Pokémon, die sich nicht entwickeln, 25% schneller wachsen.",
+                     "Покемон, который не эволюционирует, растёт на 25% быстрее.")
         case .lunarWing:
             let psychic = typeName(.psychic), dark = typeName(.dark)
-            return t("보유하면 \(psychic)·\(dark) 타입 포켓몬이 30% 더 빨리 성장합니다.",
-                     "While owned, \(psychic)- and \(dark)-type Pokémon grow 30% faster.",
-                     "持っていると\(psychic)・\(dark)タイプのポケモンが30%早く育ちます。",
-                     "Mientras la tengas, los Pokémon de tipo \(psychic) y \(dark) crecen un 30% más rápido.",
-                     "Tant que tu la possèdes, les Pokémon de type \(psychic) et \(dark) grandissent 30% plus vite.",
-                     "Enquanto estiver na bolsa, Pokémon dos tipos \(psychic) e \(dark) crescem 30% mais rápido.",
-                     "Lässt im Beutel \(psychic)- und \(dark)-Pokémon 30% schneller wachsen.",
-                     "Пока оно у вас, покемоны типов \(psychic) и \(dark) растут на 30% быстрее.")
+            return t("\(psychic)·\(dark) 타입 포켓몬이 30% 더 빨리 성장합니다.",
+                     "\(psychic)- and \(dark)-type Pokémon grow 30% faster.",
+                     "\(psychic)・\(dark)タイプのポケモンが30%早く育ちます。",
+                     "Los Pokémon de tipo \(psychic) y \(dark) crecen un 30% más rápido.",
+                     "Les Pokémon de type \(psychic) et \(dark) grandissent 30% plus vite.",
+                     "Pokémon dos tipos \(psychic) e \(dark) crescem 30% mais rápido.",
+                     "Lässt \(psychic)- und \(dark)-Pokémon 30% schneller wachsen.",
+                     "Покемоны типов \(psychic) и \(dark) растут на 30% быстрее.")
         case .meteorite:
-            return t("보유하면 토큰 한도를 다 채울 때마다 이상한 사탕을 1개 더 받습니다.",
-                     "While owned, every token limit you max out gives you one more Rare Candy.",
-                     "持っているとトークン上限を使い切るたびにふしぎなアメを1個多くもらえます。",
-                     "Mientras lo tengas, recibes un Caramelo Raro más cada vez que agotas un límite de tokens.",
-                     "Tant que tu la possèdes, chaque limite de tokens atteinte te donne un Super Bonbon de plus.",
-                     "Enquanto estiver na bolsa, você recebe um Doce Raro a mais sempre que esgota um limite de tokens.",
-                     "Gibt im Beutel für jedes ausgeschöpfte Token-Limit ein Sonderbonbon mehr.",
-                     "Пока он у вас, за каждый исчерпанный лимит токенов вы получаете на одну Редкую конфету больше.")
+            return t("토큰 한도를 다 채울 때마다 이상한 사탕을 1개 더 받습니다.",
+                     "Every token limit you max out gives you one more Rare Candy.",
+                     "トークン上限を使い切るたびにふしぎなアメを1個多くもらえます。",
+                     "Recibes un Caramelo Raro más cada vez que agotas un límite de tokens.",
+                     "Chaque limite de tokens atteinte te donne un Super Bonbon de plus.",
+                     "Você recebe um Doce Raro a mais sempre que esgota um limite de tokens.",
+                     "Gibt für jedes ausgeschöpfte Token-Limit ein Sonderbonbon mehr.",
+                     "За каждый исчерпанный лимит токенов вы получаете на одну Редкую конфету больше.")
         case .oaksLetter:
-            return t("보유하면 모든 지방의 스타팅 포켓몬이 어느 단계든 25% 더 빨리 성장합니다.",
-                     "While owned, the starter Pokémon of every region grow 25% faster, at every stage.",
-                     "持っているとすべての地方の御三家ポケモンがどの段階でも25%早く育ちます。",
-                     "Mientras la tengas, los Pokémon iniciales de todas las regiones crecen un 25% más rápido, en cualquier etapa.",
-                     "Tant que tu la possèdes, les Pokémon de départ de toutes les régions grandissent 25% plus vite, à chaque stade.",
-                     "Enquanto estiver na bolsa, os Pokémon iniciais de todas as regiões crescem 25% mais rápido, em qualquer estágio.",
-                     "Lässt im Beutel die Starter-Pokémon aller Regionen in jeder Stufe 25% schneller wachsen.",
-                     "Пока оно у вас, стартовые покемоны всех регионов растут на 25% быстрее на любой стадии.")
+            return t("모든 지방의 스타팅 포켓몬이 어느 단계든 25% 더 빨리 성장합니다.",
+                     "The starter Pokémon of every region grow 25% faster, at every stage.",
+                     "すべての地方の御三家ポケモンがどの段階でも25%早く育ちます。",
+                     "Los Pokémon iniciales de todas las regiones crecen un 25% más rápido, en cualquier etapa.",
+                     "Les Pokémon de départ de toutes les régions grandissent 25% plus vite, à chaque stade.",
+                     "Os Pokémon iniciais de todas as regiões crescem 25% mais rápido, em qualquer estágio.",
+                     "Lässt die Starter-Pokémon aller Regionen in jeder Stufe 25% schneller wachsen.",
+                     "Стартовые покемоны всех регионов растут на 25% быстрее на любой стадии.")
         case .seaIncense:
-            return t("보유하면 등급이 확정된 알(상점에서 산 알, 업적의 알)이 2배 빨리 부화하고, 그 알에서 나온 포켓몬이 30% 더 빨리 자랍니다.",
-                     "While owned, eggs of a guaranteed rarity (bought in the Shop or given by an achievement) hatch twice as fast, and the Pokémon from them grow 30% faster.",
-                     "持っているとレア度が確定したタマゴ（ショップで買ったタマゴ、実績のタマゴ）が2倍早くかえり、そこから生まれたポケモンが30%早く育ちます。",
-                     "Mientras lo tengas, los huevos de rareza garantizada (comprados en la tienda o de un logro) eclosionan el doble de rápido y sus Pokémon crecen un 30% más rápido.",
-                     "Tant que tu le possèdes, les œufs à rareté garantie (achetés en boutique ou offerts par un succès) éclosent 2 fois plus vite, et leurs Pokémon grandissent 30 % plus vite.",
-                     "Enquanto estiver na bolsa, ovos de raridade garantida (comprados na loja ou de uma conquista) chocam 2 vezes mais rápido e seus Pokémon crescem 30% mais rápido.",
-                     "Lässt im Beutel Eier mit garantierter Seltenheit (aus dem Laden oder von einem Erfolg) doppelt so schnell schlüpfen, und ihre Pokémon wachsen 30 % schneller.",
-                     "Пока он у вас, яйца гарантированной редкости (из магазина или за достижение) вылупляются в 2 раза быстрее, а их покемоны растут на 30% быстрее.")
+            return t("등급이 확정된 알(상점에서 산 알, 업적의 알)이 2배 빨리 부화하고, 그 알에서 나온 포켓몬이 30% 더 빨리 자랍니다.",
+                     "Eggs of a guaranteed rarity (bought in the Shop or given by an achievement) hatch twice as fast, and the Pokémon from them grow 30% faster.",
+                     "レア度が確定したタマゴ（ショップで買ったタマゴ、実績のタマゴ）が2倍早くかえり、そこから生まれたポケモンが30%早く育ちます。",
+                     "Los huevos de rareza garantizada (comprados en la tienda o de un logro) eclosionan el doble de rápido y sus Pokémon crecen un 30% más rápido.",
+                     "Les œufs à rareté garantie (achetés en boutique ou offerts par un succès) éclosent 2 fois plus vite, et leurs Pokémon grandissent 30 % plus vite.",
+                     "Ovos de raridade garantida (comprados na loja ou de uma conquista) chocam 2 vezes mais rápido e seus Pokémon crescem 30% mais rápido.",
+                     "Lässt Eier mit garantierter Seltenheit (aus dem Laden oder von einem Erfolg) doppelt so schnell schlüpfen, und ihre Pokémon wachsen 30 % schneller.",
+                     "Яйца гарантированной редкости (из магазина или за достижение) вылупляются в 2 раза быстрее, а их покемоны растут на 30% быстрее.")
         case .shockDrive:
             let candy = itemName(.rareCandy), n = CollectorBonus.shockDriveRechargeOneIn
-            return t("보유하면 \(candy) 하나를 쓸 때마다 \(n)번에 1번은 그 사탕이 가방에 그대로 남아요.",
-                     "While owned, each \(candy) you use has 1 chance in \(n) to stay in your Bag.",
-                     "持っていると、\(candy)を使うたびに\(n)回に1回はそのアメがバッグに残ります。",
-                     "Mientras lo tengas, cada \(candy) que usas tiene 1 posibilidad entre \(n) de quedarse en tu bolsa.",
-                     "Tant que tu l'as, chaque \(candy) utilisé a 1 chance sur \(n) de rester dans ton sac.",
-                     "Enquanto estiver na bolsa, cada \(candy) usado tem 1 chance em \(n) de continuar na sua bolsa.",
-                     "Im Beutel bleibt jedes verwendete \(candy) mit einer Chance von 1 zu \(n) im Beutel.",
-                     "Пока он у вас, каждая использованная \"\(candy)\" с шансом 1 из \(n) остаётся в сумке.")
+            return t("\(candy) 하나를 쓸 때마다 \(n)번에 1번은 그 사탕이 가방에 그대로 남아요.",
+                     "Each \(candy) you use has 1 chance in \(n) to stay in your Bag.",
+                     "\(candy)を使うたびに\(n)回に1回はそのアメがバッグに残ります。",
+                     "Cada \(candy) que usas tiene 1 posibilidad entre \(n) de quedarse en tu bolsa.",
+                     "Chaque \(candy) utilisé a 1 chance sur \(n) de rester dans ton sac.",
+                     "Cada \(candy) usado tem 1 chance em \(n) de continuar na sua bolsa.",
+                     "Jedes verwendete \(candy) bleibt mit einer Chance von 1 zu \(n) im Beutel.",
+                     "Каждая использованная \"\(candy)\" с шансом 1 из \(n) остаётся в сумке.")
         case .zRing:
             let steel = typeName(.steel), electric = typeName(.electric)
-            return t("보유하면 \(steel)·\(electric) 타입 포켓몬이 30% 더 빨리 성장합니다.",
-                     "While owned, \(steel)- and \(electric)-type Pokémon grow 30% faster.",
-                     "持っていると\(steel)・\(electric)タイプのポケモンが30%早く育ちます。",
-                     "Mientras la tengas, los Pokémon de tipo \(steel) y \(electric) crecen un 30% más rápido.",
-                     "Tant que tu le possèdes, les Pokémon de type \(steel) et \(electric) grandissent 30% plus vite.",
-                     "Enquanto estiver na bolsa, Pokémon dos tipos \(steel) e \(electric) crescem 30% mais rápido.",
-                     "Lässt im Beutel \(steel)- und \(electric)-Pokémon 30% schneller wachsen.",
-                     "Пока оно у вас, покемоны типов \(steel) и \(electric) растут на 30% быстрее.")
+            return t("\(steel)·\(electric) 타입 포켓몬이 30% 더 빨리 성장합니다.",
+                     "\(steel)- and \(electric)-type Pokémon grow 30% faster.",
+                     "\(steel)・\(electric)タイプのポケモンが30%早く育ちます。",
+                     "Los Pokémon de tipo \(steel) y \(electric) crecen un 30% más rápido.",
+                     "Les Pokémon de type \(steel) et \(electric) grandissent 30% plus vite.",
+                     "Pokémon dos tipos \(steel) e \(electric) crescem 30% mais rápido.",
+                     "Lässt \(steel)- und \(electric)-Pokémon 30% schneller wachsen.",
+                     "Покемоны типов \(steel) и \(electric) растут на 30% быстрее.")
         case .scrollOfDarkness:
             let fighting = typeName(.fighting)
-            return t("보유하면 \(fighting)타입 포켓몬이 30% 더 빨리 성장합니다.",
-                     "While owned, \(fighting)-type Pokémon grow 30% faster.",
-                     "持っていると\(fighting)タイプのポケモンが30%早く育ちます。",
-                     "Mientras lo tengas, los Pokémon de tipo \(fighting) crecen un 30% más rápido.",
-                     "Tant que tu le possèdes, les Pokémon de type \(fighting) grandissent 30% plus vite.",
-                     "Enquanto estiver na bolsa, Pokémon do tipo \(fighting) crescem 30% mais rápido.",
-                     "Lässt im Beutel Pokémon vom Typ \(fighting) 30% schneller wachsen.",
-                     "Пока он у вас, покемоны типа \(fighting) растут на 30% быстрее.")
+            return t("\(fighting)타입 포켓몬이 30% 더 빨리 성장합니다.",
+                     "\(fighting)-type Pokémon grow 30% faster.",
+                     "\(fighting)タイプのポケモンが30%早く育ちます。",
+                     "Los Pokémon de tipo \(fighting) crecen un 30% más rápido.",
+                     "Les Pokémon de type \(fighting) grandissent 30% plus vite.",
+                     "Pokémon do tipo \(fighting) crescem 30% mais rápido.",
+                     "Lässt Pokémon vom Typ \(fighting) 30% schneller wachsen.",
+                     "Покемоны типа \(fighting) растут на 30% быстрее.")
         case .relicVase:
-            return t("보유하면 중간 진화 단계의 포켓몬이 25% 더 빨리 성장합니다.",
-                     "While owned, a Pokémon at its middle stage grows 25% faster.",
-                     "持っていると中間の進化段階のポケモンが25%早く育ちます。",
-                     "Mientras la tengas, un Pokémon en su etapa intermedia crece un 25% más rápido.",
-                     "Tant que tu le possèdes, un Pokémon à son stade intermédiaire grandit 25% plus vite.",
-                     "Enquanto estiver na bolsa, um Pokémon no estágio intermediário cresce 25% mais rápido.",
-                     "Lässt im Beutel Pokémon in ihrer mittleren Stufe 25% schneller wachsen.",
-                     "Пока она у вас, покемон на промежуточной стадии растёт на 25% быстрее.")
+            return t("중간 진화 단계의 포켓몬이 25% 더 빨리 성장합니다.",
+                     "A Pokémon at its middle stage grows 25% faster.",
+                     "中間の進化段階のポケモンが25%早く育ちます。",
+                     "Un Pokémon en su etapa intermedia crece un 25% más rápido.",
+                     "Un Pokémon à son stade intermédiaire grandit 25% plus vite.",
+                     "Um Pokémon no estágio intermediário cresce 25% mais rápido.",
+                     "Lässt Pokémon in ihrer mittleren Stufe 25% schneller wachsen.",
+                     "Покемон на промежуточной стадии растёт на 25% быстрее.")
         case .explorerKit:
             let candy = itemName(.rareCandy), uncommon = eggName(.uncommon), rare = eggName(.rare)
             let legendary = itemName(.legendaryEgg), n = ExplorerKit.graduationsPerTreasure
-            return t("보유하면 포켓몬을 \(n)마리 졸업시킬 때마다 보물을 하나 발굴해요: 대개 \(candy), 가끔 \(uncommon)이나 \(rare), 아주 드물게 \(legendary).",
-                     "While owned, every \(n) Pokémon you graduate dig up a treasure: mostly a \(candy), sometimes an \(uncommon) or a \(rare) and, very rarely, a \(legendary).",
-                     "持っていると、ポケモンを\(n)匹卒業させるたびに宝物を1つ掘り当てます：たいてい\(candy)、ときどき\(uncommon)か\(rare)、ごくまれに\(legendary)。",
-                     "Mientras lo tengas, cada \(n) Pokémon que gradúas desentierran un tesoro: casi siempre un \(candy), a veces un \(uncommon) o un \(rare) y, muy rara vez, un \(legendary).",
-                     "Tant que tu l'as, tous les \(n) Pokémon diplômés, tu déterres un trésor : le plus souvent un \(candy), parfois un \(uncommon) ou un \(rare) et, très rarement, un \(legendary).",
-                     "Enquanto estiver na bolsa, a cada \(n) Pokémon que você forma, você desenterra um tesouro: quase sempre um \(candy), às vezes um \(uncommon) ou um \(rare) e, muito raramente, um \(legendary).",
-                     "Im Beutel gräbst du alle \(n) verabschiedeten Pokémon einen Schatz aus: meist ein \(candy), manchmal ein \(uncommon) oder ein \(rare) und, sehr selten, ein \(legendary).",
-                     "Пока он у вас, каждые \(n) выпущенных покемонов приносят сокровище: чаще всего \"\(candy)\", иногда \"\(uncommon)\" или \"\(rare)\" и, очень редко, \"\(legendary)\".")
+            return t("포켓몬을 \(n)마리 졸업시킬 때마다 보물을 하나 발굴해요: 대개 \(candy), 가끔 \(uncommon)이나 \(rare), 아주 드물게 \(legendary).",
+                     "Every \(n) Pokémon you graduate dig up a treasure: mostly a \(candy), sometimes an \(uncommon) or a \(rare) and, very rarely, a \(legendary).",
+                     "ポケモンを\(n)匹卒業させるたびに宝物を1つ掘り当てます：たいてい\(candy)、ときどき\(uncommon)か\(rare)、ごくまれに\(legendary)。",
+                     "Cada \(n) Pokémon que gradúas desentierran un tesoro: casi siempre un \(candy), a veces un \(uncommon) o un \(rare) y, muy rara vez, un \(legendary).",
+                     "Tous les \(n) Pokémon diplômés, tu déterres un trésor : le plus souvent un \(candy), parfois un \(uncommon) ou un \(rare) et, très rarement, un \(legendary).",
+                     "A cada \(n) Pokémon que você forma, você desenterra um tesouro: quase sempre um \(candy), às vezes um \(uncommon) ou um \(rare) e, muito raramente, um \(legendary).",
+                     "Alle \(n) verabschiedeten Pokémon gräbst du einen Schatz aus: meist ein \(candy), manchmal ein \(uncommon) oder ein \(rare) und, sehr selten, ein \(legendary).",
+                     "Каждые \(n) выпущенных покемонов приносят сокровище: чаще всего \"\(candy)\", иногда \"\(uncommon)\" или \"\(rare)\" и, очень редко, \"\(legendary)\".")
         case .oldAmber:
-            return t("보유하면 알과 바꾸려고 놓아준 포켓몬이 지금 단계에서 쌓은 경험치의 절반을 새로 태어나는 포켓몬에게 넘겨줘요. 태어나자마자 진화하지는 않아요.",
-                     "While owned, a Pokémon you send off for an egg gives half the EXP of its stage to the Pokémon that hatches, short of evolving it at once.",
-                     "持っていると、タマゴと引き換えに手放したポケモンが今の段階でためた経験値の半分を、生まれるポケモンに引き継ぎます。生まれてすぐ進化はしません。",
-                     "Mientras lo tengas, un Pokémon que sueltas por un huevo da la mitad de la experiencia de su etapa al Pokémon que nace, sin que evolucione nada más nacer.",
-                     "Tant que tu l'as, un Pokémon que tu laisses partir contre un œuf donne la moitié de l'expérience de son stade au Pokémon qui éclot, sans le faire évoluer dès l'éclosion.",
-                     "Enquanto estiver na bolsa, um Pokémon que você solta por um ovo passa metade da experiência do estágio dele ao Pokémon que nasce, sem fazê-lo evoluir ao nascer.",
-                     "Im Beutel gibt ein Pokémon, das du für ein Ei abgibst, die Hälfte der Erfahrung seiner Stufe an das Pokémon weiter, das schlüpft, ohne dass es sich gleich entwickelt.",
-                     "Пока он у вас, покемон, отпущенный ради яйца, передаёт половину опыта своей стадии покемону, который вылупится, но тот не эволюционирует сразу.")
+            return t("알과 바꾸려고 놓아준 포켓몬이 지금 단계에서 쌓은 경험치의 절반을 새로 태어나는 포켓몬에게 넘겨줘요. 태어나자마자 진화하지는 않아요.",
+                     "A Pokémon you send off for an egg gives half the EXP of its stage to the Pokémon that hatches, short of evolving it at once.",
+                     "タマゴと引き換えに手放したポケモンが今の段階でためた経験値の半分を、生まれるポケモンに引き継ぎます。生まれてすぐ進化はしません。",
+                     "Un Pokémon que sueltas por un huevo da la mitad de la experiencia de su etapa al Pokémon que nace, sin que evolucione nada más nacer.",
+                     "Un Pokémon que tu laisses partir contre un œuf donne la moitié de l'expérience de son stade au Pokémon qui éclot, sans le faire évoluer dès l'éclosion.",
+                     "Um Pokémon que você solta por um ovo passa metade da experiência do estágio dele ao Pokémon que nasce, sem fazê-lo evoluir ao nascer.",
+                     "Ein Pokémon, das du für ein Ei abgibst, gibt die Hälfte der Erfahrung seiner Stufe an das Pokémon weiter, das schlüpft, ohne dass es sich gleich entwickelt.",
+                     "Покемон, отпущенный ради яйца, передаёт половину опыта своей стадии покемону, который вылупится, но тот не эволюционирует сразу.")
         case .legendPlate:
             let rare = eggName(.rare), uncommon = eggName(.uncommon)
             return t("아르세우스의 보상. 받으면 가방에 \(rare)과 \(uncommon)이 하나씩 들어와요.",
@@ -2499,14 +2499,14 @@ struct L {
                      "Gib dein aktuelles Pokémon dafür ab: Daraus schlüpft zufällig ein Fossil-Pokémon einer noch nicht verabschiedeten Linie, oder jeder Fossil-Linie, sobald alle verabschiedet sind.",
                      "Отпустите текущего покемона ради него: из него вылупится случайный покемон-окаменелость из ещё не выпущенной линии, а когда выпущены все, из любой.")
         case .rotomCatalog:
-            return t("보유하면 그 진화 라인이 아직 졸업시킨 적 없는 폼으로 졸업한 포켓몬마다 이상한 사탕을 1개 받습니다.",
-                     "While owned, every Pokémon that graduates in a form its line had never graduated gives you one Rare Candy.",
-                     "持っていると、その進化ラインがまだ卒業させていないフォルムで卒業したポケモンごとにふしぎなアメを1個もらえます。",
-                     "Mientras lo tengas, cada Pokémon que se gradúa en una forma que su línea nunca había graduado te da un Caramelo Raro.",
-                     "Tant que tu le possèdes, chaque Pokémon diplômé dans une forme que sa lignée n'avait jamais diplômée te donne un Super Bonbon.",
-                     "Enquanto estiver na bolsa, cada Pokémon que se forma numa forma que sua linha nunca tinha formado te dá um Doce Raro.",
-                     "Gibt im Beutel für jedes Pokémon, das in einer Form verabschiedet wird, die seine Linie noch nie verabschiedet hat, ein Sonderbonbon.",
-                     "Пока он у вас, за каждого покемона, выпущенного в форме, которую его линия ещё не выпускала, вы получаете Редкую конфету.")
+            return t("그 진화 라인이 아직 졸업시킨 적 없는 폼으로 졸업한 포켓몬마다 이상한 사탕을 1개 받습니다.",
+                     "Every Pokémon that graduates in a form its line had never graduated gives you one Rare Candy.",
+                     "その進化ラインがまだ卒業させていないフォルムで卒業したポケモンごとにふしぎなアメを1個もらえます。",
+                     "Cada Pokémon que se gradúa en una forma que su línea nunca había graduado te da un Caramelo Raro.",
+                     "Chaque Pokémon diplômé dans une forme que sa lignée n'avait jamais diplômée te donne un Super Bonbon.",
+                     "Cada Pokémon que se forma numa forma que sua linha nunca tinha formado te dá um Doce Raro.",
+                     "Gibt für jedes Pokémon, das in einer Form verabschiedet wird, die seine Linie noch nie verabschiedet hat, ein Sonderbonbon.",
+                     "За каждого покемона, выпущенного в форме, которую его линия ещё не выпускала, вы получаете Редкую конфету.")
         case .cometShard, .redNectar, .smoothRock, .sawsbuckSeasons, .fairyFeather, .furfrouTrims, .vivillonPatterns,
              .whippedDream, .unownLetters:
             return formsRewardDescription(kind)

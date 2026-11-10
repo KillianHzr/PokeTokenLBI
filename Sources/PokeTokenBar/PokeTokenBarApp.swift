@@ -369,7 +369,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let still = mode == .still
         // Q30 C: while a team explores, its dungeon stands in for the Pokémon whose growth it pauses; a daily or weekly
         // dungeon's boss stands in for it, as on its cards.
-        if let dungeon = companion.expedition?.dungeon, !dungeon.isChallenge, let diorama = DungeonSprites.trimmedImage(dungeon) {
+        if let dungeon = companion.expedition?.dungeon, !dungeon.isChallenge,
+           let diorama = DungeonSprites.trimmedImage(dungeon) {
             let key = "dungeon-\(dungeon.rawValue)"
             if key == menuSpriteKey, !menuFrames.isEmpty { return }
             menuLoadTask?.cancel()

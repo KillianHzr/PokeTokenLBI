@@ -130,6 +130,8 @@ actor SpriteStore {
     /// pixel GIFs stay last, for a Gen 1-5 form Showdown lacks (Burmy's cloaks). Its folder has no form added after
     /// Gen 5 (the white-striped Basculin is its variety `10247`).
     static func spriteURLs(speciesID: Int, animated: Bool, shiny: Bool, form: PokemonForm? = nil) -> [URL] {
+        // Giovanni's armored Mewtwo: Pokémon GO's render, still, whatever is asked (issue #180).
+        if ArmoredMewtwo.matches(speciesID: speciesID, form: form), let url = URL(string: ArmoredMewtwo.spriteURL) { return [url] }
         let color = shiny ? "shiny/" : ""
         let isRegional = form?.rawValue.contains("alola") == true
                       || form?.rawValue.contains("galar") == true
@@ -275,6 +277,8 @@ actor SpriteStore {
             urlStr = "https://images.wikidexcdn.net/mwuploads/wikidex/b/b3/latest/20200210170142/Profesor_Oak_Masters.png"
         } else if let merchant = TravellingMerchant.portraitURLs[itemName] {
             urlStr = merchant
+        } else if let villain = VillainTeam.portraitURLs[itemName] {
+            urlStr = villain
         } else if itemName.hasPrefix("merchant-") {
             return nil
         } else {

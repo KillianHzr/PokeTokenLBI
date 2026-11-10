@@ -24,6 +24,12 @@ struct ExpeditionResult: Codable, Sendable, Equatable {
     var battleForm: String? = nil
     /// What the boss's capture gave (`Expedition.BossReward`), nil for its own egg: the result card says so.
     var bossReward: Expedition.BossReward? = nil
+    /// What a hideout's leader gave back (issue #180).
+    var recovered: [String: Int]? = nil
+    /// The secret boss met, how it went (`SecretBosses`).
+    var secret: SecretEncounter? = nil
+    /// Whose hideout it was.
+    var villain: VillainTeam? { dungeon.villain }
     var log: [ExpeditionLogEntry]
 }
 
@@ -102,6 +108,18 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var savedTeam: [String] = []
     /// The expeditions that ended, the latest last, a hundred at most: each dungeon's page lists its own.
     var history: [DungeonRunRecord] = []
+    /// The thefts waiting on Home to be chased, then how it went (issue #180): they add up (the owner, 2026-11-10).
+    var ambushes: [VillainAmbush] = []
+    /// What each team took to its hideout, one a team: its hideout stays open until its leader falls.
+    var stashes: [VillainStash] = []
+    /// The last day (`yyyy-MM-dd`) whose draw was settled: one theft a day at most.
+    var villainDay: String?
+    /// The last day a team stole: never two days in a row.
+    var villainLastTheft: String?
+    /// The secret bosses met and those caught (`SecretBosses.key`, "seafoamIslands:144:galar"), apart from the
+    /// dungeons' bosses: they count for none of their records.
+    var secretsMet: Set<String> = []
+    var secretsCaught: Set<String> = []
 
     init() {}
 
@@ -123,6 +141,8 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         weeklyTried = c.lenientOptional(String.self, forKey: .weeklyTried)
         challengeDraws = c.lenient([String: String].self, forKey: .challengeDraws, default: [:])
         legendaryEggsWon = c.lenient(Set<Int>.self, forKey: .legendaryEggsWon, default: [])
+        secretsMet = c.lenient(Set<String>.self, forKey: .secretsMet, default: [])
+        secretsCaught = c.lenient(Set<String>.self, forKey: .secretsCaught, default: [])
         savedTeam = c.lenient([String].self, forKey: .savedTeam, default: [])
         history = c.lenient([Lossy<DungeonRunRecord>].self, forKey: .history, default: []).compactMap(\.value)
         battleFormsWonAt = c.lenient([String: Date].self, forKey: .battleFormsWonAt, default: [:])
@@ -133,6 +153,10 @@ struct DungeonProgress: Codable, Sendable, Equatable {
                 battleFormsWonAt[key] = run.endedAt
             }
         }
+        ambushes = c.lenient([Lossy<VillainAmbush>].self, forKey: .ambushes, default: []).compactMap(\.value)
+        stashes = c.lenient([Lossy<VillainStash>].self, forKey: .stashes, default: []).compactMap(\.value)
+        villainDay = c.lenientOptional(String.self, forKey: .villainDay)
+        villainLastTheft = c.lenientOptional(String.self, forKey: .villainLastTheft)
         challengeWins = c.lenient([String: String].self, forKey: .challengeWins, default: [:])
             .filter { BattleForms.form(key: $0.value) != nil }
         // A save from before keyed its wins nowhere: each won run counts for the period it ended in.

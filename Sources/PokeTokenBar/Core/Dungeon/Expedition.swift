@@ -10,6 +10,8 @@ struct DungeonEgg: Codable, Sendable, Equatable, Identifiable {
     var isShiny: Bool
     /// The Pokémon it came from: a legendary boss's egg has its own look (R14), the others their first type's (R8).
     var sourceSpeciesID: Int
+    /// A secret boss's: the Secret Egg, one look for all of them (the owner, 2026-11-10).
+    var isSecret: Bool?
 
     /// A legendary boss's egg (the owner, 2026-11-04): won once per species; its Pokémon graduates for 200M
     /// (`MonState.graduationTotal`) and is never sent off while raised.
@@ -77,7 +79,8 @@ enum ExpeditionLogKind: Codable, Sendable, Equatable {
     case secretPassage(skipped: Bool, loot: ExpeditionLoot?)
     case revive(entryID: String, max: Bool)
     case emergencyHeal(paid: Int)
-    case bossReached(speciesID: Int, isShiny: Bool)
+    /// `secret`: a secret boss (`SecretBosses`), its form drawn (Galarian Articuno, the Origin trio).
+    case bossReached(speciesID: Int, isShiny: Bool, form: PokemonForm? = nil, secret: Bool? = nil)
     case capture(attempt: Int, ball: String?, caught: Bool)
     case victory
     case defeat
@@ -158,8 +161,12 @@ struct Expedition: Codable, Sendable, Equatable {
     }
     /// Nil: its own egg, as an expedition saved before.
     var bossReward: BossReward?
+    /// A secret boss met this time (`SecretBosses`): in the boss's place, or after it in the Hall of Origin.
+    var secret: SecretEncounter?
 
-    var floors: Int { DungeonCatalog.dungeon(dungeon).floors }
+    var floors: Int { info.floors }
+    /// The dungeon walked.
+    var info: Dungeon { DungeonCatalog.dungeon(dungeon) }
     var floorCost: Int { max(1, cost / floors) }
     /// The team's HP left, out of its maximum.
     var hpShare: Double {
@@ -196,14 +203,25 @@ enum ExpeditionEngine {
         }
     }
 
-    /// Arceus's throw odds, one in three (the owner, 2026-11-09: reaching him costs about 2B tokens, so a throw should
-    /// not miss as often as at the other legendaries): about 70% over three Poké Balls, the Master Ball still sure.
-    static let arceusCaptureOdds = 1.0 / 3
+    /// The throws at a fallen boss.
+    static let captureThrows = 3
 
-    /// A throw's odds at this boss before the ball: its line's (Q19), Arceus's own.
-    static func captureOdds(_ boss: ExpeditionBoss) -> Double {
-        boss.speciesID == DungeonCatalog.arceusID ? arceusCaptureOdds
-            : captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID))
+    /// Arceus caught over the three throws of one ball (the owner, 2026-11-10: "beaucoup plus dur", after one in three
+    /// a throw since 2026-11-09; his rates are over the three throws, not one): Poké Balls 10%, Great Balls 25%, Ultra
+    /// Balls 45%, the Master Ball sure.
+    static func arceusOddsOverThrows(_ ball: ItemKind?) -> Double {
+        switch ball {
+        case .greatBall?: 0.25
+        case .ultraBall?: 0.45
+        case .masterBall?: 1
+        default: 0.10
+        }
+    }
+
+    /// One throw's odds at Arceus: three misses as likely as `arceusOddsOverThrows` says (Poké Ball 3.5%, Great Ball
+    /// 9.1%, Ultra Ball 18.1%).
+    static func arceusThrowOdds(_ ball: ItemKind?) -> Double {
+        1 - pow(1 - arceusOddsOverThrows(ball), 1 / Double(captureThrows))
     }
 
     /// The candies a tier's expedition holds, around its average (Q22). Rebalanced on 2026-11-02 at the owner's word
@@ -278,7 +296,7 @@ enum ExpeditionEngine {
 
     private static func resolveFloor(_ e: inout Expedition, context: ExpeditionContext) {
         var random = BattleRandom(seed: e.seed &+ UInt64(e.floor) &* 0x9E37_79B9_7F4A_7C15)
-        let dungeon = DungeonCatalog.dungeon(e.dungeon)
+        let dungeon = e.info
         if e.floor >= e.floors {
             fightBoss(&e, dungeon: dungeon, random: &random, context: context)
             return
@@ -527,17 +545,21 @@ enum ExpeditionEngine {
 
     private static func fightBoss(_ e: inout Expedition, dungeon: Dungeon, random: inout BattleRandom,
                                   context: ExpeditionContext) {
-        append(&e, .bossReached(speciesID: e.boss.speciesID, isShiny: e.boss.isShiny), rare: true, context: context)
+        let secretHere = e.secret.map { !$0.after } ?? false
+        append(&e, .bossReached(speciesID: e.boss.speciesID, isShiny: e.boss.isShiny, form: secretHere ? e.boss.form : nil,
+                                secret: secretHere ? true : nil), rare: true, context: context)
         let boss = bossSpec(e.boss, tier: dungeon.tier, challenge: dungeon.id.isChallenge ? dungeon.id : nil, random: &random)
         let alive = e.team.filter { !$0.isFainted }
         guard let boss, !alive.isEmpty else {
             finish(&e, won: false, context: context)
             return
         }
+        // A hideout's leader comes with three (the owner, 2026-11-10: Giovanni with Mewtwo and Persian).
+        let foes = e.dungeon.villain.map { VillainRules.leaderSpecs($0, tier: $0.tier, random: &random) } ?? [boss]
         // One against the boss too (2026-11-06); it was R2 A, three of mine against it.
         let setup = BattleSetup(sides: [BattleSideSpec(battlers: alive.map(\.spec), active: 1,
                                                        berries: e.berries),
-                                        BattleSideSpec(battlers: [boss], active: 1)], seed: random.next())
+                                        BattleSideSpec(battlers: foes, active: 1)], seed: random.next())
         let outcome = BattleEngine.run(setup)
         for i in e.team.indices {
             if let hp = outcome.hpLeft[e.team[i].spec.id] { e.team[i].spec.hp = hp }
@@ -546,17 +568,19 @@ enum ExpeditionEngine {
         e.battles += 1
         let won = outcome.winner == 0
         append(&e, .battle(ExpeditionBattle(kind: .boss, setup: setup, won: won, duration: outcome.duration,
-                                            foes: [e.boss.speciesID])), rare: won, context: context)
+                                            foes: foes.map(\.speciesID))), rare: won, context: context)
         if won {
             e.loot.candies += e.candiesLeft
             e.candiesLeft = 0
             append(&e, .victory, rare: true, context: context)
             // A challenge's battle form is won as the boss falls: no throws (one try a day, the owner); nor at a
             // legendary whose egg was won once, which gives the loot only.
-            if e.dungeon.isChallenge || e.bossReward == .lootOnly {
+            if e.dungeon.isChallenge || e.dungeon.isHideout {
                 finish(&e, won: true, context: context)
+            } else if e.bossReward == .lootOnly {
+                endBoss(&e, context: context)
             } else {
-                e.phase = .capture(throwsLeft: 3)
+                e.phase = .capture(throwsLeft: captureThrows)
             }
         } else {
             finish(&e, won: false, context: context)
@@ -731,22 +755,43 @@ enum ExpeditionEngine {
         if !won { append(&e, .defeat, context: context) }
     }
 
-    /// A throw's odds at this boss: its line's (Q19) or Arceus's own, a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball
-    /// sure.
+    /// A throw's odds at this boss: its line's (Q19), a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure; Arceus's
+    /// own table (`arceusThrowOdds`).
     static func throwOdds(_ boss: ExpeditionBoss, ball: ItemKind?) -> Double {
+        if boss.speciesID == DungeonCatalog.arceusID { return arceusThrowOdds(ball) }
         let factor: Double = switch ball {
         case .greatBall?: 1.5
         case .ultraBall?: 2
         case .masterBall?: 100
         default: 1
         }
-        return min(1, captureOdds(boss) * factor)
+        return min(1, captureOdds(SpeciesInfo.lineRarity(of: boss.speciesID)) * factor)
     }
 
     /// A throw at the fallen boss (Q18, R12): a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure. Returns
     /// whether it was caught.
     static func throwBall(_ e: inout Expedition, ball: ItemKind?, context: ExpeditionContext) -> Bool {
         guard case .capture(let left) = e.phase, left > 0 else { return false }
+        // The Origin trio's one, after Arceus (`endBoss`): its own throws, its Secret Egg.
+        if var secret = e.secret, secret.capturing == true {
+            var random = BattleRandom(seed: e.seed &+ 0x5EC2E7 &+ UInt64(left))
+            let caught = Double(random.below(1000)) / 1000 < throwOdds(secret.boss, ball: ball)
+            append(&e, .capture(attempt: 4 - left, ball: ball?.rawValue, caught: caught), rare: caught, context: context)
+            if caught {
+                e.loot.eggs.append(DungeonEgg(id: "secret-\(e.seed)", baseID: SpeciesInfo.baseID(of: secret.boss.speciesID),
+                                              form: secret.boss.form, isShiny: secret.boss.isShiny,
+                                              sourceSpeciesID: secret.boss.speciesID, isSecret: true))
+                secret.caught = true
+            }
+            if caught || left <= 1 {
+                secret.capturing = false
+                e.phase = .finished(won: true)
+            } else {
+                e.phase = .capture(throwsLeft: left - 1)
+            }
+            e.secret = secret
+            return caught
+        }
         var random = BattleRandom(seed: e.seed &+ 0xC0FFEE &+ UInt64(left))
         let caught = Double(random.below(1000)) / 1000 < throwOdds(e.boss, ball: ball)
         append(&e, .capture(attempt: 4 - left, ball: ball?.rawValue, caught: caught), rare: caught, context: context)
@@ -756,16 +801,59 @@ enum ExpeditionEngine {
             if let egg = eggInPlace(e.bossReward, tier: context.tier) {
                 e.loot.add(egg)
             } else {
+                // A secret boss in the boss's place gives the Secret Egg.
+                let secret = e.secret.map { !$0.after } ?? false
                 e.loot.eggs.append(DungeonEgg(id: "boss-\(e.seed)", baseID: SpeciesInfo.baseID(of: e.boss.speciesID),
-                                              form: e.boss.form, isShiny: e.boss.isShiny, sourceSpeciesID: e.boss.speciesID))
+                                              form: e.boss.form, isShiny: e.boss.isShiny, sourceSpeciesID: e.boss.speciesID,
+                                              isSecret: secret ? true : nil))
+                if secret { e.secret?.caught = true }
             }
-            e.phase = .finished(won: true)
+            endBoss(&e, context: context)
         } else if left > 1 {
             e.phase = .capture(throwsLeft: left - 1)
         } else {
-            e.phase = .finished(won: true)
+            endBoss(&e, context: context)
         }
         return caught
+    }
+
+    /// The boss's part is over, won: the expedition ends, unless the Origin trio waits after Arceus (the owner,
+    /// 2026-11-10: never in his place, so a run that costly never loses him). They fight together, as a hideout's
+    /// leader's three; won, one of them is to catch, its own three throws; lost, Arceus's victory stands.
+    static func endBoss(_ e: inout Expedition, context: ExpeditionContext) {
+        guard var secret = e.secret, secret.after, secret.fought != true else {
+            e.phase = .finished(won: true)
+            return
+        }
+        secret.fought = true
+        var random = BattleRandom(seed: e.seed ^ 0x0819_1E00)
+        append(&e, .bossReached(speciesID: secret.boss.speciesID, isShiny: secret.boss.isShiny, form: secret.boss.form,
+                                secret: true), rare: true, context: context)
+        let foes = (secret.foes ?? [secret.boss]).compactMap { bossSpec($0, tier: context.tier, random: &random) }
+        let alive = e.team.filter { !$0.isFainted }
+        guard !foes.isEmpty, !alive.isEmpty else {
+            e.secret = secret
+            e.phase = .finished(won: true)
+            return
+        }
+        let setup = BattleSetup(sides: [BattleSideSpec(battlers: alive.map(\.spec), active: 1, berries: e.berries),
+                                        BattleSideSpec(battlers: foes, active: 1)], seed: random.next())
+        let outcome = BattleEngine.run(setup)
+        for i in e.team.indices {
+            if let hp = outcome.hpLeft[e.team[i].spec.id] { e.team[i].spec.hp = hp }
+        }
+        e.berries = outcome.berriesLeft.first ?? e.berries
+        e.battles += 1
+        let won = outcome.winner == 0
+        append(&e, .battle(ExpeditionBattle(kind: .boss, setup: setup, won: won, duration: outcome.duration,
+                                            foes: foes.map(\.speciesID))), rare: won, context: context)
+        if won, !secret.lootOnly {
+            secret.capturing = true
+            e.phase = .capture(throwsLeft: captureThrows)
+        } else {
+            e.phase = .finished(won: true)
+        }
+        e.secret = secret
     }
 
     static func append(_ e: inout Expedition, _ kind: ExpeditionLogKind, rare: Bool = false,

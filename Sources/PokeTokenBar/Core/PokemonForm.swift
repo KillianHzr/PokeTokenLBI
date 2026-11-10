@@ -556,8 +556,9 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
     static func resolved(speciesID: Int, form: PokemonForm?) -> PokemonForm? {
         // A battle form (a Mega, a Gigantamax) is kept as it is: it is not in the catalog eggs roll from.
         if BattleForms.form(speciesID: speciesID, form: form) != nil { return form }
-        // A costume only changes Pikachu's sprites (`PikachuCostume`).
+        // A costume only changes Pikachu's sprites (`PikachuCostume`); Giovanni's Mewtwo wears its armor.
         if PikachuCostume(speciesID: speciesID, form: form) != nil { return form }
+        if ArmoredMewtwo.matches(speciesID: speciesID, form: form) { return form }
         let forms = forms(speciesID: speciesID)
         guard let first = forms.first else { return nil }
         return form.flatMap { ownForm(speciesID: speciesID, lineForm: $0) } ?? first

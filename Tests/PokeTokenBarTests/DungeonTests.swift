@@ -73,7 +73,7 @@ final class DungeonTests: XCTestCase {
     // MARK: Catalog
 
     func testThirteenDungeonsOverFiveTiers() {
-        XCTAssertEqual(DungeonCatalog.all.filter { !$0.id.isChallenge }.count, 13)
+        XCTAssertEqual(DungeonCatalog.all.filter { !$0.id.isChallenge && !$0.id.isHideout }.count, 13, "the villains' hideout comes and goes")
         XCTAssertEqual(DungeonTier.allCases.map(\.floors), [5, 8, 10, 12, 15])
         let difficulty = 0.1
         // The daily dungeon at 200M (the owner, 2026-11-02), eight floors; the weekly one a T4's, twelve.
@@ -284,18 +284,21 @@ final class DungeonTests: XCTestCase {
         XCTAssertEqual(ExpeditionEngine.captureOdds(.legendary), 0.12)
     }
 
-    /// Arceus's own odds, one in three a throw (the owner, 2026-11-09), with the balls' factors and the Master Ball
-    /// still sure; the other legendary bosses keep 12%.
-    func testArceusIsCaughtOneThrowInThree() {
+    /// Arceus caught over the three throws of one ball (the owner, 2026-11-10): Poké Balls 10%, Great Balls 25%, Ultra
+    /// Balls 45%, the Master Ball sure; the other legendary bosses keep 12% a throw and the balls' factors.
+    func testArceusOddsOverTheThreeThrows() {
         let arceus = ExpeditionBoss(speciesID: DungeonCatalog.arceusID, form: nil, isShiny: false)
-        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: nil), 1.0 / 3, accuracy: 1e-9)
-        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .greatBall), 0.5, accuracy: 1e-9)
-        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .ultraBall), 2.0 / 3, accuracy: 1e-9)
+        XCTAssertEqual(ExpeditionEngine.captureThrows, 3)
+        for (ball, overThree) in [(nil, 0.10), (ItemKind.greatBall, 0.25), (.ultraBall, 0.45)] as [(ItemKind?, Double)] {
+            let one = ExpeditionEngine.throwOdds(arceus, ball: ball)
+            XCTAssertEqual(1 - pow(1 - one, 3), overThree, accuracy: 1e-9, "\(String(describing: ball)) over three throws")
+            XCTAssertLessThan(one, overThree)
+        }
+        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: nil), 0.0345, accuracy: 0.0001)
         XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .masterBall), 1)
-        XCTAssertEqual(1 - pow(1 - ExpeditionEngine.throwOdds(arceus, ball: nil), 3), 0.70, accuracy: 0.01,
-                       "about 70% over the three Poké Balls")
         let giratina = ExpeditionBoss(speciesID: 487, form: nil, isShiny: false)
         XCTAssertEqual(ExpeditionEngine.throwOdds(giratina, ball: nil), 0.12, accuracy: 1e-9)
+        XCTAssertEqual(ExpeditionEngine.throwOdds(giratina, ball: .greatBall), 0.18, accuracy: 1e-9)
         XCTAssertEqual(ExpeditionEngine.throwOdds(giratina, ball: .masterBall), 1)
         // The throws at the fallen Arceus catch him at that rate.
         var caught = 0
@@ -309,7 +312,7 @@ final class DungeonTests: XCTestCase {
                 caught += 1
             }
         }
-        XCTAssertEqual(Double(caught) / 600, 1.0 / 3, accuracy: 0.06)
+        XCTAssertEqual(Double(caught) / 600, 0.0345, accuracy: 0.02)
     }
 
     /// The chests' eggs grow with the tier (the owner, 2026-11-04): none in T1, which draws nothing for them so its

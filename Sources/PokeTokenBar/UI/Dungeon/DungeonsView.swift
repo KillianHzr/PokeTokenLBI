@@ -31,6 +31,10 @@ struct DungeonsView: View {
                     Text(l.dungeonsIntro).font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // The villains' hideouts first while they keep something (issue #180), the most precious first.
+                ForEach(store.villainStashes, id: \.team) { stash in
+                    HideoutCard(store: store, team: stash.team) { nav.dungeonTeam = stash.team.hideoutID }
+                }
                 // The daily and weekly dungeons first, side by side: what they give changes with the day and the week.
                 HStack(alignment: .top, spacing: 8) {
                     ForEach([DungeonID.daily, .weekly], id: \.self) { id in
@@ -52,7 +56,7 @@ struct DungeonsView: View {
     /// The Ruins of Alph show only once a Treasure Map, or a visit, made them known.
     private var shown: [DungeonID] {
         DungeonID.allCases.filter { id in
-            !id.isChallenge && (id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0)
+            !id.isChallenge && !id.isHideout && (id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0)
         }
     }
 
@@ -124,16 +128,18 @@ struct DungeonCard: View {
         // A dungeon won before a rule changed stays open (`isDungeonOpen`).
         let unmet = store.isDungeonOpen(id) ? [] : store.unmetUnlocks(id)
         let wins = store.dungeonProgress.wins(id)
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 10) {
-                DungeonIcon(id: id, size: 32)
+        // A hero card like Home's (the owner, 2026-11-10: "là on dirait un terminal"), washed with the dungeon's types,
+        // its diorama large; grey while it is locked.
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
+                DungeonIcon(id: id, size: 96)
+                    .shadow(color: Self.colors(id)[0].opacity(unmet.isEmpty ? 0.6 : 0), radius: 10)
                     .grayscale(unmet.isEmpty ? 0 : 1).opacity(unmet.isEmpty ? 1 : 0.5)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Badge("T\(dungeon.tier.rawValue)", tint: .secondary, style: .tinted)
-                        Text(l.dungeonName(id)).font(.callout.weight(.semibold))
-                        Spacer(minLength: 4)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 5) {
+                        Badge("T\(dungeon.tier.rawValue)", tint: .secondary, style: .solid, size: 10)
                         status(unmet: unmet, wins: wins, l)
+                        Spacer(minLength: 4)
                         if let onDetails {
                             Button(action: onDetails) { Image(systemName: "info.circle") }
                                 .buttonStyle(.borderless).font(.caption)
@@ -141,17 +147,18 @@ struct DungeonCard: View {
                                 .accessibilityLabel(l.dungeonDetailsButton)
                         }
                     }
-                    Text(([l.dungeonTeamSize(size)] + rules.map(l.dungeonRule)
-                          + [l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id)))])
-                        .joined(separator: " · "))
-                        .font(.caption).foregroundStyle(.secondary)
+                    Text(l.dungeonName(id)).font(.system(size: 19, weight: .bold, design: .rounded)).lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
-                    // Never broken in two: Mt. Coronet's four in Russian leave 3 points (`DungeonLayoutTests`).
-                    HStack(spacing: 3) {
+                    // Each badge whole, the row going to a second line beside the diorama: Mt. Coronet's four did not
+                    // fit (`DungeonLayoutTests`).
+                    WrappingHStack(spacing: 3, lineSpacing: 3) {
                         ForEach(dungeon.themeTypes, id: \.self) { type in
-                            Badge(l.typeName(type).uppercased(), tint: .type(type)).fixedSize()
+                            Badge(l.typeName(type).uppercased(), tint: .type(type), size: 10).fixedSize()
                         }
                     }
+                    Text(([l.dungeonTeamSize(size)] + rules.map(l.dungeonRule)).joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if unmet.isEmpty {
@@ -171,22 +178,33 @@ struct DungeonCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(dungeon.unlocks.enumerated()), id: \.offset) { _, unlock in
                         let met = store.isMet(unlock)
-                        Label(l.dungeonUnlock(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
+                        Label(store.unlockLine(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
                             .font(.caption).foregroundStyle(met ? .primary : .secondary)
                     }
                 }
             }
         }
-        .padding(12)
-        .designSurface(cornerRadius: Design.cornerRadius)
+        .heroCard(colors: unmet.isEmpty ? Self.colors(id) : [.gray])
+    }
+
+    /// The card's colors: its first two types', gray for none; a challenge's own color (`challengeColor`).
+    static func colors(_ id: DungeonID) -> [Color] {
+        if id.isChallenge { return [challengeColor(id)] }
+        let colors = DungeonCatalog.dungeon(id).themeTypes.prefix(2).map(\.color)
+        return colors.isEmpty ? [.gray] : Array(colors)
+    }
+
+    /// The day's in warm orange, the week's in violet: the two never mixed up.
+    static func challengeColor(_ id: DungeonID) -> Color {
+        id == .daily ? Color(.sRGB, red: 1.0, green: 0.62, blue: 0.25) : Color(.sRGB, red: 0.62, green: 0.40, blue: 1.0)
     }
 
     @ViewBuilder
     private func status(unmet: [DungeonUnlock], wins: Int, _ l: L) -> some View {
         if !unmet.isEmpty {
-            Label(l.dungeonLocked, systemImage: "lock.fill").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Label(l.dungeonLocked, systemImage: "lock.fill").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
         } else if wins > 0 {
-            Text(l.dungeonWins(wins)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(l.dungeonWins(wins)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
         } else {
             Badge(l.dungeonNew.uppercased(), tint: .blue, style: .tinted)
         }
@@ -195,9 +213,9 @@ struct DungeonCard: View {
     /// Q17: the bosses beaten whole, those only reached as silhouettes, a "?" for each one not met yet (#137): how many
     /// wait there, never who.
     private func bosses(_ dungeon: Dungeon, _ l: L) -> some View {
-        let slots = BossSlots(store: store, id: id, dungeon: dungeon, size: 28, shownAtMost: Self.bossesShown)
+        let slots = BossSlots(store: store, id: id, dungeon: dungeon, size: 30, shownAtMost: Self.bossesShown)
         return HStack(spacing: 2) {
-            ForEach(Array(slots.slots.enumerated()), id: \.offset) { _, slot in slot.view(size: 28, language: store.language) }
+            ForEach(Array(slots.slots.enumerated()), id: \.offset) { _, slot in slot.view(size: 30, language: store.language) }
             if slots.hidden > 0 {
                 Text("+\(slots.hidden)").font(.caption.weight(.semibold)).foregroundStyle(.secondary).fixedSize()
             }
@@ -215,6 +233,8 @@ struct DungeonCard: View {
             } else if id == .ruinsOfAlph {
                 Text(l.dungeonEntryMap(l.itemName(.treasureMap))).font(.caption2).foregroundStyle(.secondary).fixedSize()
             }
+            Text(TokenFormatter.compact(store.dungeonCost(id))).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                .fixedSize().hoverTip(l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id))))
             Button(store.dungeonProgress.wins(id) > 0 ? l.dungeonGoAgain : l.dungeonPrepare, action: onPrepare)
                 .buttonStyle(.pill(prominent: true))
                 .disabled(!store.canEnter(id))
@@ -249,26 +269,29 @@ private struct ChallengeCard: View {
         let details = [l.dungeonFloors(dungeon.floors),
                        l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id))),
                        l.challengeOneTryADay].joined(separator: " · ")
+        let color = DungeonCard.challengeColor(id)
         VStack(alignment: .leading, spacing: 6) {
-            Text(l.dungeonName(id)).font(.caption.weight(.semibold)).lineLimit(2)
+            Text(l.challengeCardTitle(id).uppercased()).font(.system(size: 10, weight: .heavy)).kerning(0.6)
+                .foregroundStyle(unmet.isEmpty && !lost ? color : .secondary).lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
             // The boss large and centred, its name under it (the owner, 2026-11-09: at 36 points beside the title it was
             // hard to make out). It fills its box: at one scale with the others, a small form stayed small.
             Group {
                 if let boss {
-                    SpriteView(speciesID: boss.speciesID, size: 84, form: boss.form)
+                    SpriteView(speciesID: boss.speciesID, size: 92, form: boss.form)
+                        .shadow(color: color.opacity(unmet.isEmpty && !lost ? 0.7 : 0), radius: 12)
                 } else {
                     Image(systemName: id == .daily ? "sun.max.fill" : "calendar").font(.largeTitle).foregroundStyle(.secondary)
                 }
             }
-            .frame(width: 86, height: 86)
+            .frame(width: 96, height: 92)
             .grayscale(unmet.isEmpty && !lost ? 0 : 1).opacity(unmet.isEmpty && !lost ? 1 : 0.5)
             .overlay { if lost { CrossMark().frame(width: 70, height: 70) } }
             .frame(maxWidth: .infinity)
             if let boss {
                 VStack(spacing: 2) {
                     BattleFormTitle(form: boss, language: store.language)
-                        .font(.caption.weight(.medium)).lineLimit(2).multilineTextAlignment(.center)
+                        .font(.system(size: 13, weight: .bold, design: .rounded)).lineLimit(2).multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                     // Only when the form is the player's already (the owner, 2026-11-09: a form not won says nothing);
                     // a run's boss won meanwhile says it too.
@@ -313,9 +336,9 @@ private struct ChallengeCard: View {
             .font(.caption2).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(10)
+        // Both cards as high as the taller (the row is fixed to its height): the week's title takes two lines.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .designSurface(cornerRadius: Design.cornerRadius)
+        .heroCard(colors: [unmet.isEmpty && !lost ? color : .gray], padding: 10)
         .opacity(lost ? 0.8 : 1)
         .hoverTip(boss == nil && unmet.isEmpty ? l.challengeAllWon
                   : weekWon ? l.challengeWeekWonTip
@@ -354,15 +377,16 @@ struct DungeonIcon: View {
 struct BossSlots {
     @MainActor
     enum Slot {
-        case met(speciesID: Int, beaten: Bool)
+        /// `beaten`: shown whole, else a silhouette (a secret boss: once caught).
+        case met(speciesID: Int, beaten: Bool, form: PokemonForm? = nil)
         case unknown
 
         @ViewBuilder
         func view(size: CGFloat, language: AppLanguage) -> some View {
             switch self {
-            case .met(let species, let beaten):
-                SpriteView(speciesID: species, size: size, isSilhouette: !beaten, sameScale: true)
-                    .speciesNameTooltip(species, language: language)
+            case .met(let species, let beaten, let form):
+                SpriteView(speciesID: species, size: size, form: form, isSilhouette: !beaten, sameScale: true)
+                    .speciesNameTooltip(species, form: form, language: language)
             case .unknown:
                 Text("?").font(.system(size: size * 0.45, weight: .bold, design: .rounded)).foregroundStyle(.secondary)
                     .frame(width: size, height: size)
@@ -373,7 +397,7 @@ struct BossSlots {
     }
 
     /// Up to `shownAtMost` slots, the latest met last; `hidden` more met past them.
-    let slots: [Slot]
+    private(set) var slots: [Slot]
     let hidden: Int
     let met: Int
 
@@ -393,6 +417,11 @@ struct BossSlots {
             slots = shown.map(slot) + [.unknown]
             hidden = reached.count - shown.count
         }
+        // A secret boss shows only once met, after the others, a silhouette until caught (the owner, 2026-11-10): no
+        // "?" gives it away, and the bosses' count stays the dungeon's own.
+        let secrets = SecretBosses.candidates(id).filter { progress.secretsMet.contains(SecretBosses.key(id, $0)) }
+        slots += secrets.map { .met(speciesID: $0.speciesID, beaten: progress.secretsCaught.contains(SecretBosses.key(id, $0)),
+                                    form: $0.form) }
     }
 }
 
@@ -447,5 +476,14 @@ struct FloorTrack: View {
                 }
             }
         }
+    }
+}
+
+extension CompanionStore {
+    /// An unlock's line, Mt. Coronet's bosses with how many are done ("12/28").
+    func unlockLine(_ unlock: DungeonUnlock) -> String {
+        guard case .caughtBosses(let ids) = unlock else { return l.dungeonUnlock(unlock) }
+        let total = DungeonCatalog.bosses(of: ids).count
+        return l.dungeonUnlock(unlock) + " · \(total - bossesLeft(ids).count)/\(total)"
     }
 }
