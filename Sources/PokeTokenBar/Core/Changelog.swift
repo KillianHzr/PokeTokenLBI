@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-battle-life", { $0.t("전투가 더 생생해졌어요: 공격하는 포켓몬이 앞으로 뛰어오르고, 맞은 포켓몬은 빨갛게 물들며 살짝 뒤로 밀려나요.",
+                                                    "Battles feel more alive: the Pokémon attacking leaps forward, the one hit flashes red and is knocked back a little.",
+                                                    "バトルがいきいきしました。攻撃するポケモンは前に跳び、攻撃を受けたポケモンは赤く光って少し後ろに下がります。",
+                                                    "Los combates tienen más vida: el Pokémon que ataca salta hacia delante y el que recibe el golpe se pone rojo y retrocede un poco.",
+                                                    "Les combats ont plus de vie : le Pokémon qui attaque fait un petit bond en avant, celui qui est touché rougit et recule un peu.",
+                                                    "As batalhas ficaram mais vivas: o Pokémon que ataca dá um pulo para a frente e o que é atingido fica vermelho e recua um pouco.",
+                                                    "Kämpfe wirken lebendiger: Das angreifende Pokémon springt nach vorn, das getroffene leuchtet rot auf und weicht ein Stück zurück.",
+                                                    "Бои стали живее: атакующий покемон делает прыжок вперёд, а получивший удар краснеет и немного отступает.") }),
             .improved("2026-11-10-dungeons-look", { $0.t("던전 탭이 새로워졌어요: 던전 타입 색, 큰 디오라마, 같은 높이의 오늘·이번 주 카드.",
                                                        "The Dungeons tab has a new look: each dungeon in its types' colors with its diorama large, the daily and weekly cards side by side at one height.",
                                                        "ダンジョンのタブが新しくなりました。ダンジョンのタイプの色、大きなジオラマ、同じ高さの今日と今週のカード。",

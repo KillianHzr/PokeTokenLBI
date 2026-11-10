@@ -68,6 +68,16 @@ final class BattleLogTests: XCTestCase {
         XCTAssertEqual(BattleReplayView.speed, 0.5)
     }
 
+    /// The one hitting leaps and the one hit is knocked back, quickly (the owner, 2026-11-10): nothing before the hit,
+    /// the peak halfway, nothing again after a quarter of a second on screen.
+    func testTheLeapAndTheKnockBackAreQuick() {
+        XCTAssertEqual(BattleArena.bump(-10, length: 150), 0)
+        XCTAssertEqual(BattleArena.bump(75, length: 150), 1, accuracy: 0.001)
+        XCTAssertEqual(BattleArena.bump(150, length: 150), 0)
+        XCTAssertLessThanOrEqual(max(BattleArena.hopLength, BattleArena.recoilLength) / BattleReplayView.speed, 300,
+                                 "a quarter of a second, about, on screen")
+    }
+
     func testItsWordsInEveryLanguage() {
         for language in AppLanguage.allCases {
             let l = L(language)

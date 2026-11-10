@@ -106,6 +106,16 @@ struct BattleArena: View {
 
     /// How long a hit stays in the banner and its damage on screen.
     static let hitShown = 1_100
+    /// The leap of the one hitting and the knock-back of the one hit, in battle milliseconds (the replay runs at half
+    /// speed: a quarter of a second on screen).
+    static let hopLength = 130.0
+    static let recoilLength = 150.0
+
+    /// 0 → 1 → 0 over `length` from the hit, nothing after.
+    static func bump(_ age: Double, length: Double) -> Double {
+        guard age >= 0, age < length else { return 0 }
+        return sin(Double.pi * age / length)
+    }
 
     var body: some View {
         let foes = frame.units.filter { $0.side == 1 && $0.onField }
@@ -146,7 +156,12 @@ struct BattleArena: View {
         HStack(alignment: .bottom, spacing: -size * 0.25) {
             ForEach(units, id: \.id) { unit in
                 let struck = hit?.target == unit.id
+                let striking = hit?.attacker == unit.id && !struck
                 let age = Double(elapsed - (hit?.time ?? 0))
+                // Forward is toward the other side: up and right for the player's, down and left for the foes'.
+                let forward: CGFloat = mirrored ? 1 : -1
+                let recoil = struck ? Self.bump(age, length: Self.recoilLength) : 0
+                let hop = striking ? Self.bump(age, length: Self.hopLength) : 0
                 ZStack(alignment: .top) {
                     Ellipse().fill(Color.black.opacity(0.18)).frame(width: size * 0.95, height: size * 0.22)
                         .offset(y: size * 0.82)
@@ -159,8 +174,11 @@ struct BattleArena: View {
                                        sameScale: true, bottomAligned: true)
                         }
                     }
-                        .offset(x: struck && age < 360 ? sin(age / 30) * 4 : 0)
-                        .opacity(struck && age < 360 && Int(age / 60) % 2 == 1 ? 0.55 : 1)
+                        // The one hit flushes red and is knocked back a little; the one hitting leaps at it (the owner,
+                        // 2026-11-10: "juste pour donner de la vie au combat"), both quick.
+                        .colorMultiply(recoil > 0 ? Color(.sRGB, red: 1, green: 1 - 0.65 * recoil, blue: 1 - 0.65 * recoil) : .white)
+                        .offset(x: forward * (CGFloat(hop) * 12 - CGFloat(recoil) * 8),
+                                y: -forward * (CGFloat(hop) * 5 - CGFloat(recoil) * 4) - CGFloat(hop) * 7)
                     if struck, let hit {
                         Text("-\(hit.damage)")
                             .font(.system(size: 15, weight: .heavy, design: .rounded)).monospacedDigit()
