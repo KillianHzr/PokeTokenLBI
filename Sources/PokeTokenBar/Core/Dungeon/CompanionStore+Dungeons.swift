@@ -99,9 +99,9 @@ extension CompanionStore {
     // MARK: The daily and weekly dungeons (2026-11-02)
 
     /// The day (`yyyy-MM-dd`) or the ISO week (`yyyy-Www`) a challenge's one try belongs to.
-    func challengePeriod(_ id: DungeonID) -> String {
+    func challengePeriod(_ id: DungeonID, at date: Date? = nil) -> String {
         let calendar = Calendar(identifier: .iso8601)
-        let c = calendar.dateComponents([.year, .month, .day, .yearForWeekOfYear, .weekOfYear], from: currentDate)
+        let c = calendar.dateComponents([.year, .month, .day, .yearForWeekOfYear, .weekOfYear], from: date ?? currentDate)
         if id == .weekly { return String(format: "%04d-W%02d", c.yearForWeekOfYear ?? 0, c.weekOfYear ?? 0) }
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
@@ -109,6 +109,18 @@ extension CompanionStore {
     /// Whether this day's (or week's) one try was spent.
     func challengeTried(_ id: DungeonID) -> Bool {
         (id == .weekly ? state.dungeons.weeklyTried : state.dungeons.dailyTried) == challengePeriod(id)
+    }
+
+    /// How this day's (or week's) one try ended: nil before it or while it runs, true won, false lost or left (the
+    /// owner, 2026-11-09: a lost daily dungeon shows as such). Its run is the one of that challenge ended in this
+    /// period, never the day before's. A save from before the history counts it lost when its boss's form was not won.
+    func challengeOutcome(_ id: DungeonID) -> Bool? {
+        guard challengeTried(id), expedition?.dungeon != id else { return nil }
+        let period = challengePeriod(id)
+        if let run = state.dungeons.history.last(where: { $0.dungeon == id && challengePeriod(id, at: $0.endedAt) == period }) {
+            return run.won
+        }
+        return challengeBoss(id).map { state.dungeons.battleForms.contains($0.key) } ?? false
     }
 
     /// The battle forms a challenge may still give: those of the species the player graduated and has not won yet.

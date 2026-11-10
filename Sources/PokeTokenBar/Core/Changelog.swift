@@ -66,7 +66,44 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-battle-journal", { $0.t("전투 화면 아래에 전투 전체가 기록돼요: 누가 누구에게 어떤 기술을 썼는지, 내 편은 왼쪽, 상대는 오른쪽에 보이고, 위로 올려 처음부터 볼 수 있어요. 전투는 절반 속도로 재생돼요.",
+                                                           "Under the battle, the whole battle is written down: who used which move on whom, your side on the left and the foe's on the right, and you can scroll back to the start. Battles also play at half speed.",
+                                                           "バトルの下に、バトル全体が記録されます。だれがだれにどのわざを使ったか、味方は左、相手は右に表示され、上にスクロールすれば最初から見られます。バトルは半分の速さで再生されます。",
+                                                           "Bajo el combate se anota todo el combate: quién usó qué movimiento contra quién, tu lado a la izquierda y el rival a la derecha, y puedes subir hasta el principio. Los combates se ven además a la mitad de velocidad.",
+                                                           "Sous le combat, tout le combat est noté : qui a utilisé quelle attaque sur qui, ton camp à gauche et l'adversaire à droite, et tu peux remonter jusqu'au début. Les combats passent aussi deux fois moins vite.",
+                                                           "Abaixo da batalha, toda a batalha fica registrada: quem usou qual golpe em quem, o seu lado à esquerda e o adversário à direita, e dá para rolar até o começo. As batalhas também passam na metade da velocidade.",
+                                                           "Unter dem Kampf steht jetzt der ganze Kampf: wer welche Attacke gegen wen eingesetzt hat, deine Seite links, die gegnerische rechts, und du kannst bis zum Anfang zurückscrollen. Kämpfe laufen außerdem halb so schnell.",
+                                                           "Под боем теперь записан весь бой: кто какой приём применил против кого, твоя сторона слева, соперник справа, и можно прокрутить к началу. Бои также идут в два раза медленнее.") }),
+            .improved("2026-11-10-expedition-live", { $0.t("던전 탭에서 진행 중인 탐험이 파란 카드로 크게 보여요: 층 진행 막대와 팀의 HP까지 함께 보여요.",
+                                                            "In the Dungeons tab, the expedition under way now shows as a large blue card, with a bar of its floors and your team's HP.",
+                                                            "ダンジョンタブで、進行中の探検が大きな青いカードで表示されます。階の進み具合とチームのHPも見られます。",
+                                                            "En la pestaña Mazmorras, la expedición en curso aparece en una gran tarjeta azul, con una barra de sus pisos y los PS de tu equipo.",
+                                                            "Dans l'onglet Donjons, l'expédition en cours s'affiche dans une grande carte bleue, avec une barre de ses étages et les PV de ton équipe.",
+                                                            "Na aba Masmorras, a expedição em andamento aparece num grande cartão azul, com uma barra dos andares e os PS da sua equipe.",
+                                                            "Im Dungeons-Tab erscheint die laufende Expedition als große blaue Karte, mit einem Balken ihrer Ebenen und den KP deines Teams.",
+                                                            "Во вкладке Подземелья идущая экспедиция показана большой синей карточкой с полосой этажей и ОЗ твоей команды.") }),
+            .improved("2026-11-10-challenge-outcome", { $0.t("오늘과 이번 주 던전에 실패하면 카드가 회색으로 바뀌고 보스에 X 표시가 돼요. 성공하면 파란색으로 알려 줘요.",
+                                                              "A lost daily or weekly dungeon now shows a greyed card with its boss crossed out; a won one says so in blue.",
+                                                              "今日と今週のダンジョンに失敗すると、カードが灰色になりボスにバツ印が付きます。成功すると青で表示されます。",
+                                                              "Una mazmorra del día o de la semana fallida muestra la tarjeta en gris con el jefe tachado; si la superas, se indica en azul.",
+                                                              "Un donjon du jour ou de la semaine raté s'affiche grisé, son boss barré ; réussi, il le dit en bleu.",
+                                                              "Uma masmorra do dia ou da semana perdida aparece em cinza com o chefe riscado; vencida, isso aparece em azul.",
+                                                              "Ein verlorener Tages- oder Wochen-Dungeon wird grau mit durchgestrichenem Boss angezeigt, ein geschaffter in Blau.",
+                                                              "Проваленное подземелье дня или недели показано серым с зачёркнутым боссом, пройденное отмечено синим.") }),
+        ]),
         ChangelogDay(date: "2026-11-09", entries: [
+            .improved("2026-11-09-bag-candies-first") { l in
+                let candy = l.itemName(.rareCandy)
+                return l.t("가방에서 \(KoreanParticle.subject.attach(to: candy)) 알보다 앞, 맨 위로 올라왔어요.",
+                           "In the Bag, the \(candy) now comes first, above the eggs.",
+                           "バッグでは\(candy)がいちばん上、タマゴより前に来ます。",
+                           "En la mochila, el \(candy) va ahora arriba del todo, antes de los huevos.",
+                           "Dans le Sac, le \(candy) passe tout en haut, avant les œufs.",
+                           "Na mochila, o \(candy) agora vem no topo, antes dos ovos.",
+                           "Im Beutel steht das \(candy) jetzt ganz oben, vor den Eiern.",
+                           "В сумке \"\(candy)\" теперь в самом верху, перед яйцами.")
+            },
             .improved("2026-11-09-key-every-victory") { l in
                 let key = l.itemName(.legendaryKey)
                 return l.t("T3 던전 승리마다 \(KoreanParticle.subject.attach(to: key)) 2번에 1번 나와요. 첫 승리도 마찬가지라 더는 확정이 아니에요.",

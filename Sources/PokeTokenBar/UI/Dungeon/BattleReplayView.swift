@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// A dungeon battle played at its own pace (maquette 5): the same seed replays it to the millisecond. Each Pokémon on
-/// the field has its HP bar (blue) and its cast bar (purple) under its sprite; the last moves that landed below.
+/// A dungeon battle played at its own pace (maquette 5): the same seed replays it to the millisecond, at half its speed
+/// (the owner, 2026-11-09: "le combat passe trop vite"). Each Pokémon on the field has its HP bar (blue) and its cast
+/// bar (purple) under its sprite; below, the whole battle as a journal to scroll back through, each side's moves on its
+/// own side (`BattleLog`).
 @MainActor
 struct BattleReplayView: View {
     let store: CompanionStore
@@ -11,10 +13,13 @@ struct BattleReplayView: View {
     let onBack: () -> Void
 
     @State private var outcome: BattleOutcome?
+    @State private var lines: [BattleLogLine] = []
     @State private var elapsed = 0
     @State private var playing = true
 
+    /// A frame every 100 ms, the battle moving on by half of it.
     private static let step = 100
+    static let speed = 0.5
 
     var body: some View {
         let l = store.l
@@ -31,12 +36,7 @@ struct BattleReplayView: View {
                 let frame = BattleFrame.at(elapsed, setup: outcome.setup, events: outcome.events)
                 // #134 (the owner, 2026-11-06): the battle as an arena, face to face.
                 BattleArena(store: store, frame: frame, setup: outcome.setup, elapsed: elapsed)
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(Array(frame.recentHits.reversed().enumerated()), id: \.offset) { _, hit in
-                        HitLine(store: store, hit: hit, setup: outcome.setup, frame: frame)
-                    }
-                }
-                Spacer(minLength: 0)
+                journal(outcome.setup)
                 HStack {
                     Button(playing ? l.battlePause : l.battlePlay) { playing.toggle() }
                         .buttonStyle(.pill())
@@ -61,15 +61,36 @@ struct BattleReplayView: View {
             let setup = battle.setup
             let ran = await BattleEngine.offMain { BattleEngine.run(setup) }
             elapsed = min(max(0, startAt), ran.duration)
+            lines = BattleLog.lines(ran.events, setup: ran.setup)
             outcome = ran
             while !Task.isCancelled, elapsed < ran.duration {
                 try? await Task.sleep(for: .milliseconds(Self.step))
-                if playing { elapsed = min(ran.duration, elapsed + Self.step) }
+                if playing { elapsed = min(ran.duration, elapsed + Int(Double(Self.step) * Self.speed)) }
             }
         }
     }
 
     static func clock(_ ms: Int) -> String { String(format: "%d:%02d", ms / 60_000, ms / 1000 % 60) }
+
+    /// Everything said so far, the latest at the bottom, kept in view while the battle plays; paused, it can be scrolled
+    /// back through.
+    private func journal(_ setup: BattleSetup) -> some View {
+        let shown = lines.prefix { $0.time <= elapsed }
+        return ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 3) {
+                    ForEach(shown) { line in
+                        BattleLogRow(store: store, line: line, setup: setup).id(line.id)
+                    }
+                }
+                .reservesScrollerLane()
+            }
+            .frame(maxHeight: .infinity)
+            .onChange(of: shown.count) {
+                if playing, let last = shown.last { proxy.scrollTo(last.id, anchor: .bottom) }
+            }
+        }
+    }
 }
 
 /// #134, the battle as an arena (maquette of 2026-11-06): the foes up and to the right, the team down and to the left,
@@ -207,7 +228,7 @@ struct BattleArena: View {
         return HStack(spacing: 5) {
             if let type { TypeMiniBadge(type: type, l: l) }
             PokemonNameLabel(.move, hit.move, language: store.language).font(.caption.weight(.bold))
-            if let note = HitLine.note(hit, l) {
+            if let note = BattleLogRow.note(hit.effectiveness, critical: hit.critical, l) {
                 Text(note).font(.caption2.weight(.semibold))
                     .foregroundStyle(hit.effectiveness >= 2 || hit.critical ? Color.blue : Color.readableOrange)
             }
@@ -218,37 +239,124 @@ struct BattleArena: View {
     }
 }
 
-/// One move landed, in the list under the arena: when, its type, its name, on whom, how much, how effective.
+/// One line of the battle's journal: a move on its side's half (the player's on the left with a blue edge, the foe's
+/// on the right with an orange one), who used it on whom as their sprites, its type, name, damage and effect; what
+/// happened to a Pokémon (it comes in, falls, is burned, heals, eats a berry) in the middle.
 @MainActor
-struct HitLine: View {
+struct BattleLogRow: View {
     let store: CompanionStore
-    let hit: BattleFrame.Hit
+    let line: BattleLogLine
     let setup: BattleSetup
-    let frame: BattleFrame
 
     var body: some View {
         let l = store.l
-        let attacker = setup.sides.flatMap(\.battlers).first { $0.id == hit.attacker }
-        let type = MoveTable.move(hit.move).map { move in attacker.map { move.type(for: $0) } ?? move.type }
-        let ours = frame.units.first { $0.id == hit.attacker }?.side == 0
-        HStack(spacing: 4) {
-            Text(BattleReplayView.clock(hit.time)).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
-            Image(systemName: ours ? "arrow.up.right" : "arrow.down.left").font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.secondary)
-            if let type { TypeMiniBadge(type: type, l: l) }
-            PokemonNameLabel(.move, hit.move, language: store.language).font(.caption).lineLimit(1)
-            Text("-\(hit.damage)").font(.caption.weight(.bold)).monospacedDigit()
-            if let note = Self.note(hit, l) {
-                Text(note).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        switch line.kind {
+        case .move(let attacker, let target, let move, let result):
+            let ours = line.side == 0
+            HStack(spacing: 4) {
+                if ours { edge(Design.actionColor); time } else { Spacer(minLength: 0) }
+                Group {
+                    if ours {
+                        sprite(attacker)
+                        Image(systemName: "arrowtriangle.right.fill").font(.system(size: 6)).foregroundStyle(.secondary)
+                        if let target, target != attacker { sprite(target) }
+                        moveLabel(move, attacker: attacker, l)
+                        outcomeText(result, l)
+                    } else {
+                        outcomeText(result, l)
+                        moveLabel(move, attacker: attacker, l)
+                        if let target, target != attacker { sprite(target) }
+                        Image(systemName: "arrowtriangle.left.fill").font(.system(size: 6)).foregroundStyle(.secondary)
+                        sprite(attacker)
+                    }
+                }
+                if ours { Spacer(minLength: 0) } else { time; edge(Color.readableOrange) }
             }
+            .frame(minHeight: 20)
+        default:
+            HStack(spacing: 4) {
+                Spacer(minLength: 0)
+                time
+                event(l)
+                Spacer(minLength: 0)
+            }
+            .frame(minHeight: 18)
+        }
+    }
+
+    private var time: some View {
+        Text(BattleReplayView.clock(line.time)).font(.system(size: 9).monospacedDigit()).foregroundStyle(.tertiary)
+    }
+
+    private func edge(_ color: Color) -> some View {
+        RoundedRectangle(cornerRadius: 1.5).fill(color).frame(width: 3, height: 16)
+    }
+
+    private func battler(_ id: String) -> BattlerSpec? { setup.sides.flatMap(\.battlers).first { $0.id == id } }
+
+    @ViewBuilder
+    private func sprite(_ id: String) -> some View {
+        if let spec = battler(id) {
+            SpriteView(speciesID: spec.speciesID, size: 18, shiny: spec.isShiny, form: spec.form, sameScale: true)
+                .frame(width: 20, height: 20)
+        }
+    }
+
+    private func moveLabel(_ move: String, attacker: String, _ l: L) -> some View {
+        let type = MoveTable.move(move).map { m in battler(attacker).map { m.type(for: $0) } ?? m.type }
+        return HStack(spacing: 3) {
+            if let type { TypeMiniBadge(type: type, l: l) }
+            PokemonNameLabel(.move, move, language: store.language).font(.caption2).lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private func outcomeText(_ result: BattleLogLine.Result, _ l: L) -> some View {
+        switch result {
+        case .hit(let damage, let effectiveness, let critical):
+            Text("−\(damage)").font(.caption2.weight(.heavy)).monospacedDigit()
+            if let note = Self.note(effectiveness, critical: critical, l) {
+                Text(note).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+            }
+        case .miss: Text(l.battleLogMiss).font(.system(size: 9)).foregroundStyle(.secondary)
+        case .noEffect: Text(l.battleLogNoEffect).font(.system(size: 9)).foregroundStyle(.secondary)
+        case .failed: Text(l.battleLogFailed).font(.system(size: 9)).foregroundStyle(.secondary)
+        case .used: EmptyView()
+        }
+    }
+
+    /// Who, then what happened to it.
+    @ViewBuilder
+    private func event(_ l: L) -> some View {
+        switch line.kind {
+        case .enter(let id): who(id, glyph: "arrow.down.right", text: l.battleLogEnters, l)
+        case .faint(let id): who(id, glyph: "xmark", text: l.battleKO, l)
+        case .status(let id, let ailment): who(id, glyph: "exclamationmark.circle", text: l.ailmentName(ailment), l)
+        case .heal(let id, let amount): who(id, glyph: "plus", text: "+\(amount) \(l.battleHP)", l)
+        case .hurt(let id, let amount): who(id, glyph: "minus", text: "−\(amount) \(l.battleHP)", l)
+        case .berry(let id, let berry):
+            who(id, glyph: "leaf", text: l.itemName(berry == .oran ? .oranBerry : .sitrusBerry), l)
+        case .move: EmptyView()
+        }
+    }
+
+    private func who(_ id: String, glyph: String, text: String, _ l: L) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: glyph).font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
+            sprite(id)
+            if let spec = battler(id) {
+                PokemonNameLabel(.pokemonSpecies, String(spec.speciesID), language: store.language)
+                    .font(.caption2.weight(.semibold)).lineLimit(1)
+            }
+            Text(text).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
         }
     }
 
     /// "Critical hit!", "Super effective!", "Not very effective": nothing for a plain hit.
-    static func note(_ hit: BattleFrame.Hit, _ l: L) -> String? {
-        if hit.critical { return l.battleCritical }
-        if hit.effectiveness >= 2 { return l.battleSuperEffective }
-        if hit.effectiveness > 0, hit.effectiveness < 1 { return l.battleNotVeryEffective }
+    static func note(_ effectiveness: Double, critical: Bool, _ l: L) -> String? {
+        if critical { return l.battleCritical }
+        if effectiveness >= 2 { return l.battleSuperEffective }
+        if effectiveness > 0, effectiveness < 1 { return l.battleNotVeryEffective }
         return nil
     }
 }

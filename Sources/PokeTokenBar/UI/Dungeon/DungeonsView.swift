@@ -56,24 +56,53 @@ struct DungeonsView: View {
         }
     }
 
+    /// The expedition under way as a live card (the owner, 2026-11-09: the grey line among the cards did not show): a
+    /// blue frame, a beating dot, the dungeon, its floors as a bar, the team with its HP.
     private func underway(_ e: Expedition, _ l: L) -> some View {
-        HStack(spacing: 8) {
-            DungeonIcon(id: e.dungeon, size: 28, boss: e.boss)
-            Text(l.dungeonUnderway(l.dungeonName(e.dungeon), floor: min(e.floor, e.floors), floors: e.floors))
-                .font(.caption.weight(.semibold))
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 4)
-            Button { nav.tab = .home } label: {
-                HStack(spacing: 2) {
-                    Text(l.dungeonSee)
-                    Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold))
-                }
-                .font(.caption.weight(.semibold)).foregroundStyle(Design.actionColor)
+        let floor = min(e.floor, e.floors)
+        let shape = RoundedRectangle(cornerRadius: Design.cornerRadius, style: .continuous)
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                LiveDot()
+                Text(l.expeditionLive.uppercased()).font(.system(size: 10, weight: .heavy)).kerning(0.6)
+                    .foregroundStyle(Design.actionColor)
+                Spacer(minLength: 4)
+                Button(l.dungeonSee) { nav.tab = .home }.buttonStyle(.pill(prominent: true))
             }
-            .buttonStyle(.plain)
+            HStack(spacing: 8) {
+                DungeonIcon(id: e.dungeon, size: 30, boss: e.boss)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(l.dungeonName(e.dungeon)).font(.callout.weight(.bold)).lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(l.dungeonFloorOf(floor, e.floors) + " · " + l.dungeonBattles(e.battles))
+                            .foregroundStyle(.secondary)
+                        if store.dungeonNeedsAttention {
+                            Label(l.expeditionWaitsForYou, systemImage: "exclamationmark.circle.fill")
+                                .foregroundStyle(Color.readableOrange)
+                        }
+                    }
+                    .font(.caption2).lineLimit(1)
+                }
+            }
+            FloorTrack(floor: floor, floors: e.floors)
+            HStack(spacing: 6) {
+                ForEach(Array(e.team.enumerated()), id: \.offset) { _, member in
+                    VStack(spacing: 2) {
+                        SpriteView(speciesID: member.spec.speciesID, size: 26, shiny: member.spec.isShiny,
+                                   form: member.spec.form, sameScale: true)
+                            .frame(width: 28, height: 28)
+                            .grayscale(member.isFainted ? 1 : 0).opacity(member.isFainted ? 0.45 : 1)
+                        ExpeditionBar(value: Double(max(0, member.spec.hp)) / Double(max(1, member.spec.stats.hp)),
+                                      color: Design.actionColor, height: 3)
+                            .frame(width: 26)
+                    }
+                }
+            }
         }
         .padding(10)
-        .designSurface(cornerRadius: Design.cornerRadius)
+        .background(shape.fill(LinearGradient(colors: [Design.actionColor.opacity(0.16), Design.actionColor.opacity(0.05)],
+                                              startPoint: .topLeading, endPoint: .bottomTrailing)))
+        .overlay(shape.strokeBorder(Design.actionColor.opacity(0.75), lineWidth: 1.5))
     }
 }
 
@@ -212,6 +241,9 @@ private struct ChallengeCard: View {
         }
         let boss = running ?? store.challengeBoss(id)
         let tried = store.challengeTried(id)
+        // The one try lost: the card greyed and its boss crossed out (the owner, 2026-11-09); won, said in blue.
+        let outcome = running == nil ? store.challengeOutcome(id) : nil
+        let lost = outcome == false
         let details = [l.dungeonFloors(dungeon.floors),
                        l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id))),
                        id == .daily ? l.challengeOneTryADay : l.challengeOneTryAWeek].joined(separator: " · ")
@@ -228,8 +260,9 @@ private struct ChallengeCard: View {
                 }
             }
             .frame(width: 86, height: 86)
+            .grayscale(unmet.isEmpty && !lost ? 0 : 1).opacity(unmet.isEmpty && !lost ? 1 : 0.5)
+            .overlay { if lost { CrossMark().frame(width: 70, height: 70) } }
             .frame(maxWidth: .infinity)
-            .grayscale(unmet.isEmpty ? 0 : 1).opacity(unmet.isEmpty ? 1 : 0.5)
             if let boss {
                 VStack(spacing: 2) {
                     BattleFormTitle(form: boss, language: store.language)
@@ -253,6 +286,17 @@ private struct ChallengeCard: View {
                     Label(l.dungeonUnlock(unlock), systemImage: "lock.fill")
                 } else if boss == nil {
                     Label(l.challengeAllWonShort, systemImage: "checkmark.seal.fill")
+                } else if let outcome {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if outcome {
+                            Label(id == .daily ? l.challengeWonDay : l.challengeWonWeek, systemImage: "checkmark.seal.fill")
+                                .fontWeight(.semibold).foregroundStyle(Design.actionColor)
+                        } else {
+                            Label(id == .daily ? l.challengeLostDay : l.challengeLostWeek, systemImage: "xmark")
+                                .fontWeight(.semibold).foregroundStyle(Color.readableOrange)
+                        }
+                        Text(id == .daily ? l.challengeNextDay : l.challengeNextWeek)
+                    }
                 } else if tried {
                     Label(id == .daily ? l.challengeTriedShortDay : l.challengeTriedShortWeek, systemImage: "hourglass")
                 } else {
@@ -268,6 +312,7 @@ private struct ChallengeCard: View {
         .padding(10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .designSurface(cornerRadius: Design.cornerRadius)
+        .opacity(lost ? 0.8 : 1)
         .hoverTip(boss == nil && unmet.isEmpty ? l.challengeAllWon
                   : tried ? (id == .daily ? l.challengeTriedToday : l.challengeTriedThisWeek)
                   : store.expedition != nil && unmet.isEmpty ? l.dungeonOneAtATime
@@ -342,6 +387,60 @@ struct BossSlots {
             let shown = Array(reached.suffix(shownAtMost - 1))
             slots = shown.map(slot) + [.unknown]
             hidden = reached.count - shown.count
+        }
+    }
+}
+
+/// A cross over a lost challenge's boss: two strokes with round ends, orange on a light outline so it reads on any
+/// sprite (the owner, 2026-11-09: "fais la croix plus propre").
+@MainActor
+struct CrossMark: View {
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            let inset = size.width * 0.12
+            path.move(to: CGPoint(x: inset, y: inset))
+            path.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset))
+            path.move(to: CGPoint(x: size.width - inset, y: inset))
+            path.addLine(to: CGPoint(x: inset, y: size.height - inset))
+            context.stroke(path, with: .color(.white.opacity(0.85)), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+            context.stroke(path, with: .color(.readableOrange), style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A dot that beats while something runs; still with Reduce Motion.
+@MainActor
+struct LiveDot: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var beat = false
+
+    var body: some View {
+        Circle().fill(Design.actionColor).frame(width: 7, height: 7)
+            .background(Circle().fill(Design.actionColor.opacity(0.35)).scaleEffect(beat ? 2.2 : 1).opacity(beat ? 0 : 1))
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) { beat = true }
+            }
+    }
+}
+
+/// The floors as a bar: what was walked filled, a tick per floor.
+@MainActor
+struct FloorTrack: View {
+    let floor: Int
+    let floors: Int
+
+    var body: some View {
+        VStack(spacing: 2) {
+            ExpeditionBar(value: floors > 0 ? Double(floor) / Double(floors) : 0, color: Design.actionColor, height: 6)
+            HStack(spacing: 0) {
+                ForEach(0...max(1, floors), id: \.self) { i in
+                    Rectangle().fill(Color.secondary.opacity(i <= floor ? 0.5 : 0.25)).frame(width: 1.5, height: 4)
+                    if i < floors { Spacer(minLength: 0) }
+                }
+            }
         }
     }
 }
