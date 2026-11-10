@@ -61,7 +61,7 @@ final class ExpeditionGuideTests: XCTestCase {
         XCTAssertEqual(ExpeditionResultGuide.egg(result(.ceruleanCave, caught: true, reward: .legendaryEgg))?.item, .legendaryEgg)
         XCTAssertNil(ExpeditionResultGuide.egg(result(.ceruleanCave, caught: false, reward: nil)), "not caught: the boss is shown")
         XCTAssertNil(ExpeditionResultGuide.egg(result(.daily, caught: false, reward: nil)), "a challenge shows its form")
-        XCTAssertNil(ExpeditionResultGuide.egg(result(.hideout, caught: false, reward: nil)), "a hideout shows its leader's ace")
+        XCTAssertNil(ExpeditionResultGuide.egg(result(.rocketHideout, caught: false, reward: nil)), "a hideout shows its leader's ace")
     }
 
     func testTheGuidesWordsInEveryLanguage() {

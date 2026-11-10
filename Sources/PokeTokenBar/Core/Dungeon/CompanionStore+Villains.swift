@@ -1,28 +1,29 @@
 import Foundation
 
-/// The villains' teams in the game (issue #180): the day's ambush, the defense, the theft and the hideout.
+/// The villains' teams in the game (issue #180): the day's theft, the chase, the hideouts.
 extension CompanionStore {
-    /// The dungeon as walked: a hideout's from what its team keeps, else the catalog's.
-    func dungeonInfo(_ id: DungeonID) -> Dungeon {
-        if id.isHideout, let stash = state.dungeons.stash { return VillainRules.hideout(stash) }
-        return DungeonCatalog.dungeon(id)
-    }
+    /// The dungeon as walked: every dungeon, the hideouts included, is the catalog's.
+    func dungeonInfo(_ id: DungeonID) -> Dungeon { DungeonCatalog.dungeon(id) }
 
-    var villainAmbush: VillainAmbush? { state.dungeons.ambush }
-    var villainStash: VillainStash? { state.dungeons.stash }
+    /// The thefts not settled yet, the latest first.
+    var villainAmbushes: [VillainAmbush] { state.dungeons.ambushes.sorted { $0.at > $1.at } }
+    var villainStashes: [VillainStash] { state.dungeons.stashes.sorted { $0.team.tier > $1.team.tier } }
 
-    /// The day's thieves, at their hour: one day in three, never while an expedition runs, another theft waits or a
-    /// hideout keeps something, nor before a first dungeon is won with a team to give chase. Settled once a day. They take
-    /// the item as they come (the owner, 2026-11-10: else no one would fight them): it waits at their hideout, unless the
-    /// team catches them on Home.
+    func villainStash(_ team: VillainTeam) -> VillainStash? { state.dungeons.stashes.first { $0.team == team } }
+
+    /// The day's thieves, at their hour: one day in three, never the day after a theft, never while an expedition runs,
+    /// nor before a first dungeon is won with a team to give chase. Settled once a day. They take the item as they come
+    /// (the owner, 2026-11-10: else no one would fight them) and thefts add up, hideouts open or not; the team is the one
+    /// of the item's tier, so a team only comes for what it is after, and none comes once nothing is left to take.
     func settleVillainAmbush() {
         let day = challengePeriod(.daily)
         guard state.dungeons.villainDay != day else { return }
         let draw = VillainRules.day(day)
         if draw.comes, Calendar.current.component(.hour, from: currentDate) < draw.hour { return }
         changeDungeons { $0.villainDay = day }
+        let yesterday = challengePeriod(.daily, at: currentDate.addingTimeInterval(-86_400))
         let wonOne = DungeonCatalog.all.contains { !$0.id.isChallenge && !$0.id.isHideout && state.dungeons.wins($0.id) > 0 }
-        guard draw.comes, wonOne, expedition == nil, state.dungeons.ambush == nil, state.dungeons.stash == nil,
+        guard draw.comes, wonOne, expedition == nil, state.dungeons.villainLastTheft != yesterday,
               dungeonCandidates.count >= 3 else {
             persist()
             return
@@ -38,18 +39,23 @@ extension CompanionStore {
         let taken = min(target.count, itemCount(target.kind))
         changeBag(target.kind, by: -taken)
         if target.kind.isPassive, target.kind.isAchievement { markAchievementClaimed(target.kind) }
-        let ambush = VillainAmbush(team: team, item: target.kind.rawValue, count: taken, at: currentDate,
-                                   seed: random.next(), grunts: VillainRules.grunts(team, random: &random))
-        changeDungeons {
-            $0.ambush = ambush
-            $0.stash = VillainStash(team: team, items: [target.kind.rawValue: taken], tier: tier)
+        let ambush = VillainAmbush(id: "\(day)-\(target.kind.rawValue)", team: team, item: target.kind.rawValue, count: taken,
+                                   at: currentDate, seed: random.next(), grunts: VillainRules.grunts(team, random: &random))
+        changeDungeons { progress in
+            progress.ambushes.append(ambush)
+            progress.villainLastTheft = day
+            if let i = progress.stashes.firstIndex(where: { $0.team == team }) {
+                progress.stashes[i].items[target.kind.rawValue, default: 0] += taken
+            } else {
+                progress.stashes.append(VillainStash(team: team, items: [target.kind.rawValue: taken]))
+            }
         }
         notifyCompanionEvent(l.villainAmbushTitle(team), l.villainStoleLine(team, item: l.itemName(target.kind)))
         AppLog.write("villains: \(team.rawValue) took \(taken) \(target.kind.rawValue)")
         persist()
     }
 
-    /// Who defends: Mon équipe, else the six strongest graduated Pokémon.
+    /// Who gives chase: Mon équipe, else the six strongest graduated Pokémon.
     var ambushDefenders: [DexEntry] {
         let candidates = dungeonCandidates
         let saved = state.dungeons.savedTeam.compactMap { id in candidates.first { $0.id == id } }
@@ -60,11 +66,13 @@ extension CompanionStore {
         return Array(candidates.sorted { total($0) > total($1) }.prefix(6))
     }
 
-    /// The chase, one against one as in the dungeons: won, the item comes back and the team flies off; lost, it stays at
-    /// their hideout. Nil when there is nothing to chase now (none waiting, already fought, a team away exploring).
+    /// The chase, one against one as in the dungeons: won, the item comes back from the hideout and the team flies off;
+    /// lost, it stays there. Nil when there is nothing to chase now (no such theft, chased already, a team away).
     @discardableResult
-    func defendAgainstAmbush() -> Bool? {
-        guard var ambush = state.dungeons.ambush, ambush.won == nil, expedition == nil, let kind = ambush.kind else { return nil }
+    func defendAgainstAmbush(_ id: String) -> Bool? {
+        guard let index = state.dungeons.ambushes.firstIndex(where: { $0.id == id }), expedition == nil else { return nil }
+        var ambush = state.dungeons.ambushes[index]
+        guard ambush.won == nil, let kind = ambush.kind else { return nil }
         let targets = (theme: ambush.team.themeTypes, bosses: ambush.grunts.map { PokemonTypeData.types(forSpeciesID: $0) })
         let mine = ambushDefenders.compactMap { dungeonSpec($0, for: nil, targets: targets) }
         let foes = VillainRules.gruntSpecs(ambush.grunts, tier: ambush.tier, seed: ambush.seed)
@@ -74,26 +82,36 @@ extension CompanionStore {
         let outcome = BattleEngine.run(setup)
         let won = outcome.winner == 0
         ambush.won = won
+        ambush.collapsed = nil
         ambush.battle = ExpeditionBattle(kind: .trainer, setup: setup, won: won, duration: outcome.duration, foes: ambush.grunts)
-        if won, let held = state.dungeons.stash?.items[kind.rawValue], held > 0 {
+        if won, let held = villainStash(ambush.team)?.items[kind.rawValue], held > 0 {
             let back = min(held, ambush.count)
             changeBag(kind, by: back)
+            let team = ambush.team
             changeDungeons { progress in
-                progress.stash?.items[kind.rawValue] = held - back > 0 ? held - back : nil
-                if progress.stash?.items.isEmpty == true { progress.stash = nil }
+                guard let i = progress.stashes.firstIndex(where: { $0.team == team }) else { return }
+                progress.stashes[i].items[kind.rawValue] = held - back > 0 ? held - back : nil
+                if progress.stashes[i].items.isEmpty { progress.stashes.remove(at: i) }
             }
         }
         let settled = ambush
-        changeDungeons { $0.ambush = settled }
+        changeDungeons { $0.ambushes[index] = settled }
         AppLog.write("villains: \(ambush.team.rawValue) chase \(won ? "won, \(ambush.count) \(kind.rawValue) back" : "lost")")
         persist()
         return won
     }
 
-    /// The card goes: after the chase, or before it (the item then waits at the hideout).
-    func dismissVillainAmbush() {
-        guard state.dungeons.ambush != nil else { return }
-        changeDungeons { $0.ambush = nil }
+    /// "Later": the card folds to a low banner, opened again with a click; it stays until the theft is settled.
+    func setVillainAmbushCollapsed(_ id: String, _ collapsed: Bool) {
+        guard let index = state.dungeons.ambushes.firstIndex(where: { $0.id == id }) else { return }
+        changeDungeons { $0.ambushes[index].collapsed = collapsed ? true : nil }
+        persist()
+    }
+
+    /// The card goes once its chase is over (won, or lost and its item left at the hideout).
+    func dismissVillainAmbush(_ id: String) {
+        guard state.dungeons.ambushes.contains(where: { $0.id == id && $0.won != nil }) else { return }
+        changeDungeons { $0.ambushes.removeAll { $0.id == id } }
         persist()
     }
 }

@@ -21,7 +21,7 @@ struct ExpeditionCard: View {
                 case .capture, .exploring, .finished: exploring(e)
                 }
             }
-            .heroCard(colors: e.hideout.map { [$0.team.color] } ?? DungeonCard.colors(e.dungeon))
+            .heroCard(colors: e.dungeon.villain.map { [$0.color] } ?? DungeonCard.colors(e.dungeon))
         }
     }
 

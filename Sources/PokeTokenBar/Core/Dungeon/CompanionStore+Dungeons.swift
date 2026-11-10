@@ -47,7 +47,7 @@ extension CompanionStore {
     /// Open once its unlocks are met, and for good once won: the tier rule of 2026-11-05 locks none a player has beaten.
     func isDungeonOpen(_ id: DungeonID) -> Bool {
         // A hideout is there while its team keeps what it stole (issue #180).
-        if id.isHideout { return state.dungeons.stash != nil }
+        if let team = id.villain { return villainStash(team) != nil }
         return unmetUnlocks(id).isEmpty || state.dungeons.wins(id) > 0
     }
 
@@ -377,16 +377,14 @@ extension CompanionStore {
         let context = ExpeditionContext(tier: dungeon.tier, shinyDenominator: Int(shinyDenominator), now: currentDate)
         let seed = drawSeed() ^ UInt64(state.dungeons.departures + 1)
         settleChallengeBosses()
-        let stash = id.isHideout ? state.dungeons.stash : nil
         // A hideout's boss is its leader's ace (`VillainTeam.leaderTeam`), with two more at the end.
         let challenge = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
-            ?? stash.map { ExpeditionBoss(speciesID: $0.team.leaderTeam[0], form: $0.team.leaderForms[0], isShiny: false) }
+            ?? id.villain.map { ExpeditionBoss(speciesID: $0.leaderTeam[0], form: $0.leaderForms[0], isShiny: false) }
         let started = ExpeditionEngine.start(dungeon: dungeon, team: members, rules: rules, teamSize: size, seed: seed,
                                              cost: dungeonCost(id), berries: berries,
                                              revives: revives, context: context, boss: challenge)
         var expedition = started
         if keepsMasterBall { expedition.keepsMasterBall = true }
-        expedition.hideout = stash
         // What its capture gives (2026-11-04, `bossReward`); a challenge's boss gives its form, never shiny; a
         // hideout's leader is no capture.
         if !id.isChallenge, !id.isHideout {
@@ -823,11 +821,15 @@ extension CompanionStore {
                                       items: loot.items.filter { ItemKind(rawValue: $0.key)?.isEggItem != true }.values.reduce(0, +),
                                       bossSpeciesID: e.boss.speciesID, caught: caught, log: e.log, team: e.team)
         // A hideout's leader beaten gives back all its team took (issue #180), and the hideout closes.
-        let recovered = won && e.dungeon.isHideout ? state.dungeons.stash?.items : nil
+        let recovered = won ? e.dungeon.villain.flatMap(villainStash)?.items : nil
         for (key, count) in recovered ?? [:] { if let kind = ItemKind(rawValue: key) { changeBag(kind, by: count) } }
         changeDungeons { progress in
             progress.history = DungeonRunRecord.trimmed(progress.history + [record])
-            if recovered != nil { progress.stash = nil }
+            // Its thefts still waiting are settled with it: what they took is back.
+            if recovered != nil, let team = e.dungeon.villain {
+                progress.stashes.removeAll { $0.team == team }
+                progress.ambushes.removeAll { $0.team == team && $0.won == nil }
+            }
             // A legendary boss's egg, or the Legendary Egg in its place, is won once.
             if caught, SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary {
                 progress.legendaryEggsWon.insert(e.boss.speciesID)
@@ -859,7 +861,6 @@ extension CompanionStore {
                                              caught: caught, loot: loot, firstVictory: firstVictory,
                                              unlocked: unlocked, unlockedMove: unlockedMove, battleForm: battleForm?.key,
                                              bossReward: won ? e.bossReward : nil, recovered: recovered,
-                                             villain: e.hideout?.team,
                                              log: e.log)
         }
         AppLog.write("dungeon: \(e.dungeon.rawValue) over, won=\(won) left=\(leftEarly) caught=\(caught) candies=\(loot.candies)")

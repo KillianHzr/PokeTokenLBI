@@ -60,6 +60,16 @@ enum VillainTeam: String, Codable, Sendable, CaseIterable {
         }
     }
 
+    var hideoutID: DungeonID {
+        switch self {
+        case .skull: .skullHideout
+        case .magma: .magmaHideout
+        case .aqua: .aquaHideout
+        case .galactic: .galacticHideout
+        case .rocket: .rocketHideout
+        }
+    }
+
     /// The leader's three as they stand: Giovanni's Mewtwo in its armor (the owner, 2026-11-10), the others as usual.
     var leaderForms: [PokemonForm?] { self == .rocket ? [ArmoredMewtwo.form, nil, nil] : [nil, nil, nil] }
 
@@ -96,7 +106,9 @@ enum VillainTeam: String, Codable, Sendable, CaseIterable {
 }
 
 /// A team waiting on Home for the player to defend an item (no time limit), then how it went.
-struct VillainAmbush: Codable, Sendable, Equatable {
+struct VillainAmbush: Codable, Sendable, Equatable, Identifiable {
+    /// The day it came and the item, unique: thefts add up (the owner, 2026-11-10).
+    var id: String
     var team: VillainTeam
     /// `ItemKind.rawValue`, and how many of it.
     var item: String
@@ -107,6 +119,8 @@ struct VillainAmbush: Codable, Sendable, Equatable {
     /// Nil until the player defends; then whether they won.
     var won: Bool?
     var battle: ExpeditionBattle?
+    /// "Later": a low banner on Home until it is settled, never gone before (the owner, 2026-11-10).
+    var collapsed: Bool?
 
     var kind: ItemKind? { ItemKind(rawValue: item) }
     var tier: DungeonTier { kind.flatMap(VillainRules.tier) ?? .t1 }
@@ -116,8 +130,8 @@ struct VillainAmbush: Codable, Sendable, Equatable {
 struct VillainStash: Codable, Sendable, Equatable {
     var team: VillainTeam
     var items: [String: Int]
-    /// The hideout's tier: the most precious item's.
-    var tier: DungeonTier
+    /// The hideout's tier: its team's.
+    var tier: DungeonTier { team.tier }
 }
 
 enum VillainRules {
@@ -232,10 +246,11 @@ enum VillainRules {
 
     /// The hideout as a dungeon: its tier's floors and team size, no rule, the team's Pokémon on its floors, its
     /// leader's ace as the boss (the other two join it, `leaderSpecs`).
-    static func hideout(_ stash: VillainStash) -> Dungeon {
-        let size = stash.tier == .t1 ? 3 : stash.tier == .t2 ? 4 : 6
-        return Dungeon(id: .hideout, tier: stash.tier, teamSize: size, rules: [], themeTypes: stash.team.themeTypes,
-                       wild: stash.team.grunts, bosses: [stash.team.leaderTeam[0]], unlocks: [])
+    static func hideout(_ team: VillainTeam) -> Dungeon {
+        let tier = team.tier
+        let size = tier == .t1 ? 3 : tier == .t2 ? 4 : 6
+        return Dungeon(id: team.hideoutID, tier: tier, teamSize: size, rules: [], themeTypes: team.themeTypes,
+                       wild: team.grunts, bosses: [team.leaderTeam[0]], unlocks: [])
     }
 }
 

@@ -129,12 +129,24 @@ enum DungeonID: String, Codable, Sendable, CaseIterable {
     /// The daily and weekly dungeons (2026-11-02): their boss is a battle form the player lacks, won if it falls, one
     /// try a day and one a week.
     case daily, weekly
-    /// A villains' team's hideout (issue #180): open while it keeps what it stole, of that item's tier
-    /// (`VillainRules.hideout`); it counts for no tier, medal nor list.
-    case hideout
+    /// The villains' teams' hideouts (issue #180), one a team, of its tier (`VillainRules.hideout`): open while it
+    /// keeps what it stole; they count for no tier, medal nor list.
+    case skullHideout, magmaHideout, aquaHideout, galacticHideout, rocketHideout
 
     var isChallenge: Bool { self == .daily || self == .weekly }
-    var isHideout: Bool { self == .hideout }
+    var isHideout: Bool { villain != nil }
+
+    /// The team whose hideout it is.
+    var villain: VillainTeam? {
+        switch self {
+        case .skullHideout: .skull
+        case .magmaHideout: .magma
+        case .aquaHideout: .aqua
+        case .galacticHideout: .galactic
+        case .rocketHideout: .rocket
+        default: nil
+        }
+    }
 }
 
 /// One dungeon: its tier, team, rules, theme (always shown, R7), wild Pokémon, bosses (never shown, Q17) and what
@@ -245,9 +257,8 @@ enum DungeonCatalog {
         case .weekly:
             return Dungeon(id: id, tier: .t5, teamSize: 6, rules: [], themeTypes: [], wild: strongFinals(560),
                            bosses: [], unlocks: [.wonTier(.t4)])
-        case .hideout:
-            // A stand-in: the real one is the stash's (`CompanionStore.dungeonInfo`).
-            return VillainRules.hideout(VillainStash(team: .rocket, items: [:], tier: .t1))
+        case .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout:
+            return VillainRules.hideout(id.villain ?? .rocket)
         }
     }
 

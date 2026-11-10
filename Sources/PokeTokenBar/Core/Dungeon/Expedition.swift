@@ -160,10 +160,8 @@ struct Expedition: Codable, Sendable, Equatable {
     var bossReward: BossReward?
 
     var floors: Int { info.floors }
-    /// A villains' hideout, as it stood at the departure (its team and tier): what its floors and boss are.
-    var hideout: VillainStash?
-    /// The dungeon walked: the hideout's own, else the catalog's.
-    var info: Dungeon { hideout.map(VillainRules.hideout) ?? DungeonCatalog.dungeon(dungeon) }
+    /// The dungeon walked.
+    var info: Dungeon { DungeonCatalog.dungeon(dungeon) }
     var floorCost: Int { max(1, cost / floors) }
     /// The team's HP left, out of its maximum.
     var hpShare: Double {
@@ -539,7 +537,7 @@ enum ExpeditionEngine {
             return
         }
         // A hideout's leader comes with three (the owner, 2026-11-10: Giovanni with Mewtwo and Persian).
-        let foes = e.hideout.map { VillainRules.leaderSpecs($0.team, tier: $0.tier, random: &random) } ?? [boss]
+        let foes = e.dungeon.villain.map { VillainRules.leaderSpecs($0, tier: $0.tier, random: &random) } ?? [boss]
         // One against the boss too (2026-11-06); it was R2 A, three of mine against it.
         let setup = BattleSetup(sides: [BattleSideSpec(battlers: alive.map(\.spec), active: 1,
                                                        berries: e.berries),
@@ -559,7 +557,7 @@ enum ExpeditionEngine {
             append(&e, .victory, rare: true, context: context)
             // A challenge's battle form is won as the boss falls: no throws (one try a day, the owner); nor at a
             // legendary whose egg was won once, which gives the loot only.
-            if e.dungeon.isChallenge || e.bossReward == .lootOnly || e.hideout != nil {
+            if e.dungeon.isChallenge || e.bossReward == .lootOnly || e.dungeon.isHideout {
                 finish(&e, won: true, context: context)
             } else {
                 e.phase = .capture(throwsLeft: 3)

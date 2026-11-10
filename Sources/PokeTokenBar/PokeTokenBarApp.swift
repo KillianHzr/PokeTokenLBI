@@ -370,9 +370,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Q30 C: while a team explores, its dungeon stands in for the Pokémon whose growth it pauses; a daily or weekly
         // dungeon's boss stands in for it, as on its cards.
         if let dungeon = companion.expedition?.dungeon, !dungeon.isChallenge,
-           let diorama = companion.expedition?.hideout.flatMap({ DungeonSprites.trimmedHideoutImage($0.team) })
-               ?? DungeonSprites.trimmedImage(dungeon) {
-            let key = "dungeon-\(dungeon.rawValue)-\(companion.expedition?.hideout?.team.rawValue ?? "")"
+           let diorama = DungeonSprites.trimmedImage(dungeon) {
+            let key = "dungeon-\(dungeon.rawValue)"
             if key == menuSpriteKey, !menuFrames.isEmpty { return }
             menuLoadTask?.cancel()
             menuLoadTask = nil

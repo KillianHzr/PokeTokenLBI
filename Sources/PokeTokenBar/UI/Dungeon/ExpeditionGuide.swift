@@ -16,7 +16,7 @@ struct ExpeditionGuideHeader: View {
         let l = store.l
         HStack(alignment: .top, spacing: 4) {
             // The dungeon itself (the owner: "on ne voit jamais le donjon"), the guide at its foot.
-            DungeonIcon(id: e.dungeon, size: 80, boss: e.dungeon.isChallenge ? e.boss : nil, villain: e.hideout?.team)
+            DungeonIcon(id: e.dungeon, size: 80, boss: e.dungeon.isChallenge ? e.boss : nil)
                 .shadow(color: DungeonCard.colors(e.dungeon)[0].opacity(0.55), radius: 10)
                 .overlay(alignment: .bottomTrailing) {
                     PortraitBust(name: Self.guidePortrait, width: 50, symbol: "figure.hiking")
@@ -26,7 +26,7 @@ struct ExpeditionGuideHeader: View {
                 .padding(.bottom, 44)
                 .frame(width: 92, alignment: .leading)
             VStack(alignment: .leading, spacing: 5) {
-                Text(e.hideout.map { l.villainHideoutName($0.team) } ?? l.dungeonName(e.dungeon))
+                Text(l.dungeonName(e.dungeon))
                     .font(.system(size: 16, weight: .bold, design: .rounded)).fixedSize(horizontal: false, vertical: true)
                 // The team down to the heal: an alert in place of the path (the owner, 2026-11-10).
                 if case .awaitingHeal = e.phase {
@@ -97,8 +97,7 @@ struct ExpeditionFloorTrack: View {
     init(store: CompanionStore, result r: ExpeditionResult) {
         self.store = store
         log = r.log
-        floors = r.villain.map { VillainRules.hideout(VillainStash(team: $0, items: [:], tier: $0.tier)).floors }
-            ?? DungeonCatalog.dungeon(r.dungeon).floors
+        floors = DungeonCatalog.dungeon(r.dungeon).floors
         floor = (r.log.map(\.floor).max() ?? 0) + 1
         progress = 0
         lead = nil
@@ -342,7 +341,7 @@ struct ExpeditionResultGuide: View {
                 }
             }
             .font(.system(size: 17, weight: .bold, design: .rounded)).multilineTextAlignment(.center)
-            Text([r.villain.map { l.villainHideoutName($0) } ?? l.dungeonName(r.dungeon), TokenFormatter.compact(r.tokens),
+            Text([l.dungeonName(r.dungeon), TokenFormatter.compact(r.tokens),
                   l.longDuration(r.endedAt.timeIntervalSince(r.startedAt)), l.dungeonBattles(r.battles)].joined(separator: " · "))
                 .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -353,7 +352,7 @@ struct ExpeditionResultGuide: View {
     private var guide: some View {
         let l = store.l
         return HStack(alignment: .top, spacing: 4) {
-            DungeonIcon(id: r.dungeon, size: 80, boss: r.dungeon.isChallenge ? r.boss : nil, villain: r.villain)
+            DungeonIcon(id: r.dungeon, size: 80, boss: r.dungeon.isChallenge ? r.boss : nil)
                 .grayscale(0.6)
                 .overlay(alignment: .bottomTrailing) {
                     PortraitBust(name: ExpeditionGuideHeader.guidePortrait, width: 50, symbol: "figure.hiking")
@@ -363,7 +362,7 @@ struct ExpeditionResultGuide: View {
                 .padding(.bottom, 44)
                 .frame(width: 92, alignment: .leading)
             VStack(alignment: .leading, spacing: 4) {
-                Text(r.villain.map { l.villainHideoutName($0) } ?? l.dungeonName(r.dungeon))
+                Text(l.dungeonName(r.dungeon))
                     .font(.system(size: 16, weight: .bold, design: .rounded)).fixedSize(horizontal: false, vertical: true)
                 Text(Self.lostWords(r, l)).font(.callout).fixedSize(horizontal: false, vertical: true)
             }

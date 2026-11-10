@@ -1051,7 +1051,8 @@ extension L {
                              "Ruínas de Alfa", "Alph-Ruinen", "Руины Альфа")
         case .hallOfOrigin: t("시작의 방", "Hall of Origin", "はじまりのま", "Sala del Origen", "Salle Originelle",
                               "Salão da Origem", "Saal des Ursprungs", "Зал Истоков")
-        case .hideout: t("아지트", "Hideout", "アジト", "Guarida", "Repaire", "Esconderijo", "Versteck", "Логово")
+        case .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout:
+            villainHideoutName(id.villain ?? .rocket)
         }
     }
 }

@@ -82,6 +82,10 @@ final class VillainTests: XCTestCase {
         throw XCTSkip("no team in November")
     }
 
+    private func ambush(_ team: VillainTeam, _ item: ItemKind, count: Int = 1, at: Date) -> VillainAmbush {
+        VillainAmbush(id: "x-\(item.rawValue)", team: team, item: item.rawValue, count: count, at: at, seed: 7, grunts: team.grunts.prefix(3).map { $0 })
+    }
+
     /// They come at their hour and take the item as they come (the owner, 2026-11-10: else no one would fight them).
     func testTheyTakeItAsTheyCome() throws {
         let (day, hour) = try comingDay()
@@ -91,67 +95,111 @@ final class VillainTests: XCTestCase {
             $0.inventory = ["rareCandy": 5]
         }
         s.settleVillainAmbush()
-        XCTAssertNil(s.villainAmbush, "before their hour")
+        XCTAssertTrue(s.villainAmbushes.isEmpty, "before their hour")
         clock.date = try date(day, hour: hour)
         s.settleVillainAmbush()
-        let ambush = try XCTUnwrap(s.villainAmbush)
-        XCTAssertEqual(ambush.kind, .rareCandy)
-        XCTAssertEqual(ambush.team, .skull, "a T1 item, Team Skull")
-        XCTAssertEqual(ambush.count, 3)
+        let theft = try XCTUnwrap(s.villainAmbushes.first)
+        XCTAssertEqual(theft.kind, .rareCandy)
+        XCTAssertEqual(theft.team, .skull, "a T1 item, Team Skull")
+        XCTAssertEqual(theft.count, 3)
         XCTAssertEqual(s.itemCount(.rareCandy), 2, "taken as they came")
-        XCTAssertEqual(s.villainStash, VillainStash(team: .skull, items: ["rareCandy": 3], tier: .t1))
-        XCTAssertTrue(s.isDungeonOpen(.hideout), "their hideout opens at once")
-        XCTAssertNil(ambush.won)
-        s.dismissVillainAmbush()
-        XCTAssertNil(s.villainAmbush, "not chased: the candies wait at the hideout")
-        XCTAssertEqual(s.villainStash?.items, ["rareCandy": 3])
+        XCTAssertEqual(s.villainStash(.skull)?.items, ["rareCandy": 3])
+        XCTAssertTrue(s.isDungeonOpen(.skullHideout), "their hideout opens at once")
+        XCTAssertFalse(s.isDungeonOpen(.rocketHideout))
         s.settleVillainAmbush()
-        XCTAssertNil(s.villainAmbush, "once a day")
+        XCTAssertEqual(s.villainAmbushes.count, 1, "once a day")
         // No dungeon won yet: no team comes, and the day is settled.
         let newcomer = try store(dex: strong, clock: clock) { $0.inventory = ["rareCandy": 5] }
         newcomer.settleVillainAmbush()
-        XCTAssertNil(newcomer.villainAmbush)
+        XCTAssertTrue(newcomer.villainAmbushes.isEmpty)
         XCTAssertEqual(newcomer.itemCount(.rareCandy), 5)
         XCTAssertEqual(newcomer.dungeonProgress.villainDay, String(format: "2026-11-%02d", day))
     }
 
-    /// The chase lost: the item stays at the hideout, of its tier, with no key. Won: it comes back and the hideout closes.
+    /// "Later" folds the card to a banner; it stays until the theft is settled (the owner, 2026-11-10).
+    func testLaterFoldsItNeverDrops() throws {
+        let clock = Clock(try date(10, hour: 12))
+        let s = try store(dex: strong, clock: clock) {
+            $0.dungeons.stashes = [VillainStash(team: .skull, items: ["rareCandy": 3])]
+            $0.dungeons.ambushes = [self.ambush(.skull, .rareCandy, count: 3, at: clock.date)]
+        }
+        let id = try XCTUnwrap(s.villainAmbushes.first?.id)
+        s.setVillainAmbushCollapsed(id, true)
+        XCTAssertEqual(s.villainAmbushes.first?.collapsed, true)
+        s.dismissVillainAmbush(id)
+        XCTAssertEqual(s.villainAmbushes.count, 1, "not settled: it stays, folded")
+        s.setVillainAmbushCollapsed(id, false)
+        XCTAssertNil(s.villainAmbushes.first?.collapsed)
+        XCTAssertEqual(s.defendAgainstAmbush(id), true)
+        s.dismissVillainAmbush(id)
+        XCTAssertTrue(s.villainAmbushes.isEmpty, "settled: it goes")
+    }
+
+    /// Thefts add up, ignored or not, each team to its hideout; never two days in a row; none once nothing is left to
+    /// take, and a team only for what it is after (no Team Rocket without an achievement's artifact).
+    func testTheftsAddUp() throws {
+        var days: [(day: Int, hour: Int)] = []
+        for day in 10...60 {
+            let key = Calendar(identifier: .iso8601).date(byAdding: .day, value: day - 10, to: try date(10, hour: 0))
+                .map { DungeonProgress.challengePeriod(.daily, at: $0) } ?? ""
+            let draw = VillainRules.day(key)
+            if draw.comes { days.append((day - 10, draw.hour)) }
+        }
+        let clock = Clock(try date(10, hour: 0))
+        let s = try store(dex: strong, clock: clock) {
+            $0.dungeons.wins[DungeonID.viridianForest.rawValue] = 1
+            $0.inventory = ["rareCandy": 2, "leafStone": 1]
+        }
+        var thefts: [String] = []
+        var lastDay: Int?
+        for (offset, hour) in days {
+            clock.date = try date(10, hour: hour).addingTimeInterval(Double(offset) * 86_400)
+            let before = s.villainAmbushes.count
+            s.settleVillainAmbush()
+            if s.villainAmbushes.count > before {
+                if let lastDay { XCTAssertGreaterThan(offset - lastDay, 1, "never two days in a row") }
+                lastDay = offset
+                thefts.append(s.villainAmbushes[0].item)
+            }
+        }
+        XCTAssertEqual(Set(thefts), ["rareCandy", "leafStone"], "both taken, the first theft never chased")
+        XCTAssertEqual(s.itemCount(.rareCandy) + s.itemCount(.leafStone), 0, "nothing left: no one comes any more")
+        XCTAssertEqual(Set(s.villainStashes.map(\.team)), [.skull, .magma], "each team to its hideout")
+        XCTAssertFalse(s.villainAmbushes.contains { $0.team == .rocket }, "no artifact, no Team Rocket")
+    }
+
+    /// The chase lost: the item stays at the hideout, with no key. Won: it comes back and the hideout closes.
     func testTheChase() throws {
         let artifact = achievementArtifact
         let clock = Clock(try date(10, hour: 12))
         let weak = [129, 349, 10].map(graduated)
         func stolen(_ dex: [DexEntry]) throws -> CompanionStore {
             try store(dex: dex, clock: clock) {
-                $0.inventory = ["rareCandy": 5]
-                $0.dungeons.stash = VillainStash(team: .rocket, items: [artifact.rawValue: 1], tier: .t5)
-                $0.dungeons.ambush = VillainAmbush(team: .rocket, item: artifact.rawValue, count: 1, at: clock.date, seed: 7,
-                                                   grunts: [24, 110, 42])
+                $0.dungeons.stashes = [VillainStash(team: .rocket, items: [artifact.rawValue: 1])]
+                $0.dungeons.ambushes = [self.ambush(.rocket, artifact, at: clock.date)]
             }
         }
         let s = try stolen(weak)
-        XCTAssertEqual(s.defendAgainstAmbush(), false, "three Magikarp and kin against Team Rocket's grunts")
+        let id = try XCTUnwrap(s.villainAmbushes.first?.id)
+        XCTAssertEqual(s.defendAgainstAmbush(id), false, "three Magikarp and kin against Team Rocket's grunts")
         XCTAssertEqual(s.itemCount(artifact), 0)
-        XCTAssertEqual(s.villainStash?.items, [artifact.rawValue: 1])
-        XCTAssertTrue(s.isDungeonOpen(.hideout))
-        XCTAssertEqual(s.keysToEnter(.hideout), 0)
-        XCTAssertEqual(s.dungeonInfo(.hideout).tier, .t5)
-        XCTAssertEqual(s.dungeonInfo(.hideout).bosses, [150], "Giovanni's Mewtwo")
-        XCTAssertNotNil(s.villainAmbush?.battle, "the fight can be watched")
-        XCTAssertNil(s.defendAgainstAmbush(), "chased once")
-        s.dismissVillainAmbush()
-        // While the hideout keeps it, no other team comes, though the Bag still holds candies.
-        let (day, hour) = try comingDay()
-        clock.date = try date(day, hour: hour)
-        s.changeDungeons { $0.wins[DungeonID.viridianForest.rawValue] = 1 }
-        s.settleVillainAmbush()
-        XCTAssertNil(s.villainAmbush)
-        XCTAssertEqual(s.itemCount(.rareCandy), 5)
-        clock.date = try date(10, hour: 12)
-        let caught = try stolen(strong)
-        XCTAssertEqual(caught.defendAgainstAmbush(), true, "Mewtwo, Kyogre and kin catch them")
-        XCTAssertEqual(caught.itemCount(artifact), 1, "back in the Bag")
-        XCTAssertNil(caught.villainStash)
-        XCTAssertFalse(caught.isDungeonOpen(.hideout))
+        XCTAssertEqual(s.villainStash(.rocket)?.items, [artifact.rawValue: 1])
+        XCTAssertTrue(s.isDungeonOpen(.rocketHideout))
+        XCTAssertEqual(s.keysToEnter(.rocketHideout), 0)
+        XCTAssertEqual(s.dungeonInfo(.rocketHideout).tier, .t5)
+        XCTAssertEqual(s.dungeonInfo(.rocketHideout).bosses, [150], "Giovanni's Mewtwo")
+        XCTAssertNotNil(s.villainAmbushes.first?.battle, "the fight can be watched")
+        XCTAssertNil(s.defendAgainstAmbush(id), "chased once")
+        // Team Skull's grunts (T1) against Mewtwo, Rayquaza and kin: a chase they win nine times in ten, here with seed 7.
+        let caught = try store(dex: strong, clock: clock) {
+            $0.inventory = ["rareCandy": 2]
+            $0.dungeons.stashes = [VillainStash(team: .skull, items: ["rareCandy": 3])]
+            $0.dungeons.ambushes = [self.ambush(.skull, .rareCandy, count: 3, at: clock.date)]
+        }
+        XCTAssertEqual(caught.defendAgainstAmbush(try XCTUnwrap(caught.villainAmbushes.first?.id)), true)
+        XCTAssertEqual(caught.itemCount(.rareCandy), 5, "back in the Bag")
+        XCTAssertNil(caught.villainStash(.skull))
+        XCTAssertFalse(caught.isDungeonOpen(.skullHideout))
     }
 
     /// An achievement's artifact taken as they come stays claimed: never claimed twice.
@@ -165,30 +213,36 @@ final class VillainTests: XCTestCase {
             $0.claimedAchievements = []
         }
         s.settleVillainAmbush()
-        XCTAssertEqual(s.villainAmbush?.team, .rocket, "an achievement's artifact, Team Rocket")
+        XCTAssertEqual(s.villainAmbushes.first?.team, .rocket, "an achievement's artifact, Team Rocket")
         XCTAssertEqual(s.itemCount(artifact), 0)
         XCTAssertTrue(s.isClaimed(artifact))
     }
 
-    /// The hideout's leader beaten gives everything back and closes it; it counts for no dungeon's wins nor bosses.
+    /// The hideout's leader beaten gives everything back, settles its team's thefts and closes it; it counts for no
+    /// dungeon's wins nor bosses.
     func testTheHideoutGivesItAllBack() throws {
         let clock = Clock(try date(10, hour: 12))
         let s = try store(dex: strong, clock: clock) {
-            $0.dungeons.stash = VillainStash(team: .rocket, items: ["rareCandy": 3, "masterBall": 1], tier: .t4)
+            $0.dungeons.stashes = [VillainStash(team: .rocket, items: ["shinyCharm": 1, "masterBall": 1]),
+                                   VillainStash(team: .skull, items: ["rareCandy": 3])]
+            $0.dungeons.ambushes = [self.ambush(.rocket, .shinyCharm, at: clock.date)]
         }
-        XCTAssertTrue(s.startExpedition(.hideout, team: strong.map(\.id)))
-        XCTAssertEqual(s.expedition?.hideout?.tier, .t4)
+        XCTAssertTrue(s.startExpedition(.rocketHideout, team: strong.map(\.id)))
         XCTAssertEqual(s.expedition?.boss.speciesID, 150, "Giovanni's Mewtwo leads")
-        XCTAssertEqual(s.expedition?.floors, DungeonTier.t4.floors)
+        XCTAssertEqual(s.expedition?.boss.form, ArmoredMewtwo.form)
+        XCTAssertEqual(s.expedition?.floors, DungeonTier.t5.floors)
         XCTAssertNil(s.expedition?.bossReward)
         s.changeDungeons { $0.expedition?.phase = .capture(throwsLeft: 3) }
         s.endCapture()
-        XCTAssertEqual(s.itemCount(.rareCandy), 3)
+        XCTAssertEqual(s.itemCount(.shinyCharm), 1)
         XCTAssertEqual(s.itemCount(.masterBall), 1)
-        XCTAssertNil(s.villainStash)
-        XCTAssertFalse(s.isDungeonOpen(.hideout))
-        XCTAssertEqual(s.dungeonProgress.lastResult?.recovered, ["rareCandy": 3, "masterBall": 1])
-        XCTAssertEqual(s.dungeonProgress.wins(.hideout), 0)
+        XCTAssertNil(s.villainStash(.rocket))
+        XCTAssertNotNil(s.villainStash(.skull), "another team's hideout stays")
+        XCTAssertTrue(s.villainAmbushes.isEmpty, "its theft is settled with it")
+        XCTAssertFalse(s.isDungeonOpen(.rocketHideout))
+        XCTAssertEqual(s.dungeonProgress.lastResult?.recovered, ["shinyCharm": 1, "masterBall": 1])
+        XCTAssertEqual(s.dungeonProgress.lastResult?.villain, .rocket)
+        XCTAssertEqual(s.dungeonProgress.wins(.rocketHideout), 0)
         XCTAssertTrue(s.dungeonProgress.bossesBeaten.isEmpty, "Giovanni's Mewtwo opens nothing")
     }
 
@@ -224,17 +278,20 @@ final class VillainTests: XCTestCase {
     }
 
     func testTheHideoutCountsForNothingElse() throws {
-        for tier in DungeonTier.allCases { XCTAssertFalse(DungeonMedals.dungeons(tier).contains(.hideout)) }
-        let s = try store(dex: strong, clock: Clock(try date(10, hour: 12))) { $0.dungeons.wins[DungeonID.hideout.rawValue] = 3 }
+        for tier in DungeonTier.allCases {
+            XCTAssertFalse(DungeonMedals.dungeons(tier).contains { $0.isHideout })
+        }
+        let s = try store(dex: strong, clock: Clock(try date(10, hour: 12))) { $0.dungeons.wins[DungeonID.skullHideout.rawValue] = 3 }
         XCTAssertFalse(s.isMet(.wonTier(.t1)))
-        XCTAssertFalse(s.isDungeonOpen(.hideout), "no stash, no hideout")
+        XCTAssertFalse(s.isDungeonOpen(.skullHideout), "no stash, no hideout")
+        XCTAssertEqual(VillainTeam.allCases.map { DungeonCatalog.dungeon($0.hideoutID).tier }, DungeonTier.allCases)
     }
 
     func testTheirWordsInEveryLanguage() {
         for language in AppLanguage.allCases {
             let l = L(language)
             var words = [l.villainAmbushBubble, l.villainTheirPokemon, l.villainDefend, l.villainDefendWith, l.villainLater, l.villainSeeFight,
-                         l.villainToHideout, l.villainKeeps, l.villainTakenBack, l.dungeonName(.hideout)]
+                         l.villainToHideout, l.villainKeeps, l.villainTakenBack] + VillainTeam.allCases.map { l.dungeonName($0.hideoutID) }
             for team in VillainTeam.allCases {
                 words += [l.villainTeamName(team), l.villainLeaderName(team), l.villainAmbushTitle(team),
                           l.villainStoleLine(team, item: "X"), l.villainBeaten(team, item: "X"), l.villainGotAway(team, item: "X"),

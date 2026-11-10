@@ -478,27 +478,11 @@ enum DungeonSprites {
 
     /// A hideout's diorama, drawn once a team.
     @MainActor
-    static func hideoutImage(_ team: VillainTeam) -> CGImage? {
-        if let cached = hideoutCache[team] { return cached }
-        var canvas = EggCanvas(size: 64)
-        hideout(team)(0, &canvas)
-        let image = canvas.image()
-        hideoutCache[team] = image
-        return image
-    }
-
-    @MainActor private static var hideoutCache: [VillainTeam: CGImage] = [:]
+    static func hideoutImage(_ team: VillainTeam) -> CGImage? { image(team.hideoutID) }
 
     /// A hideout's diorama cropped to what is drawn, for the menu bar.
     @MainActor
-    static func trimmedHideoutImage(_ team: VillainTeam) -> CGImage? {
-        if let cached = trimmedHideoutCache[team] { return cached }
-        let trimmed = hideoutImage(team).flatMap(cropped)
-        if let trimmed { trimmedHideoutCache[team] = trimmed }
-        return trimmed
-    }
-
-    @MainActor private static var trimmedHideoutCache: [VillainTeam: CGImage] = [:]
+    static func trimmedHideoutImage(_ team: VillainTeam) -> CGImage? { trimmedImage(team.hideoutID) }
 
     /// Seafoam Islands: the sea, two islands of ice, snow falling.
     static func seafoamIslands(_ t: Double, _ canvas: inout EggCanvas) {
@@ -654,8 +638,8 @@ enum DungeonSprites {
         // Never seen while their boss is known: it stands in for them (`DungeonIcon`, the menu bar).
         case .daily: mtCoronet
         case .weekly: hallOfOrigin
-        // The villains' hideout: a building, as the Power Plant's (its card shows the team's leader).
-        case .hideout: powerPlant
+        // The villains' hideouts, one a team (issue #180).
+        case .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout: hideout(id.villain ?? .rocket)
         }
     }
 

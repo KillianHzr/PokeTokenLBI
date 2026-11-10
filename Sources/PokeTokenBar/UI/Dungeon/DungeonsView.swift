@@ -31,8 +31,10 @@ struct DungeonsView: View {
                     Text(l.dungeonsIntro).font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                // A villains' hideout first while it keeps something (issue #180).
-                HideoutCard(store: store) { nav.dungeonTeam = .hideout }
+                // The villains' hideouts first while they keep something (issue #180), the most precious first.
+                ForEach(store.villainStashes, id: \.team) { stash in
+                    HideoutCard(store: store, team: stash.team) { nav.dungeonTeam = stash.team.hideoutID }
+                }
                 // The daily and weekly dungeons first, side by side: what they give changes with the day and the week.
                 HStack(alignment: .top, spacing: 8) {
                     ForEach([DungeonID.daily, .weekly], id: \.self) { id in
@@ -353,15 +355,11 @@ struct DungeonIcon: View {
     let id: DungeonID
     var size: CGFloat = 32
     var boss: ExpeditionBoss?
-    /// A hideout's team: its own diorama (issue #180).
-    var villain: VillainTeam? = nil
 
     var body: some View {
         Group {
             if id.isChallenge, let boss {
                 SpriteView(speciesID: boss.speciesID, size: size, form: boss.form, sameScale: true)
-            } else if id.isHideout, let villain, let image = DungeonSprites.hideoutImage(villain) {
-                Image(decorative: image, scale: 1).resizable().interpolation(size.truncatingRemainder(dividingBy: 32) == 0 ? .none : .high)
             } else if let image = DungeonSprites.image(id) {
                 Image(decorative: image, scale: 1).resizable().interpolation(size.truncatingRemainder(dividingBy: 32) == 0 ? .none : .high)
             } else {

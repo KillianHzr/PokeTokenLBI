@@ -243,13 +243,15 @@ enum SaveTransfer {
         p.challengeDraws = p.challengeDraws.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
         p.challengeWins = p.challengeWins.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
         // What a villains' team took: items the app knows, counts in range; none means no hideout (issue #180).
-        if var stash = p.stash {
+        p.stashes = p.stashes.compactMap { stash in
+            var stash = stash
             stash.items = stash.items.filter { ItemKind(rawValue: $0.key) != nil && $0.value > 0 }.mapValues(count)
-            p.stash = stash.items.isEmpty ? nil : stash
+            return stash.items.isEmpty ? nil : stash
         }
-        if var ambush = p.ambush {
+        p.ambushes = p.ambushes.filter { $0.kind != nil }.map { ambush in
+            var ambush = ambush
             ambush.count = min(max(1, ambush.count), 3)
-            p.ambush = ambush.kind == nil ? nil : ambush
+            return ambush
         }
         let battleForms = Set(BattleForms.all.map(\.form.rawValue))
         p.battleFormChoice = p.battleFormChoice.filter { battleForms.contains($0.value) }

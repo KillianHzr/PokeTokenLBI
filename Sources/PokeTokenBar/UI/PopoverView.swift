@@ -645,7 +645,7 @@ struct PopoverView: View {
                 // 고정 높이 — 상점/가방/컬렉션과 동일(팝오버가 화면을 넘어가는 것을 방지).
                 ScrollView {
                     VStack(alignment: .leading, spacing: Design.sectionSpacing) {
-                        VillainAmbushCard(store: companion, nav: nav)
+                        VillainAmbushCards(store: companion, nav: nav)
                         ExpeditionResultCard(store: companion, nav: nav)
                         ExpeditionCard(store: companion, nav: nav)
                         // While a team explores, the Pokémon raised waits as one small line; the card comes back
