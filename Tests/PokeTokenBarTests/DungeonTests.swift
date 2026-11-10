@@ -73,7 +73,7 @@ final class DungeonTests: XCTestCase {
     // MARK: Catalog
 
     func testThirteenDungeonsOverFiveTiers() {
-        XCTAssertEqual(DungeonCatalog.all.filter { !$0.id.isChallenge }.count, 13)
+        XCTAssertEqual(DungeonCatalog.all.filter { !$0.id.isChallenge && !$0.id.isHideout }.count, 13, "the villains' hideout comes and goes")
         XCTAssertEqual(DungeonTier.allCases.map(\.floors), [5, 8, 10, 12, 15])
         let difficulty = 0.1
         // The daily dungeon at 200M (the owner, 2026-11-02), eight floors; the weekly one a T4's, twelve.
