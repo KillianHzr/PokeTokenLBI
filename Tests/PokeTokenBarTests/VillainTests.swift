@@ -112,7 +112,8 @@ final class VillainTests: XCTestCase {
         let clock = Clock(try date(10, hour: 12))
         let weak = [129, 349, 10].map(graduated)
         let s = try store(dex: weak, clock: clock) {
-            $0.inventory = [artifact.rawValue: 1]
+            // Candies left after the theft: something a team would come for, but the hideout keeps one already.
+            $0.inventory = [artifact.rawValue: 1, "rareCandy": 5]
             $0.dungeons.ambush = VillainAmbush(team: .rocket, item: artifact.rawValue, count: 1, at: clock.date, seed: 7,
                                                grunts: [24, 110, 42])
         }
@@ -198,7 +199,7 @@ final class VillainTests: XCTestCase {
     func testTheirWordsInEveryLanguage() {
         for language in AppLanguage.allCases {
             let l = L(language)
-            var words = [l.villainTarget, l.villainTheirPokemon, l.villainDefend, l.villainDefendWith, l.villainSeeFight,
+            var words = [l.villainAmbushBubble, l.villainTarget, l.villainTheirPokemon, l.villainDefend, l.villainDefendWith, l.villainSeeFight,
                          l.villainToHideout, l.villainKeeps, l.villainTakenBack, l.dungeonName(.hideout)]
             for team in VillainTeam.allCases {
                 words += [l.villainTeamName(team), l.villainLeaderName(team), l.villainAmbushTitle(team),

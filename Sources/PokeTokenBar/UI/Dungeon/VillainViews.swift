@@ -46,7 +46,7 @@ struct VillainAmbushCard: View {
             switch ambush.won {
             case true?: Text(l.villainBeaten(ambush.team)).font(.callout.weight(.semibold))
             case false?: Text(l.villainGotAway(ambush.team, item: item)).font(.callout.weight(.semibold))
-            case nil: Text(l.villainAmbushLine(ambush.team, item: item)).font(.callout)
+            case nil: Text(l.villainAmbushBubble).font(.callout)
             }
             HStack(spacing: 6) {
                 ItemIconView(kind: kind, size: 22)

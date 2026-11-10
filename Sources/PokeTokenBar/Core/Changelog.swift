@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .new("2026-11-10-villain-teams", { $0.t("악의 조직이 가끔 가방의 아이템을 노려요: 내 팀으로 맞서세요. 지면 아이템을 아지트로 가져가고, 아지트 끝의 보스와 포켓몬 3마리를 이기면 되찾아요.",
+                                                     "Villains' teams sometimes come for an item in your Bag: defend it with your team. Lose, and they take it to their hideout; beat its boss and three Pokémon at the end to get it back.",
+                                                     "悪の組織がときどきバッグのどうぐを狙ってきます。マイチームで迎え撃ちましょう。負けるとアジトに持ち去られ、奥のボスとポケモン3匹に勝てば取り返せます。",
+                                                     "Los equipos villanos vienen a veces a por un objeto de tu bolsa: defiéndelo con tu equipo. Si pierdes, se lo llevan a su guarida; vence a su jefe y a sus tres Pokémon al fondo para recuperarlo.",
+                                                     "Les teams de méchants viennent parfois voler un objet de ton sac : défends-le avec ton équipe. Si tu perds, ils l'emportent dans leur repaire ; bats leur chef et ses trois Pokémon au bout pour le récupérer.",
+                                                     "As equipes vilãs às vezes vêm atrás de um item da sua bolsa: defenda-o com sua equipe. Se perder, levam-no para o esconderijo; vença o chefe e seus três Pokémon no fim para recuperá-lo.",
+                                                     "Schurken-Teams haben es manchmal auf ein Item in deinem Beutel abgesehen: Verteidige es mit deinem Team. Verlierst du, bringen sie es in ihr Versteck; besiege dort ihren Anführer und seine drei Pokémon, um es zurückzuholen.",
+                                                     "Злодейские команды иногда приходят за предметом из вашей сумки: защищайте его своей командой. Проиграете, и его унесут в логово; победите в конце главаря и трёх его покемонов, чтобы вернуть предмет.") }),
             .improved("2026-11-10-dungeons-look", { $0.t("던전 탭이 새로워졌어요: 던전 타입 색, 큰 디오라마, 같은 높이의 오늘·이번 주 카드.",
                                                        "The Dungeons tab has a new look: each dungeon in its types' colors with its diorama large, the daily and weekly cards side by side at one height.",
                                                        "ダンジョンのタブが新しくなりました。ダンジョンのタイプの色、大きなジオラマ、同じ高さの今日と今週のカード。",

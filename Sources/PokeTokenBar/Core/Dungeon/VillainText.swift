@@ -42,6 +42,12 @@ extension L {
           "Sie haben es auf ein Item in deinem Beutel abgesehen: \(item).", "Они охотятся за предметом из вашей сумки: \(item).")
     }
 
+    /// The bubble's words while they wait: the item is shown under them, its name said once.
+    var villainAmbushBubble: String {
+        t("가방에서 이걸 노리고 있어요.", "They are after this, from your Bag.", "バッグのこれを狙っています。",
+          "Van a por esto de tu bolsa.", "Ils veulent ça, dans ton sac.", "Estão atrás disto, da sua bolsa.",
+          "Sie wollen das hier aus deinem Beutel.", "Им нужно это из вашей сумки.")
+    }
     var villainTarget: String { t("노리는 것", "Target", "ねらい", "Objetivo", "Cible", "Alvo", "Ziel", "Цель") }
     var villainTheirPokemon: String {
         t("그들의 포켓몬", "Their Pokémon", "相手のポケモン", "Sus Pokémon", "Leurs Pokémon", "Os Pokémon deles", "Ihre Pokémon",
