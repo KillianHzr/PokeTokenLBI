@@ -1180,6 +1180,15 @@ extension L {
     func dungeonFloors(_ n: Int) -> String {
         t("\(n)층", "\(n) floors", "\(n)階", "\(n) pisos", "\(n) étages", "\(n) andares", "\(n) Ebenen", "Этажей: \(n)")
     }
+    /// A challenge card's title on two lines, broken before "du jour" and "la semaine" (the owner, 2026-11-10): the two
+    /// cards stand side by side at one height.
+    func challengeCardTitle(_ id: DungeonID) -> String {
+        id == .weekly
+            ? t("이번 주\n던전", "Weekly\ndungeon", "今週の\nダンジョン", "Mazmorra de\nla semana", "Donjon de\nla semaine",
+                "Masmorra da\nsemana", "Wochen-\nDungeon", "Подземелье\nнедели")
+            : t("오늘의\n던전", "Daily\ndungeon", "今日の\nダンジョン", "Mazmorra\ndel día", "Donjon\ndu jour",
+                "Masmorra\ndo dia", "Tages-\nDungeon", "Подземелье\nдня")
+    }
     var challengeOneTryADay: String {
         t("하루 한 번", "one try a day", "1日1回", "un intento al día", "une tentative par jour", "uma tentativa por dia",
           "ein Versuch pro Tag", "одна попытка в день")

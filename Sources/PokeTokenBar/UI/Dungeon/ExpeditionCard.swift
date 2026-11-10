@@ -19,42 +19,34 @@ struct ExpeditionCard: View {
                 case .exploring, .finished: exploring(e)
                 }
             }
-            // A hero card like the Pokémon's under it (the owner, 2026-11-10: "là on dirait un terminal").
-            .heroCard(colors: DungeonCard.colors(e.dungeon))
+            .designCard()
         }
     }
 
     private var l: L { store.l }
 
     private func header(_ e: Expedition) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            DungeonIcon(id: e.dungeon, size: 80, boss: e.boss)
-                .shadow(color: DungeonCard.colors(e.dungeon)[0].opacity(0.6), radius: 10)
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 5) {
-                    LiveDot()
-                    Text(l.expeditionLive.uppercased()).font(.system(size: 10, weight: .heavy)).kerning(0.6)
-                        .foregroundStyle(Design.actionColor)
-                }
-                Text(l.dungeonName(e.dungeon)).font(.system(size: 19, weight: .bold, design: .rounded))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(l.dungeonFloorOf(min(e.floor, e.floors), e.floors)).font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary).monospacedDigit()
+        HStack(spacing: 8) {
+            DungeonIcon(id: e.dungeon, size: 30, boss: e.boss)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(l.dungeonName(e.dungeon)).font(.callout.weight(.semibold))
+                Text(l.dungeonFloorOf(min(e.floor, e.floors), e.floors)).font(.caption).foregroundStyle(.secondary)
+                    .monospacedDigit()
                 // On its own line: "Ebene 6 von 12 · pausiert" broke at its dot.
                 if case .awaitingHeal = e.phase {
                     Text(l.dungeonPaused).font(.caption).foregroundStyle(.secondary)
                 }
-                // Where the boss waits, never who it is (Q17); under the floor, beside the large diorama it was
-                // squeezed to a letter a line.
-                if case .capture = e.phase {
-                    EmptyView()
-                } else {
-                    Label(l.dungeonBossAt(e.floors), systemImage: "crown.fill")
-                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                        .hoverTip(l.dungeonBossHidden)
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
+            Spacer(minLength: 4)
+            if case .capture = e.phase {
+                EmptyView()
+            } else {
+                // Where the boss waits, never who it is (Q17).
+                Label(l.dungeonBossAt(e.floors), systemImage: "crown.fill")
+                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    .hoverTip(l.dungeonBossHidden)
+            }
         }
     }
 
@@ -67,10 +59,10 @@ struct ExpeditionCard: View {
         let have = TokenFormatter.compact(e.floorTokens)
         let need = TokenFormatter.compact(e.floorCost)
         let toBoss = (e.floors - floor) * e.floorCost + max(0, e.floorCost - e.floorTokens)
+        Text(l.dungeonExploringNow).font(.caption).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         VStack(alignment: .leading, spacing: 4) {
-            // What moves it, on hover: said in a line over every card, it read like a log.
             ExpeditionFloors(floor: floor, floors: e.floors, progress: Double(e.floorTokens) / Double(max(1, e.floorCost)))
-                .hoverTip(l.dungeonExploringNow)
             Text(e.floor >= e.floors ? l.dungeonToBoss(have, need) : l.dungeonToNextFloor(have, need, next: e.floor + 1))
                 .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
             if e.floor < e.floors {
@@ -411,23 +403,19 @@ struct ExpeditionResultCard: View {
 
     private func content(_ r: ExpeditionResult, _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
-                DungeonIcon(id: r.dungeon, size: 80, boss: r.boss)
-                    .shadow(color: DungeonCard.colors(r.dungeon)[0].opacity(r.won ? 0.6 : 0), radius: 10)
-                    .grayscale(r.won ? 0 : 0.6)
-                VStack(alignment: .leading, spacing: 3) {
-                    if r.firstVictory { Badge(l.dungeonFirstVictory.uppercased(), tint: .blue, style: .tinted, size: 10) }
-                    Label(l.dungeonResultTitle(won: r.won, roped: r.roped),
-                          systemImage: r.won ? "checkmark.seal.fill" : r.roped ? "arrow.uturn.left.circle.fill" : "xmark.seal.fill")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundStyle(r.won ? Design.actionColor : Color.readableOrange)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(l.dungeonName(r.dungeon)).font(.callout.weight(.semibold))
-                    Text([TokenFormatter.compact(r.tokens), l.longDuration(r.endedAt.timeIntervalSince(r.startedAt)),
-                          l.dungeonBattles(r.battles)].joined(separator: " · "))
-                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                }
+            HStack(spacing: 8) {
+                DungeonIcon(id: r.dungeon, size: 30, boss: r.boss)
+                Label(l.dungeonResultTitle(won: r.won, roped: r.roped),
+                      systemImage: r.won ? "checkmark.seal.fill" : r.roped ? "arrow.uturn.left.circle.fill" : "xmark.seal.fill")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(r.won ? Design.actionColor : Color.readableOrange)
+                Spacer(minLength: 4)
+                if r.firstVictory { Badge(l.dungeonFirstVictory.uppercased(), tint: .blue, style: .tinted) }
             }
+            Text([l.dungeonName(r.dungeon), TokenFormatter.compact(r.tokens),
+                  l.longDuration(r.endedAt.timeIntervalSince(r.startedAt)), l.dungeonBattles(r.battles)]
+                .joined(separator: " · "))
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             // A challenge's boss is no capture: the form it gave says it below.
             if r.won, !r.dungeon.isChallenge {
                 HStack(spacing: 8) {
@@ -491,8 +479,7 @@ struct ExpeditionResultCard: View {
                     .buttonStyle(.pill(prominent: true))
             }
         }
-        // Washed with the dungeon's colors when won, grey when lost or left.
-        .heroCard(colors: r.won ? DungeonCard.colors(r.dungeon) : [.gray])
+        .designCard()
     }
 
     /// The boss's line on the result card: caught or not, or what it gave in place of its own egg (2026-11-04).

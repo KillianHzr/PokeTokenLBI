@@ -267,7 +267,7 @@ private struct ChallengeCard: View {
                        l.challengeOneTryADay].joined(separator: " · ")
         let color = DungeonCard.challengeColor(id)
         VStack(alignment: .leading, spacing: 6) {
-            Text(l.dungeonName(id).uppercased()).font(.system(size: 10, weight: .heavy)).kerning(0.6)
+            Text(l.challengeCardTitle(id).uppercased()).font(.system(size: 10, weight: .heavy)).kerning(0.6)
                 .foregroundStyle(unmet.isEmpty && !lost ? color : .secondary).lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
             // The boss large and centred, its name under it (the owner, 2026-11-09: at 36 points beside the title it was
