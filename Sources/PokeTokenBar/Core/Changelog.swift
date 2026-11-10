@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-item-descriptions", { $0.t("아이템 설명이 하는 일만 바로 말해요.",
+                                                           "Item descriptions now say straight away what each item does.",
+                                                           "アイテムの説明が、何をするかだけをすぐに伝えるようになりました。",
+                                                           "Las descripciones de los objetos dicen ahora directamente lo que hace cada uno.",
+                                                           "Les descriptions des objets disent maintenant directement ce que fait chacun.",
+                                                           "As descrições dos itens agora dizem direto o que cada um faz.",
+                                                           "Die Beschreibungen der Items sagen jetzt direkt, was jedes bewirkt.",
+                                                           "Описания предметов теперь сразу говорят, что делает каждый.") }),
             .new("2026-11-10-catch-log-battle-forms", { $0.t("오늘의 던전과 이번 주 던전에서 얻은 배틀 폼이 이제 포획 로그에 한 줄씩 나와요. 날짜와 던전도 함께요.",
                                                               "The battle forms won in the daily and weekly dungeons now each have a line in the Catch log, with the dungeon and the date.",
                                                               "今日のダンジョンと今週のダンジョンで手に入れたバトルのすがたが、ダンジョンと日付つきで捕獲ログに1行ずつ出るようになりました。",
