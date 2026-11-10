@@ -284,13 +284,17 @@ final class DungeonTests: XCTestCase {
         XCTAssertEqual(ExpeditionEngine.captureOdds(.legendary), 0.12)
     }
 
-    /// Arceus's own odds, ball by ball (the owner, 2026-11-10): a Poké Ball 10%, a Great Ball 25%, an Ultra Ball 45%,
-    /// the Master Ball sure; the other legendary bosses keep 12% and the balls' factors.
-    func testArceusOddsBallByBall() {
+    /// Arceus caught over the three throws of one ball (the owner, 2026-11-10): Poké Balls 10%, Great Balls 25%, Ultra
+    /// Balls 45%, the Master Ball sure; the other legendary bosses keep 12% a throw and the balls' factors.
+    func testArceusOddsOverTheThreeThrows() {
         let arceus = ExpeditionBoss(speciesID: DungeonCatalog.arceusID, form: nil, isShiny: false)
-        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: nil), 0.10, accuracy: 1e-9)
-        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .greatBall), 0.25, accuracy: 1e-9)
-        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .ultraBall), 0.45, accuracy: 1e-9)
+        XCTAssertEqual(ExpeditionEngine.captureThrows, 3)
+        for (ball, overThree) in [(nil, 0.10), (ItemKind.greatBall, 0.25), (.ultraBall, 0.45)] as [(ItemKind?, Double)] {
+            let one = ExpeditionEngine.throwOdds(arceus, ball: ball)
+            XCTAssertEqual(1 - pow(1 - one, 3), overThree, accuracy: 1e-9, "\(String(describing: ball)) over three throws")
+            XCTAssertLessThan(one, overThree)
+        }
+        XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: nil), 0.0345, accuracy: 0.0001)
         XCTAssertEqual(ExpeditionEngine.throwOdds(arceus, ball: .masterBall), 1)
         let giratina = ExpeditionBoss(speciesID: 487, form: nil, isShiny: false)
         XCTAssertEqual(ExpeditionEngine.throwOdds(giratina, ball: nil), 0.12, accuracy: 1e-9)
@@ -308,7 +312,7 @@ final class DungeonTests: XCTestCase {
                 caught += 1
             }
         }
-        XCTAssertEqual(Double(caught) / 600, 0.10, accuracy: 0.04)
+        XCTAssertEqual(Double(caught) / 600, 0.0345, accuracy: 0.02)
     }
 
     /// The chests' eggs grow with the tier (the owner, 2026-11-04): none in T1, which draws nothing for them so its

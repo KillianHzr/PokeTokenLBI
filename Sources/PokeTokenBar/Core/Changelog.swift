@@ -81,14 +81,14 @@ enum Changelog {
             .improved("2026-11-10-arceus-harder") { l in
                 let poke = l.dungeonPokeBall, great = l.itemName(.greatBall), ultra = l.itemName(.ultraBall)
                 let master = l.itemName(.masterBall)
-                return l.t("아르세우스는 이제 훨씬 잡기 어려워요: \(poke) 10%, \(great) 25%, \(ultra) 45%, \(master)는 여전히 반드시 잡혀요.",
-                           "Arceus is much harder to catch now: \(poke) 10%, \(great) 25%, \(ultra) 45%, and the \(master) still never misses.",
-                           "アルセウスはずっとつかまえにくくなりました：\(poke) 10%、\(great) 25%、\(ultra) 45%。\(master)は今もかならずつかまえます。",
-                           "Arceus es mucho más difícil de atrapar: \(poke) 10%, \(great) 25%, \(ultra) 45%, y la \(master) sigue sin fallar.",
-                           "Arceus est bien plus dur à attraper : \(poke) 10 %, \(great) 25 %, \(ultra) 45 %, et la \(master) ne rate toujours jamais.",
-                           "Arceus está muito mais difícil de capturar: \(poke) 10%, \(great) 25%, \(ultra) 45%, e a \(master) continua sem falhar.",
-                           "Arceus ist jetzt viel schwerer zu fangen: \(poke) 10 %, \(great) 25 %, \(ultra) 45 %, und der \(master) trifft weiterhin immer.",
-                           "Поймать Арсеуса теперь гораздо труднее: \(poke) 10%, \(great) 25%, \(ultra) 45%, а \"\(master)\" по-прежнему не промахивается.")
+                return l.t("아르세우스는 이제 훨씬 잡기 어려워요. 세 번 던져서 잡힐 확률: \(poke) 10%, \(great) 25%, \(ultra) 45%. \(master)는 여전히 반드시 잡혀요.",
+                           "Arceus is much harder to catch now. Over the three throws: \(poke) 10%, \(great) 25%, \(ultra) 45%. The \(master) still never misses.",
+                           "アルセウスはずっとつかまえにくくなりました。3回投げてつかまえる確率：\(poke) 10%、\(great) 25%、\(ultra) 45%。\(master)は今もかならずつかまえます。",
+                           "Arceus es mucho más difícil de atrapar. En los tres lanzamientos: \(poke) 10%, \(great) 25%, \(ultra) 45%. La \(master) sigue sin fallar.",
+                           "Arceus est bien plus dur à attraper. Sur les trois lancers : \(poke) 10 %, \(great) 25 %, \(ultra) 45 %. La \(master) ne rate toujours jamais.",
+                           "Arceus está muito mais difícil de capturar. Nos três arremessos: \(poke) 10%, \(great) 25%, \(ultra) 45%. A \(master) continua sem falhar.",
+                           "Arceus ist jetzt viel schwerer zu fangen. Über die drei Würfe: \(poke) 10 %, \(great) 25 %, \(ultra) 45 %. Der \(master) trifft weiterhin immer.",
+                           "Поймать Арсеуса теперь гораздо труднее. За три броска: \(poke) 10%, \(great) 25%, \(ultra) 45%. \"\(master)\" по-прежнему не промахивается.")
             },
             .improved("2026-11-10-home-guide", { $0.t("홈의 탐험 카드가 새로워졌어요: 던전과 가이드가 상황을 말해 주고, 층마다 원 하나에 그 층에서 일어난 일이 표시돼요(마우스를 올리면 기록이 보여요). 팀은 체력 고리로 보여요.",
                                                    "Home's expedition card is new: the dungeon and a guide telling how it goes, one circle a floor showing what happened there (hover it for the journal line), the team in rings of their HP.",

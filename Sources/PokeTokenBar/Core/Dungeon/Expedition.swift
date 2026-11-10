@@ -198,15 +198,25 @@ enum ExpeditionEngine {
         }
     }
 
-    /// Arceus's own odds, ball by ball rather than a factor (the owner, 2026-11-10: "beaucoup plus dur", after one in
-    /// three since 2026-11-09): a Poké Ball 10%, a Great Ball 25%, an Ultra Ball 45%, the Master Ball sure.
-    static func arceusThrowOdds(_ ball: ItemKind?) -> Double {
+    /// The throws at a fallen boss.
+    static let captureThrows = 3
+
+    /// Arceus caught over the three throws of one ball (the owner, 2026-11-10: "beaucoup plus dur", after one in three
+    /// a throw since 2026-11-09; his rates are over the three throws, not one): Poké Balls 10%, Great Balls 25%, Ultra
+    /// Balls 45%, the Master Ball sure.
+    static func arceusOddsOverThrows(_ ball: ItemKind?) -> Double {
         switch ball {
         case .greatBall?: 0.25
         case .ultraBall?: 0.45
         case .masterBall?: 1
         default: 0.10
         }
+    }
+
+    /// One throw's odds at Arceus: three misses as likely as `arceusOddsOverThrows` says (Poké Ball 3.5%, Great Ball
+    /// 9.1%, Ultra Ball 18.1%).
+    static func arceusThrowOdds(_ ball: ItemKind?) -> Double {
+        1 - pow(1 - arceusOddsOverThrows(ball), 1 / Double(captureThrows))
     }
 
     /// The candies a tier's expedition holds, around its average (Q22). Rebalanced on 2026-11-02 at the owner's word
@@ -561,7 +571,7 @@ enum ExpeditionEngine {
             if e.dungeon.isChallenge || e.bossReward == .lootOnly || e.dungeon.isHideout {
                 finish(&e, won: true, context: context)
             } else {
-                e.phase = .capture(throwsLeft: 3)
+                e.phase = .capture(throwsLeft: captureThrows)
             }
         } else {
             finish(&e, won: false, context: context)
