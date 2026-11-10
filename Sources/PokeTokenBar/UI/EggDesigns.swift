@@ -788,33 +788,88 @@ enum EggDesigns {
         }, outline: EggColor(0.22, 0.12, 0.3))
     }
 
-    /// Scales over its shell, horns on its head, fins down its sides.
+    /// Large overlapping scales, indigo darkening down, lit in their middle; a cream belly of plates like Dragonite's;
+    /// two bat wings beating behind it, golden horns, golden embers rising (the owner chose it on 2026-11-10 over two
+    /// others, the old one with its small scales and fins looked "affreux").
     static var dragon: EggDesign {
-        let blue = color(.dragon), rim = color(.dragon).mixed(with: .white, 0.4), belly = EggColor(0.98, 0.9, 0.7)
-        let surface = EggSurface(albedo: { p in
-            let y = p.y
-            let row = ((y + 1) * 4).rounded(.down)
-            let col = p.angle * 2.6 + (row.truncatingRemainder(dividingBy: 2) == 0 ? 0.5 : 0)
-            let fx = col - col.rounded(.down) - 0.5, fy = (y + 1) * 4 - row
-            let d = fx * fx + (fy - 0.25) * (fy - 0.25)
-            return d > 0.2 ? rim : blue.mixed(with: .white, max(0, 0.12 - d * 0.5))
-        }, gloss: 0.4)
+        let indigo = EggColor(0.17, 0.14, 0.47), violet = EggColor(0.42, 0.34, 0.88), lilac = EggColor(0.66, 0.61, 1)
+        let cream = EggColor(0.96, 0.89, 0.71), creamD = EggColor(0.8, 0.66, 0.39)
+        let gold = EggColor(0.95, 0.8, 0.39), goldD = EggColor(0.69, 0.51, 0.16)
+        func frac(_ x: Double) -> Double { x - x.rounded(.down) }
+        // How far inside its scale a point is (0 at its middle, 1 on its edge), the scales hanging like roof tiles.
+        func scale(_ a: Double, _ y: Double) -> (inside: Double, rim: Bool) {
+            let rowH = 0.3, colW = 0.38
+            let row = ((y + 1.2) / rowH).rounded(.down)
+            let fy = (y + 1.2) / rowH - row
+            let shift = row.truncatingRemainder(dividingBy: 2) == 0 ? 0.0 : 0.5
+            let fx = frac(a / colW + shift) - 0.5
+            let d = (fx * fx * 1.1 + (1 - fy) * (1 - fy) * 0.55).squareRoot() / 0.62
+            return (min(1, d), d > 0.82)
+        }
+        func onBelly(_ a: Double, _ y: Double) -> Bool { abs(a) < 0.28 - max(0, y - 0.3) * 0.5 && y < 0.66 && y > -0.9 }
+        var surface = EggSurface(albedo: { p in
+            let (a, y) = front(p)
+            if onBelly(a, y) {
+                let half = 0.28 - max(0, y - 0.3) * 0.5
+                let band = frac((y + 1) / 0.21)
+                if band < 0.14 || abs(a) > half - 0.035 { return creamD }
+                return cream.mixed(with: .white, max(0, 0.25 - abs(a) * 0.8)).mixed(with: creamD, band * 0.25)
+            }
+            let s = scale(a, y)
+            let body = indigo.mixed(with: violet, 0.35 + (y + 1) / 2 * 0.55)
+            if s.rim { return body.mixed(with: .black, 0.45) }
+            // Lit in its middle, a pale edge along its lower rim.
+            return body.mixed(with: lilac, max(0, 0.6 - s.inside * 0.62) + (s.inside > 0.66 ? 0.22 : 0))
+        }, gloss: 0.55, shininess: 55)
+        surface.normal = { n, p in
+            let (a, y) = front(p)
+            guard !onBelly(a, y) else { return n }
+            return EggLight.normalize((n.x, n.y - scale(a, y).inside * 0.35, n.z))
+        }
         return EggDesign(surface: surface, back: { canvas, f in
+            // Two bat wings, beating slowly: four fingers, the membrane sagging between them, a claw at the top.
             for side in [-1.0, 1.0] {
-                for (k, ey) in [0.35, 0.0, -0.35].enumerated() {
-                    let (x, y) = f.pixel(side * EggProfile.radius(ey) * 0.9, ey)
-                    let h = 6.0 - Double(k)
-                    canvas.polygon([(x, y - 3), (x + side * h, y - 4 + sin(f.phase + Double(k)) * 0.8), (x, y + 2)], rim)
+                let beat = sin(f.phase * 2) * 0.18
+                let (sx, sy) = f.pixel(side * 0.55, 0.25)
+                func finger(_ angle: Double, _ length: Double) -> (Double, Double) {
+                    let a = angle + side * beat
+                    return (sx + side * cos(a) * length, sy - sin(a) * length)
                 }
+                let tips = [finger(1.15, 25), finger(0.72, 27), finger(0.32, 23), finger(-0.05, 17)]
+                var membrane: [(Double, Double)] = [(sx, sy - 2)]
+                for (i, tip) in tips.enumerated() {
+                    membrane.append(tip)
+                    guard i < tips.count - 1 else { continue }
+                    let next = tips[i + 1]
+                    membrane.append(((tip.0 + next.0) / 2 - side * 2.5, (tip.1 + next.1) / 2 + 3))
+                }
+                membrane.append((sx + side * 6, sy + 12))
+                canvas.polygon(membrane, lilac.mixed(with: violet, 0.35))
+                for tip in tips { canvas.line(sx, sy, tip.0, tip.1, width: 1.6, indigo) }
+                canvas.ball(sx, sy - 1, 2.2, indigo, gloss: 0.2)
+                let claw = tips[0]
+                canvas.polygon([(claw.0 - 1, claw.1 + 1), (claw.0 + side * 3, claw.1 - 3), (claw.0 + 1, claw.1 + 1)], gold)
             }
         }, front: { canvas, f in
+            // Two horns curving back, a small crest between them.
             for side in [-1.0, 1.0] {
-                let (bx, by) = f.pixel(side * 0.28, 0.84)
-                // Curving back and out.
-                canvas.polygon([(bx - 3, by + 2), (bx + 3, by + 2), (bx + side * 6, by - 7), (bx + side * 9, by - 13),
-                                (bx + side * 3.5, by - 6)], belly)
+                let (bx, by) = f.pixel(side * 0.3, 0.86)
+                canvas.polygon([(bx - 2.6, by + 2), (bx + 2.6, by + 2), (bx + side * 5, by - 6), (bx + side * 9.5, by - 12),
+                                (bx + side * 3, by - 5.5)], gold)
+                canvas.line(bx + side * 1, by + 1, bx + side * 7, by - 9, width: 0.8, goldD)
             }
-        }, outline: EggColor(0.12, 0.08, 0.35))
+            let (tx, ty) = f.pixel(0, 0.97)
+            canvas.polygon([(tx - 2, ty + 1), (tx, ty - 5), (tx + 2, ty + 1)], violet)
+        }, outline: EggColor(0.08, 0.06, 0.27), glow: { canvas, f in
+            // Golden embers rising past it.
+            for i in 0..<6 {
+                let t = frac(f.t + Double(i) / 6)
+                guard t < 0.9 else { continue }
+                let x = 6 + Double(i) * 10.5 + 2 * sin(t * 7 + Double(i)), y = 62 - t * 58
+                light(&canvas, x, y, i.isMultiple(of: 2) ? gold : EggColor(1, 0.95, 0.72), behind: true)
+                if t < 0.5 { light(&canvas, x, y + 1, goldD, behind: true) }
+            }
+        })
     }
 
     /// A shell like the night, a crescent moon glowing on it; dark smoke drifts around.

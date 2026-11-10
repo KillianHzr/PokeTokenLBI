@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-10", entries: [
+            .improved("2026-11-10-dragon-egg", { $0.t("드래곤 타입 알이 새로워졌어요: 커다란 비늘, 크림색 배, 날갯짓하는 날개, 금색 뿔.",
+                                                       "The Dragon-type egg has a new look: large scales, a cream belly, beating wings and golden horns.",
+                                                       "ドラゴンタイプのタマゴが新しくなりました。大きなうろこ、クリーム色のおなか、はばたく翼、金色のつの。",
+                                                       "El huevo de tipo Dragón tiene un nuevo aspecto: grandes escamas, vientre crema, alas que aletean y cuernos dorados.",
+                                                       "L'œuf de type Dragon change de look : grandes écailles, ventre crème, ailes qui battent et cornes dorées.",
+                                                       "O ovo do tipo Dragão ganhou um novo visual: escamas grandes, barriga creme, asas que batem e chifres dourados.",
+                                                       "Das Drachen-Ei sieht neu aus: große Schuppen, ein cremefarbener Bauch, schlagende Flügel und goldene Hörner.",
+                                                       "Яйцо драконьего типа выглядит по-новому: крупная чешуя, кремовое брюшко, машущие крылья и золотые рога.") }),
             .improved("2026-11-10-battle-journal", { $0.t("전투 화면 아래에 전투 전체가 기록돼요: 누가 누구에게 어떤 기술을 썼는지, 내 편은 왼쪽, 상대는 오른쪽에 보이고, 위로 올려 처음부터 볼 수 있어요. 전투는 절반 속도로 재생돼요.",
                                                            "Under the battle, the whole battle is written down: who used which move on whom, your side on the left and the foe's on the right, and you can scroll back to the start. Battles also play at half speed.",
                                                            "バトルの下に、バトル全体が記録されます。だれがだれにどのわざを使ったか、味方は左、相手は右に表示され、上にスクロールすれば最初から見られます。バトルは半分の速さで再生されます。",
