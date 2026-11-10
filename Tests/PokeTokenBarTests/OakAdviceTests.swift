@@ -433,6 +433,31 @@ final class OakAdviceTests: XCTestCase {
                                               waitsForNext: false, reserve: rare, candies: 0))
     }
 
+    /// The one egg that holds the stock goes to the next Pokémon sent off, not this one: Oak says so and gives the next
+    /// one's price, with no reserve nor fewer candies (Q24, Q30). Two in the Bag leave one after it.
+    func testTheBagsLastEggIsSaidToGoToTheNextSendOff() async throws {
+        let (_, candy) = try prices()
+        func charmander(_ eggs: Int) async throws -> CompanionStore {
+            let s = try store(active: mon([4], rarity: .rare), dex: [graduated([10, 11, 12]), graduated([16, 17, 18])],
+                              inventory: [.rareEgg: eggs], index: releaseIndex) { st in
+                st.lastHatchedBaseID = 4
+                st.claimedEventEggs = ["summer@2026"]
+                st.usedSinceInstall = 2 * candy
+            }
+            await s.loadHatchIndex()
+            return s
+        }
+        var s = try await charmander(1)
+        let budget = try XCTUnwrap(s.oakBudget)
+        XCTAssertEqual(s.oakRelease, nil)
+        XCTAssertEqual([budget.target, budget.held, budget.buyAhead, budget.reserve, budget.candies], [1, 1, 0, 0, 2])
+        XCTAssertTrue(budget.takesTheLast)
+        XCTAssertTrue(s.oakSteps.contains(.stock(budget)))
+        s = try await charmander(2)
+        XCTAssertEqual(s.oakBudget?.takesTheLast, false)
+        XCTAssertFalse(s.oakSteps.contains { if case .stock = $0 { return true }; return false })
+    }
+
     /// No egg bought ahead that what hatches next may leave with nothing to bring: Torchic, the one Rare line missing,
     /// may come from the Fire Stone the Spare goes for. Its price is kept aside.
     func testNoEggBoughtAheadThatTheNextHatchMayLeaveWithNothing() async throws {

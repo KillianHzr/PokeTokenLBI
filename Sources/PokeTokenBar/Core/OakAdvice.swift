@@ -80,6 +80,7 @@ struct OakBudget: Equatable, Sendable {
     let reserve: Int
     /// The Rare Candies the rest of the balance buys.
     let candies: Int
+    var takesTheLast = false
 
     /// An egg that brings something new one time in 1/p takes 1/p eggs on average: three at most.
     static func stockTarget(odds: Double) -> Int { min(3, Int((1 / odds).rounded())) }
@@ -142,7 +143,9 @@ extension CompanionStore {
         var steps: [OakStep] = []
         if let verdict, verdict != .spare { steps.append(.raise) }
         if let release { steps.append(.release(release)) }
-        if let budget, budget.egg != nil, budget.buyAhead > 0 || budget.reserve > 0 { steps.append(.stock(budget)) }
+        if let budget, budget.egg != nil, budget.buyAhead > 0 || budget.reserve > 0 || budget.takesTheLast {
+            steps.append(.stock(budget))
+        }
         let buy = budget?.candies ?? 0
         let held = rareCandyCount + buy
         var waitsForReveal = false
@@ -274,7 +277,8 @@ extension CompanionStore {
         let buyAhead = waits || awaitsEgg ? 0 : min(need, max(0, wallet) / eggPrice)
         let reserve = awaitsEgg ? 0 : (need - buyAhead) * eggPrice
         return OakBudget(egg: kind, odds: odds, target: target, held: held, buyAhead: buyAhead, waitsForNext: waits,
-                         reserve: reserve, candies: max(0, wallet - buyAhead * eggPrice - reserve) / candy)
+                         reserve: reserve, candies: max(0, wallet - buyAhead * eggPrice - reserve) / candy,
+                         takesTheLast: need == 0 && held == 1 && release?.egg == nil)
     }
 
     func oakWaitsForTheTeam(_ step: OakStep) -> Bool {

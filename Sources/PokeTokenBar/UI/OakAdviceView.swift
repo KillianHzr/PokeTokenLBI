@@ -331,6 +331,9 @@ private struct OakWords {
             }
         case .stock(let budget):
             let egg = l.eggName(budget.egg?.bagEggTier)
+            if budget.takesTheLast {
+                return l.oakBagCoversTheNextOnly(egg, price: TokenFormatter.compact(store.price(of: .egg(budget.egg?.bagEggTier))))
+            }
             return budget.buyAhead > 0
                 ? l.oakBuyAhead(budget.buyAhead, egg)
                 : l.oakSetAside(TokenFormatter.compact(budget.reserve), count: budget.target - budget.held, egg: egg)
@@ -396,7 +399,7 @@ private struct OakWords {
 
     private func stockDetail(_ budget: OakBudget) -> String {
         var detail = l.oakStockFor(budget.target, takes: Int((1 / budget.odds).rounded()), odds: percent(budget.odds))
-        if budget.held > 0 { detail += " " + l.oakStockHeld(budget.held) }
+        if budget.held > 0, !budget.takesTheLast { detail += " " + l.oakStockHeld(budget.held) }
         if budget.buyAhead > 0, budget.reserve > 0 { detail += " " + l.oakAlsoSetAside(TokenFormatter.compact(budget.reserve)) }
         if budget.waitsForNext { detail += " " + l.oakNotYet }
         return detail
