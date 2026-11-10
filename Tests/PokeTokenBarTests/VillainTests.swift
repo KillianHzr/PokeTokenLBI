@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import PokeTokenBar
 
@@ -201,6 +202,18 @@ final class VillainTests: XCTestCase {
             XCTAssertTrue(team.grunts.allSatisfy { SpeciesBattleTable.data(speciesID: $0, form: nil) != nil }, "\(team)")
             XCTAssertNotNil(VillainTeam.portraitURLs[team.gruntPortrait])
             XCTAssertNotNil(VillainTeam.portraitURLs[team.leaderPortrait])
+        }
+    }
+
+    /// Each team's hideout has its own diorama (the owner, 2026-11-10), for its card and the menu bar.
+    func testEachHideoutHasItsDiorama() throws {
+        var seen: [Data] = []
+        for team in VillainTeam.allCases {
+            let image = try XCTUnwrap(DungeonSprites.hideoutImage(team), "\(team)")
+            XCTAssertNotNil(DungeonSprites.trimmedHideoutImage(team), "\(team)")
+            let data = try XCTUnwrap(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
+            XCTAssertFalse(seen.contains(data), "\(team) drawn as another")
+            seen.append(data)
         }
     }
 

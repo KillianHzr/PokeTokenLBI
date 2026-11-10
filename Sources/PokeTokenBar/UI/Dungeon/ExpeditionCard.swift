@@ -27,7 +27,7 @@ struct ExpeditionCard: View {
 
     private func header(_ e: Expedition) -> some View {
         HStack(spacing: 8) {
-            DungeonIcon(id: e.dungeon, size: 30, boss: e.boss)
+            DungeonIcon(id: e.dungeon, size: 30, boss: e.boss, villain: e.hideout?.team)
             VStack(alignment: .leading, spacing: 1) {
                 Text(e.hideout.map { l.villainHideoutName($0.team) } ?? l.dungeonName(e.dungeon)).font(.callout.weight(.semibold))
                 Text(l.dungeonFloorOf(min(e.floor, e.floors), e.floors)).font(.caption).foregroundStyle(.secondary)
@@ -404,7 +404,7 @@ struct ExpeditionResultCard: View {
     private func content(_ r: ExpeditionResult, _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                DungeonIcon(id: r.dungeon, size: 30, boss: r.boss)
+                DungeonIcon(id: r.dungeon, size: 30, boss: r.boss, villain: r.villain)
                 Label(l.dungeonResultTitle(won: r.won, roped: r.roped),
                       systemImage: r.won ? "checkmark.seal.fill" : r.roped ? "arrow.uturn.left.circle.fill" : "xmark.seal.fill")
                     .font(.callout.weight(.semibold))

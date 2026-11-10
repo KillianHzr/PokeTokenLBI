@@ -120,10 +120,15 @@ struct HideoutCard: View {
         if let stash = store.villainStash {
             let l = store.l
             HStack(alignment: .top, spacing: 12) {
-                PortraitBust(name: stash.team.leaderPortrait, width: 84,
-                             symbol: "building.2.fill")
-                    .frame(width: 84, height: 150, alignment: .top)
-                    .clipped()
+                // Its diorama, as every dungeon card's; the leader's bust stands at its foot.
+                DungeonIcon(id: .hideout, size: 96, villain: stash.team)
+                    .shadow(color: stash.team.color.opacity(0.6), radius: 10)
+                    .overlay(alignment: .bottomTrailing) {
+                        PortraitBust(name: stash.team.leaderPortrait, width: 46, symbol: "person.fill")
+                            .frame(width: 46, height: 60, alignment: .top).clipped()
+                            .offset(x: 6, y: 52)
+                    }
+                    .padding(.bottom, 52)
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 5) {
                         Badge("T\(stash.tier.rawValue)", tint: .secondary, style: .solid, size: 10)

@@ -353,11 +353,15 @@ struct DungeonIcon: View {
     let id: DungeonID
     var size: CGFloat = 32
     var boss: ExpeditionBoss?
+    /// A hideout's team: its own diorama (issue #180).
+    var villain: VillainTeam? = nil
 
     var body: some View {
         Group {
             if id.isChallenge, let boss {
                 SpriteView(speciesID: boss.speciesID, size: size, form: boss.form, sameScale: true)
+            } else if id.isHideout, let villain, let image = DungeonSprites.hideoutImage(villain) {
+                Image(decorative: image, scale: 1).resizable().interpolation(size.truncatingRemainder(dividingBy: 32) == 0 ? .none : .high)
             } else if let image = DungeonSprites.image(id) {
                 Image(decorative: image, scale: 1).resizable().interpolation(size.truncatingRemainder(dividingBy: 32) == 0 ? .none : .high)
             } else {
