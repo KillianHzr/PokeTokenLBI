@@ -246,7 +246,7 @@ private struct ChallengeCard: View {
         let lost = outcome == false
         let details = [l.dungeonFloors(dungeon.floors),
                        l.dungeonCost(TokenFormatter.compact(store.dungeonCost(id))),
-                       id == .daily ? l.challengeOneTryADay : l.challengeOneTryAWeek].joined(separator: " · ")
+                       l.challengeOneTryADay].joined(separator: " · ")
         VStack(alignment: .leading, spacing: 6) {
             Text(l.dungeonName(id)).font(.caption.weight(.semibold)).lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -289,16 +289,17 @@ private struct ChallengeCard: View {
                 } else if let outcome {
                     VStack(alignment: .leading, spacing: 2) {
                         if outcome {
-                            Label(id == .daily ? l.challengeWonDay : l.challengeWonWeek, systemImage: "checkmark.seal.fill")
+                            Label(l.challengeWonDay, systemImage: "checkmark.seal.fill")
                                 .fontWeight(.semibold).foregroundStyle(Design.actionColor)
                         } else {
-                            Label(id == .daily ? l.challengeLostDay : l.challengeLostWeek, systemImage: "xmark")
+                            Label(l.challengeLostDay, systemImage: "xmark")
                                 .fontWeight(.semibold).foregroundStyle(Color.readableOrange)
                         }
-                        Text(id == .daily ? l.challengeNextDay : l.challengeNextWeek)
+                        // The day's dungeon draws a new boss tomorrow; the week's keeps its own, tried again tomorrow.
+                        Text(id == .daily ? l.challengeNextDay : l.challengeTryTomorrow)
                     }
                 } else if tried {
-                    Label(id == .daily ? l.challengeTriedShortDay : l.challengeTriedShortWeek, systemImage: "hourglass")
+                    Label(l.challengeTriedShortDay, systemImage: "hourglass")
                 } else {
                     Button(l.dungeonPrepare, action: onPrepare)
                         .buttonStyle(.pill(prominent: true))
@@ -314,7 +315,7 @@ private struct ChallengeCard: View {
         .designSurface(cornerRadius: Design.cornerRadius)
         .opacity(lost ? 0.8 : 1)
         .hoverTip(boss == nil && unmet.isEmpty ? l.challengeAllWon
-                  : tried ? (id == .daily ? l.challengeTriedToday : l.challengeTriedThisWeek)
+                  : tried ? l.challengeTriedToday
                   : store.expedition != nil && unmet.isEmpty ? l.dungeonOneAtATime
                   : details + "\n" + l.challengeHard)
     }

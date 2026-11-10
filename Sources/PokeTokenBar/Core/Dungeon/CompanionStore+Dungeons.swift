@@ -106,18 +106,22 @@ extension CompanionStore {
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
-    /// Whether this day's (or week's) one try was spent.
+    /// The day a challenge's try belongs to: one try a day for both, the week's included (the owner, 2026-11-10: "une
+    /// tentative par jour possible pas 1 par semaine"); its boss stays the week's (`challengePeriod`).
+    func challengeTryPeriod(at date: Date? = nil) -> String { challengePeriod(.daily, at: date) }
+
+    /// Whether this day's one try was spent.
     func challengeTried(_ id: DungeonID) -> Bool {
-        (id == .weekly ? state.dungeons.weeklyTried : state.dungeons.dailyTried) == challengePeriod(id)
+        (id == .weekly ? state.dungeons.weeklyTried : state.dungeons.dailyTried) == challengeTryPeriod()
     }
 
-    /// How this day's (or week's) one try ended: nil before it or while it runs, true won, false lost or left (the
-    /// owner, 2026-11-09: a lost daily dungeon shows as such). Its run is the one of that challenge ended in this
-    /// period, never the day before's. A save from before the history counts it lost when its boss's form was not won.
+    /// How this day's one try ended: nil before it or while it runs, true won, false lost or left (the owner,
+    /// 2026-11-09: a lost daily dungeon shows as such). Its run is the one of that challenge ended this day, never the
+    /// day before's. A save from before the history counts it lost when its boss's form was not won.
     func challengeOutcome(_ id: DungeonID) -> Bool? {
         guard challengeTried(id), expedition?.dungeon != id else { return nil }
-        let period = challengePeriod(id)
-        if let run = state.dungeons.history.last(where: { $0.dungeon == id && challengePeriod(id, at: $0.endedAt) == period }) {
+        let day = challengeTryPeriod()
+        if let run = state.dungeons.history.last(where: { $0.dungeon == id && challengeTryPeriod(at: $0.endedAt) == day }) {
             return run.won
         }
         return challengeBoss(id).map { state.dungeons.battleForms.contains($0.key) } ?? false
@@ -169,6 +173,26 @@ extension CompanionStore {
     /// The battle forms won for this species, for its Pokédex page and the team screen.
     func wonBattleForms(speciesID: Int) -> [BattleForm] {
         BattleForms.forms(speciesID: speciesID).filter { state.dungeons.battleForms.contains($0.key) }
+    }
+
+    /// The team screen's filters (the owner, 2026-11-10: to find the Megas and the rest the Hall of Origin asks for).
+    enum TeamFilter: CaseIterable, Sendable {
+        case shiny, megaOrPrimal, gigantamax
+
+        var kinds: [BattleFormKind] {
+            switch self {
+            case .shiny: []
+            case .megaOrPrimal: [.mega, .primal]
+            case .gigantamax: [.gigantamax]
+            }
+        }
+    }
+
+    /// Whether a graduated Pokémon shows under a filter: shiny, or its species having won a form of the kind, chosen
+    /// or not yet (it can take it from the list).
+    func matches(_ entry: DexEntry, _ filter: TeamFilter) -> Bool {
+        if filter == .shiny { return entry.isShiny }
+        return wonBattleForms(speciesID: entry.finalID).contains { filter.kinds.contains($0.kind) }
     }
 
     /// Never used up: a Pokémon takes a won form, or goes back to its usual one with nil; not while it explores.
@@ -355,14 +379,14 @@ extension CompanionStore {
                 expedition.boss.isShiny = true
             }
         }
-        let period = challengePeriod(id)
+        let day = challengeTryPeriod()
         changeDungeons {
             $0.expedition = expedition
             $0.lastResult = nil
             $0.departures += 1
-            // The one try is spent at the departure, whatever the end.
-            if id == .daily { $0.dailyTried = period }
-            if id == .weekly { $0.weeklyTried = period }
+            // The day's one try is spent at the departure, whatever the end; the week's dungeon has one a day too.
+            if id == .daily { $0.dailyTried = day }
+            if id == .weekly { $0.weeklyTried = day }
         }
         AppLog.write("dungeon: \(id.rawValue) set off, team \(ids.joined(separator: ","))")
         persist()

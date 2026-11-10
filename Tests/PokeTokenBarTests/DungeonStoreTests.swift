@@ -1183,6 +1183,56 @@ final class DungeonStoreTests: XCTestCase {
 
     /// A challenge set off before midnight (or before the week turns) goes on unchanged: its boss, its floors and the
     /// form it gives are the departure's, whatever the day's draw has become; the next try is the new period's.
+    /// The team screen's filters find the shinies and the species with a Mega, Primal or Gigantamax won, chosen or
+    /// not; a Pokémon that is not shiny joins the Hall of Origin once its form is chosen from the list (2026-11-10).
+    func testTheFiltersFindTheFormsTheHallAsksFor() throws {
+        var pikachu = graduated(25)
+        pikachu.isShiny = true
+        let s = try store(dex: [graduated(6), graduated(94), pikachu]) {
+            $0.dungeons.battleForms = ["6-mega-x", "94-gmax"]
+        }
+        func entry(_ id: Int) throws -> DexEntry { try XCTUnwrap(s.dungeonCandidates.first { $0.finalID == id }) }
+        XCTAssertTrue(s.matches(try entry(6), .megaOrPrimal))
+        XCTAssertFalse(s.matches(try entry(6), .gigantamax))
+        XCTAssertTrue(s.matches(try entry(94), .gigantamax))
+        XCTAssertFalse(s.matches(try entry(94), .megaOrPrimal))
+        XCTAssertTrue(s.matches(try entry(25), .shiny))
+        XCTAssertFalse(s.matches(try entry(6), .shiny))
+        let rules = DungeonCatalog.dungeon(.hallOfOrigin).rules
+        XCTAssertFalse(DungeonTeamRules.admits(DungeonCandidate(try entry(6)), rules: rules), "its usual form, not shiny")
+        let mega = try XCTUnwrap(s.wonBattleForms(speciesID: 6).first)
+        XCTAssertTrue(s.setBattleForm(mega, for: "e6"))
+        XCTAssertTrue(DungeonTeamRules.admits(DungeonCandidate(try entry(6)), rules: rules), "as its Mega")
+        XCTAssertTrue(s.matches(try entry(6), .megaOrPrimal), "still found once chosen")
+    }
+
+    /// The week's dungeon has one try a day, its boss the week's (the owner, 2026-11-10: "une tentative par jour
+    /// possible pas 1 par semaine").
+    func testTheWeeksDungeonHasATryADay() throws {
+        let calendar = Calendar(identifier: .iso8601)
+        var parts = DateComponents(year: 2026, month: 11, day: 10, hour: 10)
+        parts.timeZone = .current
+        let clock = Clock(try XCTUnwrap(calendar.date(from: parts)))
+        let team = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        let s = try store(dex: team, clock: clock) { $0.dungeons.wins[DungeonID.seafoamIslands.rawValue] = 1 }
+        let boss = try XCTUnwrap(s.challengeBoss(.weekly))
+        XCTAssertTrue(s.startExpedition(.weekly, team: team.map(\.id)))
+        s.abandonExpedition()
+        XCTAssertTrue(s.challengeTried(.weekly))
+        XCTAssertFalse(s.canEnter(.weekly), "one try today")
+        XCTAssertEqual(s.challengeOutcome(.weekly), false)
+        clock.date = clock.date.addingTimeInterval(86_400)
+        XCTAssertFalse(s.challengeTried(.weekly), "a new try the next day")
+        XCTAssertTrue(s.canEnter(.weekly))
+        XCTAssertNil(s.challengeOutcome(.weekly))
+        XCTAssertEqual(s.challengeBoss(.weekly), boss, "the same week, the same boss")
+        // The save keeps the day's key.
+        XCTAssertTrue(s.startExpedition(.weekly, team: team.map(\.id)))
+        var state = s.state
+        state.dungeons.expedition = nil
+        XCTAssertEqual(SaveTransfer.sanitized(state).dungeons.weeklyTried, s.challengeTryPeriod())
+    }
+
     /// Today's try is read from today's run, never the day before's: a won yesterday does not make today's lost try a
     /// win (the owner, 2026-11-09: a lost daily dungeon shows as such).
     func testTodaysOutcomeIsTodaysRun() throws {

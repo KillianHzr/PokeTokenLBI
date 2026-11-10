@@ -77,16 +77,34 @@ enum DungeonTeamBuilder {
         }
         func greedy(_ order: [Int], _ score: [Double]) -> (ids: [String], score: Double)? {
             var team: [DungeonCandidate] = [], total = 0.0
-            for i in order where team.count < size {
+            func take(_ i: Int) -> Bool {
                 let item = admitted[i]
-                guard !team.contains(where: { $0.speciesID == item.candidate.speciesID }) else { continue }
+                guard team.count < size, !team.contains(where: { $0.speciesID == item.candidate.speciesID }) else { return false }
                 let next = team + [item.candidate]
-                guard rules.allSatisfy({ DungeonTeamRules.holds($0, for: next) || $0 == .sharedType || $0 == .oneRegion })
-                else { continue }
+                guard rules.allSatisfy({ rule in
+                    DungeonTeamRules.holds(rule, for: next) || rule == .sharedType || rule == .oneRegion || rule.isTeamMinimum
+                }) else { return false }
                 team = next
                 total += score[i]
+                return true
             }
-            return team.count == size ? (team.map(\.entryID), total) : nil
+            // What the team must have first, the best of each (the Hall of Origin, 2026-11-10): its battle forms, then
+            // its shinies; then the best of the rest.
+            for rule in rules {
+                guard case .needsBattleForm(let kinds) = rule, !DungeonTeamRules.holds(rule, for: team) else { continue }
+                for i in order {
+                    guard let kind = admitted[i].candidate.battleFormKind, kinds.contains(kind) else { continue }
+                    if take(i) { break }
+                }
+            }
+            for rule in rules {
+                guard case .atLeastShinies(let count) = rule else { continue }
+                for i in order where admitted[i].candidate.isShiny && team.filter(\.isShiny).count < count { _ = take(i) }
+            }
+            for i in order where team.count < size { _ = take(i) }
+            guard team.count == size, rules.filter(\.isTeamMinimum).allSatisfy({ DungeonTeamRules.holds($0, for: team) })
+            else { return nil }
+            return (team.map(\.entryID), total)
         }
         var groups: [[Int]] = [Array(admitted.indices)]
         if rules.contains(.sharedType) {
