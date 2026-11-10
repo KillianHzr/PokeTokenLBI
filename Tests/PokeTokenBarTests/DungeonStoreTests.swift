@@ -1183,6 +1183,33 @@ final class DungeonStoreTests: XCTestCase {
 
     /// A challenge set off before midnight (or before the week turns) goes on unchanged: its boss, its floors and the
     /// form it gives are the departure's, whatever the day's draw has become; the next try is the new period's.
+    /// The week's dungeon has one try a day, its boss the week's (the owner, 2026-11-10: "une tentative par jour
+    /// possible pas 1 par semaine").
+    func testTheWeeksDungeonHasATryADay() throws {
+        let calendar = Calendar(identifier: .iso8601)
+        var parts = DateComponents(year: 2026, month: 11, day: 10, hour: 10)
+        parts.timeZone = .current
+        let clock = Clock(try XCTUnwrap(calendar.date(from: parts)))
+        let team = [6, 9, 3, 25, 143, 130].map { graduated($0) }
+        let s = try store(dex: team, clock: clock) { $0.dungeons.wins[DungeonID.seafoamIslands.rawValue] = 1 }
+        let boss = try XCTUnwrap(s.challengeBoss(.weekly))
+        XCTAssertTrue(s.startExpedition(.weekly, team: team.map(\.id)))
+        s.abandonExpedition()
+        XCTAssertTrue(s.challengeTried(.weekly))
+        XCTAssertFalse(s.canEnter(.weekly), "one try today")
+        XCTAssertEqual(s.challengeOutcome(.weekly), false)
+        clock.date = clock.date.addingTimeInterval(86_400)
+        XCTAssertFalse(s.challengeTried(.weekly), "a new try the next day")
+        XCTAssertTrue(s.canEnter(.weekly))
+        XCTAssertNil(s.challengeOutcome(.weekly))
+        XCTAssertEqual(s.challengeBoss(.weekly), boss, "the same week, the same boss")
+        // The save keeps the day's key.
+        XCTAssertTrue(s.startExpedition(.weekly, team: team.map(\.id)))
+        var state = s.state
+        state.dungeons.expedition = nil
+        XCTAssertEqual(SaveTransfer.sanitized(state).dungeons.weeklyTried, s.challengeTryPeriod())
+    }
+
     /// Today's try is read from today's run, never the day before's: a won yesterday does not make today's lost try a
     /// win (the owner, 2026-11-09: a lost daily dungeon shows as such).
     func testTodaysOutcomeIsTodaysRun() throws {

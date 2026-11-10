@@ -238,7 +238,8 @@ enum SaveTransfer {
         p.eggs = p.eggs.filter(isHatchable)
         // The challenges' days and weeks are short keys; their draws name known battle forms; a member's form is one.
         p.dailyTried = p.dailyTried.flatMap { $0.count <= 10 ? $0 : nil }
-        p.weeklyTried = p.weeklyTried.flatMap { $0.count <= 8 ? $0 : nil }
+        // The week's try is a day's since 2026-11-10 (a week's key before).
+        p.weeklyTried = p.weeklyTried.flatMap { $0.count <= 10 ? $0 : nil }
         p.challengeDraws = p.challengeDraws.filter { $0.key.count <= 24 && BattleForms.form(key: $0.value) != nil }
         let battleForms = Set(BattleForms.all.map(\.form.rawValue))
         p.battleFormChoice = p.battleFormChoice.filter { battleForms.contains($0.value) }

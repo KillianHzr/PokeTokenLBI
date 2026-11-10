@@ -15,6 +15,8 @@ struct DungeonCandidate: Sendable, Equatable {
     var generation: Int { SpeciesInfo.all[speciesID]?.generation ?? 0 }
     var isLegendary: Bool { rarity == .legendary }
     var isStarter: Bool { CollectorBonus.starterLines.contains(baseID) || CollectorBonus.starterLines.contains(speciesID) }
+    /// The battle form it fights in, if its form is one (a Mega, a Primal, a Gigantamax).
+    var battleFormKind: BattleFormKind? { form.flatMap { BattleForms.form(speciesID: speciesID, form: $0)?.kind } }
 
     init(entryID: String, speciesID: Int, baseID: Int, form: PokemonForm?, rarity: Rarity, isShiny: Bool) {
         self.entryID = entryID
@@ -45,7 +47,8 @@ enum DungeonTeamRules {
             case .maxRarity(let cap): candidate.rarity.sortRank <= cap.sortRank
             case .bannedType(let type): !candidate.types.contains(type)
             case .onlyShinies: candidate.isShiny
-            case .atMostOneLegendary, .sharedType, .oneRegion: true
+            case .shinyOrBattleForm: candidate.isShiny || candidate.battleFormKind != nil
+            case .atMostOneLegendary, .sharedType, .oneRegion, .atLeastShinies, .needsBattleForm: true
             }
         }
     }
@@ -60,6 +63,10 @@ enum DungeonTeamRules {
             return !team.dropFirst().reduce(Set(first.types)) { $0.intersection($1.types) }.isEmpty
         case .oneRegion:
             return Set(team.map(\.generation)).count <= 1
+        case .atLeastShinies(let count):
+            return team.filter(\.isShiny).count >= count
+        case .needsBattleForm(let kinds):
+            return team.contains { member in member.battleFormKind.map(kinds.contains) ?? false }
         default:
             return team.allSatisfy { admits($0, rules: [rule]) }
         }
