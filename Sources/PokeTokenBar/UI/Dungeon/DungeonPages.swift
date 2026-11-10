@@ -140,7 +140,7 @@ struct DungeonDetailScreen: View {
             }
             ForEach(Array(dungeon.unlocks.enumerated()), id: \.offset) { _, unlock in
                 let met = store.isMet(unlock) || store.dungeonProgress.wins(id) > 0
-                Label(l.dungeonUnlock(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
+                Label(store.unlockLine(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
                     .font(.caption).foregroundStyle(met ? .primary : .secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

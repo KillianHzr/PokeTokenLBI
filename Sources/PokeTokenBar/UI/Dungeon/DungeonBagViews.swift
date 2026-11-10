@@ -9,12 +9,12 @@ struct DungeonEggCard: View {
 
     var body: some View {
         let l = store.l
-        let name = DungeonEggTitle.text(egg.baseID, l: l, language: store.language)
+        let name = DungeonEggTitle.text(egg.baseID, l: l, language: store.language, secret: egg.isSecret == true)
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 10) {
-                SpriteView(speciesID: nil, size: 30, egg: .dungeon(egg.sourceSpeciesID))
+                SpriteView(speciesID: nil, size: 30, egg: egg.eggKind)
                 VStack(alignment: .leading, spacing: 3) {
-                    DungeonEggTitle(speciesID: egg.baseID, l: l, language: store.language)
+                    DungeonEggTitle(speciesID: egg.baseID, l: l, language: store.language, secret: egg.isSecret == true)
                         .font(.callout.weight(.semibold)).lineLimit(1)
                     if egg.isShiny { Badge("✦ " + l.dungeonEggShiny.uppercased(), tint: .orange, style: .tinted) }
                     if store.hasActive {
@@ -42,17 +42,19 @@ struct DungeonEggTitle: View {
     let speciesID: Int
     let l: L
     let language: AppLanguage
+    var secret = false
     var displayStore = PokemonNameDisplayStore.shared
 
-    static func text(_ speciesID: Int, l: L, language: AppLanguage,
+    static func text(_ speciesID: Int, l: L, language: AppLanguage, secret: Bool = false,
                      names: PokemonNameDisplayStore.Names = PokemonNameDisplayStore.shared.names) -> String {
         let item = PokemonNameItem(resource: PokemonNameResource(kind: .pokemonSpecies, name: String(speciesID)))
-        return l.eggOf(PokemonNameText(items: [item], language: language, names: names).text)
+        let name = PokemonNameText(items: [item], language: language, names: names).text
+        return secret ? l.secretEggOf(name) : l.eggOf(name)
     }
 
     var body: some View {
         let resource = PokemonNameResource(kind: .pokemonSpecies, name: String(speciesID))
-        Text(Self.text(speciesID, l: l, language: language, names: displayStore.names))
+        Text(Self.text(speciesID, l: l, language: language, secret: secret, names: displayStore.names))
             .task(id: resource) {
                 if displayStore.names[resource] == nil { _ = await displayStore.load(resource, provider: PokemonNameClient.shared) }
             }

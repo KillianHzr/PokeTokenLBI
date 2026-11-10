@@ -2292,6 +2292,16 @@ read_when:
   In the same review, Gigantamax Pikachu wore its cap: `PikachuCostume.displayForm` now keeps a battle form as it is
   (`PikachuCostumeTests`).
 
+- **A GIF that answers is not an animation.** The Legends Z-A Megas stood still, and a local fix of 2026-11-10 took
+  Showdown's `sprites/ani/<name>.gif` for the 24 PokéAPI lacks: each is a single image (and no back exists), a still
+  dressed as a GIF, worse than the PNG it replaced. The owner saw them frozen on the forms page; the fix was dropped
+  before any push. **Why it was missed:** the generator marked a form animated when its GIF URL answered 200
+  (`exists`), and the tests checked the URLs the app builds, never the file behind them; nothing looked at a frame
+  count. `scripts/generate-battle-forms.py` now counts a GIF's images (`frame_count`, animated only above one) and the
+  table it writes is unchanged. Sweep: PokéAPI's 93 form GIFs all move (29 images at least); of the 1,025 species'
+  fronts, backs and shinies only Ferroseed #597 is one image, which the app shows as it shows every still (the
+  animation's first frame).
+
 ## 프로세스 제어·업데이트
 
 - **Offer what passed, build what was offered.** The updater offered `main`'s head whatever its CI, and the script

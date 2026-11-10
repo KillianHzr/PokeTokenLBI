@@ -223,7 +223,15 @@ extension L {
                             "Победить трёх боссов горы Коронет")
         case .treasureMap: t("보물지도 1장", "A Treasure Map", "たからのちず1まい", "Un Mapa del Tesoro", "Une Carte au trésor",
                              "Um Mapa do Tesouro", "Eine Schatzkarte", "Карта сокровищ")
+        case .caughtBosses(let ids): dungeonCaughtBosses(DungeonCatalog.bosses(of: ids).count)
         }
+    }
+
+    func dungeonCaughtBosses(_ n: Int) -> String {
+        t("앞선 던전의 보스 \(n)마리를 모두 쓰러뜨리고 잡기", "Beat and catch all \(n) bosses of the dungeons before",
+          "これまでのダンジョンのボス\(n)体をすべて倒してつかまえる", "Vencer y capturar a los \(n) jefes de las mazmorras anteriores",
+          "Battre et capturer les \(n) boss des donjons précédents", "Vencer e capturar os \(n) chefes das masmorras anteriores",
+          "Alle \(n) Bosse der vorigen Dungeons besiegen und fangen", "Победить и поймать всех боссов прежних подземелий: \(n)")
     }
 
     var dungeonPrepare: String { t("준비", "Prepare", "じゅんび", "Preparar", "Préparer", "Preparar", "Vorbereiten", "Подготовить") }
@@ -772,6 +780,11 @@ extension L {
         t("보스 등장", "The boss appears", "ボスがあらわれた", "Aparece el jefe", "Le boss apparaît", "O chefe aparece",
           "Der Boss erscheint", "Появляется босс")
     }
+    /// A secret boss in the boss's place, or after it (`SecretBosses`).
+    var dungeonLogSecretBoss: String {
+        t("비밀 보스 등장!", "A secret boss appears!", "ひみつのボスがあらわれた！", "¡Aparece un jefe secreto!",
+          "Un boss secret apparaît !", "Um chefe secreto aparece!", "Ein geheimer Boss erscheint!", "Появляется тайный босс!")
+    }
     func dungeonLogThrow(_ attempt: Int, ball: String, caught: Bool) -> String {
         caught
             ? t("\(attempt)번째 던지기 (\(ball)): 잡았다!", "Throw \(attempt) (\(ball)): caught!", "\(attempt)回目 (\(ball))：つかまえた！",
@@ -1051,6 +1064,8 @@ extension L {
                              "Ruínas de Alfa", "Alph-Ruinen", "Руины Альфа")
         case .hallOfOrigin: t("시작의 방", "Hall of Origin", "はじまりのま", "Sala del Origen", "Salle Originelle",
                               "Salão da Origem", "Saal des Ursprungs", "Зал Истоков")
+        case .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout:
+            villainHideoutName(id.villain ?? .rocket)
         }
     }
 }
@@ -1063,6 +1078,12 @@ extension L {
         let vowel = name.first.map { "AEIOUYÉÈÊÂÎÔaeiouyéèêâîô".contains($0) } ?? false
         return t("\(name)의 알", "\(name) Egg", "\(name)のタマゴ", "Huevo de \(name)", vowel ? "Œuf d'\(name)" : "Œuf de \(name)",
                  "Ovo de \(name)", "\(name)-Ei", "Яйцо: \(name)")
+    }
+
+    /// A secret boss's egg: the Secret Egg, its Pokémon written (the owner: "même si on sait ce qu'il y a dedans").
+    func secretEggOf(_ name: String) -> String {
+        t("비밀의 알 · \(name)", "Secret Egg · \(name)", "ひみつのタマゴ・\(name)", "Huevo secreto · \(name)",
+          "Œuf secret · \(name)", "Ovo secreto · \(name)", "Geheimes Ei · \(name)", "Тайное яйцо · \(name)")
     }
 
     /// What is going on while the team explores, said once at the top of its card.

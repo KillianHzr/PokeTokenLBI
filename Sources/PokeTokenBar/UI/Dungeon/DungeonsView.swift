@@ -31,6 +31,10 @@ struct DungeonsView: View {
                     Text(l.dungeonsIntro).font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // The villains' hideouts first while they keep something (issue #180), the most precious first.
+                ForEach(store.villainStashes, id: \.team) { stash in
+                    HideoutCard(store: store, team: stash.team) { nav.dungeonTeam = stash.team.hideoutID }
+                }
                 // The daily and weekly dungeons first, side by side: what they give changes with the day and the week.
                 HStack(alignment: .top, spacing: 8) {
                     ForEach([DungeonID.daily, .weekly], id: \.self) { id in
@@ -52,7 +56,7 @@ struct DungeonsView: View {
     /// The Ruins of Alph show only once a Treasure Map, or a visit, made them known.
     private var shown: [DungeonID] {
         DungeonID.allCases.filter { id in
-            !id.isChallenge && (id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0)
+            !id.isChallenge && !id.isHideout && (id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0)
         }
     }
 
@@ -174,7 +178,7 @@ struct DungeonCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(dungeon.unlocks.enumerated()), id: \.offset) { _, unlock in
                         let met = store.isMet(unlock)
-                        Label(l.dungeonUnlock(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
+                        Label(store.unlockLine(unlock), systemImage: met ? "checkmark.circle.fill" : "circle")
                             .font(.caption).foregroundStyle(met ? .primary : .secondary)
                     }
                 }
@@ -373,15 +377,16 @@ struct DungeonIcon: View {
 struct BossSlots {
     @MainActor
     enum Slot {
-        case met(speciesID: Int, beaten: Bool)
+        /// `beaten`: shown whole, else a silhouette (a secret boss: once caught).
+        case met(speciesID: Int, beaten: Bool, form: PokemonForm? = nil)
         case unknown
 
         @ViewBuilder
         func view(size: CGFloat, language: AppLanguage) -> some View {
             switch self {
-            case .met(let species, let beaten):
-                SpriteView(speciesID: species, size: size, isSilhouette: !beaten, sameScale: true)
-                    .speciesNameTooltip(species, language: language)
+            case .met(let species, let beaten, let form):
+                SpriteView(speciesID: species, size: size, form: form, isSilhouette: !beaten, sameScale: true)
+                    .speciesNameTooltip(species, form: form, language: language)
             case .unknown:
                 Text("?").font(.system(size: size * 0.45, weight: .bold, design: .rounded)).foregroundStyle(.secondary)
                     .frame(width: size, height: size)
@@ -392,7 +397,7 @@ struct BossSlots {
     }
 
     /// Up to `shownAtMost` slots, the latest met last; `hidden` more met past them.
-    let slots: [Slot]
+    private(set) var slots: [Slot]
     let hidden: Int
     let met: Int
 
@@ -412,6 +417,11 @@ struct BossSlots {
             slots = shown.map(slot) + [.unknown]
             hidden = reached.count - shown.count
         }
+        // A secret boss shows only once met, after the others, a silhouette until caught (the owner, 2026-11-10): no
+        // "?" gives it away, and the bosses' count stays the dungeon's own.
+        let secrets = SecretBosses.candidates(id).filter { progress.secretsMet.contains(SecretBosses.key(id, $0)) }
+        slots += secrets.map { .met(speciesID: $0.speciesID, beaten: progress.secretsCaught.contains(SecretBosses.key(id, $0)),
+                                    form: $0.form) }
     }
 }
 
@@ -466,5 +476,14 @@ struct FloorTrack: View {
                 }
             }
         }
+    }
+}
+
+extension CompanionStore {
+    /// An unlock's line, Mt. Coronet's bosses with how many are done ("12/28").
+    func unlockLine(_ unlock: DungeonUnlock) -> String {
+        guard case .caughtBosses(let ids) = unlock else { return l.dungeonUnlock(unlock) }
+        let total = DungeonCatalog.bosses(of: ids).count
+        return l.dungeonUnlock(unlock) + " · \(total - bossesLeft(ids).count)/\(total)"
     }
 }
