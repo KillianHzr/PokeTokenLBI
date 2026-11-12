@@ -67,6 +67,11 @@ struct DungeonRunRecord: Codable, Sendable, Equatable {
     }
 }
 
+struct DungeonBudget: Codable, Sendable, Equatable {
+    var start: Int
+    var dungeonTokens = 0
+}
+
 /// The dungeons' side of the save, decoded field by field so a damaged one never costs the rest.
 struct DungeonProgress: Codable, Sendable, Equatable {
     var expedition: Expedition?
@@ -120,6 +125,7 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     /// dungeons' bosses: they count for none of their records.
     var secretsMet: Set<String> = []
     var secretsCaught: Set<String> = []
+    var budget: DungeonBudget?
 
     init() {}
 
@@ -145,6 +151,7 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         secretsCaught = c.lenient(Set<String>.self, forKey: .secretsCaught, default: [])
         savedTeam = c.lenient([String].self, forKey: .savedTeam, default: [])
         history = c.lenient([Lossy<DungeonRunRecord>].self, forKey: .history, default: []).compactMap(\.value)
+        budget = c.lenientOptional(DungeonBudget.self, forKey: .budget)
         battleFormsWonAt = c.lenient([String: Date].self, forKey: .battleFormsWonAt, default: [:])
             .filter { battleForms.contains($0.key) }
         for key in battleForms where battleFormsWonAt[key] == nil {

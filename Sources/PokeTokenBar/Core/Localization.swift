@@ -3097,6 +3097,16 @@ struct L {
           n == 1 ? "Kauf eins im Voraus: \(egg)" : "Kauf \(n) im Voraus: \(egg)",
           "Купите заранее (\(n)): \(egg)")
     }
+    func oakBagCoversTheNextOnly(_ egg: String, price: String) -> String {
+        t("가방에는 다음 한 번 놓아줄 몫만 있어요. 다음 \(egg) 가격: \(price)",
+          "Your Bag covers the next send-off only: the next \(egg) costs \(price)",
+          "バッグには次の1回分しかありません。次の\(egg)は\(price)",
+          "Tu Bolsa solo cubre la próxima vez que sueltes un Pokémon: el próximo \(egg) cuesta \(price)",
+          "Ton Sac ne couvre que le prochain relâché : le prochain \(egg) coûte \(price)",
+          "Sua Bolsa só cobre a próxima vez que você soltar um Pokémon: o próximo \(egg) custa \(price)",
+          "Dein Beutel reicht nur fürs nächste Freilassen: das nächste \(egg) kostet \(price)",
+          "В сумке хватит только на следующий раз: следующее \(egg) стоит \(price)")
+    }
     func oakSetAside(_ amount: String, count n: Int, egg: String) -> String {
         t("\(n) × \(egg) 몫으로 \(amount) 남겨 두세요", "Keep \(amount) aside for \(n) × \(egg)",
           "\(n) × \(egg)のために\(amount)とっておこう", "Guarda \(amount) para \(n) × \(egg)",

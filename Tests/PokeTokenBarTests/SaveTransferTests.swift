@@ -617,6 +617,7 @@ final class SaveTransferTests: XCTestCase {
         state.dungeons.expedition = e
         state.dungeons.wins = ["viridianForest": Int.max]
         state.dungeons.departures = -7
+        state.dungeons.budget = DungeonBudget(start: -5, dungeonTokens: Int.max)
         state.dungeons.moveLoops = ["e6": ["flamethrower"]]
         state.dungeons.eggs = [DungeonEgg(id: "a", baseID: 147, form: nil, isShiny: true, sourceSpeciesID: 149),
                                DungeonEgg(id: "bad", baseID: 99_999, form: nil, isShiny: false, sourceSpeciesID: 0)]
@@ -638,6 +639,7 @@ final class SaveTransferTests: XCTestCase {
         XCTAssertEqual(walked.team[0].spec.stats.attack, 20_000)
         XCTAssertEqual(walked.team[0].spec.hp, walked.team[0].spec.stats.hp)
         XCTAssertEqual(d.wins["viridianForest"], SaveTransfer.maxItemCount)
+        XCTAssertEqual(d.budget, DungeonBudget(start: 0, dungeonTokens: SaveTransfer.maxTokenValue))
         XCTAssertEqual(d.departures, 0)
         // The clamped walk goes on without trapping.
         var next = walked

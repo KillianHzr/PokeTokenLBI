@@ -19,6 +19,124 @@ extension L {
           "Пока команда исследует \"\(dungeon)\", \(name) не растёт.")
     }
 
+    var oakUseOnReturn: String {
+        t("팀이 돌아온 뒤에 쓰세요.", "Use it once your team is back.", "チームが戻ってから使おう。",
+          "Se usa cuando vuelva tu equipo.", "À utiliser au retour de ton équipe.", "Use quando sua equipe voltar.",
+          "Erst benutzen, wenn dein Team zurück ist.", "Используйте, когда команда вернётся.")
+    }
+
+    var oakGiveOnReturn: String {
+        t("팀이 돌아온 뒤에 주세요.", "Give them once your team is back.", "チームが戻ってからあげよう。",
+          "Dáselos cuando vuelva tu equipo.", "À donner au retour de ton équipe.", "Dê quando sua equipe voltar.",
+          "Gib sie, sobald dein Team zurück ist.", "Дайте их, когда команда вернётся.")
+    }
+
+    func oakExplore(_ dungeon: String) -> String {
+        t("팀을 탐험 보내세요: \(dungeon)", "Send a team to explore: \(dungeon)", "チームを探検に出そう：\(dungeon)",
+          "Envía un equipo a explorar: \(dungeon)", "Envoie une équipe explorer : \(dungeon)",
+          "Envie uma equipe para explorar: \(dungeon)", "Schick ein Team auf Erkundung: \(dungeon)",
+          "Отправьте команду исследовать: \(dungeon)")
+    }
+
+    func oakExploreForKey(_ dungeon: String, key: String) -> String {
+        t("\(KoreanParticle.object.attach(to: key)) 얻으러 팀을 보내세요: \(dungeon)", "Send a team for a \(key): \(dungeon)",
+          "\(key)を取りにチームを出そう：\(dungeon)", "Envía un equipo por una \(key): \(dungeon)",
+          "Envoie une équipe chercher une \(key) : \(dungeon)", "Envie uma equipe atrás de uma \(key): \(dungeon)",
+          "Schick ein Team los, um einen \(key) zu holen: \(dungeon)",
+          "Отправьте команду за предметом \"\(key)\": \(dungeon)")
+    }
+
+    var oakDungeonFirstWin: String {
+        t("여기서 처음 이기면 전리품이 두 배가 되고, 다른 던전이 열릴 수도 있어요.",
+          "A first victory here doubles the loot and may open other dungeons.",
+          "ここで初めて勝つと戦利品が2倍になり、ほかのダンジョンが開くこともあります。",
+          "Una primera victoria aquí duplica el botín y puede abrir otras mazmorras.",
+          "Une première victoire ici double le butin et peut ouvrir d'autres donjons.",
+          "Uma primeira vitória aqui dobra o espólio e pode abrir outras masmorras.",
+          "Ein erster Sieg hier verdoppelt die Beute und kann weitere Dungeons öffnen.",
+          "Первая победа здесь удваивает добычу и может открыть другие подземелья.")
+    }
+
+    var oakDungeonChallenge: String {
+        t("보스를 쓰러뜨리면 아직 없는 전투 형태를 얻어요.", "Beating its boss wins a battle form you lack.",
+          "ボスを倒すと、まだ持っていないバトルのすがたが手に入ります。",
+          "Vencer a su jefe te da una forma de combate que te falta.",
+          "Battre son boss te donne une forme de combat qui te manque.",
+          "Vencer o chefe dá uma forma de batalha que falta para você.",
+          "Besiegst du seinen Boss, gewinnst du eine Kampfform, die dir fehlt.",
+          "Победа над боссом даст недостающую боевую форму.")
+    }
+
+    var oakDungeonBoss: String {
+        t("아직 잡지 못한 보스가 있어요. 잡으면 새로운 걸 가져와요.",
+          "One of its bosses isn't yours yet: catching it brings you something new.",
+          "まだ捕まえていないボスがいます。捕まえると新しいものを連れてきます。",
+          "Uno de sus jefes aún no es tuyo: capturarlo te trae algo nuevo.",
+          "Un de ses boss n'est pas encore à toi : le capturer t'apporte du nouveau.",
+          "Um dos chefes ainda não é seu: capturá-lo traz algo novo.",
+          "Einer seiner Bosse gehört dir noch nicht: Ihn zu fangen bringt dir etwas Neues.",
+          "Одного из боссов у вас ещё нет: поймав его, вы получите что-то новое.")
+    }
+
+    func oakDungeonCoronet(_ hall: String) -> String {
+        t("세 보스를 모두 쓰러뜨리면 \(KoreanParticle.subject.attach(to: hall)) 열려요.",
+          "Beating its three bosses opens the \(hall).", "3体のボスをすべて倒すと\(hall)が開きます。",
+          "Vencer a sus tres jefes abre la \(hall).", "Battre ses trois boss ouvre la \(hall).",
+          "Vencer os três chefes abre o \(hall).", "Besiegst du seine drei Bosse, öffnet sich der \(hall).",
+          "Победа над тремя боссами откроет \"\(hall)\".")
+    }
+
+    func oakDungeonHall(least: String) -> String {
+        t("보스가 아직 컬렉션에 없어요. 승률 \(least)부터는 도전할 만해요.",
+          "Its boss is missing from your collection: from \(least) of wins, it's worth a try.",
+          "ボスがまだコレクションにいません。勝率\(least)からなら挑む価値があります。",
+          "Su jefe falta en tu colección: desde un \(least) de victorias, vale la pena intentarlo.",
+          "Son boss manque à ta collection : dès \(least) de victoires, l'essai vaut le coup.",
+          "O chefe falta na sua coleção: a partir de \(least) de vitórias, vale a tentativa.",
+          "Sein Boss fehlt in deiner Sammlung: Ab \(least) Siegchance lohnt sich der Versuch.",
+          "Босса ещё нет в коллекции: с шансом победы от \(least) стоит попробовать.")
+    }
+
+    func oakDungeonKey(_ dungeon: String, key: String) -> String {
+        t("\(dungeon)에 들어가려면 \(KoreanParticle.subject.attach(to: key)) 필요해요. 이 던전에서 얻을 수 있어요.",
+          "You need a \(key) for \(dungeon), and this dungeon drops them.",
+          "\(dungeon)には\(key)が必要です。このダンジョンで手に入ります。",
+          "Necesitas una \(key) para \(dungeon), y esta mazmorra las da.",
+          "Il faut une \(key) pour \(dungeon), et ce donjon en rapporte.",
+          "Você precisa de uma \(key) para \(dungeon), e esta masmorra as dá.",
+          "Für \(dungeon) brauchst du einen \(key), und dieser Dungeon lässt welche fallen.",
+          "Для \"\(dungeon)\" нужен предмет \"\(key)\", а здесь его можно добыть.")
+    }
+
+    func oakDungeonOdds(_ odds: String) -> String {
+        t("자동 편성 팀의 승률은 \(odds)예요.", "The team composed for you wins \(odds) of the time.",
+          "おまかせ編成のチームの勝率は\(odds)です。", "El equipo compuesto para ti gana el \(odds) de las veces.",
+          "L'équipe composée pour toi gagne dans \(odds) des cas.", "A equipe montada para você vence \(odds) das vezes.",
+          "Das für dich zusammengestellte Team gewinnt in \(odds) der Fälle.",
+          "Собранная для вас команда побеждает в \(odds) случаев.")
+    }
+
+    func oakSetBattleForm(_ form: String, on name: String) -> String {
+        t("\(name)에게 \(form)", "\(form) on \(name)", "\(name)に\(form)", "\(form) en \(name)", "\(form) sur \(name)",
+          "\(form) em \(name)", "\(form) für \(name)", "\(form): \(name)")
+    }
+
+    func oakGiveCapsule(_ item: String, to name: String) -> String {
+        t("\(name)에게 \(item)", "\(item) for \(name)", "\(name)に\(item)", "\(item) para \(name)", "\(item) pour \(name)",
+          "\(item) para \(name)", "\(item) für \(name)", "\(item): \(name)")
+    }
+
+    func oakWhyDungeons(win: String, hall: String, hallName: String, share: String) -> String {
+        t("던전은? 자동 편성 팀의 승률이 \(win) 이상일 때 추천해요(\(hallName)에서는 \(hall)). 알이 아직 새로운 형태를 가져올 수 있는 동안에는 던전에 쓰는 토큰을 전체의 \(share) 미만으로 지켜요. 탐험하는 동안에는 아무것도 자라지 않으니까요.",
+          "Dungeons? Oak suggests one when the team composed for you wins at least \(win) of the time, \(hall) for the \(hallName). While an egg can still bring a new form, dungeons stay under \(share) of your tokens: nothing grows while a team explores.",
+          "ダンジョンは？おまかせ編成のチームの勝率が\(win)以上なら勧めます（\(hallName)は\(hall)）。タマゴがまだ新しいすがたを連れてこられるあいだは、ダンジョンに使うトークンを全体の\(share)未満におさえます。探検中は何も育たないからです。",
+          "¿Mazmorras? Oak te propone una cuando el equipo compuesto para ti gana al menos el \(win) de las veces, el \(hall) en la \(hallName). Mientras un huevo aún pueda traer una forma nueva, las mazmorras se quedan por debajo del \(share) de tus tokens: nada crece mientras un equipo explora.",
+          "Les donjons ? Chen en propose un quand l'équipe composée pour toi gagne dans au moins \(win) des cas, \(hall) pour la \(hallName). Tant qu'un œuf peut encore t'apporter une forme, les donjons restent sous \(share) de tes tokens : rien ne grandit pendant une exploration.",
+          "Masmorras? Carvalho sugere uma quando a equipe montada para você vence pelo menos \(win) das vezes, \(hall) no \(hallName). Enquanto um ovo ainda puder trazer uma forma nova, as masmorras ficam abaixo de \(share) dos seus tokens: nada cresce enquanto uma equipe explora.",
+          "Dungeons? Eich schlägt einen vor, wenn das für dich zusammengestellte Team in mindestens \(win) der Fälle gewinnt, \(hall) im \(hallName). Solange ein Ei noch eine neue Form bringen kann, bleiben Dungeons unter \(share) deiner Tokens: Während ein Team erkundet, wächst nichts.",
+          "Подземелья? Оук советует подземелье, если собранная для вас команда побеждает хотя бы в \(win) случаев, в \"\(hallName)\" хватит \(hall). Пока яйцо может принести новую форму, на подземелья уходит меньше \(share) токенов: пока команда исследует, ничего не растёт.")
+    }
+
     func oakDungeonPauseEgg(_ dungeon: String) -> String {
         t("팀이 \(KoreanParticle.object.attach(to: dungeon)) 탐험하는 동안 알은 부화하지 않아요.",
           "While your team explores \(dungeon), your egg doesn't hatch.",

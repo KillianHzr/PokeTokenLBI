@@ -186,13 +186,15 @@ final class OakAdviceTests: XCTestCase {
     /// waits to be claimed unless `claimed` holds it.
     private func spareStore(bag: [ItemKind: Int] = [:], lines: [[Int]]? = nil, active: MonState? = nil,
                             index: [BaseSpecies]? = nil, claimed: Set<String> = ["summer@2026"],
-                            wallet: Int = 0) async throws -> CompanionStore {
+                            wallet: Int = 0, exploring: Bool = false) async throws -> CompanionStore {
         let spare = active ?? mon([16])
         let dex = ([[16, 17, 18]] + (lines ?? mostLines)).map { graduated($0) }
+        let expedition = exploring ? try explorer() : nil
         let s = try store(active: spare, dex: dex, inventory: bag, index: index ?? releaseIndex) { st in
             st.lastHatchedBaseID = spare.baseID
             st.claimedEventEggs = claimed
             st.usedSinceInstall = wallet
+            st.dungeons.expedition = expedition
         }
         await s.loadHatchIndex()
         return s
@@ -292,6 +294,31 @@ final class OakAdviceTests: XCTestCase {
         // Only Caterpie, a Common, is missing: the Pokémon Egg its graduation gives is the one that can bring it.
         s = try await spareStore(lines: [[4, 5, 6], [7, 8, 9], [255, 256, 257], [138, 139]], wallet: 10 * rare)
         XCTAssertEqual(s.oakRelease, .finish(left: 75_000_000, why: .noBetterEgg))
+    }
+
+    private func explorer() throws -> Expedition {
+        let spec = try XCTUnwrap(BattlerSpec.make(id: "e6", speciesID: 6, level: 100))
+        return ExpeditionEngine.start(dungeon: DungeonCatalog.dungeon(.viridianForest),
+                                      team: [ExpeditionMember(entryID: "e6", spec: spec)], rules: [], teamSize: 1, seed: 1,
+                                      cost: 75_000_000, berries: [:], revives: [:],
+                                      context: ExpeditionContext(tier: .t1, shinyDenominator: 64, now: now), boss: nil)
+    }
+
+    /// [Regression] While a team explores, no egg nor stone sends the Pokémon off (`canSendOffActive`), yet the Bag's still
+    /// waits for the Spare: none is bought on top of it, and it is used at the return. Buying stays advised when the Bag
+    /// has none.
+    func testWhileATeamExploresTheBagsEggStillWaitsForTheSpare() async throws {
+        let rare = try await spareStore().price(of: .egg(.rare))
+        var s = try await spareStore(bag: [.fireStone: 1], wallet: rare, exploring: true)
+        XCTAssertTrue(s.growthPaused)
+        let stone = OakRelease.bag(.fireStone, odds: odds(1, of: 2))
+        XCTAssertEqual(s.oakRelease, stone)
+        XCTAssertEqual(s.oakSteps.filter(s.oakWaitsForTheTeam), [.release(stone)])
+        s = try await spareStore(wallet: rare, exploring: true)
+        XCTAssertEqual(s.oakRelease, .buy(.rare, odds: odds(1, of: 4)))
+        XCTAssertEqual(s.oakSteps.filter(s.oakWaitsForTheTeam), [.release(.buy(.rare, odds: odds(1, of: 4)))])
+        s = try await spareStore(bag: [.fireStone: 1], wallet: rare)
+        XCTAssertEqual(s.oakSteps.filter(s.oakWaitsForTheTeam), [], "no team away")
     }
 
     /// Every line an egg can hatch graduated: nothing to gain by sending the Spare off.
@@ -404,6 +431,31 @@ final class OakAdviceTests: XCTestCase {
         s = try await spareStore(bag: bag, index: stockIndex, wallet: rare / 2)
         XCTAssertEqual(s.oakBudget, OakBudget(egg: .rareEgg, odds: odds(1, of: 2), target: 2, held: 1, buyAhead: 0,
                                               waitsForNext: false, reserve: rare, candies: 0))
+    }
+
+    /// The one egg that holds the stock goes to the next Pokémon sent off, not this one: Oak says so and gives the next
+    /// one's price, with no reserve nor fewer candies (Q24, Q30). Two in the Bag leave one after it.
+    func testTheBagsLastEggIsSaidToGoToTheNextSendOff() async throws {
+        let (_, candy) = try prices()
+        func charmander(_ eggs: Int) async throws -> CompanionStore {
+            let s = try store(active: mon([4], rarity: .rare), dex: [graduated([10, 11, 12]), graduated([16, 17, 18])],
+                              inventory: [.rareEgg: eggs], index: releaseIndex) { st in
+                st.lastHatchedBaseID = 4
+                st.claimedEventEggs = ["summer@2026"]
+                st.usedSinceInstall = 2 * candy
+            }
+            await s.loadHatchIndex()
+            return s
+        }
+        var s = try await charmander(1)
+        let budget = try XCTUnwrap(s.oakBudget)
+        XCTAssertEqual(s.oakRelease, nil)
+        XCTAssertEqual([budget.target, budget.held, budget.buyAhead, budget.reserve, budget.candies], [1, 1, 0, 0, 2])
+        XCTAssertTrue(budget.takesTheLast)
+        XCTAssertTrue(s.oakSteps.contains(.stock(budget)))
+        s = try await charmander(2)
+        XCTAssertEqual(s.oakBudget?.takesTheLast, false)
+        XCTAssertFalse(s.oakSteps.contains { if case .stock = $0 { return true }; return false })
     }
 
     /// No egg bought ahead that what hatches next may leave with nothing to bring: Torchic, the one Rare line missing,

@@ -261,6 +261,16 @@ extension CompanionStore {
         return candidates
     }
 
+    func dungeonCandidates(wearing forms: [String: BattleForm]) -> [DexEntry] {
+        guard !forms.isEmpty else { return dungeonCandidates }
+        return dungeonCandidates.map { entry in
+            guard let form = forms[entry.id] else { return entry }
+            var shown = entry
+            shown.form = form.form
+            return shown
+        }
+    }
+
     /// The species a team holds, for the team screens' rows: one look-up per render, not one per row and member.
     func teamSpecies(_ team: [String]) -> Set<Int> {
         let ids = Set(team)
@@ -309,9 +319,9 @@ extension CompanionStore {
     }
 
     /// Q8: the best team the rules allow against the dungeon's theme.
-    func composeTeam(for id: DungeonID) -> [String] {
+    func composeTeam(for id: DungeonID, forms: [String: BattleForm] = [:]) -> [String] {
         let (size, rules) = teamRules(id)
-        return DungeonTeamBuilder.compose(composePool(id), dungeon: dungeonInfo(id), size: size, rules: rules,
+        return DungeonTeamBuilder.compose(composePool(id, forms: forms), dungeon: dungeonInfo(id), size: size, rules: rules,
                                           boss: challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
     }
 
@@ -327,9 +337,9 @@ extension CompanionStore {
         return .init(teams: teams, dungeon: dungeon, boss: boss)
     }
 
-    private func composePool(_ id: DungeonID) -> [(candidate: DungeonCandidate, spec: BattlerSpec)] {
+    private func composePool(_ id: DungeonID, forms: [String: BattleForm] = [:]) -> [(candidate: DungeonCandidate, spec: BattlerSpec)] {
         let targets = moveTargets(id)
-        return dungeonCandidates.compactMap { entry in
+        return dungeonCandidates(wearing: forms).compactMap { entry in
             dungeonSpec(entry, for: id, targets: targets).map { (DungeonCandidate(entry), $0) }
         }
     }
@@ -337,8 +347,9 @@ extension CompanionStore {
     /// R7: what the odds that this team reaches the boss are run on, off the main thread: the team as it would set
     /// off (its battle forms, its loops), with the Bag's berries and Revives it takes along, and a challenge's boss.
     /// `shown`: the challenge boss the team screen shows, which the odds are for.
-    func reachEstimate(team ids: [String], for id: DungeonID, boss shown: BattleForm? = nil) -> DungeonTeamBuilder.ReachEstimate? {
-        let candidates = dungeonCandidates
+    func reachEstimate(team ids: [String], for id: DungeonID, boss shown: BattleForm? = nil,
+                       forms: [String: BattleForm] = [:]) -> DungeonTeamBuilder.ReachEstimate? {
+        let candidates = dungeonCandidates(wearing: forms)
         let members = ids.compactMap { id in candidates.first { $0.id == id } }
             .compactMap { entry in dungeonSpec(entry, for: id).map { ExpeditionMember(entryID: entry.id, spec: $0) } }
         guard members.count == ids.count, !members.isEmpty else { return nil }
