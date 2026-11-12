@@ -80,6 +80,7 @@ struct OakBudget: Equatable, Sendable {
     let reserve: Int
     /// The Rare Candies the rest of the balance buys.
     let candies: Int
+    var takesTheLast = false
 
     /// An egg that brings something new one time in 1/p takes 1/p eggs on average: three at most.
     static func stockTarget(odds: Double) -> Int { min(3, Int((1 / odds).rounded())) }
@@ -94,6 +95,7 @@ enum OakStep: Equatable, Sendable {
     case stock(OakBudget)
     /// Rare Candies to buy, then to give the Pokémon raised or to keep, the Bag's included.
     case candies(buy: Int, give: Int, keep: Int)
+    case dungeon(OakDungeon)
 }
 
 extension CompanionStore {
@@ -142,7 +144,9 @@ extension CompanionStore {
         var steps: [OakStep] = []
         if let verdict, verdict != .spare { steps.append(.raise) }
         if let release { steps.append(.release(release)) }
-        if let budget, budget.egg != nil, budget.buyAhead > 0 || budget.reserve > 0 { steps.append(.stock(budget)) }
+        if let budget, budget.egg != nil, budget.buyAhead > 0 || budget.reserve > 0 || budget.takesTheLast {
+            steps.append(.stock(budget))
+        }
         let buy = budget?.candies ?? 0
         let held = rareCandyCount + buy
         var waitsForReveal = false
@@ -151,6 +155,7 @@ extension CompanionStore {
             let give = candiesToGive(after: release, budget: budget)
             steps.append(.candies(buy: buy, give: give, keep: held - give))
         }
+        if let dungeon = oakDungeon { steps.append(.dungeon(dungeon)) }
         return steps
     }
 
@@ -274,7 +279,17 @@ extension CompanionStore {
         let buyAhead = waits || awaitsEgg ? 0 : min(need, max(0, wallet) / eggPrice)
         let reserve = awaitsEgg ? 0 : (need - buyAhead) * eggPrice
         return OakBudget(egg: kind, odds: odds, target: target, held: held, buyAhead: buyAhead, waitsForNext: waits,
-                         reserve: reserve, candies: max(0, wallet - buyAhead * eggPrice - reserve) / candy)
+                         reserve: reserve, candies: max(0, wallet - buyAhead * eggPrice - reserve) / candy,
+                         takesTheLast: need == 0 && held == 1 && release?.egg == nil)
+    }
+
+    func oakWaitsForTheTeam(_ step: OakStep) -> Bool {
+        guard expedition != nil else { return false }
+        switch step {
+        case .release(let release): return release.sendsOffNow
+        case .candies(_, let give, _): return give > 0
+        case .raise, .stock, .dungeon: return false
+        }
     }
 
     /// The Shiny Charm brings no species nor form, but first shinies more often: proposed until bought, or until the
@@ -297,14 +312,16 @@ extension CompanionStore {
     /// Whether graduating the Pokémon being raised adds a Rare Candy: the Reins of Unity's, but not for a Common.
     var reinsCandyOnGraduation: Bool { ownsReinsOfUnity && state.active.map { $0.rarity != .common } == true }
 
-    /// Whether this item of the Bag sends the Pokémon raised off for an egg now.
+    /// Whether this item of the Bag sends the Pokémon raised off for an egg, now or once the team exploring is back.
     private func canSendOff(for kind: ItemKind) -> Bool {
         switch kind {
-        case .fossilEgg: return canUseFossilEgg()
-        case .typeNullEgg: return canUseTypeNullEgg()
-        case .legendaryEgg: return canUseLegendaryEgg()
-        case .birthdayEgg: return canUseBirthdayEgg()
-        default: return EventEgg(item: kind).map(canUseEventEgg) ?? (canUseStone(kind) || canUseBagEgg(kind))
+        case .fossilEgg: return canUseFossilEgg(onReturn: true)
+        case .typeNullEgg: return canUseTypeNullEgg(onReturn: true)
+        case .legendaryEgg: return canUseLegendaryEgg(onReturn: true)
+        case .birthdayEgg: return canUseBirthdayEgg(onReturn: true)
+        default:
+            return EventEgg(item: kind).map { canUseEventEgg($0, onReturn: true) }
+                ?? (canUseStone(kind, onReturn: true) || canUseBagEgg(kind, onReturn: true))
         }
     }
 

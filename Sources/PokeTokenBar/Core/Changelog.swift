@@ -66,6 +66,32 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-12", entries: [
+            .new("2026-11-12-oak-dungeons", { $0.t("오박사가 이제 이길 가능성이 높은 던전도 추천하고, 출발 전에 팀에게 줄 것도 알려 줘요.",
+                                                "Prof. Oak now also suggests a dungeon when your team is likely to win it, and what to give your team before it sets off.",
+                                                "オーキド博士が、勝てる見込みの高いダンジョンと、出発前にチームにわたすものも教えてくれます。",
+                                                "El Profesor Oak ahora también te propone una mazmorra cuando tu equipo tiene buenas opciones de ganarla, y qué darle antes de salir.",
+                                                "Le Prof. Chen conseille aussi un donjon quand ton équipe a de bonnes chances de le gagner, et ce qu'il faut lui donner avant le départ.",
+                                                "O Prof. Carvalho agora também sugere uma masmorra quando sua equipe tem boas chances de vencê-la, e o que dar a ela antes de partir.",
+                                                "Prof. Eich schlägt jetzt auch einen Dungeon vor, wenn dein Team gute Chancen hat, ihn zu gewinnen, und was du ihm vor dem Aufbruch geben solltest.",
+                                                "Профессор Оук теперь советует и подземелье, если у команды хорошие шансы на победу, и что дать ей перед выходом.") }),
+            .fixed("2026-11-12-oak-egg-while-exploring", { $0.t("탐험 중에 가방에 이미 알이 있으면 오박사가 더는 알을 사라고 하지 않아요. 팀이 돌아온 뒤에 쓰라고 알려 줘요.",
+                                                             "While a team explores, Prof. Oak no longer tells you to buy an egg when your Bag already holds one: he says to use it once the team is back.",
+                                                             "探検中、バッグにタマゴがあるのにオーキド博士がタマゴを買うよう勧めることはなくなりました。チームが戻ってから使うよう教えてくれます。",
+                                                             "Mientras un equipo explora, el Profesor Oak ya no te pide comprar un huevo si tu Bolsa ya tiene uno: te dice que lo uses cuando vuelva el equipo.",
+                                                             "Pendant une exploration, le Prof. Chen ne te fait plus acheter un œuf quand ton Sac en a déjà un : il te dit de l'utiliser au retour de l'équipe.",
+                                                             "Enquanto uma equipe explora, o Prof. Carvalho não pede mais para comprar um ovo se sua Bolsa já tem um: ele diz para usá-lo quando a equipe voltar.",
+                                                             "Während ein Team erkundet, rät dir Prof. Eich nicht mehr zum Kauf eines Eis, wenn dein Beutel schon eins hat: Er sagt dir, es nach der Rückkehr des Teams zu verwenden.",
+                                                             "Пока команда исследует, профессор Оук больше не советует покупать яйцо, если в сумке уже есть одно: он подскажет использовать его, когда команда вернётся.") }),
+            .improved("2026-11-12-oak-last-egg", { $0.t("가방의 알이 다음 놓아주기에만 쓰일 때 오박사가 알려 주고, 다음 알의 가격도 말해 줘요.",
+                                                     "Prof. Oak now tells you when the egg in your Bag only covers the next send-off, and what the next one costs.",
+                                                     "バッグのタマゴが次に逃がすときの分しかないとき、オーキド博士が教えてくれ、次のタマゴの値段も伝えます。",
+                                                     "El Profesor Oak te avisa cuando el huevo de tu Bolsa solo cubre la próxima liberación, y te dice cuánto cuesta el siguiente.",
+                                                     "Le Prof. Chen te prévient quand l'œuf de ton Sac ne couvre que le prochain relâché, et te donne le prix du suivant.",
+                                                     "O Prof. Carvalho avisa quando o ovo da sua Bolsa só cobre a próxima soltura, e diz quanto custa o seguinte.",
+                                                     "Prof. Eich sagt dir, wenn das Ei in deinem Beutel nur fürs nächste Freilassen reicht, und was das nächste kostet.",
+                                                     "Профессор Оук предупредит, если яйца в сумке хватит только на следующий выпуск, и назовёт цену следующего.") }),
+        ]),
         ChangelogDay(date: "2026-11-10", entries: [
             .improved("2026-11-10-secret-once", { $0.t("잡은 비밀 보스는 다시 나오지 않아요: 그 던전의 원래 보스들을 계속 만날 수 있어요.",
                                                    "A secret boss you caught never comes back: the dungeon's own bosses stay yours to meet.",

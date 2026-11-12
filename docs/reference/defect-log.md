@@ -789,6 +789,14 @@ read_when:
   before's boss, `testAChallengeGoesOnPastMidnightAndTheWeeksTurn`). Sweep: the travelling merchant draws from a fixed list the player never
   changes. A draw "fixed for the period" over a set an action shrinks needs the period's result kept apart.
 
+- **A gate that refuses an action now does not say what a plan holds.** Prof. Oak read the Bag through the use gates
+  (`canUse…`), which refuse every egg and stone while a team explores (`canSendOffActive`, 2026-11-05): the Bag's egg
+  went unseen and he advised buying another one. **Why it was missed:** `oakRelease`'s tests never had a team away; the
+  exploration guard came later, tested on the Bag's buttons only. The gates take `onReturn`, which Oak always passes, and
+  his steps that act on the Pokémon say they wait for the team
+  (`OakAdviceTests.testWhileATeamExploresTheBagsEggStillWaitsForTheSpare`). Sweep: the Bag's buttons are the gates' only
+  other callers, and they act now.
+
 ## 외부 로그·사용량 소스
 
 - **토큰 파일 파서는 외부 도구의 실제 직렬화 구조체(중첩 객체)를 반영해야 한다.** `jetski-standalone-oauth-token`
