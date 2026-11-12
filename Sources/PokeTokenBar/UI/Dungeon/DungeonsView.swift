@@ -404,8 +404,10 @@ struct BossSlots {
     init(store: CompanionStore, id: DungeonID, dungeon: Dungeon, size: CGFloat, shownAtMost: Int) {
         let progress = store.dungeonProgress
         let reached = dungeon.bosses.filter { progress.bossesReached.contains(DungeonProgress.bossKey(id, $0)) }
+        // Whole once caught in this dungeon, a silhouette until then, beaten or not (the owner, 2026-11-12: a shiny
+        // Mewtwo missed showed as caught, the species already his from an egg).
         func slot(_ species: Int) -> Slot {
-            .met(speciesID: species, beaten: progress.bossesBeaten.contains(DungeonProgress.bossKey(id, species)))
+            .met(speciesID: species, beaten: progress.caughtInDungeon(id, species))
         }
         met = reached.count
         if dungeon.bosses.count <= shownAtMost {

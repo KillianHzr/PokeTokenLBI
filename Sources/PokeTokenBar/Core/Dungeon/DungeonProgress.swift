@@ -125,6 +125,11 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     /// dungeons' bosses: they count for none of their records.
     var secretsMet: Set<String> = []
     var secretsCaught: Set<String> = []
+    /// The bosses caught in their dungeon (`bossKey`), its throws having hit (the owner, 2026-11-12): what a boss's
+    /// place shows whole and what Mt. Coronet waits for. Having the species otherwise, from an egg, counts for neither.
+    /// Empty for a new player; nil in a save from before, then filled from what it kept
+    /// (`CompanionState.bossesCaughtBefore`).
+    var bossesCaught: Set<String>? = []
     var budget: DungeonBudget?
 
     init() {}
@@ -149,6 +154,7 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         legendaryEggsWon = c.lenient(Set<Int>.self, forKey: .legendaryEggsWon, default: [])
         secretsMet = c.lenient(Set<String>.self, forKey: .secretsMet, default: [])
         secretsCaught = c.lenient(Set<String>.self, forKey: .secretsCaught, default: [])
+        bossesCaught = c.lenientOptional(Set<String>.self, forKey: .bossesCaught)
         savedTeam = c.lenient([String].self, forKey: .savedTeam, default: [])
         history = c.lenient([Lossy<DungeonRunRecord>].self, forKey: .history, default: []).compactMap(\.value)
         budget = c.lenientOptional(DungeonBudget.self, forKey: .budget)
@@ -194,4 +200,11 @@ struct DungeonProgress: Codable, Sendable, Equatable {
 
     /// Whether this boss fell anywhere.
     func beat(_ species: Int) -> Bool { bossesBeaten.contains { $0.hasSuffix(":\(species)") } }
+
+    /// Caught in its dungeon, in any of those it is a boss of.
+    func caughtInDungeon(_ species: Int) -> Bool { bossesCaught?.contains { $0.hasSuffix(":\(species)") } ?? false }
+
+    func caughtInDungeon(_ dungeon: DungeonID, _ species: Int) -> Bool {
+        bossesCaught?.contains(Self.bossKey(dungeon, species)) ?? false
+    }
 }

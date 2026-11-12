@@ -35,7 +35,7 @@ final class CapsuleSearchTests: XCTestCase {
     }
 
     /// Pikachu (320 base) far from 31, Rayquaza (680) halfway, Mewtwo (680) nearly done, Snorlax (540) shiny, a
-    /// perfect Dragonite left out: no Capsule raises it.
+    /// perfect Dragonite last, shown greyed: no Capsule raises it (the owner, 2026-11-12: gone, it looked lost).
     private func dex() -> [DexEntry] {
         [entry(25, ivs: [0, 0, 0, 0, 0, 0], name: "Pikachu", day: 4),
          entry(384, ivs: [15, 15, 15, 15, 15, 15], name: "Rayquaza", day: 1),
@@ -46,16 +46,16 @@ final class CapsuleSearchTests: XCTestCase {
 
     func testTheStrongestFirstThenTheMostToGain() throws {
         let s = try store(dex())
-        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .strongest).map(\.finalID), [384, 150, 143, 25],
+        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .strongest).map(\.finalID), [384, 150, 143, 25, 149],
                        "Rayquaza and Mewtwo share 680: Rayquaza has more to gain")
-        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .mostToGain).map(\.finalID), [25, 143, 384, 150])
+        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .mostToGain).map(\.finalID), [25, 143, 384, 150, 149])
     }
 
     func testTheOtherSortsAreThePokedexOnes() throws {
         let s = try store(dex())
-        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .numberAsc).map(\.finalID), [25, 143, 150, 384])
-        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .recentFirst).map(\.finalID), [25, 150, 143, 384])
-        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .nameAsc).map(\.finalID), [150, 25, 384, 143])
+        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .numberAsc).map(\.finalID), [25, 143, 150, 384, 149])
+        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .recentFirst).map(\.finalID), [25, 150, 143, 384, 149])
+        XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: false, sort: .nameAsc).map(\.finalID), [150, 25, 384, 143, 149])
     }
 
     func testTheSearchAndTheShinyFilter() throws {
@@ -63,8 +63,10 @@ final class CapsuleSearchTests: XCTestCase {
         XCTAssertEqual(s.capsuleCandidates(query: "ray", shinyOnly: false, sort: .strongest).map(\.finalID), [384])
         XCTAssertEqual(s.capsuleCandidates(query: "#150", shinyOnly: false, sort: .strongest).map(\.finalID), [150])
         XCTAssertEqual(s.capsuleCandidates(query: "", shinyOnly: true, sort: .strongest).map(\.finalID), [143])
-        XCTAssertTrue(s.capsuleCandidates(query: "dragonite", shinyOnly: false, sort: .strongest).isEmpty,
-                      "a Pokémon with every IV at 31 is no Capsule's")
+        let perfect = s.capsuleCandidates(query: "dragonite", shinyOnly: false, sort: .strongest)
+        XCTAssertEqual(perfect.map(\.finalID), [149], "shown, every IV at 31")
+        XCTAssertTrue(perfect.allSatisfy(CompanionStore.hasAllIVsMaxed), "greyed: nothing to raise")
+        XCTAssertFalse(s.useCapsule(.silverCapsule, on: "e149", stat: 0), "no Capsule spent on it")
         XCTAssertTrue(s.capsuleCandidates(query: "mew", shinyOnly: true, sort: .strongest).isEmpty)
     }
 
