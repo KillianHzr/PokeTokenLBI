@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-12", entries: [
+            .improved("2026-11-12-battle-forms-moves", { $0.t("배틀 폼(메가, 원시, 거다이맥스)은 이제 원래 포켓몬의 기술을 모두 알고, 자기 기술도 더 알아요. 특수 공격이 강한 메가도 자기 타입의 특수 기술을 써요.",
+                                                         "Battle forms (Mega, Primal, Gigantamax) now know every move of their Pokémon, plus their own: a Mega strong in Special Attack gets special moves of its type.",
+                                                         "バトルのすがた（メガ、ゲンシ、キョダイマックス）は、もとのポケモンのわざをぜんぶ覚え、自分のわざも使えます。とくこうが高いメガは自分のタイプのとくしゅわざを使います。",
+                                                         "Las formas de combate (Mega, Primigenia, Gigamax) conocen todos los movimientos de su Pokémon, más los suyos: una Mega fuerte en Ataque Especial tiene movimientos especiales de su tipo.",
+                                                         "Les formes de combat (Méga, Primo, Gigamax) connaissent toutes les attaques de leur Pokémon, plus les leurs : une Méga forte en Attaque Spéciale a des attaques spéciales de son type.",
+                                                         "As formas de batalha (Mega, Primitiva, Gigantamax) conhecem todos os golpes do seu Pokémon, mais os próprios: uma Mega forte em Ataque Especial tem golpes especiais do seu tipo.",
+                                                         "Kampfformen (Mega, Proto, Gigadynamax) kennen alle Attacken ihres Pokémon und ihre eigenen: Eine Mega mit starkem Spezial-Angriff hat Spezialattacken ihres Typs.",
+                                                         "Боевые формы (мега, первичные, гигантамакс) знают все приёмы своего покемона и свои: мега с сильной спецатакой получает спецприёмы своего типа.") }),
             .improved("2026-11-12-capsules-chain") { l in
                 let cap = l.itemName(.silverCapsule)
                 return l.t("\(cap)을 쓸 때 개체값이 모두 31인 포켓몬도 회색으로 보이고(마우스를 올리면 이유가 나와요), 화면을 떠나지 않고 연달아 쓸 수 있어요.",
