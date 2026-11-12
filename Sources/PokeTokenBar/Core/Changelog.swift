@@ -66,6 +66,16 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-12", entries: [
+            .new("2026-11-12-oak-dungeons", { $0.t("오박사가 이제 이길 가능성이 높은 던전도 추천하고, 출발 전에 팀에게 줄 것도 알려 줘요.",
+                                                "Prof. Oak now also suggests a dungeon when your team is likely to win it, and what to give your team before it sets off.",
+                                                "オーキド博士が、勝てる見込みの高いダンジョンと、出発前にチームにわたすものも教えてくれます。",
+                                                "El Profesor Oak ahora también te propone una mazmorra cuando tu equipo tiene buenas opciones de ganarla, y qué darle antes de salir.",
+                                                "Le Prof. Chen conseille aussi un donjon quand ton équipe a de bonnes chances de le gagner, et ce qu'il faut lui donner avant le départ.",
+                                                "O Prof. Carvalho agora também sugere uma masmorra quando sua equipe tem boas chances de vencê-la, e o que dar a ela antes de partir.",
+                                                "Prof. Eich schlägt jetzt auch einen Dungeon vor, wenn dein Team gute Chancen hat, ihn zu gewinnen, und was du ihm vor dem Aufbruch geben solltest.",
+                                                "Профессор Оук теперь советует и подземелье, если у команды хорошие шансы на победу, и что дать ей перед выходом.") }),
+        ]),
         ChangelogDay(date: "2026-11-10", entries: [
             .improved("2026-11-10-secret-once", { $0.t("잡은 비밀 보스는 다시 나오지 않아요: 그 던전의 원래 보스들을 계속 만날 수 있어요.",
                                                    "A secret boss you caught never comes back: the dungeon's own bosses stay yours to meet.",
