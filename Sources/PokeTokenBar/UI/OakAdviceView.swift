@@ -67,7 +67,7 @@ struct OakAdviceCard: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(words.title(step)).font(.caption.weight(.semibold))
                                 .fixedSize(horizontal: false, vertical: true)
-                            if let note = words.returnNote(step) {
+                            if let note = words.note(step) {
                                 Text(note).font(.caption2).foregroundStyle(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -78,6 +78,8 @@ struct OakAdviceCard: View {
                             link(l.treasureOpenBag) { nav.tab = .bag }
                         case .home?:
                             link(l.home) { nav.tab = .home }
+                        case .dungeons?:
+                            link(l.dungeonsTab) { nav.tab = .dungeons }
                         case nil:
                             EmptyView()
                         }
@@ -240,7 +242,12 @@ struct OakAdviceScreen: View {
                     }
                     SectionTitle(text: l.oakWhyTitle)
                     let eggs = l.oakWhyEgg(rare: l.eggName(.rare), uncommon: l.eggName(.uncommon), amber: l.itemName(.oldAmber))
-                    ForEach([l.oakWhy(flute: l.itemName(.legendCharm)), eggs, l.oakWhyStock, l.oakWhyCandies], id: \.self) {
+                    let dungeons = l.oakWhyDungeons(win: l.oddsPercent(50, share: CompanionStore.oakDungeonWin),
+                                                    hall: l.oddsPercent(10, share: CompanionStore.oakHallWin),
+                                                    hallName: l.dungeonName(.hallOfOrigin),
+                                                    share: l.oddsPercent(15, share: CompanionStore.oakDungeonShare))
+                    ForEach([l.oakWhy(flute: l.itemName(.legendCharm)), eggs, l.oakWhyStock, l.oakWhyCandies, dungeons],
+                            id: \.self) {
                         Text($0).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -264,7 +271,7 @@ struct OakAdviceScreen: View {
 
 /// The tab where a step is done, when it is not the Shop.
 private enum OakPlace {
-    case bag, home
+    case bag, home, dungeons
 }
 
 /// Prof. Oak's advice read once: the verdict on the Pokémon raised, what a Spare goes for, the balance's plan and the
@@ -340,17 +347,23 @@ private struct OakWords {
         case .candies(let buy, let give, let keep):
             if buy > 0 { return give > 0 ? l.oakBuyAndGiveCandies(buy, give, to: name) : l.oakBuyAndKeepCandies(buy) }
             return give > 0 ? l.oakGiveCandies(give, to: name) : l.oakKeepCandies(keep)
+        case .dungeon(let dungeon):
+            let name = l.dungeonName(dungeon.id)
+            if case .key = dungeon.reason { return l.oakExploreForKey(name, key: l.itemName(.legendaryKey)) }
+            return l.oakExplore(name)
         }
     }
 
-    func returnNote(_ step: OakStep) -> String? {
+    func note(_ step: OakStep) -> String? {
+        if case .dungeon(let dungeon) = step { return gear(dungeon) }
         guard store.oakWaitsForTheTeam(step) else { return nil }
         if case .candies = step { return l.oakGiveOnReturn }
         return l.oakUseOnReturn
     }
 
     func explanation(_ step: OakStep) -> String? {
-        let parts = [returnNote(step), detail(step)].compactMap { $0 }
+        if case .dungeon = step { return [detail(step), note(step)].compactMap { $0 }.joined(separator: "\n") }
+        let parts = [note(step), detail(step)].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
@@ -360,6 +373,7 @@ private struct OakWords {
         case .release(let release): return releaseDetail(release)
         case .stock(let budget): return stockDetail(budget)
         case .candies(let buy, let give, let keep): return candiesDetail(buy: buy, give: give, keep: keep)
+        case .dungeon(let dungeon): return dungeonDetail(dungeon)
         }
     }
 
@@ -369,6 +383,7 @@ private struct OakWords {
         case .release(.bag), .release(.buy): return .bag
         case .release(.claim): return .home
         case .candies(_, let give, _): return give > 0 ? .bag : nil
+        case .dungeon: return .dungeons
         }
     }
 
@@ -395,6 +410,36 @@ private struct OakWords {
         case .finish(_, .outgrowsTheWait):
             return l.oakOutgrowsTheWait
         }
+    }
+
+    private func dungeonDetail(_ dungeon: OakDungeon) -> String {
+        let why: String
+        switch dungeon.reason {
+        case .firstWin: why = l.oakDungeonFirstWin
+        case .challenge: why = l.oakDungeonChallenge
+        case .boss: why = l.oakDungeonBoss
+        case .coronet: why = l.oakDungeonCoronet(l.dungeonName(.hallOfOrigin))
+        case .hall: why = l.oakDungeonHall(least: l.oddsPercent(10, share: CompanionStore.oakHallWin))
+        case .key(let waiting): why = l.oakDungeonKey(l.dungeonName(waiting), key: l.itemName(.legendaryKey))
+        }
+        return why + " " + l.oakDungeonOdds(percent(dungeon.win))
+    }
+
+    private func gear(_ dungeon: OakDungeon) -> String? {
+        func name(_ entryID: String) -> String {
+            guard let entry = store.state.dex.first(where: { $0.id == entryID }) else { return "" }
+            return store.dexEntryName(entry) + (entry.isShiny ? " ✨" : "")
+        }
+        let forms = dungeon.forms.map { planned in
+            let species = store.state.dex.first { $0.id == planned.entryID }.map(store.dexEntryName) ?? ""
+            return l.oakSetBattleForm(l.battleFormName(planned.form, species: species), on: name(planned.entryID))
+        }
+        let capsules = dungeon.capsules.map { capsule in
+            let gift = l.oakGiveCapsule(l.itemName(capsule.kind), to: name(capsule.entryID))
+            return capsule.stat.map { gift + " (" + l.statLabel(PokemonStatCalculator.order[$0]) + ")" } ?? gift
+        }
+        let parts = forms + capsules
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func stockDetail(_ budget: OakBudget) -> String {

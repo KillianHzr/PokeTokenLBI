@@ -27,6 +27,10 @@ final class CompanionStore {
     /// Each egg's odds of something new for Prof. Oak (`newOdds`), until the state or the hatch index changes: his card
     /// reads them several times a draw, each over the egg's whole pool.
     @ObservationIgnored var oakOddsCache: [ItemKind: Double?] = [:]
+    @ObservationIgnored var oakDungeonCache: [DungeonID: OakDungeonOdds] = [:]
+    @ObservationIgnored var oakWinOdds: (DungeonTeamBuilder.ReachEstimate) -> Double = { $0.run().win } {
+        didSet { oakDungeonCache = [:] }
+    }
     /// How many times the Pokédex was folded: the tests check the cache with it.
     @ObservationIgnored private(set) var dexSpeciesFolds = 0
     /// Writes of the save file, for the tests of what writes it.
