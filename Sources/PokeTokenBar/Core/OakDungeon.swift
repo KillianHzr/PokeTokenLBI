@@ -10,6 +10,7 @@ struct OakDungeon: Equatable, Sendable {
     let reason: Reason
     let team: [String]
     let win: Double
+    let tokens: Int
     var forms: [OakBattleForm] = []
     var capsules: [OakCapsule] = []
 }
@@ -59,7 +60,7 @@ extension CompanionStore {
                 if waiting == nil { waiting = id }
                 return nil
             }
-            return OakDungeon(id: id, reason: reason, team: team, win: odds.win,
+            return OakDungeon(id: id, reason: reason, team: team, win: odds.win, tokens: dungeonCost(id),
                               forms: forms.filter { team.contains($0.entryID) }, capsules: oakCapsules(for: team))
         }
         for dungeon in open where dungeon.id != .hallOfOrigin && state.dungeons.wins(dungeon.id) == 0 {

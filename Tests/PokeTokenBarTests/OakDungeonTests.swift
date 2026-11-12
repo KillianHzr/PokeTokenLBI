@@ -178,6 +178,14 @@ final class OakDungeonTests: XCTestCase {
         XCTAssertNil(open.oakDungeon, "Mt. Coronet is open")
     }
 
+    func testTheAdviceSaysWhatTheDungeonTakes() throws {
+        let s = try store { $0.dungeons.wins = self.wins([.viridianForest, .diglettsCave]) }
+        s.oakWinOdds = { $0.dungeon.tier == .t1 ? 1 : 0 }
+        let dungeon = try XCTUnwrap(s.oakDungeon)
+        XCTAssertGreaterThan(dungeon.tokens, 0)
+        XCTAssertEqual(dungeon.tokens, s.dungeonCost(dungeon.id), "what the dungeon's card shows")
+    }
+
     private var hallDex: [DexEntry] {
         [144, 145, 146, 483, 484, 487].map { graduated($0, rarity: .legendary) }
             + [graduated(6), graduated(6, shiny: true), graduated(9), graduated(3, shiny: true)]

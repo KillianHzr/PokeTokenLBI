@@ -19,6 +19,28 @@ extension L {
           "Пока команда исследует \"\(dungeon)\", \(name) не растёт.")
     }
 
+    func oakDungeonWait(_ name: String, cost: String) -> String {
+        t("탐험하는 동안 \(KoreanParticle.subject.attach(to: name)) 자라지 않아요. 던전은 최대 \(cost)까지 써요.",
+          "While the team explores, \(name) doesn't grow: the dungeon takes up to \(cost).",
+          "探検のあいだ\(name)は育ちません。ダンジョンは最大\(cost)を使います。",
+          "Mientras el equipo explora, \(name) no crece: la mazmorra usa hasta \(cost).",
+          "Pendant l'exploration, \(name) ne grandit pas : le donjon prend jusqu'à \(cost).",
+          "Enquanto a equipe explora, \(name) não cresce: a masmorra usa até \(cost).",
+          "Während das Team erkundet, wächst \(name) nicht: Der Dungeon braucht bis zu \(cost).",
+          "Пока команда исследует, \(name) не растёт: подземелье забирает до \(cost).")
+    }
+
+    func oakDungeonWaitEgg(cost: String) -> String {
+        t("탐험하는 동안 알은 부화하지 않아요. 던전은 최대 \(cost)까지 써요.",
+          "While the team explores, your egg doesn't hatch: the dungeon takes up to \(cost).",
+          "探検のあいだタマゴはかえりません。ダンジョンは最大\(cost)を使います。",
+          "Mientras el equipo explora, tu huevo no eclosiona: la mazmorra usa hasta \(cost).",
+          "Pendant l'exploration, ton œuf n'éclot pas : le donjon prend jusqu'à \(cost).",
+          "Enquanto a equipe explora, seu ovo não choca: a masmorra usa até \(cost).",
+          "Während das Team erkundet, schlüpft dein Ei nicht: Der Dungeon braucht bis zu \(cost).",
+          "Пока команда исследует, яйцо не вылупляется: подземелье забирает до \(cost).")
+    }
+
     var oakUseOnReturn: String {
         t("팀이 돌아온 뒤에 쓰세요.", "Use it once your team is back.", "チームが戻ってから使おう。",
           "Se usa cuando vuelva tu equipo.", "À utiliser au retour de ton équipe.", "Use quando sua equipe voltar.",

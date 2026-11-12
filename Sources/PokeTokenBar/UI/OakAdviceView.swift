@@ -423,7 +423,9 @@ private struct OakWords {
         case .hall: why = l.oakDungeonHall(least: l.oddsPercent(10, share: CompanionStore.oakHallWin))
         case .key(let waiting): why = l.oakDungeonKey(l.dungeonName(waiting), key: l.itemName(.legendaryKey))
         }
-        return why + " " + l.oakDungeonOdds(percent(dungeon.win))
+        let cost = l.dungeonCost(TokenFormatter.compact(dungeon.tokens))
+        let wait = verdict == nil ? l.oakDungeonWaitEgg(cost: cost) : l.oakDungeonWait(name, cost: cost)
+        return why + " " + l.oakDungeonOdds(percent(dungeon.win)) + " " + wait
     }
 
     private func gear(_ dungeon: OakDungeon) -> String? {
