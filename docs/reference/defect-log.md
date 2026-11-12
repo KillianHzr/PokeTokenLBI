@@ -2319,6 +2319,14 @@ read_when:
   fronts, backs and shinies only Ferroseed #597 is one image, which the app shows as it shows every still (the
   animation's first frame).
 
+- **A battle form's moves are its Pokémon's and its own.** `generate-battle-data.py` gave a variety its own learnset
+  only, and PokéAPI's Legends Z-A Megas carry a few moves: Mega Garchomp Z (Special Attack 141) had no special Dragon
+  move, so it fought with Fire and Water and lost more duels than plain Garchomp (95 against 111 of 180). **Why it
+  was missed:** nothing checked a form's moves against its stats, only that it had data. The generator now gives a
+  Mega, Primal or Gigantamax every move of its species' default variety in every game plus its own, picked by its
+  own stats (123 forms' lines changed, no other species); `BattleFormMovesTests` asks each form for a move of its type
+  in its better class, and failed on the old table.
+
 ## 프로세스 제어·업데이트
 
 - **Offer what passed, build what was offered.** The updater offered `main`'s head whatever its CI, and the script

@@ -45,12 +45,10 @@ extension CompanionStore {
         }
     }
 
-    /// These dungeons' bosses not yet both beaten and caught: caught as `hasCaughtBoss` says, or its egg won (a
-    /// legendary's, or one hatching now).
+    /// These dungeons' bosses not yet caught in their dungeon (the owner, 2026-11-12: one had from an egg counted, and
+    /// Mt. Coronet opened with no boss caught).
     func bossesLeft(_ ids: [DungeonID]) -> [Int] {
-        DungeonCatalog.bosses(of: ids).filter { species in
-            !(state.dungeons.beat(species) && (hasCaughtBoss(species) || hasWonLegendaryEgg(species)))
-        }
+        DungeonCatalog.bosses(of: ids).filter { !state.dungeons.caughtInDungeon($0) }
     }
 
     /// Open once its unlocks are met, and for good once won: the tier rule of 2026-11-05 locks none a player has beaten.
@@ -723,8 +721,21 @@ extension CompanionStore {
 
     /// The Pokémon `kind` can be used on, searched and sorted as the Capsule screen shows them: a Capsule's those with
     /// an IV under 31, a Mint's every graduated one.
+    /// Whether a Capsule has nothing left to raise on this Pokémon: its six IVs at 31.
+    static func hasAllIVsMaxed(_ entry: DexEntry) -> Bool {
+        entry.profile.map { p in ivKeyPaths.allSatisfy { p.ivs[keyPath: $0] >= 31 } } ?? false
+    }
+
+    /// The Capsule screen's Pokémon: those a Capsule can raise, then those already at 31 everywhere, shown greyed (the
+    /// owner, 2026-11-12: a Pokémon gone from the list looked lost). A Mint's: every one it can change.
     func itemTargets(_ kind: ItemKind, query: String, shinyOnly: Bool, sort: CapsuleSortOption) -> [DexEntry] {
-        var result = kind == .mint ? mintCandidates : capsuleCandidates
+        let sorted = sortedItemTargets(kind, query: query, shinyOnly: shinyOnly, sort: sort)
+        guard kind != .mint else { return sorted }
+        return sorted.filter { !Self.hasAllIVsMaxed($0) } + sorted.filter(Self.hasAllIVsMaxed)
+    }
+
+    private func sortedItemTargets(_ kind: ItemKind, query: String, shinyOnly: Bool, sort: CapsuleSortOption) -> [DexEntry] {
+        var result = kind == .mint ? mintCandidates : state.dex.filter { !$0.isReleased && $0.profile != nil }
         if shinyOnly { result = result.filter(\.isShiny) }
         if let matcher = DexSearchMatcher(query) { result = result.filter { matcher.matches($0) } }
         switch sort {
@@ -879,6 +890,10 @@ extension CompanionStore {
             // A legendary boss's egg, or the Legendary Egg in its place, is won once.
             if caught, !secretInPlace, SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary {
                 progress.legendaryEggsWon.insert(e.boss.speciesID)
+            }
+            // Caught in its dungeon: its place shows it whole, and it counts for Mt. Coronet (the owner, 2026-11-12).
+            if caught, !secretInPlace, !e.dungeon.isChallenge, !e.dungeon.isHideout {
+                progress.bossesCaught = (progress.bossesCaught ?? []).union([DungeonProgress.bossKey(e.dungeon, e.boss.speciesID)])
             }
             // A secret boss: met, caught, apart from the dungeon's bosses (Galarian Articuno is not Articuno).
             if let secret = e.secret {

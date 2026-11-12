@@ -104,7 +104,11 @@ struct CapsuleScreen: View {
     let kind: ItemKind
     let onBack: () -> Void
     @State private var selected: String?
+    /// A Gold Capsule used: all six at 31.
     @State private var raised = false
+    /// The IV a Silver Capsule last raised: the buttons stay for the others while Capsules are left (the owner,
+    /// 2026-11-12: they went after one, and the screen had to be left and opened again).
+    @State private var lastRaised: Int?
     @State private var search = ""
     @State private var shinyOnly = false
     @State private var sort: CompanionStore.CapsuleSortOption = .strongest
@@ -116,7 +120,15 @@ struct CapsuleScreen: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Button {
-                    if selected != nil, !raised { selected = nil; mintChange = nil } else { onBack() }
+                    // Back to the list from a Pokémon, whatever was used on it: another one may come next.
+                    if selected != nil {
+                        selected = nil
+                        mintChange = nil
+                        raised = false
+                        lastRaised = nil
+                    } else {
+                        onBack()
+                    }
                 } label: {
                     Label(l.back, systemImage: "chevron.left").labelStyle(.titleAndIcon)
                 }
@@ -141,8 +153,13 @@ struct CapsuleScreen: View {
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 62), spacing: 6)], spacing: 6) {
                             ForEach(shown) { entry in
-                                Button { selected = entry.id } label: { cell(entry) }
-                                    .buttonStyle(.plain)
+                                if kind != .mint, CompanionStore.hasAllIVsMaxed(entry) {
+                                    // Nothing left to raise: shown greyed, its reason under the pointer.
+                                    cell(entry, maxed: true)
+                                } else {
+                                    Button { selected = entry.id } label: { cell(entry) }
+                                        .buttonStyle(.plain)
+                                }
                             }
                         }
                         .reservesScrollerLane()
@@ -219,16 +236,25 @@ struct CapsuleScreen: View {
         .padding(.top, 40)
     }
 
-    private func cell(_ entry: DexEntry) -> some View {
-        VStack(spacing: 2) {
-            SpriteView(speciesID: entry.finalID, size: 40, shiny: entry.isShiny, form: entry.form, sameScale: true)
+    @ViewBuilder
+    private func cell(_ entry: DexEntry, maxed: Bool = false) -> some View {
+        let content = VStack(spacing: 2) {
+            SpriteView(speciesID: entry.finalID, size: 40, shiny: entry.isShiny, form: entry.form, isSilhouette: false,
+                       sameScale: true)
+                .opacity(maxed ? 0.35 : 1)
             Text(kind == .mint ? entry.nature.map { $0.name(store.language) } ?? "?" : "\(total(entry))/186")
-                .font(.caption2).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+                .font(.caption2).foregroundStyle(maxed ? .tertiary : .secondary).monospacedDigit().lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 4)
         .designSurface(cornerRadius: 10)
-        .speciesNameTooltip(entry.finalID, form: entry.form, language: store.language)
+        .opacity(maxed ? 0.6 : 1)
+        if maxed {
+            content.contentShape(Rectangle()).hoverTip(store.l.dungeonCapsuleAllMaxed)
+        } else {
+            content.speciesNameTooltip(entry.finalID, form: entry.form, language: store.language)
+        }
     }
 
     @ViewBuilder
@@ -241,11 +267,23 @@ struct CapsuleScreen: View {
                 Text("IV \(total(entry))/186").font(.caption).foregroundStyle(.secondary).monospacedDigit()
             }
         }
+        let left = store.itemCount(kind) > 0
         if raised {
             Label(l.dungeonCapsuleDone, systemImage: "checkmark.seal.fill")
                 .font(.callout.weight(.semibold)).foregroundStyle(Design.actionColor)
         } else if kind == .silverCapsule {
-            Text(l.dungeonCapsulePickStat).font(.caption.weight(.semibold))
+            if let lastRaised {
+                Label(l.dungeonCapsuleStatRaised(l.statLabel(PokemonStatCalculator.order[lastRaised])),
+                      systemImage: "checkmark.seal.fill")
+                    .font(.callout.weight(.semibold)).foregroundStyle(Design.actionColor)
+            }
+            if CompanionStore.hasAllIVsMaxed(entry) {
+                Text(l.dungeonCapsuleAllMaxed).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            } else if left {
+                Text(l.dungeonCapsulePickStat).font(.caption.weight(.semibold))
+            } else {
+                Text(l.dungeonCapsuleNoneLeft(l.itemName(kind))).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            }
         }
         VStack(alignment: .leading, spacing: 6) {
             ForEach(Array(PokemonStatCalculator.order.enumerated()), id: \.offset) { index, name in
@@ -254,8 +292,8 @@ struct CapsuleScreen: View {
                     Text(l.statLabel(name)).font(.caption).frame(width: 70, alignment: .leading)
                     Text("\(value)").font(.caption.weight(.semibold)).monospacedDigit().frame(width: 22, alignment: .trailing)
                     ExpeditionBar(value: Double(value) / 31, color: value == 31 ? Design.actionColor : .secondary, height: 5)
-                    if kind == .silverCapsule, !raised {
-                        Button("→ 31") { raised = store.useCapsule(kind, on: entry.id, stat: index) }
+                    if kind == .silverCapsule, left {
+                        Button("→ 31") { if store.useCapsule(kind, on: entry.id, stat: index) { lastRaised = index } }
                             .buttonStyle(.pill())
                             .disabled(value >= 31)
                             .opacity(value >= 31 ? 0 : 1)

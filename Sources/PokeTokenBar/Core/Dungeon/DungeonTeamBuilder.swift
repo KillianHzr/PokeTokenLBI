@@ -11,10 +11,16 @@ enum DungeonTeamBuilder {
             [p.ivs.hp, p.ivs.attack, p.ivs.defense, p.ivs.specialAttack, p.ivs.specialDefense, p.ivs.speed]
         } ?? Array(repeating: 15, count: 6)
         // A battle form has its own ability (a Mega Charizard X's Tough Claws), not the Pokémon's usual one.
-        let ability = BattleForms.form(speciesID: entry.finalID, form: entry.form) == nil ? entry.profile?.abilityName : nil
+        let battleForm = BattleForms.form(speciesID: entry.finalID, form: entry.form)
+        let ability = battleForm == nil ? entry.profile?.abilityName : nil
         guard var spec = BattlerSpec.make(id: entry.id, speciesID: entry.finalID, form: entry.form, level: 100, ivs: ivs,
                                           nature: entry.nature, ability: ability, isShiny: entry.isShiny),
               let data = SpeciesBattleTable.data(speciesID: entry.finalID, form: entry.form) else { return nil }
+        // In a battle form, stronger (`BattleFormKind.playerFactors`): the moves below are picked on these stats.
+        if let kind = battleForm?.kind {
+            spec.stats = spec.stats.scaled(hp: kind.playerFactors.hp, stats: kind.playerFactors.stats)
+            spec.hp = spec.stats.hp
+        }
         // Its profile's gender, or the one its profile will draw once enriched.
         spec.gender = entry.profile.flatMap { profile in
             profile.gender ?? SpeciesInfo.all[entry.finalID]?.genderRate.map(profile.drawnGender)

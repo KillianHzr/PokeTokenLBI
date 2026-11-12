@@ -13,6 +13,7 @@ the compiler down far more than the parse costs at runtime.
 """
 
 import json
+import os
 import re
 import sys
 import time
@@ -31,7 +32,10 @@ SHOWDOWN_FLAGS = {"contact": "contact", "sound": "sound", "punch": "punch", "sli
                   "recharge": "recharge", "defrost": "defrost", "distance": "distance", "nonsky": "non-sky-battle"}
 # Each move's Showdown flags by its national number, PokéAPI's move id (`fetch_showdown_flags`).
 SHOWDOWN = {}
-OUT = Path(__file__).resolve().parent.parent / "Sources/PokeTokenBar/Core/Battle/BattleData.generated.swift"
+OUT = Path(os.environ.get("PTB_BATTLE_DATA_OUT") or
+           Path(__file__).resolve().parent.parent / "Sources/PokeTokenBar/Core/Battle/BattleData.generated.swift")
+# A battle form's variety (a Mega, a Primal, a Gigantamax), by its PokéAPI name.
+BATTLE_FORM = re.compile(r"-(mega|mega-x|mega-y|mega-z|gmax|primal)$")
 
 # The games each species learns its moves in, as `PokemonDetails.preferredVersionGroups` reads them; a form outside
 # its species' games falls back to `formVersionGroups`.
@@ -214,20 +218,22 @@ def move_line(move):
     return "|".join(str(f) for f in fields)
 
 
-def loop_moves(pokemon, learnset, moves, types):
+def loop_moves(pokemon, learnset, moves, types, known=None):
     """Four moves a wild Pokémon or a boss loops: a setup or recovery move when it has one, then its strongest
-    moves, its own types first, then one of another type."""
+    moves, its own types first, then one of another type. `known`: the moves to pick from, else its learnset's in
+    its preferred games."""
     stats = {row["stat"]["name"]: row["base_stat"] for row in pokemon["pokemonstats"]}
     physical = stats.get("attack", 0) >= stats.get("special-attack", 0)
     species = pokemon["pokemon_species_id"]
     groups = preferred_groups(species) if pokemon["is_default"] else FORM_GROUPS + preferred_groups(species)
-    known = set()
-    for group in groups:
-        rows = [r for r in learnset if r["versiongroup"]["name"] == group]
-        if rows:
-            known = {r["move"]["name"] for r in rows if r["movelearnmethod"]["name"] == "machine"
-                     or (r["level"] or 0) <= 100}
-            break
+    if not known:
+        known = set()
+        for group in groups:
+            rows = [r for r in learnset if r["versiongroup"]["name"] == group]
+            if rows:
+                known = {r["move"]["name"] for r in rows if r["movelearnmethod"]["name"] == "machine"
+                         or (r["level"] or 0) <= 100}
+                break
     if not known:
         known = {r["move"]["name"] for r in learnset}
 
@@ -323,7 +329,12 @@ def main():
         # A form PokéAPI gives no moves (the Gigantamax ones, the Legends: Z-A Megas) knows its species' default
         # variety's, picked by its own types.
         learnset = learnsets.get(p["id"]) or learnsets.get(p["pokemon_species_id"], [])
-        loop, pool = loop_moves(p, learnset, by_name, types)
+        # A battle form knows every move of its species' default variety, in every game, and its own (the owner,
+        # 2026-11-12: Legends Z-A's Mega Garchomp Z had no special Dragon move): picked by its own stats and types.
+        known = None
+        if BATTLE_FORM.search(p["name"]):
+            known = {r["move"]["name"] for r in learnsets.get(p["pokemon_species_id"], []) + learnsets.get(p["id"], [])}
+        loop, pool = loop_moves(p, learnset, by_name, types, known)
         fields = [p["id"], p["pokemon_species_id"], ",".join(str(stats.get(k, 0)) for k in STAT_KEYS),
                   ",".join(types), abilities, ",".join(loop), ",".join(pool),
                   p["weight"] or default_weight.get(p["pokemon_species_id"]) or 0]

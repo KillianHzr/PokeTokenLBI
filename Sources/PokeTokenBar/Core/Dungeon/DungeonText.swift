@@ -931,6 +931,10 @@ extension L {
         t("보스 등장", "The boss appears", "ボスがあらわれた", "Aparece el jefe", "Le boss apparaît", "O chefe aparece",
           "Der Boss erscheint", "Появляется босс")
     }
+    /// The boss fell, every throw missed: on the return, over its greyed sprite.
+    var dungeonBossGotAway: String {
+        t("도망쳤어요", "Got away", "にげられた", "Se escapó", "S'est échappé", "Fugiu", "Entkommen", "Сбежал")
+    }
     /// A secret boss in the boss's place, or after it (`SecretBosses`).
     var dungeonLogSecretBoss: String {
         t("비밀 보스 등장!", "A secret boss appears!", "ひみつのボスがあらわれた！", "¡Aparece un jefe secreto!",
@@ -1164,6 +1168,21 @@ extension L {
     }
     var dungeonCapsuleRaiseAll: String {
         t("모두 31로", "All to 31", "すべて31に", "Todo a 31", "Tout à 31", "Tudo para 31", "Alle auf 31", "Все до 31")
+    }
+    /// A Silver Capsule just used: this IV at 31, the others still to raise.
+    func dungeonCapsuleStatRaised(_ stat: String) -> String {
+        t("\(stat) 개체값을 31로 올렸어요", "\(stat) IV raised to 31", "\(stat)の個体値を31にしました", "\(stat): IV subido a 31",
+          "\(stat) : IV monté à 31", "\(stat): IV elevado a 31", "\(stat)-DV auf 31 erhöht", "\(stat): IV поднят до 31")
+    }
+    /// A Pokémon whose six IVs are at 31: nothing for a Capsule to raise.
+    var dungeonCapsuleAllMaxed: String {
+        t("개체값이 이미 모두 31이에요", "Its IVs are all at 31 already", "個体値はもうぜんぶ31です", "Sus IV ya están todos a 31",
+          "Ses IV sont déjà tous à 31", "Seus IVs já estão todos em 31", "Seine DV sind schon alle auf 31",
+          "Все IV уже на 31")
+    }
+    func dungeonCapsuleNoneLeft(_ item: String) -> String {
+        t("남은 \(item)이 없어요", "No \(item) left", "\(item)がもうありません", "No te queda ninguna \(item)",
+          "Plus de \(item)", "Nenhuma \(item) restante", "Keine \(item) mehr", "Больше нет: \(item)")
     }
     var dungeonCapsuleDone: String {
         t("개체값을 31로 올렸어요", "IVs raised to 31", "個体値を31にしました", "IV subidos a 31", "IV montés à 31",
