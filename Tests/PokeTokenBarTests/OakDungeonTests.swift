@@ -157,9 +157,9 @@ final class OakDungeonTests: XCTestCase {
             + [25, 143, 130].map { graduated($0, shiny: true) }
     }
 
-    private func hallStore(beaten: [Int], forms: [String], odds: Double) throws -> CompanionStore {
+    private func hallStore(beaten: [Int], forms: [String], odds: Double, won: [DungeonID] = []) throws -> CompanionStore {
         let s = try store(dex: hallDex, inventory: [.legendaryKey: 1]) { st in
-            st.dungeons.wins = [DungeonID.mtCoronet.rawValue: 1]
+            st.dungeons.wins = self.wins([.mtCoronet] + won)
             st.dungeons.bossesBeaten = Set(beaten.map { DungeonProgress.bossKey(.mtCoronet, $0) })
             st.dungeons.battleForms = Set(forms)
             st.dungeons.battleFormsWonAt = Dictionary(uniqueKeysWithValues: forms.enumerated().map {
@@ -177,6 +177,13 @@ final class OakDungeonTests: XCTestCase {
         let hall = try hallStore(beaten: [483, 484, 487], forms: ["6-mega-x", "3-mega", "9-gmax"], odds: 1)
         XCTAssertEqual(hall.oakDungeon?.id, .hallOfOrigin)
         XCTAssertEqual(hall.oakDungeon?.reason, .hall)
+    }
+
+    func testABossToCatchComesBeforeTheHallOfOrigin() throws {
+        let s = try hallStore(beaten: [483, 484, 487], forms: ["6-mega-x", "3-mega", "9-gmax"], odds: 1, won: [.diglettsCave])
+        s.oakWinOdds = { [.diglettsCave, .hallOfOrigin].contains($0.dungeon.id) ? 1 : 0 }
+        XCTAssertEqual(s.oakDungeon?.id, .diglettsCave)
+        XCTAssertEqual(s.oakDungeon?.reason, .boss)
     }
 
     func testTheHallOfOriginComesWithTheFormsToSet() throws {
