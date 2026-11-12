@@ -77,14 +77,14 @@ enum Changelog {
                                                          "Советуя подземелье, профессор Оук теперь называет, сколько токенов оно заберёт: всё это время покемон или яйцо не растёт.") }),
             .fixed("2026-11-12-oak-coronet-door") { l in
                 let coronet = l.dungeonName(.mtCoronet)
-                return l.t("오박사가 잡았지만 아직 쓰러뜨리지 않은 보스가 있는 던전도 추천해요. \(coronet)에 들어가려면 그 보스들도 쓰러뜨려야 하니까요.",
-                           "Prof. Oak now also suggests the dungeons whose bosses you caught but never beat: \(coronet) only opens once they are beaten too.",
-                           "オーキド博士が、つかまえたけれどまだ倒していないボスのいるダンジョンも勧めます。\(coronet)はそのボスも倒さないと開きません。",
-                           "El Profesor Oak ahora también propone las mazmorras cuyos jefes capturaste pero nunca venciste: \(coronet) solo se abre cuando también están vencidos.",
-                           "Le Prof. Chen conseille aussi les donjons dont tu as capturé les boss sans jamais les battre : \(coronet) ne s'ouvre qu'une fois ceux-ci battus aussi.",
-                           "O Prof. Carvalho agora também sugere as masmorras cujos chefes você capturou mas nunca venceu: \(coronet) só abre quando eles também forem vencidos.",
-                           "Prof. Eich schlägt jetzt auch die Dungeons vor, deren Bosse du gefangen, aber nie besiegt hast: \(coronet) öffnet sich erst, wenn auch sie besiegt sind.",
-                           "Профессор Оук теперь советует и подземелья, боссов которых вы поймали, но ни разу не победили: \(coronet) откроется, только когда они тоже будут побеждены.")
+                return l.t("오박사가 아직 그 던전에서 잡지 않은 보스가 있는 던전도 추천해요. \(coronet)에 들어가려면 보스를 모두 각자의 던전에서 잡아야 하니까요.",
+                           "Prof. Oak now also suggests the dungeons whose bosses you have not caught there yet: \(coronet) only opens once each is caught in its dungeon.",
+                           "オーキド博士が、まだそのダンジョンでつかまえていないボスのいるダンジョンも勧めます。\(coronet)は、どのボスもそれぞれのダンジョンでつかまえないと開きません。",
+                           "El Profesor Oak ahora también propone las mazmorras cuyos jefes aún no capturaste en ellas: el \(coronet) solo se abre cuando cada uno está capturado en su mazmorra.",
+                           "Le Prof. Chen conseille aussi les donjons dont tu n'as pas encore capturé les boss sur place : le \(coronet) ne s'ouvre qu'une fois chacun capturé dans son donjon.",
+                           "O Prof. Carvalho agora também sugere as masmorras cujos chefes você ainda não capturou nelas: o \(coronet) só abre quando cada um for capturado na sua masmorra.",
+                           "Prof. Eich schlägt jetzt auch die Dungeons vor, deren Bosse du dort noch nicht gefangen hast: Der \(coronet) öffnet sich erst, wenn jeder in seinem Dungeon gefangen ist.",
+                           "Профессор Оук теперь советует и подземелья, боссов которых вы там ещё не поймали: \(coronet) откроется, только когда каждый будет пойман в своём подземелье.")
             },
             .improved("2026-11-12-battle-forms-stronger", { $0.t("배틀 폼이 더 강해졌어요: 메가와 원시회귀는 모든 능력치 ×1.25, 거다이맥스는 HP ×2에 나머지 ×1.25. 오늘·이번 주 던전 보스는 그대로예요.",
                                                             "Battle forms are stronger: a Mega or a Primal has every stat ×1.25, a Gigantamax its HP ×2 and the rest ×1.25. The daily and weekly bosses stay as they were.",
