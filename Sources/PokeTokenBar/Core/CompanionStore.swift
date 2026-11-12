@@ -2637,6 +2637,9 @@ final class CompanionStore {
     }
 
     func changeDungeons(_ change: (inout DungeonProgress) -> Void) { change(&state.dungeons) }
+    /// An achievement's artifact taken by a villains' team stays claimed (issue #180): a save from before the claims were
+    /// kept read its claim from the Bag, and would have let it be claimed twice.
+    func markAchievementClaimed(_ kind: ItemKind) { state.claimedAchievements.insert(kind.rawValue) }
 
     /// Tokens paid from the wallet, as a purchase pays them.
     func spendTokens(_ amount: Int) { state.spentTokens += max(0, amount) }
@@ -3837,7 +3840,7 @@ final class CompanionStore {
 
     /// companion 이벤트 시스템 알림(.app + 토글 ON 일 때만). 한도 알림과 독립.
     private var notifSeq = 0
-    private func notifyCompanionEvent(_ title: String, _ body: String) {
+    func notifyCompanionEvent(_ title: String, _ body: String) {
         guard AppEnv.isBundledApp else { return }
         guard UserDefaults.standard.object(forKey: "companionNotifications") as? Bool ?? true else { return }
         notifSeq += 1

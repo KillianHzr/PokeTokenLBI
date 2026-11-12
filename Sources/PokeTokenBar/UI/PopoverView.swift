@@ -125,6 +125,8 @@ final class PopoverNavigation {
     /// The general team (`MyTeamScreen`) and the type chart (`TypeChartScreen`), from the Dungeons tab.
     var showingMyTeam = false
     var showingTypeChart = false
+    /// The Collection's statistics (`CollectionStatsScreen`).
+    var showingCollectionStats = false
     /// Every expedition that ended (#133), and one of them opened on its journal (`endedAt` names it).
     var showingRunHistory = false
     var pastRun: Date?
@@ -197,6 +199,7 @@ final class PopoverNavigation {
         dungeonDetail = nil
         showingMyTeam = false
         showingTypeChart = false
+        showingCollectionStats = false
         showingRunHistory = false
         pastRun = nil
         replayBattle = nil
@@ -317,6 +320,8 @@ struct PopoverView: View {
                 MyTeamScreen(store: companion) { nav.showingMyTeam = false }
             } else if nav.showingTypeChart {
                 TypeChartScreen(store: companion) { nav.showingTypeChart = false }
+            } else if nav.showingCollectionStats {
+                CollectionStatsScreen(store: companion) { nav.showingCollectionStats = false }
             } else if nav.showingLuck {
                 LuckScreen(store: companion, nav: nav) { nav.showingLuck = false }
             } else {
@@ -645,6 +650,7 @@ struct PopoverView: View {
                 // 고정 높이 — 상점/가방/컬렉션과 동일(팝오버가 화면을 넘어가는 것을 방지).
                 ScrollView {
                     VStack(alignment: .leading, spacing: Design.sectionSpacing) {
+                        VillainAmbushCards(store: companion, nav: nav)
                         ExpeditionResultCard(store: companion, nav: nav)
                         ExpeditionCard(store: companion, nav: nav)
                         // While a team explores, the Pokémon raised waits as one small line; the card comes back
@@ -668,6 +674,8 @@ struct PopoverView: View {
                     .reservesScrollerLane()
                 }
                 .frame(height: 520)
+                // The day's villains come at their hour, seen as Home opens (issue #180).
+                .task { companion.settleVillainAmbush() }
             }
             footer
         }

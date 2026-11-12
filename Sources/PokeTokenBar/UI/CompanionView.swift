@@ -1462,8 +1462,14 @@ struct CollectionView: View {
                 .frame(height: Self.contentHeight)
         } else {
             VStack(alignment: .leading, spacing: 6) {
-                PillPicker(selection: $nav.showingCollectionLog,
-                           options: [(false, store.l.dexTitle), (true, store.l.catchLogTitle)])
+                HStack(spacing: 6) {
+                    PillPicker(selection: $nav.showingCollectionLog,
+                               options: [(false, store.l.dexTitle), (true, store.l.catchLogTitle)])
+                    // What is done and what is left, by generation, type and category (the owner, 2026-11-10).
+                    CircleIconButton(systemImage: "square.grid.3x3.fill", help: store.l.dexStatsButtonHint) {
+                        nav.showingCollectionStats = true
+                    }
+                }
 
                 filterToolbar
 

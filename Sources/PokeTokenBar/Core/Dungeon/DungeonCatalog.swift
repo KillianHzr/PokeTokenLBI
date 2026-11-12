@@ -120,6 +120,8 @@ enum DungeonUnlock: Codable, Sendable, Hashable {
     case beatBosses([Int])
     /// A Treasure Map in the Bag, spent at the entry (the Ruins of Alph).
     case treasureMap
+    /// Every boss of these dungeons beaten and caught (Mt. Coronet's door, the owner 2026-11-10).
+    case caughtBosses([DungeonID])
 }
 
 /// The thirteen dungeons (Q25, Q26: places of the series, their official names).
@@ -129,8 +131,24 @@ enum DungeonID: String, Codable, Sendable, CaseIterable {
     /// The daily and weekly dungeons (2026-11-02): their boss is a battle form the player lacks, won if it falls, one
     /// try a day and one a week.
     case daily, weekly
+    /// The villains' teams' hideouts (issue #180), one a team, of its tier (`VillainRules.hideout`): open while it
+    /// keeps what it stole; they count for no tier, medal nor list.
+    case skullHideout, magmaHideout, aquaHideout, galacticHideout, rocketHideout
 
     var isChallenge: Bool { self == .daily || self == .weekly }
+    var isHideout: Bool { villain != nil }
+
+    /// The team whose hideout it is.
+    var villain: VillainTeam? {
+        switch self {
+        case .skullHideout: .skull
+        case .magmaHideout: .magma
+        case .aquaHideout: .aqua
+        case .galacticHideout: .galactic
+        case .rocketHideout: .rocket
+        default: nil
+        }
+    }
 }
 
 /// One dungeon: its tier, team, rules, theme (always shown, R7), wild Pokémon, bosses (never shown, Q17) and what
@@ -212,18 +230,21 @@ enum DungeonCatalog {
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [.onlyLegendaries],
                            themeTypes: [.steel, .water, .ghost, .dragon],
                            wild: themed([.steel, .water, .ghost, .dragon], tier: .t4), bosses: [483, 484, 487],
-                           unlocks: [.wonEvery(.t3), .legendariesGraduated(10)])
+                           unlocks: [.wonEvery(.t3), .legendariesGraduated(10), .caughtBosses(bossDungeons(before: id))])
         case .ruinsOfAlph:
             // Q25, Q13: secret, opened once by a Treasure Map; its rules are drawn at random (`alphRules`), its
             // boss is any final species but Arceus.
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [], themeTypes: [.psychic],
                            wild: [201] + themed([.psychic, .rock], tier: .t4),
-                           bosses: SpeciesInfo.all.keys.filter {
-                               $0 != arceusID && $0 <= 1025 && SpeciesInfo.isFinal($0) && SpeciesBattleTable.all[$0] != nil
+                           // Never its secret boss, Regigigas, which would be no secret then (2026-11-10).
+                           bosses: SpeciesInfo.all.keys.filter { id in
+                               id != arceusID && id <= 1025 && SpeciesInfo.isFinal(id) && SpeciesBattleTable.all[id] != nil
+                                   && !SecretBosses.candidates(.ruinsOfAlph).contains { $0.speciesID == id }
                            }.sorted(),
                            unlocks: [.treasureMap])
         case .hallOfOrigin:
-            // A Mega or a Primal, a Gigantamax and four shinies (the owner, 2026-11-10; six shinies before).
+            // A Mega or a Primal, a Gigantamax and four shinies (the owner, 2026-11-10; six shinies before). Its door is
+            // Mt. Coronet's three bosses beaten, nothing more (the owner, 2026-11-10): that one waits for every boss before it.
             return Dungeon(id: id, tier: .t5, teamSize: 6,
                            rules: [.shinyOrBattleForm, .needsBattleForm([.mega, .primal]), .needsBattleForm([.gigantamax]),
                                    .atLeastShinies(4)],
@@ -233,7 +254,7 @@ enum DungeonCatalog {
                                      !info.isLegendary, SpeciesInfo.isFinal(id) else { return false }
                                return data.baseStats.reduce(0, +) >= 530
                            }.sorted(),
-                           bosses: [arceusID], unlocks: [.wonEvery(.t4), .beatBosses([483, 484, 487])])
+                           bosses: [arceusID], unlocks: [.beatBosses([483, 484, 487])])
         case .daily:
             // Hard on purpose (the owner): a T4's foes, the strongest finals, a Mega at the end (`challengeBoss`).
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [], themeTypes: [], wild: strongFinals(530),
@@ -241,7 +262,21 @@ enum DungeonCatalog {
         case .weekly:
             return Dungeon(id: id, tier: .t5, teamSize: 6, rules: [], themeTypes: [], wild: strongFinals(560),
                            bosses: [], unlocks: [.wonTier(.t4)])
+        case .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout:
+            return VillainRules.hideout(id.villain ?? .rocket)
         }
+    }
+
+    /// The dungeons listed before this one whose bosses are set: the Ruins of Alph (any species), the challenges and
+    /// the hideouts aside.
+    static func bossDungeons(before id: DungeonID) -> [DungeonID] {
+        DungeonID.allCases.prefix { $0 != id }.filter { $0 != .ruinsOfAlph && !$0.isChallenge && !$0.isHideout }
+    }
+
+    /// These dungeons' bosses, each species once, in their order.
+    static func bosses(of ids: [DungeonID]) -> [Int] {
+        var seen = Set<Int>()
+        return ids.flatMap { dungeon($0).bosses }.filter { seen.insert($0).inserted }
     }
 
     /// Final species, never legendary, of at least this base stat total: the challenges' wild Pokémon.

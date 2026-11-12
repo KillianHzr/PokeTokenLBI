@@ -60,6 +60,8 @@ enum EggKind: Hashable, Sendable {
     /// A dungeon's egg (`DungeonEgg`), by the Pokémon it came from: a legendary boss's has its own look (R14), the
     /// others their first type's egg (R8).
     case dungeon(Int)
+    /// The Secret Egg, every secret boss's (`SecretBosses`): one look for all, whatever it holds.
+    case secret
 
     /// The type egg a dungeon's egg is drawn as until its own look exists.
     static func dungeonLook(_ speciesID: Int) -> EggKind {
@@ -84,6 +86,7 @@ enum EggKind: Hashable, Sendable {
         case .event: return .cream
         case .fossil: return EggColor(0.9, 0.6, 0.2)
         case .dungeon(let species): return EggKind.dungeonLook(species).shell
+        case .secret: return EggColor(0.06, 0.05, 0.09)
         }
     }
 
@@ -97,6 +100,7 @@ enum EggKind: Hashable, Sendable {
         case .event: return .eggGreen
         case .fossil: return EggColor(0.45, 0.25, 0.08)
         case .dungeon(let species): return EggKind.dungeonLook(species).marks
+        case .secret: return EggColor(1, 0.86, 0.5)
         }
     }
 
@@ -286,7 +290,7 @@ extension CompanionStore {
         if state.active == nil, state.eggFromBirthdayEgg { return .birthday }
         if state.active == nil, let event = state.eggEvent { return .event(event) }
         if state.active == nil, state.eggFromFossilEgg { return .fossil }
-        if state.active == nil, let egg = state.eggFromDungeon { return .dungeon(egg.sourceSpeciesID) }
+        if state.active == nil, let egg = state.eggFromDungeon { return egg.eggKind }
         return EggKind(tier: eggGuarantee, type: eggTypeGuarantee)
     }
 
@@ -300,7 +304,14 @@ extension CompanionStore {
         case .birthday: l.itemName(.birthdayEgg)
         case .event(let event): l.itemName(event.item)
         case .fossil: l.itemName(.fossilEgg)
-        case .dungeon: state.eggFromDungeon.map { DungeonEggTitle.text($0.baseID, l: l, language: language) } ?? l.eggName(nil)
+        case .dungeon, .secret:
+            state.eggFromDungeon.map { DungeonEggTitle.text($0.baseID, l: l, language: language, secret: $0.isSecret == true) }
+                ?? l.eggName(nil)
         }
     }
+}
+
+extension DungeonEgg {
+    /// How it is drawn: the Secret Egg for a secret boss's, else its Pokémon's own look or its type's.
+    var eggKind: EggKind { isSecret == true ? .secret : .dungeon(sourceSpeciesID) }
 }

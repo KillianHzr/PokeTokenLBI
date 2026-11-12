@@ -14,7 +14,7 @@ extension CompanionStore {
     }
 
     private var expeditionContext: ExpeditionContext? {
-        expedition.map { ExpeditionContext(tier: DungeonCatalog.dungeon($0.dungeon).tier,
+        expedition.map { ExpeditionContext(tier: $0.info.tier,
                                            shinyDenominator: Int(shinyDenominator), now: currentDate) }
     }
 
@@ -22,7 +22,7 @@ extension CompanionStore {
 
     /// The conditions still unmet for a dungeon to open; empty when it is open.
     func unmetUnlocks(_ id: DungeonID) -> [DungeonUnlock] {
-        DungeonCatalog.dungeon(id).unlocks.filter { !isMet($0) }
+        dungeonInfo(id).unlocks.filter { !isMet($0) }
     }
 
     func isMet(_ unlock: DungeonUnlock) -> Bool {
@@ -31,7 +31,7 @@ extension CompanionStore {
         case .graduated(let count): return graduated.count >= count
         case .won(let id): return state.dungeons.wins(id) > 0
         case .wonTier(let tier):
-            return DungeonCatalog.all.contains { $0.tier == tier && !$0.id.isChallenge && state.dungeons.wins($0.id) > 0 }
+            return DungeonCatalog.all.contains { $0.tier == tier && !$0.id.isChallenge && !$0.id.isHideout && state.dungeons.wins($0.id) > 0 }
         case .wonEvery(let tier): return DungeonMedals.dungeons(tier).allSatisfy { state.dungeons.wins($0) > 0 }
         case .linesGraduated(let count):
             // The lines alone: the whole collection count walked every form of every species for one number.
@@ -41,11 +41,24 @@ extension CompanionStore {
             return Set(graduated.filter { $0.rarity == .legendary }.map(\.finalID)).count >= count
         case .beatBosses(let species): return species.allSatisfy(state.dungeons.beat)
         case .treasureMap: return itemCount(.treasureMap) > 0
+        case .caughtBosses(let ids): return bossesLeft(ids).isEmpty
+        }
+    }
+
+    /// These dungeons' bosses not yet both beaten and caught: caught as `hasCaughtBoss` says, or its egg won (a
+    /// legendary's, or one hatching now).
+    func bossesLeft(_ ids: [DungeonID]) -> [Int] {
+        DungeonCatalog.bosses(of: ids).filter { species in
+            !(state.dungeons.beat(species) && (hasCaughtBoss(species) || hasWonLegendaryEgg(species)))
         }
     }
 
     /// Open once its unlocks are met, and for good once won: the tier rule of 2026-11-05 locks none a player has beaten.
-    func isDungeonOpen(_ id: DungeonID) -> Bool { unmetUnlocks(id).isEmpty || state.dungeons.wins(id) > 0 }
+    func isDungeonOpen(_ id: DungeonID) -> Bool {
+        // A hideout is there while its team keeps what it stole (issue #180).
+        if let team = id.villain { return villainStash(team) != nil }
+        return unmetUnlocks(id).isEmpty || state.dungeons.wins(id) > 0
+    }
 
     // MARK: The artifacts in the dungeons (the owner, 2026-11-06)
 
@@ -54,7 +67,7 @@ extension CompanionStore {
     /// of a type the dungeon has, and the badges its types are weak to. An artifact that fits no dungeon (a stage, a
     /// rarity, a kind of Pokémon) does nothing here.
     func dungeonGrowthFactors(_ id: DungeonID) -> [GrowthFactor] {
-        let types = DungeonCatalog.dungeon(id).themeTypes
+        let types = dungeonInfo(id).themeTypes
         var factors: [GrowthFactor] = []
         func add(_ kind: ItemKind, _ multiplier: Double, if applies: Bool) {
             if applies, itemCount(kind) > 0 { factors.append(GrowthFactor(source: .item(kind), multiplier: multiplier)) }
@@ -82,12 +95,12 @@ extension CompanionStore {
 
     /// The tokens a dungeon takes, its artifacts counted: what its card shows and an expedition sets off with.
     func dungeonCost(_ id: DungeonID) -> Int {
-        Int((Double(DungeonCatalog.dungeon(id).cost(difficulty: growthDifficulty)) / dungeonSpeed(id)).rounded(.up))
+        Int((Double(dungeonInfo(id).cost(difficulty: growthDifficulty)) / dungeonSpeed(id)).rounded(.up))
     }
 
     /// The Legendary Keys an entry spends (R10, R11): the Ruins of Alph take their Treasure Map instead.
     func keysToEnter(_ id: DungeonID) -> Int {
-        id == .ruinsOfAlph || id.isChallenge ? 0 : DungeonCatalog.dungeon(id).tier.keys
+        id == .ruinsOfAlph || id.isChallenge || id.isHideout ? 0 : dungeonInfo(id).tier.keys
     }
 
     /// Whether a team may set off for it now: open, its keys in the Bag, no other expedition under way.
@@ -225,7 +238,7 @@ extension CompanionStore {
             let drawn = DungeonCatalog.alphRules(seed: UInt64(state.dungeons.departures) &+ 0xA1F)
             return (drawn.teamSize, drawn.rules)
         }
-        let dungeon = DungeonCatalog.dungeon(id)
+        let dungeon = dungeonInfo(id)
         return (dungeon.teamSize, dungeon.rules)
     }
 
@@ -259,7 +272,7 @@ extension CompanionStore {
     /// Alph's, any species at all).
     func moveTargets(_ id: DungeonID?) -> (theme: [PokemonType], bosses: [[PokemonType]]) {
         guard let id else { return ([], []) }
-        let dungeon = DungeonCatalog.dungeon(id)
+        let dungeon = dungeonInfo(id)
         if id.isChallenge {
             let boss = challengeBoss(id).map { PokemonTypeData.types(forSpeciesID: $0.speciesID, form: $0.form) }
             return (dungeon.themeTypes, boss.map { [$0] } ?? [])
@@ -298,7 +311,7 @@ extension CompanionStore {
     /// Q8: the best team the rules allow against the dungeon's theme.
     func composeTeam(for id: DungeonID) -> [String] {
         let (size, rules) = teamRules(id)
-        return DungeonTeamBuilder.compose(composePool(id), dungeon: DungeonCatalog.dungeon(id), size: size, rules: rules,
+        return DungeonTeamBuilder.compose(composePool(id), dungeon: dungeonInfo(id), size: size, rules: rules,
                                           boss: challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
     }
 
@@ -306,7 +319,7 @@ extension CompanionStore {
     func composeChoice(for id: DungeonID) -> DungeonTeamBuilder.ComposeChoice {
         let (size, rules) = teamRules(id)
         let pool = composePool(id)
-        let dungeon = DungeonCatalog.dungeon(id)
+        let dungeon = dungeonInfo(id)
         let boss = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
         let teams = DungeonTeamBuilder.candidateTeams(pool, dungeon: dungeon, size: size, rules: rules, boss: boss).map { ids in
             ids.compactMap { entryID in pool.first { $0.candidate.entryID == entryID }.map { ExpeditionMember(entryID: entryID, spec: $0.spec) } }
@@ -330,7 +343,7 @@ extension CompanionStore {
             .compactMap { entry in dungeonSpec(entry, for: id).map { ExpeditionMember(entryID: entry.id, spec: $0) } }
         guard members.count == ids.count, !members.isEmpty else { return nil }
         let boss = (shown ?? challengeBoss(id)).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
-        return .init(team: members, dungeon: DungeonCatalog.dungeon(id), berries: bagBerries, revives: bagRevives, boss: boss)
+        return .init(team: members, dungeon: dungeonInfo(id), berries: bagBerries, revives: bagRevives, boss: boss)
     }
 
     private var bagBerries: [BattleBerry: Int] {
@@ -359,7 +372,7 @@ extension CompanionStore {
         let (size, rules) = teamRules(id)
         guard entries.count == ids.count,
               DungeonTeamRules.isValid(entries.map(DungeonCandidate.init), size: size, rules: rules) else { return false }
-        let dungeon = DungeonCatalog.dungeon(id)
+        let dungeon = dungeonInfo(id)
         let members = entries.compactMap { entry in dungeonSpec(entry, for: id).map { ExpeditionMember(entryID: entry.id, spec: $0) } }
         guard members.count == size else { return false }
         if id == .ruinsOfAlph { changeBag(.treasureMap, by: -1) }
@@ -373,20 +386,33 @@ extension CompanionStore {
         let context = ExpeditionContext(tier: dungeon.tier, shinyDenominator: Int(shinyDenominator), now: currentDate)
         let seed = drawSeed() ^ UInt64(state.dungeons.departures + 1)
         settleChallengeBosses()
+        // A hideout's boss is its leader's ace (`VillainTeam.leaderTeam`), with two more at the end.
         let challenge = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
+            ?? id.villain.map { ExpeditionBoss(speciesID: $0.leaderTeam[0], form: $0.leaderForms[0], isShiny: false) }
         let started = ExpeditionEngine.start(dungeon: dungeon, team: members, rules: rules, teamSize: size, seed: seed,
                                              cost: dungeonCost(id), berries: berries,
                                              revives: revives, context: context, boss: challenge)
         var expedition = started
         if keepsMasterBall { expedition.keepsMasterBall = true }
-        // What its capture gives (2026-11-04, `bossReward`); a challenge's boss gives its form, never shiny.
-        if !id.isChallenge {
+        // What its capture gives (2026-11-04, `bossReward`); a challenge's boss gives its form, never shiny; a
+        // hideout's leader is no capture.
+        if !id.isChallenge, !id.isHideout {
             let species = expedition.boss.speciesID
             let reward = bossReward(species)
             if reward != .ownEgg { expedition.bossReward = reward }
             // A legendary the player has, never shiny, its egg not won yet: it comes shiny, for its shiny egg.
             if reward == .ownEgg, SpeciesInfo.lineRarity(of: species) == .legendary, hasCaughtBoss(species) {
                 expedition.boss.isShiny = true
+            }
+            // One time in a hundred, a secret boss (the owner, 2026-11-10): in the boss's place, or after Arceus.
+            if let secret = SecretBosses.draw(id, seed: seed, caught: state.dungeons.secretsCaught,
+                                              owned: { self.state.ownsSpecies($0.speciesID, form: $0.form) }) {
+                expedition.secret = secret
+                if !secret.after {
+                    expedition.boss = secret.boss
+                    expedition.bossReward = secret.lootOnly ? .lootOnly : nil
+                }
+                AppLog.write("dungeon: a secret boss in \(id.rawValue), \(secret.boss.speciesID)")
             }
         }
         let day = challengeTryPeriod()
@@ -452,7 +478,12 @@ extension CompanionStore {
     private func store(_ e: Expedition, bossNewlyReached: Bool = false) {
         changeDungeons {
             $0.expedition = e
-            if bossNewlyReached { $0.bossesReached.insert(DungeonProgress.bossKey(e.dungeon, e.boss.speciesID)) }
+            // A secret boss met in the boss's place is kept apart: it is none of the dungeon's bosses.
+            if bossNewlyReached, let secret = e.secret, !secret.after {
+                $0.secretsMet.insert(SecretBosses.key(e.dungeon, secret.boss))
+            } else if bossNewlyReached {
+                $0.bossesReached.insert(DungeonProgress.bossKey(e.dungeon, e.boss.speciesID))
+            }
         }
         if e.isOver { finishExpedition(leftEarly: false) } else { persist() }
     }
@@ -538,9 +569,10 @@ extension CompanionStore {
     var allRuns: [DungeonRunRecord] { state.dungeons.history.reversed() }
 
     /// Whether a boss's species is already the player's: in the Pokédex (graduated, raised or sent off), or its egg
-    /// waiting in the Bag.
+    /// waiting in the Bag. A Secret Egg is not its boss's: Galarian Articuno's waiting is no Articuno caught.
     func hasCaughtBoss(_ speciesID: Int) -> Bool {
-        state.registeredSpeciesIDs.contains(speciesID) || state.dungeons.eggs.contains { $0.sourceSpeciesID == speciesID }
+        state.registeredSpeciesIDs.contains(speciesID)
+            || state.dungeons.eggs.contains { $0.sourceSpeciesID == speciesID && $0.isSecret != true }
     }
 
     /// Whether the player has this species shiny: in the Pokédex, or the Pokémon raised once at it.
@@ -553,8 +585,8 @@ extension CompanionStore {
     /// or still in the Bag or incubating from a save before the record.
     func hasWonLegendaryEgg(_ speciesID: Int) -> Bool {
         state.dungeons.legendaryEggsWon.contains(speciesID)
-            || state.dungeons.eggs.contains { $0.sourceSpeciesID == speciesID }
-            || state.eggFromDungeon?.sourceSpeciesID == speciesID
+            || state.dungeons.eggs.contains { $0.sourceSpeciesID == speciesID && $0.isSecret != true }
+            || state.eggFromDungeon.map { $0.sourceSpeciesID == speciesID && $0.isSecret != true } == true
     }
 
     /// What catching this boss would give now (the owner, 2026-11-04): a legendary gives its egg once (shiny when the
@@ -590,15 +622,21 @@ extension CompanionStore {
     func mayMeetALegendary(_ id: DungeonID, boss: BattleForm?) -> Bool {
         if id.isChallenge { return boss.map { SpeciesInfo.lineRarity(of: $0.speciesID) == .legendary } ?? false }
         // Not one whose egg was won: it gives the loot only, with no throw.
-        return DungeonCatalog.dungeon(id).bosses.contains {
+        return dungeonInfo(id).bosses.contains {
             SpeciesInfo.lineRarity(of: $0) == .legendary && bossReward($0) != .lootOnly
         }
     }
 
     /// Lets the boss go without throwing again: the expedition ends, won.
     func endCapture() {
-        guard var e = expedition, case .capture = e.phase else { return }
-        e.phase = .finished(won: true)
+        guard var e = expedition, let context = expeditionContext, case .capture = e.phase else { return }
+        // Arceus let go, the Origin trio may still wait; the trio's one let go, it ends.
+        if e.secret?.capturing == true {
+            e.secret?.capturing = false
+            e.phase = .finished(won: true)
+        } else {
+            ExpeditionEngine.endBoss(&e, context: context)
+        }
         store(e)
     }
 
@@ -769,14 +807,18 @@ extension CompanionStore {
 
     private func finishExpedition(leftEarly: Bool) {
         guard let e = expedition, case .finished(let won) = e.phase else { return }
-        let dungeon = DungeonCatalog.dungeon(e.dungeon)
+        let dungeon = e.info
         var random = BattleRandom(seed: e.seed ^ 0xFEED_F00D)
         let openBefore = Set(DungeonID.allCases.filter(isDungeonOpen))
-        let firstVictory = won && state.dungeons.wins(e.dungeon) == 0 && !e.dungeon.isChallenge
+        let firstVictory = won && state.dungeons.wins(e.dungeon) == 0 && !e.dungeon.isChallenge && !e.dungeon.isHideout
         // A defeat or leaving keeps what the floors crossed gave (the owner, 2026-11-04: their tokens are paid); the
         // floor it fell on gave nothing, a battle lost bringing no loot.
         var loot = e.loot
-        let caught = e.log.contains { if case .capture(_, _, true) = $0.kind { return true }; return false }
+        // The boss's own capture: the Origin trio's after Arceus is the secret's (`SecretEncounter.caught`).
+        let captures = e.log.filter { if case .capture(_, _, true) = $0.kind { return true }; return false }.count
+        let secretAfterCaught = e.secret.map { $0.after && $0.caught == true } ?? false
+        let caught = captures - (secretAfterCaught ? 1 : 0) > 0
+        let secretInPlace = e.secret.map { !$0.after } ?? false
         // The egg given in place of the boss's own is the boss's, never doubled: one Legendary Egg for one legendary.
         let inPlace = caught ? ExpeditionEngine.eggInPlace(e.bossReward, tier: dungeon.tier)?.rawValue : nil
         var unlockedMove: String?
@@ -813,11 +855,30 @@ extension CompanionStore {
                                           + loot.items.filter { ItemKind(rawValue: $0.key)?.isEggItem == true }.values.reduce(0, +),
                                       items: loot.items.filter { ItemKind(rawValue: $0.key)?.isEggItem != true }.values.reduce(0, +),
                                       bossSpeciesID: e.boss.speciesID, caught: caught, log: e.log, team: e.team)
+        // A hideout's leader beaten gives back all its team took (issue #180), and the hideout closes.
+        let recovered = won ? e.dungeon.villain.flatMap(villainStash)?.items : nil
+        for (key, count) in recovered ?? [:] { if let kind = ItemKind(rawValue: key) { changeBag(kind, by: count) } }
         changeDungeons { progress in
             progress.history = DungeonRunRecord.trimmed(progress.history + [record])
+            // Its thefts still waiting are settled with it: what they took is back.
+            if recovered != nil, let team = e.dungeon.villain {
+                progress.stashes.removeAll { $0.team == team }
+                progress.ambushes.removeAll { $0.team == team && $0.won == nil }
+            }
             // A legendary boss's egg, or the Legendary Egg in its place, is won once.
-            if caught, SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary {
+            if caught, !secretInPlace, SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary {
                 progress.legendaryEggsWon.insert(e.boss.speciesID)
+            }
+            // A secret boss: met, caught, apart from the dungeon's bosses (Galarian Articuno is not Articuno).
+            if let secret = e.secret {
+                let key = SecretBosses.key(e.dungeon, secret.boss)
+                // The Origin trio fought together: all three are met.
+                if secret.after, secret.fought == true {
+                    for foe in secret.foes ?? [secret.boss] { progress.secretsMet.insert(SecretBosses.key(e.dungeon, foe)) }
+                } else if !secret.after, e.bossReached {
+                    progress.secretsMet.insert(key)
+                }
+                if secret.after ? secret.caught == true : caught { progress.secretsCaught.insert(key) }
             }
             progress.eggs += loot.eggs
             if let battleForm {
@@ -829,11 +890,14 @@ extension CompanionStore {
                 progress.challengeWins[DungeonProgress.challengeKey(e.dungeon, at: e.startedAt)] = battleForm.key
             }
             if let unlockedMove { progress.unlockedMoves.insert(unlockedMove) }
-            if won {
+            // A hideout's leader is no dungeon's boss: Giovanni's Mewtwo opens nothing.
+            if won, !e.dungeon.isHideout {
                 progress.wins[e.dungeon.rawValue, default: 0] += 1
-                progress.bossesBeaten.insert(DungeonProgress.bossKey(e.dungeon, e.boss.speciesID))
+                if !secretInPlace { progress.bossesBeaten.insert(DungeonProgress.bossKey(e.dungeon, e.boss.speciesID)) }
             }
-            if e.bossReached { progress.bossesReached.insert(DungeonProgress.bossKey(e.dungeon, e.boss.speciesID)) }
+            if e.bossReached, !e.dungeon.isHideout, !secretInPlace {
+                progress.bossesReached.insert(DungeonProgress.bossKey(e.dungeon, e.boss.speciesID))
+            }
             progress.expedition = nil
         }
         let unlocked = DungeonID.allCases.filter { isDungeonOpen($0) && !openBefore.contains($0) && $0 != .ruinsOfAlph }
@@ -842,8 +906,8 @@ extension CompanionStore {
                                              endedAt: currentDate, tokens: e.tokensIn, battles: e.battles, boss: e.boss,
                                              caught: caught, loot: loot, firstVictory: firstVictory,
                                              unlocked: unlocked, unlockedMove: unlockedMove, battleForm: battleForm?.key,
-                                             bossReward: won ? e.bossReward : nil,
-                                             log: e.log)
+                                             bossReward: won ? e.bossReward : nil, recovered: recovered,
+                                             secret: e.secret, log: e.log)
         }
         AppLog.write("dungeon: \(e.dungeon.rawValue) over, won=\(won) left=\(leftEarly) caught=\(caught) candies=\(loot.candies)")
         persist()

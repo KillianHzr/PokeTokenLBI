@@ -321,6 +321,169 @@ enum DungeonSprites {
         canvas.ball(cx + 1, cy - 2 - t * 6, 2 + t * 2, rgb(0xC9CDD3).mixed(with: rgb(0x9DA4AC), t), gloss: 0)
     }
 
+    // MARK: The villains' hideouts (issue #180, the owner, 2026-11-10: "design l'icône de donjon de chaque team")
+
+    static func hideout(_ team: VillainTeam) -> (Double, inout EggCanvas) -> Void {
+        switch team {
+        case .skull: skullHideout
+        case .magma: magmaHideout
+        case .aqua: aquaHideout
+        case .galactic: galacticHideout
+        case .rocket: rocketHideout
+        }
+    }
+
+    /// Team Skull's Shady House: a run-down mansion on wet asphalt, its broken roof, a white skull sprayed on its front,
+    /// a fence round it, rain falling.
+    static func skullHideout(_ t: Double, _ canvas: inout EggCanvas) {
+        let phase = 2 * Double.pi * t
+        var s = Scene()
+        s.base = 38
+        s.ground({ _, _ in 1 }, top: { x, z, _ in
+            (x + z) % 5 == 0 ? rgb(0x4A5A6E) : rgb(0x3A3F48).mixed(with: rgb(0x30343C), h(x, z, 91))
+        }, side: rgb(0x2A2D33))
+        let wall = rgb(0x6E6A7A), dark = rgb(0x4A4656)
+        for x in 1...5 { for z in 1...5 { for y in 1...4 {
+            let window = y == 3 && (x == 5 || z == 5) && (x + z).isMultiple(of: 2)
+            s.add(x, y, z, wall.mixed(with: dark, h(x + y, z, 92) * 0.5),
+                  left: window && z == 5 ? rgb(0x1E1A24) : nil, right: window && x == 5 ? rgb(0x18141E) : nil)
+        } } }
+        // A pitched roof, gaps where it fell in.
+        for x in 1...5 { for z in 1...5 where !(x == 2 && z == 3) && !(x == 4 && z == 4) {
+            s.add(x, 5, z, rgb(0x3A2E40))
+        } }
+        s.box(2...4, 6...6, 2...4, rgb(0x2E2434))
+        for x in [0, 7] { for z in stride(from: 0, to: 8, by: 2) { s.add(x, 1, z, rgb(0x8A8A92)) } }
+        for z in [0, 7] { for x in stride(from: 1, to: 8, by: 2) { s.add(x, 1, z, rgb(0x8A8A92)) } }
+        s.draw(&canvas)
+        // The skull, sprayed white on the left face.
+        let (fx, fy) = s.point(2.6, 6, 3)
+        canvas.ball(fx, fy, 3.2, rgb(0xF2F2F2), gloss: 0)
+        canvas.polygon([(fx - 2, fy + 2), (fx + 2, fy + 2), (fx + 1.2, fy + 4.2), (fx - 1.2, fy + 4.2)], rgb(0xF2F2F2), shade: false)
+        EggDesigns.light(&canvas, fx - 1.2, fy - 0.2, rgb(0x14101A), behind: false)
+        EggDesigns.light(&canvas, fx + 1.2, fy - 0.2, rgb(0x14101A), behind: false)
+        canvas.outline(rgb(0x121016))
+        for k in 0..<9 {
+            let x = (Double(k) * 7.3).truncatingRemainder(dividingBy: 60) + 2
+            let y = (Double(k) * 13 + t * 64).truncatingRemainder(dividingBy: 50)
+            canvas.line(x, y, x - 1, y + 3, width: 0.7, rgb(0x9DB4D0))
+        }
+        _ = phase
+    }
+
+    /// Team Magma's hideout: inside a volcano's dark rock, a steel door with a red light, lava glowing in the cracks,
+    /// smoke rising.
+    static func magmaHideout(_ t: Double, _ canvas: inout EggCanvas) {
+        let phase = 2 * Double.pi * t
+        var s = Scene()
+        s.base = 40
+        s.ground({ x, z in max(1, 6 - max(abs(x - 3), abs(z - 3)) - (x + z) / 6) }, top: { x, z, y in
+            let crack = (x * 3 + z * 5) % 7 == 0
+            let glow = 0.5 + 0.5 * sin(phase * 2 + Double(x + z))
+            return crack ? rgb(0xFF6A1A).mixed(with: rgb(0xFFC23A), glow * 0.6) : rgb(0x4A2A26).mixed(with: rgb(0x3A1E1C), h(x, z, 101))
+        }, side: rgb(0x2E1816))
+        s.draw(&canvas)
+        // The door in the slope, its red lamp blinking, the Magma's triangle above it.
+        let (dx, dy) = s.point(4.2, 7, 2)
+        canvas.polygon([(dx - 4, dy - 6), (dx + 3, dy - 3.5), (dx + 3, dy + 2.5), (dx - 4, dy)], rgb(0x6E7076))
+        canvas.line(dx - 0.5, dy - 4.6, dx - 0.5, dy + 1.2, width: 0.8, rgb(0x3A3C42))
+        canvas.polygon([(dx - 1.5, dy - 10), (dx + 1.8, dy - 8.6), (dx - 0.3, dy - 6.4)], rgb(0xE0342A))
+        if sin(phase * 4) > 0 { canvas.ball(dx + 2.2, dy - 6.5, 1, rgb(0xFF3A2A), gloss: 0.6) }
+        canvas.outline(rgb(0x140A08))
+        let (cx, cy) = s.point(3.5, 3.5, 7)
+        canvas.ball(cx, cy - 2 - t * 7, 2.2 + t * 2, rgb(0x8A7E7A).mixed(with: rgb(0x5A504C), t), gloss: 0)
+    }
+
+    /// Team Aqua's hideout: a sea cave in dark rock, its submarine at the dock, the water rippling, a blue flag.
+    static func aquaHideout(_ t: Double, _ canvas: inout EggCanvas) {
+        let phase = 2 * Double.pi * t
+        var s = Scene()
+        s.base = 38
+        s.ground({ x, z in
+            if x <= 1 || z <= 1 { return 3 + Int(h(x, z, 111) * 2) }
+            if x == 2 || z == 2 { return 2 }
+            return 1
+        }, top: { x, z, y in
+            y == 0 ? water(x, z, phase, rgb(0x1E5A8C)) : rgb(0x3E4A5A).mixed(with: rgb(0x2E3846), h(x, z, 112))
+        }, side: rgb(0x26303C))
+        // The cave's mouth, a dark arch in the back wall.
+        s.add(1, 3, 4, rgb(0x3E4A5A), left: rgb(0x0E141C))
+        s.add(1, 3, 5, rgb(0x3E4A5A), left: rgb(0x0E141C))
+        // The submarine: a blue hull with a white band, its tower.
+        for x in 3...6 { s.add(x, 1, 5, rgb(0x2E6FD0), left: rgb(0xF0F4FA)) }
+        s.add(4, 2, 5, rgb(0x2E6FD0))
+        s.add(4, 3, 5, rgb(0x2458B0))
+        s.draw(&canvas)
+        let (fx, fy) = s.point(1, 1, 6)
+        flag(&canvas, fx, fy, phase, rgb(0x2A7AE6))
+        canvas.outline(rgb(0x0C1420))
+    }
+
+    /// Team Galactic's headquarters: a tower of steel and glass, its round top, the yellow G of the team over the door.
+    static func galacticHideout(_ t: Double, _ canvas: inout EggCanvas) {
+        let phase = 2 * Double.pi * t
+        var s = Scene()
+        s.base = 42
+        s.ground({ _, _ in 1 }, top: { x, z, _ in rgb(0x8E98A4).mixed(with: rgb(0x7A8490), h(x, z, 121)) }, side: rgb(0x5E6670))
+        for x in 2...5 { for z in 2...5 { for y in 1...7 {
+            let glass = (y % 2 == 0) && (x == 5 || z == 5)
+            let lit = sin(phase * 2 + Double(y + x)) > 0.2
+            s.add(x, y, z, rgb(0xB8C4D0), left: glass && z == 5 ? (lit ? rgb(0x7FE0FF) : rgb(0x4A8AA8)) : nil,
+                  right: glass && x == 5 ? (lit ? rgb(0x66C8EA) : rgb(0x3E7894)) : nil)
+        } } }
+        s.box(3...4, 8...8, 3...4, rgb(0x5AB8D8))
+        for (x, z) in [(1, 6), (6, 1)] { for y in 1...2 { s.add(x, y, z, rgb(0x6E7884)) } }
+        s.draw(&canvas)
+        // The G, yellow on the front.
+        let (gx, gy) = s.point(3.6, 6, 3)
+        for k in 0..<10 {
+            let a = Double.pi * 0.25 + Double(k) / 9 * Double.pi * 1.6
+            canvas.ball(gx + cos(a) * 2.6, gy + sin(a) * 2.6, 0.75, rgb(0xFFD23A), gloss: 0)
+        }
+        canvas.line(gx, gy, gx + 2.4, gy, width: 1.2, rgb(0xFFD23A))
+        canvas.outline(rgb(0x1A2028))
+        let (tx, ty) = s.point(3.5, 3.5, 9)
+        canvas.ball(tx, ty, 1 + 0.4 * sin(phase * 3), rgb(0xFFF2A0), gloss: 0.8)
+    }
+
+    /// Team Rocket's hideout: a dark building, the big red R on its front, a searchlight sweeping the sky, a guard rail.
+    static func rocketHideout(_ t: Double, _ canvas: inout EggCanvas) {
+        let phase = 2 * Double.pi * t
+        var s = Scene()
+        s.base = 40
+        s.ground({ _, _ in 1 }, top: { x, z, _ in rgb(0x4A4E56).mixed(with: rgb(0x3E4249), h(x, z, 131)) }, side: rgb(0x30333A))
+        for x in 1...5 { for z in 1...5 { for y in 1...6 {
+            let window = y == 5 && (x == 5 || z == 5) && (x + z).isMultiple(of: 2)
+            s.add(x, y, z, rgb(0x3A3A44).mixed(with: rgb(0x2E2E38), h(x + y, z, 132)),
+                  left: window && z == 5 ? rgb(0xD8343A) : nil, right: window && x == 5 ? rgb(0xB82A30) : nil)
+        } } }
+        s.box(1...5, 7...7, 1...5, rgb(0x2A2A32))
+        s.add(5, 8, 5, rgb(0x8A8E96))
+        for x in [0, 7] { for z in 0..<8 where z % 2 == 0 { s.add(x, 1, z, rgb(0xC8A43A)) } }
+        s.draw(&canvas)
+        // The R, red, painted on the left face.
+        let (rx, ry) = s.point(2.4, 6, 4.2)
+        let red = rgb(0xE8262E)
+        canvas.line(rx - 2, ry - 4, rx - 2, ry + 4, width: 1.6, red)
+        canvas.path([(rx - 2, ry - 4), (rx + 1.6, ry - 3.6), (rx + 2.2, ry - 1.6), (rx + 1.2, ry), (rx - 2, ry)], width: 1.6, red)
+        canvas.line(rx - 0.2, ry, rx + 2.4, ry + 4, width: 1.6, red)
+        canvas.outline(rgb(0x121218))
+        // The searchlight, its beam sweeping.
+        let (lx, ly) = s.point(5.5, 5.5, 9)
+        let a = -Double.pi / 2 + 0.6 * sin(phase)
+        canvas.polygon([(lx, ly), (lx + cos(a - 0.12) * 22, ly + sin(a - 0.12) * 22), (lx + cos(a + 0.12) * 22, ly + sin(a + 0.12) * 22)],
+                       rgb(0xFFF4C0).mixed(with: .white, 0.3), shade: false)
+        canvas.ball(lx, ly, 1.4, rgb(0xFFF4C0), gloss: 0.8)
+    }
+
+    /// A hideout's diorama, drawn once a team.
+    @MainActor
+    static func hideoutImage(_ team: VillainTeam) -> CGImage? { image(team.hideoutID) }
+
+    /// A hideout's diorama cropped to what is drawn, for the menu bar.
+    @MainActor
+    static func trimmedHideoutImage(_ team: VillainTeam) -> CGImage? { trimmedImage(team.hideoutID) }
+
     /// Seafoam Islands: the sea, two islands of ice, snow falling.
     static func seafoamIslands(_ t: Double, _ canvas: inout EggCanvas) {
         let phase = 2 * Double.pi * t
@@ -475,6 +638,8 @@ enum DungeonSprites {
         // Never seen while their boss is known: it stands in for them (`DungeonIcon`, the menu bar).
         case .daily: mtCoronet
         case .weekly: hallOfOrigin
+        // The villains' hideouts, one a team (issue #180).
+        case .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout: hideout(id.villain ?? .rocket)
         }
     }
 
@@ -505,7 +670,11 @@ enum DungeonSprites {
 
     @MainActor
     private static func cropped(_ id: DungeonID) -> CGImage? {
-        guard let image = image(id) else { return nil }
+        image(id).flatMap(cropped)
+    }
+
+    @MainActor
+    private static func cropped(_ image: CGImage) -> CGImage? {
         let width = image.width, height = image.height
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
                                       space: CGColorSpaceCreateDeviceRGB(),

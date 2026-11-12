@@ -3,7 +3,8 @@
 Gigantamax variety PokéAPI knows, with the sprites the app can show for it.
 
 Facts only, no names: the app fetches the localized form names at runtime, as for every other form. A variety with no
-static sprite is left out; one with no animated sprite is marked so the app shows its still without asking for a GIF.
+static sprite is left out; one with no animated sprite, or a GIF of a single image, is marked so the app shows its
+still without asking for a GIF.
 
 Run with `python3 -I scripts/generate-battle-forms.py` from the repository root.
 """
@@ -38,6 +39,38 @@ def exists(url):
         return False
 
 
+
+def frame_count(data):
+    """The images in a GIF, its blocks walked one by one; -1 when it is no GIF."""
+    if data[:3] != b"GIF" or len(data) < 13:
+        return -1
+    i, flags, count = 13, data[10], 0
+    if flags & 0x80:
+        i += 3 * 2 ** ((flags & 7) + 1)
+    while i < len(data) and data[i] != 0x3B:
+        if data[i] == 0x21:
+            i += 2
+        elif data[i] == 0x2C:
+            count += 1
+            flags = data[i + 9]
+            i += 10 + (3 * 2 ** ((flags & 7) + 1) if flags & 0x80 else 0) + 1
+        else:
+            return -1
+        while i < len(data) and data[i]:
+            i += data[i] + 1
+        i += 1
+    return count
+
+
+def moves(url):
+    """Whether this GIF is an animation: a file of one image is a still dressed as a GIF (Showdown's Legends Z-A Megas,
+    2026-11-10), shown worse than the PNG, so it counts as none."""
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=AGENT), timeout=60) as response:
+            return frame_count(response.read()) > 1
+    except urllib.error.HTTPError:
+        return False
+
 def main():
     rows = query("""{ pokemon(where: {name: {_regex: "-(mega|mega-x|mega-y|mega-z|gmax|primal)$"}}, order_by: {id: asc}) {
         id name pokemon_species_id
@@ -46,7 +79,7 @@ def main():
     } }""")["pokemon"]
 
     def sprites(row):
-        return exists(f"{SPRITES}/{row['id']}.png"), exists(f"{SPRITES}/other/showdown/{row['id']}.gif")
+        return exists(f"{SPRITES}/{row['id']}.png"), moves(f"{SPRITES}/other/showdown/{row['id']}.gif")
 
     with ThreadPoolExecutor(max_workers=12) as pool:
         found = list(pool.map(sprites, rows))
