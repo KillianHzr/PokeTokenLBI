@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-12", entries: [
+            .fixed("2026-11-12-oak-coronet-door") { l in
+                let coronet = l.dungeonName(.mtCoronet)
+                return l.t("오박사가 잡았지만 아직 쓰러뜨리지 않은 보스가 있는 던전도 추천해요. \(coronet)에 들어가려면 그 보스들도 쓰러뜨려야 하니까요.",
+                           "Prof. Oak now also suggests the dungeons whose bosses you caught but never beat: \(coronet) only opens once they are beaten too.",
+                           "オーキド博士が、つかまえたけれどまだ倒していないボスのいるダンジョンも勧めます。\(coronet)はそのボスも倒さないと開きません。",
+                           "El Profesor Oak ahora también propone las mazmorras cuyos jefes capturaste pero nunca venciste: \(coronet) solo se abre cuando también están vencidos.",
+                           "Le Prof. Chen conseille aussi les donjons dont tu as capturé les boss sans jamais les battre : \(coronet) ne s'ouvre qu'une fois ceux-ci battus aussi.",
+                           "O Prof. Carvalho agora também sugere as masmorras cujos chefes você capturou mas nunca venceu: \(coronet) só abre quando eles também forem vencidos.",
+                           "Prof. Eich schlägt jetzt auch die Dungeons vor, deren Bosse du gefangen, aber nie besiegt hast: \(coronet) öffnet sich erst, wenn auch sie besiegt sind.",
+                           "Профессор Оук теперь советует и подземелья, боссов которых вы поймали, но ни разу не победили: \(coronet) откроется, только когда они тоже будут побеждены.")
+            },
             .new("2026-11-12-oak-dungeons", { $0.t("오박사가 이제 이길 가능성이 높은 던전도 추천하고, 출발 전에 팀에게 줄 것도 알려 줘요.",
                                                 "Prof. Oak now also suggests a dungeon when your team is likely to win it, and what to give your team before it sets off.",
                                                 "オーキド博士が、勝てる見込みの高いダンジョンと、出発前にチームにわたすものも教えてくれます。",
