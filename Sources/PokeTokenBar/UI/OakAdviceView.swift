@@ -418,6 +418,7 @@ private struct OakWords {
         case .firstWin: why = l.oakDungeonFirstWin
         case .challenge: why = l.oakDungeonChallenge
         case .boss: why = l.oakDungeonBoss
+        case .coronetDoor: why = l.oakDungeonCoronetDoor(l.dungeonName(.mtCoronet))
         case .coronet: why = l.oakDungeonCoronet(l.dungeonName(.hallOfOrigin))
         case .hall: why = l.oakDungeonHall(least: l.oddsPercent(10, share: CompanionStore.oakHallWin))
         case .key(let waiting): why = l.oakDungeonKey(l.dungeonName(waiting), key: l.itemName(.legendaryKey))

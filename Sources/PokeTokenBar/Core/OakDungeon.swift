@@ -2,7 +2,7 @@ import Foundation
 
 struct OakDungeon: Equatable, Sendable {
     enum Reason: Equatable, Sendable {
-        case firstWin, challenge, boss, coronet, hall
+        case firstWin, challenge, boss, coronetDoor, coronet, hall
         case key(for: DungeonID)
     }
 
@@ -70,6 +70,11 @@ extension CompanionStore {
         }
         for dungeon in open.reversed() where dungeon.id != .hallOfOrigin && dungeon.bosses.contains(where: oakWantsBoss) {
             if let advice = offer(dungeon.id, .boss) { return advice }
+        }
+        let door = isDungeonOpen(.mtCoronet) ? [] : DungeonCatalog.bosses(of: DungeonCatalog.bossDungeons(before: .mtCoronet))
+            .filter { !state.dungeons.beat($0) }
+        for dungeon in open.reversed() where dungeon.bosses.contains(where: door.contains) {
+            if let advice = offer(dungeon.id, .coronetDoor) { return advice }
         }
         if isDungeonOpen(.mtCoronet), DungeonCatalog.dungeon(.mtCoronet).bosses.contains(where: { !state.dungeons.beat($0) }),
            let advice = offer(.mtCoronet, .coronet) {

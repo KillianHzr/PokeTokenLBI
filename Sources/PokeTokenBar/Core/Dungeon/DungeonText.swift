@@ -78,6 +78,17 @@ extension L {
           "Одного из боссов у вас ещё нет: поймав его, вы получите что-то новое.")
     }
 
+    func oakDungeonCoronetDoor(_ coronet: String) -> String {
+        t("아직 쓰러뜨리지 않은 보스가 있어요. 앞선 던전의 보스를 모두 쓰러뜨리고 잡아야 \(KoreanParticle.subject.attach(to: coronet)) 열려요.",
+          "One of its bosses was never beaten: \(coronet) opens once every boss before it is beaten and caught.",
+          "まだ倒していないボスがいます。それまでのボスをすべて倒してつかまえると\(coronet)が開きます。",
+          "Uno de sus jefes nunca fue vencido: el \(coronet) se abre cuando todos los jefes anteriores están vencidos y capturados.",
+          "Un de ses boss n'a jamais été battu : le \(coronet) s'ouvre quand tous les boss d'avant sont battus et capturés.",
+          "Um dos chefes nunca foi vencido: o \(coronet) abre quando todos os chefes anteriores forem vencidos e capturados.",
+          "Einen seiner Bosse hast du nie besiegt: Der \(coronet) öffnet sich, wenn alle Bosse davor besiegt und gefangen sind.",
+          "Одного из боссов вы ещё не победили: \"\(coronet)\" откроется, когда все боссы до неё будут побеждены и пойманы.")
+    }
+
     func oakDungeonCoronet(_ hall: String) -> String {
         t("세 보스를 모두 쓰러뜨리면 \(KoreanParticle.subject.attach(to: hall)) 열려요.",
           "Beating its three bosses opens the \(hall).", "3体のボスをすべて倒すと\(hall)が開きます。",

@@ -797,6 +797,15 @@ read_when:
   (`OakAdviceTests.testWhileATeamExploresTheBagsEggStillWaitsForTheSpare`). Sweep: the Bag's buttons are the gates' only
   other callers, and they act now.
 
+- **Advice that leads toward a gate must read the gate's whole condition.** Mt. Coronet opens once every boss of the
+  dungeons before it is beaten and caught (`caughtBosses`, `bossesLeft`), but Prof. Oak's boss step only sought bosses
+  not caught: a boss caught from an egg and never beaten was never sought, and Mt. Coronet, then the Hall of Origin, left
+  his advice for good. **Why it was missed:** the door came with `d54adf1`, after the advice's spec was measured; the
+  merge review stopped at "it goes through `isDungeonOpen`"; and the Hall's tests start from Mt. Coronet won, which keeps
+  it open for good (`OakDungeonTests.testTheBossesMtCoronetsDoorWaitsForAreProposedUntilBeaten`). Sweep: the other gates
+  Oak leads toward read what they ask (`wonEvery` through the First Wins, `beatBosses` through the Mt. Coronet step);
+  `DungeonsView` counts the door through `bossesLeft`; the expedition guide picks no dungeon.
+
 ## 외부 로그·사용량 소스
 
 - **토큰 파일 파서는 외부 도구의 실제 직렬화 구조체(중첩 객체)를 반영해야 한다.** `jetski-standalone-oauth-token`
