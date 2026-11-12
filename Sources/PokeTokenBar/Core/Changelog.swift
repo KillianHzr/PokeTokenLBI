@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-12", entries: [
+            .improved("2026-11-12-capsules-chain") { l in
+                let cap = l.itemName(.silverCapsule)
+                return l.t("\(cap)을 쓸 때 개체값이 모두 31인 포켓몬도 회색으로 보이고(마우스를 올리면 이유가 나와요), 화면을 떠나지 않고 연달아 쓸 수 있어요.",
+                           "Using a \(cap), the Pokémon whose IVs are all at 31 stay in the list, greyed, the reason on hover, and you can use one \(cap) after another without leaving.",
+                           "\(cap)を使うとき、個体値がぜんぶ31のポケモンも灰色で出て（カーソルを乗せると理由が見えます）、画面をはなれずに続けて使えます。",
+                           "Al usar una \(cap), los Pokémon con todos sus IV a 31 siguen en la lista, en gris, con el motivo al pasar el ratón, y puedes usar una \(cap) tras otra sin salir.",
+                           "Avec une \(cap), les Pokémon dont tous les IV sont à 31 restent dans la liste, grisés, la raison au survol, et tu peux utiliser une \(cap) après l'autre sans quitter l'écran.",
+                           "Ao usar uma \(cap), os Pokémon com todos os IVs em 31 continuam na lista, em cinza, com o motivo ao passar o mouse, e você pode usar uma \(cap) após a outra sem sair.",
+                           "Beim \(cap) bleiben Pokémon mit allen DV auf 31 ausgegraut in der Liste, der Grund beim Darüberfahren, und du kannst einen \(cap) nach dem anderen nutzen, ohne sie zu verlassen.",
+                           "При использовании \"\(cap)\" покемоны со всеми IV на 31 остаются в списке серыми, причина при наведении, и можно использовать их одну за другой, не выходя.")
+            },
             .fixed("2026-11-12-boss-caught-in-dungeon", { $0.t("던전 보스는 그 던전에서 잡기 전까지 실루엣으로 남고, 천관산은 던전에서 잡은 보스만 세요. 알로 얻은 포켓몬은 더 이상 세지 않아요.",
                                                              "A dungeon's boss stays a silhouette until you catch it in that dungeon, and Mt. Coronet counts only those catches: one you have from an egg no longer counts.",
                                                              "ダンジョンのボスは、そのダンジョンでつかまえるまでシルエットのままです。テンガンざんが数えるのもダンジョンでつかまえたボスだけで、タマゴから得たポケモンはもう数えません。",
