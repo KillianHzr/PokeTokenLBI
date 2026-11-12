@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-12", entries: [
+            .improved("2026-11-12-battle-forms-stronger", { $0.t("배틀 폼이 더 강해졌어요: 메가와 원시회귀는 모든 능력치 ×1.25, 거다이맥스는 HP ×2에 나머지 ×1.25. 오늘·이번 주 던전 보스는 그대로예요.",
+                                                            "Battle forms are stronger: a Mega or a Primal has every stat ×1.25, a Gigantamax its HP ×2 and the rest ×1.25. The daily and weekly bosses stay as they were.",
+                                                            "バトルのすがたが強くなりました：メガとゲンシはすべての能力×1.25、キョダイマックスはHP×2でほかは×1.25。今日と今週のダンジョンのボスはそのままです。",
+                                                            "Las formas de combate son más fuertes: una Mega o una Primigenia tiene todas sus estadísticas ×1,25, un Gigamax sus PS ×2 y el resto ×1,25. Los jefes diarios y semanales no cambian.",
+                                                            "Les formes de combat sont plus fortes : une Méga ou une Primo a toutes ses stats ×1,25, un Gigamax ses PV ×2 et le reste ×1,25. Les boss du jour et de la semaine restent tels quels.",
+                                                            "As formas de batalha estão mais fortes: uma Mega ou uma Primitiva tem todos os atributos ×1,25, um Gigantamax seus PS ×2 e o resto ×1,25. Os chefes diários e semanais continuam iguais.",
+                                                            "Kampfformen sind stärker: Eine Mega oder Proto hat alle Werte ×1,25, ein Gigadynamax seine KP ×2 und den Rest ×1,25. Die Tages- und Wochenbosse bleiben, wie sie waren.",
+                                                            "Боевые формы стали сильнее: у мега и первичных все характеристики ×1,25, у гигантамакса ОЗ ×2, остальное ×1,25. Боссы дня и недели не меняются.") }),
             .improved("2026-11-12-battle-forms-moves", { $0.t("배틀 폼(메가, 원시, 거다이맥스)은 이제 원래 포켓몬의 기술을 모두 알고, 자기 기술도 더 알아요. 특수 공격이 강한 메가도 자기 타입의 특수 기술을 써요.",
                                                          "Battle forms (Mega, Primal, Gigantamax) now know every move of their Pokémon, plus their own: a Mega strong in Special Attack gets special moves of its type.",
                                                          "バトルのすがた（メガ、ゲンシ、キョダイマックス）は、もとのポケモンのわざをぜんぶ覚え、自分のわざも使えます。とくこうが高いメガは自分のタイプのとくしゅわざを使います。",

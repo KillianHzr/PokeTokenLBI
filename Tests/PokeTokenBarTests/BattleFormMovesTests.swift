@@ -24,4 +24,29 @@ final class BattleFormMovesTests: XCTestCase {
         XCTAssertTrue(data.pool.contains("draco-meteor"))
         XCTAssertTrue(data.pool.contains("earth-power"), "Garchomp's own Ground, special")
     }
+
+    /// A player's Pokémon in a battle form is stronger (the owner, 2026-11-12): a Mega or a Primal every stat ×1.25, a
+    /// Gigantamax its HP ×2 and the rest ×1.25, its HP full; in its usual form, as it was.
+    func testABattleFormIsStrongerForThePlayer() throws {
+        func entry(_ species: Int, _ form: String?) -> DexEntry {
+            var e = DexEntry(baseID: SpeciesInfo.baseID(of: species), finalID: species, chainOrder: [species], rarity: .rare,
+                             caughtAt: nil)
+            e.form = form.map { PokemonForm($0) }
+            e.nature = .hardy
+            return e
+        }
+        func plain(_ species: Int, _ form: String?) throws -> BattleStats {
+            try XCTUnwrap(BattlerSpec.make(id: "x", speciesID: species, form: form.map { PokemonForm($0) }, level: 100,
+                                           ivs: Array(repeating: 15, count: 6), nature: .hardy)).stats
+        }
+        let mega = try XCTUnwrap(DungeonTeamBuilder.spec(for: entry(445, "mega-z")))
+        XCTAssertEqual(mega.stats, try plain(445, "mega-z").scaled(hp: 1.25, stats: 1.25))
+        XCTAssertEqual(mega.hp, mega.stats.hp)
+        let gmax = try XCTUnwrap(DungeonTeamBuilder.spec(for: entry(6, "gmax")))
+        XCTAssertEqual(gmax.stats, try plain(6, "gmax").scaled(hp: 2, stats: 1.25))
+        let primal = try XCTUnwrap(DungeonTeamBuilder.spec(for: entry(382, "primal")))
+        XCTAssertEqual(primal.stats, try plain(382, "primal").scaled(hp: 1.25, stats: 1.25))
+        let usual = try XCTUnwrap(DungeonTeamBuilder.spec(for: entry(445, nil)))
+        XCTAssertEqual(usual.stats, try plain(445, nil))
+    }
 }
