@@ -72,8 +72,7 @@ extension CompanionStore {
         for dungeon in open.reversed() where dungeon.id != .hallOfOrigin && dungeon.bosses.contains(where: oakWantsBoss) {
             if let advice = offer(dungeon.id, .boss) { return advice }
         }
-        let door = isDungeonOpen(.mtCoronet) ? [] : DungeonCatalog.bosses(of: DungeonCatalog.bossDungeons(before: .mtCoronet))
-            .filter { !state.dungeons.beat($0) }
+        let door = isDungeonOpen(.mtCoronet) ? [] : bossesLeft(DungeonCatalog.bossDungeons(before: .mtCoronet))
         for dungeon in open.reversed() where dungeon.bosses.contains(where: door.contains) {
             if let advice = offer(dungeon.id, .coronetDoor) { return advice }
         }

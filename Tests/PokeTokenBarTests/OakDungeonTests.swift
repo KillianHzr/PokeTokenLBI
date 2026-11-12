@@ -30,7 +30,7 @@ final class OakDungeonTests: XCTestCase {
     private let belowT4: [DungeonID] = [.viridianForest, .diglettsCave, .mtMoon, .mtEmber, .victoryRoad, .pokemonTower,
                                         .dragonsDen, .powerPlant]
 
-    private var doorBeaten: Set<String> {
+    private var doorCaught: Set<String> {
         Set(DungeonCatalog.bossDungeons(before: .mtCoronet).flatMap { id in
             DungeonCatalog.dungeon(id).bosses.map { DungeonProgress.bossKey(id, $0) }
         })
@@ -150,7 +150,7 @@ final class OakDungeonTests: XCTestCase {
 
         let hatching = try store(dex: caught) {
             $0.dungeons.wins = self.wins([.viridianForest, .diglettsCave])
-            $0.dungeons.bossesBeaten = self.doorBeaten
+            $0.dungeons.bossesCaught = self.doorCaught
             $0.active = nil
             $0.eggFromDungeon = DungeonEgg(id: "egg", baseID: 50, form: nil, isShiny: false, sourceSpeciesID: 51)
         }
@@ -158,20 +158,29 @@ final class OakDungeonTests: XCTestCase {
         XCTAssertNil(hatching.oakDungeon, "Dugtrio's egg is hatching")
     }
 
-    func testTheBossesMtCoronetsDoorWaitsForAreProposedUntilBeaten() throws {
+    func testTheBossesMtCoronetsDoorWaitsForAreProposedUntilCaughtThere() throws {
         let dex = strong + [51, 76, 208].map { graduated($0) }
+        let keys = Set([51, 76, 208].map { DungeonProgress.bossKey(.diglettsCave, $0) })
         let cave: (DungeonTeamBuilder.ReachEstimate) -> Double = { $0.dungeon.id == .diglettsCave ? 1 : 0 }
         let door = try store(dex: dex) { $0.dungeons.wins = self.wins([.diglettsCave]) }
         door.oakWinOdds = cave
-        XCTAssertEqual(door.oakDungeon?.id, .diglettsCave, "Diglett's Cave's bosses are caught, never beaten")
+        XCTAssertEqual(door.oakDungeon?.id, .diglettsCave, "Diglett's Cave's bosses are had from eggs")
         XCTAssertEqual(door.oakDungeon?.reason, .coronetDoor)
 
         let beaten = try store(dex: dex) {
             $0.dungeons.wins = self.wins([.diglettsCave])
-            $0.dungeons.bossesBeaten = Set([51, 76, 208].map { DungeonProgress.bossKey(.diglettsCave, $0) })
+            $0.dungeons.bossesBeaten = keys
         }
         beaten.oakWinOdds = cave
-        XCTAssertNil(beaten.oakDungeon)
+        XCTAssertEqual(beaten.oakDungeon?.reason, .coronetDoor, "beaten, never caught there")
+
+        let caught = try store(dex: dex) {
+            $0.dungeons.wins = self.wins([.diglettsCave])
+            $0.dungeons.bossesBeaten = keys
+            $0.dungeons.bossesCaught = keys
+        }
+        caught.oakWinOdds = cave
+        XCTAssertNil(caught.oakDungeon)
 
         let open = try store(dex: dex) { $0.dungeons.wins = self.wins([.diglettsCave, .mtCoronet]) }
         open.oakWinOdds = cave
@@ -246,7 +255,7 @@ final class OakDungeonTests: XCTestCase {
         let waits = try store(dex: dex) {
             $0.dungeons.wins = self.wins(self.belowT4)
             $0.dungeons.battleForms = Set(BattleForms.all.map(\.key))
-            $0.dungeons.bossesBeaten = self.doorBeaten
+            $0.dungeons.bossesCaught = self.doorCaught
         }
         waits.oakWinOdds = odds(seafoam: 1)
         XCTAssertEqual(waits.oakDungeon?.id, .dragonsDen)
@@ -255,7 +264,7 @@ final class OakDungeonTests: XCTestCase {
         let none = try store(dex: dex) {
             $0.dungeons.wins = self.wins(self.belowT4)
             $0.dungeons.battleForms = Set(BattleForms.all.map(\.key))
-            $0.dungeons.bossesBeaten = self.doorBeaten
+            $0.dungeons.bossesCaught = self.doorCaught
         }
         none.oakWinOdds = odds(seafoam: 0.4)
         XCTAssertNil(none.oakDungeon)

@@ -797,14 +797,17 @@ read_when:
   (`OakAdviceTests.testWhileATeamExploresTheBagsEggStillWaitsForTheSpare`). Sweep: the Bag's buttons are the gates' only
   other callers, and they act now.
 
-- **Advice that leads toward a gate must read the gate's whole condition.** Mt. Coronet opens once every boss of the
-  dungeons before it is beaten and caught (`caughtBosses`, `bossesLeft`), but Prof. Oak's boss step only sought bosses
-  not caught: a boss caught from an egg and never beaten was never sought, and Mt. Coronet, then the Hall of Origin, left
-  his advice for good. **Why it was missed:** the door came with `d54adf1`, after the advice's spec was measured; the
+- **Advice that leads toward a gate must call the gate's own predicate, not a copy of it.** Mt. Coronet opens once
+  every boss of the dungeons before it is caught (`caughtBosses`, `bossesLeft`), but Prof. Oak's boss step only sought
+  bosses the player did not have yet: a boss had from an egg was never sought, and Mt. Coronet, then the Hall of Origin, left
+  his advice for good. A first fix copied the door's condition of the day (beaten, and caught or its egg won); hours
+  later the door changed to "caught in its dungeon" (`bossesCaught`, #192) and the copy went wrong with it. The step now
+  calls `bossesLeft`. **Why it was missed:** the door came with `d54adf1`, after the advice's spec was measured; the
   merge review stopped at "it goes through `isDungeonOpen`"; and the Hall's tests start from Mt. Coronet won, which keeps
-  it open for good (`OakDungeonTests.testTheBossesMtCoronetsDoorWaitsForAreProposedUntilBeaten`). Sweep: the other gates
-  Oak leads toward read what they ask (`wonEvery` through the First Wins, `beatBosses` through the Mt. Coronet step);
-  `DungeonsView` counts the door through `bossesLeft`; the expedition guide picks no dungeon.
+  it open for good (`OakDungeonTests.testTheBossesMtCoronetsDoorWaitsForAreProposedUntilCaughtThere`). Sweep: the other
+  gates Oak leads toward read what `isMet` reads (`wonEvery` through the First Wins, `beatBosses` through the Mt. Coronet
+  step, both `state.dungeons`); `DungeonsView` counts the door through `bossesLeft`; the expedition guide picks no
+  dungeon.
 
 ## 외부 로그·사용량 소스
 

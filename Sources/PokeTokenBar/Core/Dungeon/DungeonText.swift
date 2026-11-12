@@ -101,14 +101,14 @@ extension L {
     }
 
     func oakDungeonCoronetDoor(_ coronet: String) -> String {
-        t("아직 쓰러뜨리지 않은 보스가 있어요. 앞선 던전의 보스를 모두 쓰러뜨리고 잡아야 \(KoreanParticle.subject.attach(to: coronet)) 열려요.",
-          "One of its bosses was never beaten: \(coronet) opens once every boss before it is beaten and caught.",
-          "まだ倒していないボスがいます。それまでのボスをすべて倒してつかまえると\(coronet)が開きます。",
-          "Uno de sus jefes nunca fue vencido: el \(coronet) se abre cuando todos los jefes anteriores están vencidos y capturados.",
-          "Un de ses boss n'a jamais été battu : le \(coronet) s'ouvre quand tous les boss d'avant sont battus et capturés.",
-          "Um dos chefes nunca foi vencido: o \(coronet) abre quando todos os chefes anteriores forem vencidos e capturados.",
-          "Einen seiner Bosse hast du nie besiegt: Der \(coronet) öffnet sich, wenn alle Bosse davor besiegt und gefangen sind.",
-          "Одного из боссов вы ещё не победили: \"\(coronet)\" откроется, когда все боссы до неё будут побеждены и пойманы.")
+        t("아직 이 던전에서 잡지 않은 보스가 있어요. 앞선 보스를 모두 각자의 던전에서 잡아야 \(KoreanParticle.subject.attach(to: coronet)) 열려요.",
+          "One of its bosses was never caught here: \(coronet) opens once every boss before it is caught in its dungeon.",
+          "まだこのダンジョンでつかまえていないボスがいます。それまでのボスをすべてそれぞれのダンジョンでつかまえると\(coronet)が開きます。",
+          "Uno de sus jefes nunca fue capturado aquí: el \(coronet) se abre cuando todos los jefes anteriores están capturados en su mazmorra.",
+          "Un de ses boss n'a jamais été capturé ici : le \(coronet) s'ouvre quand tous les boss d'avant sont capturés dans leur donjon.",
+          "Um dos chefes nunca foi capturado aqui: o \(coronet) abre quando todos os chefes anteriores forem capturados na sua masmorra.",
+          "Einen seiner Bosse hast du hier nie gefangen: Der \(coronet) öffnet sich, wenn alle Bosse davor in ihrem Dungeon gefangen sind.",
+          "Одного из боссов вы здесь ещё не поймали: \"\(coronet)\" откроется, когда все боссы до неё будут пойманы в своих подземельях.")
     }
 
     func oakDungeonCoronet(_ hall: String) -> String {
