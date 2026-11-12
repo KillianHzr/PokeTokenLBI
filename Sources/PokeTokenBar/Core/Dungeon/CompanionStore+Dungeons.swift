@@ -45,12 +45,10 @@ extension CompanionStore {
         }
     }
 
-    /// These dungeons' bosses not yet both beaten and caught: caught as `hasCaughtBoss` says, or its egg won (a
-    /// legendary's, or one hatching now).
+    /// These dungeons' bosses not yet caught in their dungeon (the owner, 2026-11-12: one had from an egg counted, and
+    /// Mt. Coronet opened with no boss caught).
     func bossesLeft(_ ids: [DungeonID]) -> [Int] {
-        DungeonCatalog.bosses(of: ids).filter { species in
-            !(state.dungeons.beat(species) && (hasCaughtBoss(species) || hasWonLegendaryEgg(species)))
-        }
+        DungeonCatalog.bosses(of: ids).filter { !state.dungeons.caughtInDungeon($0) }
     }
 
     /// Open once its unlocks are met, and for good once won: the tier rule of 2026-11-05 locks none a player has beaten.
@@ -879,6 +877,10 @@ extension CompanionStore {
             // A legendary boss's egg, or the Legendary Egg in its place, is won once.
             if caught, !secretInPlace, SpeciesInfo.lineRarity(of: e.boss.speciesID) == .legendary {
                 progress.legendaryEggsWon.insert(e.boss.speciesID)
+            }
+            // Caught in its dungeon: its place shows it whole, and it counts for Mt. Coronet (the owner, 2026-11-12).
+            if caught, !secretInPlace, !e.dungeon.isChallenge, !e.dungeon.isHideout {
+                progress.bossesCaught = (progress.bossesCaught ?? []).union([DungeonProgress.bossKey(e.dungeon, e.boss.speciesID)])
             }
             // A secret boss: met, caught, apart from the dungeon's bosses (Galarian Articuno is not Articuno).
             if let secret = e.secret {

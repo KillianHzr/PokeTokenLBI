@@ -67,6 +67,22 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-12", entries: [
+            .fixed("2026-11-12-boss-caught-in-dungeon", { $0.t("던전 보스는 그 던전에서 잡기 전까지 실루엣으로 남고, 천관산은 던전에서 잡은 보스만 세요. 알로 얻은 포켓몬은 더 이상 세지 않아요.",
+                                                             "A dungeon's boss stays a silhouette until you catch it in that dungeon, and Mt. Coronet counts only those catches: one you have from an egg no longer counts.",
+                                                             "ダンジョンのボスは、そのダンジョンでつかまえるまでシルエットのままです。テンガンざんが数えるのもダンジョンでつかまえたボスだけで、タマゴから得たポケモンはもう数えません。",
+                                                             "El jefe de una mazmorra sigue en silueta hasta que lo capturas en ella, y el Monte Corona solo cuenta esas capturas: uno que tengas de un huevo ya no cuenta.",
+                                                             "Le boss d'un donjon reste une silhouette tant que tu ne l'as pas capturé dans ce donjon, et le Mont Couronné ne compte que ces captures : un Pokémon eu par un œuf ne compte plus.",
+                                                             "O chefe de uma masmorra continua uma silhueta até você capturá-lo nela, e o Monte Coronet só conta essas capturas: um que você tenha de um ovo não conta mais.",
+                                                             "Der Boss eines Dungeons bleibt eine Silhouette, bis du ihn dort fängst, und der Kraterberg zählt nur diese Fänge: Ein Pokémon aus einem Ei zählt nicht mehr.",
+                                                             "Босс подземелья остаётся силуэтом, пока вы не поймаете его там, и гора Коронет считает только такие поимки: покемон из яйца больше не считается.") }),
+            .improved("2026-11-12-boss-got-away", { $0.t("보스에게 던진 볼이 모두 빗나가면, 돌아왔을 때 보스가 실루엣으로 보이고 \"도망쳤어요\"라고 나와요.",
+                                                     "When every throw at the boss misses, the return shows it as a silhouette, marked Got away.",
+                                                     "ボスへのボールがぜんぶはずれると、もどったときボスがシルエットになり「にげられた」と出ます。",
+                                                     "Si fallan todos los lanzamientos al jefe, al volver aparece en silueta con Se escapó.",
+                                                     "Quand tous les lancers ratent le boss, le retour le montre en silhouette, avec S'est échappé.",
+                                                     "Quando todos os arremessos no chefe falham, o retorno o mostra em silhueta, com Fugiu.",
+                                                     "Gehen alle Würfe am Boss vorbei, zeigt die Rückkehr ihn als Silhouette mit Entkommen.",
+                                                     "Если все броски мимо, при возвращении босс показан силуэтом с пометкой Сбежал.") }),
             .new("2026-11-12-oak-dungeons", { $0.t("오박사가 이제 이길 가능성이 높은 던전도 추천하고, 출발 전에 팀에게 줄 것도 알려 줘요.",
                                                 "Prof. Oak now also suggests a dungeon when your team is likely to win it, and what to give your team before it sets off.",
                                                 "オーキド博士が、勝てる見込みの高いダンジョンと、出発前にチームにわたすものも教えてくれます。",

@@ -315,9 +315,16 @@ struct ExpeditionResultGuide: View {
         return (kind, item, nil)
     }
 
+    /// The boss fell, its throws all missed: it got away (the owner, 2026-11-12: shown large in color, it looked caught).
+    static func missedCapture(_ r: ExpeditionResult) -> Bool {
+        guard r.won, !r.caught, !r.dungeon.isChallenge, !r.dungeon.isHideout else { return false }
+        return r.log.contains { if case .capture = $0.kind { return true }; return false }
+    }
+
     private var prize: some View {
         let l = store.l
-        let color = r.villain.map(\.color) ?? DungeonCard.colors(r.dungeon)[0]
+        let missed = Self.missedCapture(r)
+        let color = missed ? CollectionStatsScreen.left : r.villain.map(\.color) ?? DungeonCard.colors(r.dungeon)[0]
         let form = r.battleForm.flatMap { BattleForms.form(key: $0) }
         let villainForm = r.villain.flatMap { team in team.leaderTeam.first == r.boss.speciesID ? team.leaderForms[0] : nil }
         return VStack(spacing: 4) {
@@ -325,12 +332,23 @@ struct ExpeditionResultGuide: View {
                 if let egg = Self.egg(r) {
                     SpriteView(speciesID: nil, size: 120, animated: true, egg: egg.kind)
                 } else {
-                    SpriteView(speciesID: form?.speciesID ?? r.boss.speciesID, size: 120, animated: true, shiny: r.boss.isShiny,
-                               form: form?.form ?? r.boss.form ?? villainForm, sameScale: true)
+                    // Got away: a silhouette, as its place in the dungeon shows it until it is caught there.
+                    SpriteView(speciesID: form?.speciesID ?? r.boss.speciesID, size: 120, animated: !missed, shiny: r.boss.isShiny,
+                               form: form?.form ?? r.boss.form ?? villainForm, isSilhouette: missed, sameScale: true)
                 }
             }
             .frame(width: 132, height: 124)
-            .shadow(color: color.opacity(0.7), radius: 16)
+            .shadow(color: color.opacity(missed ? 0.35 : 0.7), radius: 16)
+            .overlay(alignment: .bottom) {
+                if missed {
+                    Label(l.dungeonBossGotAway, systemImage: "xmark.circle.fill")
+                        .font(.system(size: 11, weight: .heavy)).textCase(.uppercase).lineLimit(1).fixedSize()
+                        .padding(.horizontal, 9).padding(.vertical, 4)
+                        .foregroundStyle(.white)
+                        .background(Capsule().fill(CollectionStatsScreen.left))
+                        .offset(y: 6)
+                }
+            }
             Group {
                 if let egg = Self.egg(r) {
                     if let species = egg.speciesID {

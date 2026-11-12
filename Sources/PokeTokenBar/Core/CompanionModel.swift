@@ -1823,6 +1823,43 @@ struct CompanionState: Codable, Sendable, Equatable {
         graduationsTowardTreasure = c.lenient(Int.self, forKey: .graduationsTowardTreasure, default: 0)
         unseenTreasures = c.lenient([String: Int].self, forKey: .unseenTreasures, default: [:])
         dungeons = c.lenient(DungeonProgress.self, forKey: .dungeons, default: DungeonProgress())
+        if dungeons.bossesCaught == nil { dungeons.bossesCaught = bossesCaughtBefore }
+    }
+
+    /// The bosses a save from before the record had caught in their dungeon, from what it kept: the runs whose throws
+    /// hit, the legendary bosses' eggs won, the boss eggs in the Bag or hatching, the Pokémon hatched from one. Only a
+    /// dungeon's own bosses, never the Ruins of Alph's (any species) nor a secret boss's egg (Galarian Articuno's is
+    /// no Articuno's).
+    var bossesCaughtBefore: Set<String> {
+        let dungeons = DungeonCatalog.all.filter { !$0.id.isChallenge && !$0.id.isHideout && $0.id != .ruinsOfAlph }
+        var caught = Set<String>()
+        func mark(_ species: Int) {
+            for dungeon in dungeons where dungeon.bosses.contains(species) {
+                caught.insert(DungeonProgress.bossKey(dungeon.id, species))
+            }
+        }
+        func markLine(_ baseID: Int) {
+            for dungeon in dungeons {
+                for species in dungeon.bosses where SpeciesInfo.baseID(of: species) == baseID {
+                    caught.insert(DungeonProgress.bossKey(dungeon.id, species))
+                }
+            }
+        }
+        for run in self.dungeons.history where run.won && run.caught {
+            // A secret boss in the boss's place left the same species in the record: its egg's form tells them apart.
+            guard !SecretBosses.candidates(run.dungeon).contains(where: { $0.speciesID == run.bossSpeciesID }) else { continue }
+            if dungeons.contains(where: { $0.id == run.dungeon && $0.bosses.contains(run.bossSpeciesID) }) {
+                caught.insert(DungeonProgress.bossKey(run.dungeon, run.bossSpeciesID))
+            }
+        }
+        self.dungeons.legendaryEggsWon.forEach(mark)
+        for egg in self.dungeons.eggs + [eggFromDungeon].compactMap({ $0 }) where egg.isSecret != true && egg.form == nil {
+            mark(egg.sourceSpeciesID)
+        }
+        for entry in dex {
+            if case .dungeon(let baseID, nil, _)? = entry.hatch?.egg { markLine(baseID) }
+        }
+        return caught
     }
 
     /// 졸업 기록 또는 현재 개체가 실제로 도달한 단계에 이 종이 포함되는가.

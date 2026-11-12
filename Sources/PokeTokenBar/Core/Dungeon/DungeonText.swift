@@ -898,6 +898,10 @@ extension L {
         t("보스 등장", "The boss appears", "ボスがあらわれた", "Aparece el jefe", "Le boss apparaît", "O chefe aparece",
           "Der Boss erscheint", "Появляется босс")
     }
+    /// The boss fell, every throw missed: on the return, over its greyed sprite.
+    var dungeonBossGotAway: String {
+        t("도망쳤어요", "Got away", "にげられた", "Se escapó", "S'est échappé", "Fugiu", "Entkommen", "Сбежал")
+    }
     /// A secret boss in the boss's place, or after it (`SecretBosses`).
     var dungeonLogSecretBoss: String {
         t("비밀 보스 등장!", "A secret boss appears!", "ひみつのボスがあらわれた！", "¡Aparece un jefe secreto!",

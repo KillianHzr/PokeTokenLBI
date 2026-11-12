@@ -125,8 +125,9 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(DungeonCatalog.dungeon(.hallOfOrigin).unlocks, [.beatBosses([483, 484, 487])])
     }
 
-    /// Mt. Coronet opens once every boss of the ten dungeons listed before it is both beaten and caught (the owner,
-    /// 2026-11-10), its other doors still asked; the Ruins of Alph, the challenges and the hideouts count for nothing.
+    /// Mt. Coronet opens once every boss of the ten dungeons listed before it is caught in its dungeon (the owner,
+    /// 2026-11-10, then 2026-11-12: one had from an egg counted, so it opened with no boss caught), its other doors still
+    /// asked; the Ruins of Alph, the challenges and the hideouts count for nothing.
     func testMtCoronetWaitsForEveryBossBeforeIt() throws {
         let before = DungeonCatalog.bossDungeons(before: .mtCoronet)
         XCTAssertEqual(before, [.viridianForest, .diglettsCave, .mtMoon, .mtEmber, .victoryRoad, .pokemonTower, .dragonsDen,
@@ -134,44 +135,59 @@ final class DungeonStoreTests: XCTestCase {
         let bosses = DungeonCatalog.bosses(of: before)
         XCTAssertEqual(bosses.count, 28)
         let legendaries = [144, 145, 146, 150, 243, 244, 245, 249, 250, 380].map { graduated($0, rarity: .legendary) }
-        let caught = bosses.map { graduated($0) } + legendaries
-        func beaten(_ species: [Int]) -> Set<String> {
-            Set(before.flatMap { id in DungeonCatalog.dungeon(id).bosses.filter(species.contains).map { "\(id.rawValue):\($0)" } })
+        let owned = bosses.map { graduated($0) } + legendaries
+        func keys(_ species: [Int]) -> Set<String> {
+            Set(before.flatMap { id in DungeonCatalog.dungeon(id).bosses.filter(species.contains).map { DungeonProgress.bossKey(id, $0) } })
         }
-        let ready = try store(dex: caught) {
+        let ready = try store(dex: owned) {
             Self.winEvery(.t3, &$0)
-            $0.dungeons.bossesBeaten = beaten(bosses)
+            $0.dungeons.bossesBeaten = keys(bosses)
+            $0.dungeons.bossesCaught = keys(bosses)
         }
         XCTAssertTrue(ready.isDungeonOpen(.mtCoronet))
         XCTAssertTrue(ready.bossesLeft(before).isEmpty)
-        // Beaten, not caught: Electrode (#101) of the Power Plant never joined the Pokédex.
-        let notCaught = try store(dex: caught.filter { $0.finalID != 101 }) {
+        // Every boss beaten and in the Pokédex, Electrode (#101) never caught in the Power Plant: closed.
+        let fromEggs = try store(dex: owned) {
             Self.winEvery(.t3, &$0)
-            $0.dungeons.bossesBeaten = beaten(bosses)
+            $0.dungeons.bossesBeaten = keys(bosses)
+            $0.dungeons.bossesCaught = keys(bosses.filter { $0 != 101 })
         }
-        XCTAssertFalse(notCaught.isDungeonOpen(.mtCoronet))
-        XCTAssertEqual(notCaught.bossesLeft(before), [101])
-        XCTAssertEqual(notCaught.unmetUnlocks(.mtCoronet), [.caughtBosses(before)], "its other doors are open")
-        // Caught, not beaten: a Charizard hatched from an egg does not beat Victory Road's.
-        let notBeaten = try store(dex: caught) {
-            Self.winEvery(.t3, &$0)
-            $0.dungeons.bossesBeaten = beaten(bosses.filter { $0 != 6 })
-        }
-        XCTAssertEqual(notBeaten.bossesLeft(before), [6])
-        XCTAssertFalse(notBeaten.isDungeonOpen(.mtCoronet))
-        // An egg won counts as caught: Electrode's in the Bag, Lugia's won and hatched elsewhere.
-        let eggs = try store(dex: caught.filter { ![101, 249].contains($0.finalID) } + [graduated(251, rarity: .legendary)]) {
-            Self.winEvery(.t3, &$0)
-            $0.dungeons.bossesBeaten = beaten(bosses)
-            $0.dungeons.eggs = [DungeonEgg(id: "x", baseID: 100, form: nil, isShiny: false, sourceSpeciesID: 101)]
-            $0.dungeons.legendaryEggsWon = [249]
-        }
-        XCTAssertTrue(eggs.bossesLeft(before).isEmpty)
-        XCTAssertTrue(eggs.isDungeonOpen(.mtCoronet))
+        XCTAssertFalse(fromEggs.isDungeonOpen(.mtCoronet))
+        XCTAssertEqual(fromEggs.bossesLeft(before), [101])
+        XCTAssertEqual(fromEggs.unmetUnlocks(.mtCoronet), [.caughtBosses(before)], "its other doors are open")
         // Won under the former doors, it stays open.
         let won = try store(dex: strong) { $0.dungeons.wins["mtCoronet"] = 1 }
         XCTAssertTrue(won.isDungeonOpen(.mtCoronet))
         XCTAssertEqual(won.unlockLine(.caughtBosses(before)), won.l.dungeonUnlock(.caughtBosses(before)) + " · 0/28")
+    }
+
+    /// A save from before the record keeps the captures it can tell: a run whose throws hit, a legendary boss's egg won,
+    /// a boss's egg in the Bag, a Pokémon hatched from one. Not a Pokémon hatched from any other egg, nor a secret's.
+    func testASaveFromBeforeKeepsItsCaptures() throws {
+        var hatchedFromBoss = graduated(6)
+        hatchedFromBoss.hatch = HatchRecord(egg: .dungeon(baseID: 4, form: nil, shiny: false))
+        let plainCharizard = graduated(3)
+        let s = try store(dex: [hatchedFromBoss, plainCharizard] + strong) {
+            $0.dungeons.legendaryEggsWon = [249]
+            $0.dungeons.eggs = [DungeonEgg(id: "boss-1", baseID: 100, form: nil, isShiny: false, sourceSpeciesID: 101),
+                                DungeonEgg(id: "secret-1", baseID: 144, form: PokemonForm("galar"), isShiny: false,
+                                           sourceSpeciesID: 144, isSecret: true)]
+            $0.dungeons.history = [DungeonRunRecord(dungeon: .viridianForest, endedAt: self.now, won: true, left: false, floor: 6,
+                                                    floors: 6, tokens: 1, candies: 0, eggs: 1, items: 0, bossSpeciesID: 15,
+                                                    caught: true),
+                                   DungeonRunRecord(dungeon: .viridianForest, endedAt: self.now, won: true, left: false, floor: 6,
+                                                    floors: 6, tokens: 1, candies: 0, eggs: 0, items: 0, bossSpeciesID: 12,
+                                                    caught: false)]
+            $0.dungeons.bossesCaught = nil
+        }
+        let caught = try XCTUnwrap(s.dungeonProgress.bossesCaught)
+        XCTAssertTrue(caught.contains("viridianForest:15"), "its throws hit")
+        XCTAssertFalse(caught.contains("viridianForest:12"), "missed")
+        XCTAssertTrue(caught.contains("seafoamIslands:249"), "Lugia's egg won")
+        XCTAssertTrue(caught.contains("powerPlant:101"), "Electrode's egg in the Bag")
+        XCTAssertTrue(caught.contains("victoryRoad:6"), "a Charmander hatched from Charizard's egg")
+        XCTAssertFalse(caught.contains("victoryRoad:3"), "a Venusaur from a plain egg")
+        XCTAssertFalse(caught.contains("seafoamIslands:144"), "Galarian Articuno's Secret Egg is no Articuno")
     }
 
     // MARK: Departure and tokens

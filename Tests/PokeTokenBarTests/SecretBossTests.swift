@@ -185,4 +185,25 @@ final class SecretBossTests: XCTestCase {
         }
         guard case .met(251, true, nil)? = caught.last else { return XCTFail("caught, whole") }
     }
+
+    /// A dungeon's boss stays a silhouette until caught in that dungeon, beaten or had from an egg (the owner,
+    /// 2026-11-12: a shiny Mewtwo missed showed as caught).
+    func testABossShowsWholeOnlyOnceCaughtThere() throws {
+        let dungeon = DungeonCatalog.dungeon(.ceruleanCave)
+        func slot(_ prepare: @escaping (inout CompanionState) -> Void) throws -> BossSlots.Slot? {
+            let s = try store(dex: strong + [graduated(150, rarity: .legendary)], prepare: prepare)
+            return BossSlots(store: s, id: .ceruleanCave, dungeon: dungeon, size: 30, shownAtMost: 4).slots.first
+        }
+        let missed = try slot {
+            $0.dungeons.bossesReached = ["ceruleanCave:150"]
+            $0.dungeons.bossesBeaten = ["ceruleanCave:150"]
+        }
+        guard case .met(150, false, nil)? = missed else { return XCTFail("beaten, missed: a silhouette") }
+        let caught = try slot {
+            $0.dungeons.bossesReached = ["ceruleanCave:150"]
+            $0.dungeons.bossesBeaten = ["ceruleanCave:150"]
+            $0.dungeons.bossesCaught = ["ceruleanCave:150"]
+        }
+        guard case .met(150, true, nil)? = caught else { return XCTFail("caught there: whole") }
+    }
 }
