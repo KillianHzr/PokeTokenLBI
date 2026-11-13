@@ -841,6 +841,13 @@ read_when:
   3 to 6 s a dungeon (`OakDungeonTests.testAChallengeIsJudgedOnTheTeamComposeForMePicks`,
   `testTheDungeonProposedGoesWithTheTeamComposeForMePicks`, `testTheDungeonStepWaitsForTheSearch`).
 
+- **A cache keyed on its inputs must follow what its function comes to read.** `e9f87ad` narrowed a dungeon's bosses
+  to those not caught there (`dungeonInfo`), so Prof. Oak's odds came to read `bossesCaught`, which his cache key
+  (`OakDungeonOdds.Inputs`) did not hold: after a catch he kept the odds against the old bosses. **Why it was missed:**
+  the change touched no Oak file, and the key lists inputs by hand. The key now holds `bossesCaught`
+  (`OakDungeonTests.testTheOddsRunAgainOnceABossIsCaughtThere`). Sweep: the store's other caches reset on any state
+  change; Oak's is the only one keyed on chosen inputs.
+
 ## 외부 로그·사용량 소스
 
 - **토큰 파일 파서는 외부 도구의 실제 직렬화 구조체(중첩 객체)를 반영해야 한다.** `jetski-standalone-oauth-token`

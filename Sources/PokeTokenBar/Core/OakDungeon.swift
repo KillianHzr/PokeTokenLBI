@@ -36,6 +36,7 @@ struct OakDungeonOdds {
         let boss: BattleForm?
         let forms: [String: BattleForm]
         let bag: [Int]
+        let caught: Set<String>?
     }
 
     let inputs: Inputs
@@ -165,7 +166,7 @@ extension CompanionStore {
         OakDungeonOdds.Inputs(
             dex: state.dex, loops: state.dungeons.moveLoops, moves: state.dungeons.unlockedMoves,
             choices: state.dungeons.battleFormChoice, won: state.dungeons.battleForms, boss: challengeBoss(id), forms: worn,
-            bag: [ItemKind.oranBerry, .sitrusBerry, .revive, .maxRevive].map(itemCount))
+            bag: [ItemKind.oranBerry, .sitrusBerry, .revive, .maxRevive].map(itemCount), caught: state.dungeons.bossesCaught)
     }
 
     private func oakSearch(_ id: DungeonID) -> OakDungeonOdds? {

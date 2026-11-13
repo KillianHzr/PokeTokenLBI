@@ -361,6 +361,22 @@ final class OakDungeonTests: XCTestCase {
         XCTAssertGreaterThan(runs.count, first, "Charizard's IVs changed")
     }
 
+    func testTheOddsRunAgainOnceABossIsCaughtThere() async throws {
+        let s = try store()
+        let runs = Runs()
+        s.oakWinOdds = { _ in
+            runs.count += 1
+            return 1
+        }
+        await settle(s)
+        let first = runs.count
+        let boss = try XCTUnwrap(DungeonCatalog.dungeon(.viridianForest).bosses.first)
+        s.changeDungeons { $0.bossesCaught = [DungeonProgress.bossKey(.viridianForest, boss)] }
+        await settle(s)
+        XCTAssertNotNil(s.oakDungeon)
+        XCTAssertGreaterThan(runs.count, first, "Viridian Forest's draw lost a boss")
+    }
+
     // MARK: While a team explores
 
     func testNoDungeonWhileATeamExplores() throws {
