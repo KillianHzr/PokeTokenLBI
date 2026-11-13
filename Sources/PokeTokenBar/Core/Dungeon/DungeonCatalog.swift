@@ -163,7 +163,7 @@ struct Dungeon: Sendable, Equatable {
     /// The species its wild Pokémon are drawn from.
     let wild: [Int]
     /// The bosses one is drawn from at the entry.
-    let bosses: [Int]
+    var bosses: [Int]
     let unlocks: [DungeonUnlock]
 
     /// The daily dungeon's eight floors and the weekly one's twelve, else the tier's.

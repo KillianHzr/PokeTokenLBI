@@ -2,8 +2,17 @@ import Foundation
 
 /// The villains' teams in the game (issue #180): the day's theft, the chase, the hideouts.
 extension CompanionStore {
-    /// The dungeon as walked: every dungeon, the hideouts included, is the catalog's.
-    func dungeonInfo(_ id: DungeonID) -> Dungeon { DungeonCatalog.dungeon(id) }
+    /// The dungeon as walked: the catalog's, its bosses narrowed to those not caught in it yet while any is left (the
+    /// owner, 2026-11-13: the same first boss beaten twice in Viridian Forest, "un boss que j'ai jamais capturé en
+    /// priorité tant que j'ai pas capturé tous les boss du donjon"). The draw at the entry, the odds, "Compose for me"
+    /// and the moves suggested all read this. A challenge's and a hideout's are as they are.
+    func dungeonInfo(_ id: DungeonID) -> Dungeon {
+        var dungeon = DungeonCatalog.dungeon(id)
+        guard !id.isChallenge, !id.isHideout else { return dungeon }
+        let left = dungeon.bosses.filter { !state.dungeons.caughtInDungeon(id, $0) }
+        if !left.isEmpty { dungeon.bosses = left }
+        return dungeon
+    }
 
     /// The thefts not settled yet, the latest first.
     var villainAmbushes: [VillainAmbush] { state.dungeons.ambushes.sorted { $0.at > $1.at } }
