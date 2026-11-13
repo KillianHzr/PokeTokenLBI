@@ -125,6 +125,29 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(DungeonCatalog.dungeon(.hallOfOrigin).unlocks, [.beatBosses([483, 484, 487])])
     }
 
+    /// [Regression] The owner, 2026-11-13: Viridian Forest gave him the same boss twice while two were never caught there.
+    /// The draw takes the bosses not caught in the dungeon first, all of them once every one is.
+    func testTheBossesNotCaughtComeFirst() throws {
+        let s = try store(dex: strong) { $0.dungeons.bossesCaught = ["viridianForest:15", "viridianForest:12"] }
+        XCTAssertEqual(s.dungeonInfo(.viridianForest).bosses, [45], "only Pidgeot is left to catch")
+        let context = ExpeditionContext(tier: .t1, shinyDenominator: 64, now: now)
+        let members = strong.prefix(3).compactMap { entry in
+            DungeonTeamBuilder.spec(for: entry).map { ExpeditionMember(entryID: entry.id, spec: $0) }
+        }
+        for seed in 0..<40 as Range<UInt64> {
+            let e = ExpeditionEngine.start(dungeon: s.dungeonInfo(.viridianForest), team: members, rules: [], teamSize: 3,
+                                           seed: seed, cost: 1, berries: [:], revives: [:], context: context)
+            XCTAssertEqual(e.boss.speciesID, 45, "seed \(seed)")
+        }
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: strong.prefix(3).map(\.id)))
+        XCTAssertEqual(s.expedition?.boss.speciesID, 45)
+        let all = try store(dex: strong) { $0.dungeons.bossesCaught = ["viridianForest:15", "viridianForest:12", "viridianForest:45"] }
+        XCTAssertEqual(all.dungeonInfo(.viridianForest).bosses, [15, 12, 45], "all caught: any of them again")
+        let caughtElsewhere = try store(dex: strong) { $0.dungeons.bossesCaught = ["diglettsCave:15"] }
+        XCTAssertEqual(caughtElsewhere.dungeonInfo(.viridianForest).bosses, [15, 12, 45], "caught in its own dungeon only")
+        XCTAssertEqual(s.dungeonInfo(.daily).bosses, DungeonCatalog.dungeon(.daily).bosses)
+    }
+
     /// Mt. Coronet opens once every boss of the ten dungeons listed before it is caught in its dungeon (the owner,
     /// 2026-11-10, then 2026-11-12: one had from an egg counted, so it opened with no boss caught), its other doors still
     /// asked; the Ruins of Alph, the challenges and the hideouts count for nothing.
