@@ -708,7 +708,10 @@ final class SaveTransferTests: XCTestCase {
                                      "amberCarry", "graduationsTowardTreasure", "unseenTreasures",
                                      // The expedition under way, the dungeons' wins, loops and eggs, and the dungeon
                                      // egg incubating: the team and the Bag they belong to follow the save.
-                                     "dungeons", "eggFromDungeon"]
+                                     "dungeons", "eggFromDungeon",
+                                     // The Costume Eggs of the Bag, the one incubating and the tokens toward the next:
+                                     // the Bag and the egg they belong to follow the save.
+                                     "costumeEggs", "eggFromCostume", "costumeEggTokens"]
         let deviceLedger: Set<String> = ["installBaselineSet", "claimedTodayTokensByProvider", "lastDate"]
         let accountLedger: Set<String> = ["candyGrantTier", "candyWindowEpoch", "candyWindowPlan", "candyFeatureSeeded",
                                           "candyGrantsAsYouGo"]

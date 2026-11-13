@@ -62,6 +62,22 @@ enum EggKind: Hashable, Sendable {
     case dungeon(Int)
     /// The Secret Egg, every secret boss's (`SecretBosses`): one look for all, whatever it holds.
     case secret
+    /// A Costume Egg (`CostumeEgg`), by its month: drawn as its season's event egg (`costumeLook`).
+    case costume(Int)
+
+    /// The event egg a month's Costume Egg is drawn as: the New Year's in January, Halloween's in October...
+    static func costumeLook(_ month: Int) -> EventEgg {
+        switch month {
+        case 1: .newYear
+        case 2: .valentine
+        case 4: .easter
+        case 3, 5: .spring
+        case 6, 7, 8: .summer
+        case 9, 11: .autumn
+        case 10: .halloween
+        default: .christmas
+        }
+    }
 
     /// The type egg a dungeon's egg is drawn as until its own look exists.
     static func dungeonLook(_ speciesID: Int) -> EggKind {
@@ -87,6 +103,7 @@ enum EggKind: Hashable, Sendable {
         case .fossil: return EggColor(0.9, 0.6, 0.2)
         case .dungeon(let species): return EggKind.dungeonLook(species).shell
         case .secret: return EggColor(0.06, 0.05, 0.09)
+        case .costume(let month): return EggKind.event(EggKind.costumeLook(month)).shell
         }
     }
 
@@ -101,6 +118,7 @@ enum EggKind: Hashable, Sendable {
         case .fossil: return EggColor(0.45, 0.25, 0.08)
         case .dungeon(let species): return EggKind.dungeonLook(species).marks
         case .secret: return EggColor(1, 0.86, 0.5)
+        case .costume(let month): return EggKind.event(EggKind.costumeLook(month)).marks
         }
     }
 
@@ -291,6 +309,7 @@ extension CompanionStore {
         if state.active == nil, let event = state.eggEvent { return .event(event) }
         if state.active == nil, state.eggFromFossilEgg { return .fossil }
         if state.active == nil, let egg = state.eggFromDungeon { return egg.eggKind }
+        if state.active == nil, let egg = state.eggFromCostume { return .costume(egg.month) }
         return EggKind(tier: eggGuarantee, type: eggTypeGuarantee)
     }
 
@@ -307,6 +326,7 @@ extension CompanionStore {
         case .dungeon, .secret:
             state.eggFromDungeon.map { DungeonEggTitle.text($0.baseID, l: l, language: language, secret: $0.isSecret == true) }
                 ?? l.eggName(nil)
+        case .costume(let month): l.costumeEggName(month)
         }
     }
 }

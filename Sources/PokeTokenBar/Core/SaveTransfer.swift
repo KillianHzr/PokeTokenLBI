@@ -163,6 +163,7 @@ enum SaveTransfer {
         s.merchantTokens = clampToken(s.merchantTokens)
         s.eggUsage = clampToken(s.eggUsage)
         s.amberCarry = clampToken(s.amberCarry)
+        s.costumeEggTokens = clampToken(s.costumeEggTokens)
         // Counts are added to (a treasure, a claim, a purchase): one near Int.max trapped at its next add, at every
         // launch. Capped far above any real count: no item is dropped.
         s.inventory = s.inventory.mapValues { min(max(0, $0), maxItemCount) }
@@ -178,8 +179,12 @@ enum SaveTransfer {
             s.eggTier = nil; s.eggTypeGuarantee = nil; s.pendingHatchID = nil; s.eggFromTypeNullEgg = false
             s.eggFromLegendaryEgg = false; s.eggFromBirthdayEgg = false; s.pendingShiny = false; s.eggEvent = nil; s.eggFromFossilEgg = false
             s.eggFromDungeon = nil
+            s.eggFromCostume = nil
         }
         if let egg = s.eggFromDungeon, !isHatchable(egg) { s.eggFromDungeon = nil }
+        // A Costume Egg this version has no costume for would hatch a plain Pokémon: its costume is dropped with it.
+        if let egg = s.eggFromCostume, egg.entry == nil { s.eggFromCostume = nil }
+        s.costumeEggs.removeAll { $0.entry == nil }
         s.migrateLegacyBadgeClaims()
         s.pendingForm = PokemonForm.resolved(baseID: s.pendingHatchID ?? 0, form: s.pendingForm)
         // 만족시킬 수 없는 보증은 알을 영구히 못 깨게 만든다 — 전설은 capture_rate 로 표현할 수 없어

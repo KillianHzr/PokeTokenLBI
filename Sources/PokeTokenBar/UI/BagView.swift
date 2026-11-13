@@ -37,11 +37,13 @@ struct BagView: View {
     private var content: some View {
         let owned = store.ownedItems
         let eggs = store.dungeonProgress.eggs
-        if owned.isEmpty && eggs.isEmpty && chestFound == nil {
+        let costumeEggs = store.state.costumeEggs
+        let specialEggs = eggs.count + costumeEggs.count
+        if owned.isEmpty && specialEggs == 0 && chestFound == nil {
             emptyState
         } else {
             let sections = Section.allCases.filter { s in
-                owned.contains { Section.of($0.kind) == s } || (s == .items && (!eggs.isEmpty || chestFound != nil))
+                owned.contains { Section.of($0.kind) == s } || (s == .items && (specialEggs > 0 || chestFound != nil))
             }
             let current = sections.contains(section) ? section : sections[0]
             let items = owned.filter { Section.of($0.kind) == current }
@@ -50,7 +52,7 @@ struct BagView: View {
                 if sections.count > 1 {
                     PillPicker(selection: Binding(get: { current }, set: { section = $0 }),
                                options: sections.map { s in
-                                   (s, "\(title(s)) \(owned.filter { Section.of($0.kind) == s }.count + (s == .items ? eggs.count : 0))")
+                                   (s, "\(title(s)) \(owned.filter { Section.of($0.kind) == s }.count + (s == .items ? specialEggs : 0))")
                                })
                 }
                 ScrollView {
@@ -61,12 +63,15 @@ struct BagView: View {
                             if current == .items {
                                 if let found = chestFound { chestBanner(found) }
                                 // The Shop's sections (2026-11-09): the eggs, the dungeon eggs first among them.
-                                ForEach(Self.itemSections(items, dungeonEggs: !eggs.isEmpty), id: \.section) { group in
+                                ForEach(Self.itemSections(items, dungeonEggs: specialEggs > 0), id: \.section) { group in
                                     SectionTitle(text: store.l.shopSection(group.section))
                                         .padding(.top, 4)
                                     if group.section == .eggs {
                                         ForEach(eggs) { egg in
                                             DungeonEggCard(store: store, nav: nav, egg: egg)
+                                        }
+                                        ForEach(costumeEggs) { egg in
+                                            CostumeEggCard(store: store, nav: nav, egg: egg)
                                         }
                                     }
                                     itemCards(group.items)

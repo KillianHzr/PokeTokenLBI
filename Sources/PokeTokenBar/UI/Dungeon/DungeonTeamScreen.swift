@@ -363,7 +363,7 @@ struct TeamMemberRow: View {
             editingSlot = nil
         } label: {
             VStack(spacing: 2) {
-                SpriteView(speciesID: entry.finalID, size: 32, shiny: entry.isShiny, form: entry.form, sameScale: true)
+                SpriteView(speciesID: entry.finalID, size: 32, shiny: entry.isShiny, form: entry.spriteForm(), sameScale: true)
                 PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
                     .font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
                 HStack(spacing: 2) {
@@ -500,7 +500,7 @@ private struct CandidateRow: View {
             }
         } label: {
             HStack(spacing: 8) {
-                SpriteView(speciesID: entry.finalID, size: 30, shiny: entry.isShiny, form: entry.form, sameScale: true)
+                SpriteView(speciesID: entry.finalID, size: 30, shiny: entry.isShiny, form: entry.spriteForm(), sameScale: true)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
