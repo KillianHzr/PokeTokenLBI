@@ -31,8 +31,8 @@ final class VillainTests: XCTestCase {
                               clock: { clock.date }, fileURL: url, rng: SeededRNG(seed: 3), difficulty: 0.1)
     }
 
-    private func date(_ day: Int, hour: Int, month: Int = 11) throws -> Date {
-        var parts = DateComponents(year: 2026, month: month, day: day, hour: hour)
+    private func date(_ day: Int, hour: Int, minute: Int = 0, month: Int = 11) throws -> Date {
+        var parts = DateComponents(year: 2026, month: month, day: day, hour: hour, minute: minute)
         parts.timeZone = .current
         return try XCTUnwrap(Calendar(identifier: .iso8601).date(from: parts))
     }
@@ -57,29 +57,27 @@ final class VillainTests: XCTestCase {
         XCTAssertNil(VillainRules.target([.boulderBadge: 1], random: &random), "nothing they would take")
     }
 
-    /// One day in three, at an hour from 9 to 21, the same on every launch; one team a tier, Team Rocket at the top.
+    /// Every day, at a minute from 8:00 to 17:30 (the owner, 2026-11-13), the same on every launch; one team a tier,
+    /// Team Rocket at the top.
     func testTheDaysDraw() throws {
         let calendar = Calendar(identifier: .iso8601)
         let days = (0..<3000).map { n -> String in
             let c = calendar.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: 1_790_000_000 + Double(n) * 86_400))
             return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
         }
-        let draws = days.map(VillainRules.day)
-        let comes = draws.filter(\.comes).count
-        XCTAssertTrue((850...1150).contains(comes), "\(comes) in 3000")
-        XCTAssertTrue(draws.allSatisfy { (9...21).contains($0.hour) })
-        XCTAssertEqual(VillainRules.day("2026-11-10").hour, VillainRules.day("2026-11-10").hour)
+        let minutes = days.map(VillainRules.minute)
+        XCTAssertTrue(minutes.allSatisfy { (480...1050).contains($0) }, "8:00 to 17:30")
+        XCTAssertTrue(minutes.contains { $0 < 9 * 60 } && minutes.contains { $0 > 17 * 60 }, "the whole span drawn")
+        XCTAssertEqual(minutes.filter { $0 < 12 * 60 + 45 }.count, 1500, accuracy: 150, "evenly")
+        XCTAssertEqual(VillainRules.minute("2026-11-10"), VillainRules.minute("2026-11-10"))
         XCTAssertEqual(DungeonTier.allCases.map(VillainTeam.team), [.skull, .magma, .aqua, .galactic, .rocket])
         XCTAssertTrue(VillainTeam.allCases.allSatisfy { VillainTeam.team(for: $0.tier) == $0 })
     }
 
-    /// A day whose team comes, from 2026-11-10 on.
-    private func comingDay() throws -> (day: Int, hour: Int) {
-        for day in 10...30 {
-            let draw = VillainRules.day(String(format: "2026-11-%02d", day))
-            if draw.comes { return (day, draw.hour) }
-        }
-        throw XCTSkip("no team in November")
+    /// The day 2026-11-`day` and the minute its team comes at.
+    private func coming(_ day: Int = 14) -> (day: Int, hour: Int, minute: Int) {
+        let minute = VillainRules.minute(String(format: "2026-11-%02d", day))
+        return (day, minute / 60, minute % 60)
     }
 
     private func ambush(_ team: VillainTeam, _ item: ItemKind, count: Int = 1, at: Date) -> VillainAmbush {
@@ -88,15 +86,15 @@ final class VillainTests: XCTestCase {
 
     /// They come at their hour and take the item as they come (the owner, 2026-11-10: else no one would fight them).
     func testTheyTakeItAsTheyCome() throws {
-        let (day, hour) = try comingDay()
-        let clock = Clock(try date(day, hour: hour - 1))
+        let (day, hour, minute) = coming()
+        let clock = Clock(try date(day, hour: hour, minute: minute).addingTimeInterval(-60))
         let s = try store(dex: strong, clock: clock) {
             $0.dungeons.wins[DungeonID.viridianForest.rawValue] = 1
             $0.inventory = ["rareCandy": 5]
         }
         s.settleVillainAmbush()
-        XCTAssertTrue(s.villainAmbushes.isEmpty, "before their hour")
-        clock.date = try date(day, hour: hour)
+        XCTAssertTrue(s.villainAmbushes.isEmpty, "a minute before their minute")
+        clock.date = try date(day, hour: hour, minute: minute)
         s.settleVillainAmbush()
         let theft = try XCTUnwrap(s.villainAmbushes.first)
         XCTAssertEqual(theft.kind, .rareCandy)
@@ -135,37 +133,56 @@ final class VillainTests: XCTestCase {
         XCTAssertTrue(s.villainAmbushes.isEmpty, "settled: it goes")
     }
 
-    /// Thefts add up, ignored or not, each team to its hideout; never two days in a row; none once nothing is left to
-    /// take, and a team only for what it is after (no Team Rocket without an achievement's artifact).
+    /// Thefts add up, ignored or not, each team to its hideout, one a day and every day (the owner, 2026-11-13); none
+    /// once nothing is left to take, and a team only for what it is after (no Team Rocket without an achievement's
+    /// artifact).
     func testTheftsAddUp() throws {
-        var days: [(day: Int, hour: Int)] = []
-        for day in 10...60 {
-            let key = Calendar(identifier: .iso8601).date(byAdding: .day, value: day - 10, to: try date(10, hour: 0))
-                .map { DungeonProgress.challengePeriod(.daily, at: $0) } ?? ""
-            let draw = VillainRules.day(key)
-            if draw.comes { days.append((day - 10, draw.hour)) }
-        }
         let clock = Clock(try date(10, hour: 0))
         let s = try store(dex: strong, clock: clock) {
             $0.dungeons.wins[DungeonID.viridianForest.rawValue] = 1
             $0.inventory = ["rareCandy": 2, "leafStone": 1]
         }
         var thefts: [String] = []
-        var lastDay: Int?
-        for (offset, hour) in days {
-            clock.date = try date(10, hour: hour).addingTimeInterval(Double(offset) * 86_400)
+        for day in 10...14 {
+            clock.date = try date(day, hour: 17, minute: 30)
             let before = s.villainAmbushes.count
             s.settleVillainAmbush()
-            if s.villainAmbushes.count > before {
-                if let lastDay { XCTAssertGreaterThan(offset - lastDay, 1, "never two days in a row") }
-                lastDay = offset
-                thefts.append(s.villainAmbushes[0].item)
-            }
+            s.settleVillainAmbush()
+            XCTAssertLessThanOrEqual(s.villainAmbushes.count - before, 1, "one a day")
+            if s.villainAmbushes.count > before { thefts.append(s.villainAmbushes[0].item) }
         }
+        XCTAssertEqual(thefts.count, 2, "two days running, then nothing left: \(thefts)")
         XCTAssertEqual(Set(thefts), ["rareCandy", "leafStone"], "both taken, the first theft never chased")
         XCTAssertEqual(s.itemCount(.rareCandy) + s.itemCount(.leafStone), 0, "nothing left: no one comes any more")
         XCTAssertEqual(Set(s.villainStashes.map(\.team)), [.skull, .magma], "each team to its hideout")
         XCTAssertFalse(s.villainAmbushes.contains { $0.team == .rocket }, "no artifact, no Team Rocket")
+    }
+
+    /// [Regression] Their minute passing while a team explored, the day was lost: the owner's two-day Cerulean Cave run
+    /// of 2026-11-10 took both days they were due. They now wait for the team's return (the owner, 2026-11-13), then
+    /// come once, even days later.
+    func testTheyWaitForTheTeamsReturn() throws {
+        let (day, hour, minute) = coming()
+        let clock = Clock(try date(day, hour: 7))
+        let s = try store(dex: strong, clock: clock) {
+            $0.dungeons.wins[DungeonID.viridianForest.rawValue] = 1
+            $0.inventory = ["rareCandy": 9]
+        }
+        XCTAssertTrue(s.startExpedition(.viridianForest, team: strong.prefix(3).map(\.id)))
+        clock.date = try date(day, hour: hour, minute: minute)
+        s.settleVillainAmbush()
+        XCTAssertTrue(s.villainAmbushes.isEmpty, "the team away")
+        clock.date = try date(day + 1, hour: 18)
+        s.settleVillainAmbush()
+        XCTAssertTrue(s.villainAmbushes.isEmpty, "still away the next day")
+        s.changeDungeons { $0.expedition = nil }
+        s.settleVillainAmbush()
+        XCTAssertEqual(s.villainAmbushes.count, 1, "back: they come")
+        s.settleVillainAmbush()
+        XCTAssertEqual(s.villainAmbushes.count, 1, "once, not once for each day away")
+        clock.date = try date(day + 2, hour: 17, minute: 30)
+        s.settleVillainAmbush()
+        XCTAssertEqual(s.villainAmbushes.count, 2, "the next day, at their minute")
     }
 
     /// The chase lost: the item stays at the hideout, with no key. Won: it comes back and the hideout closes.
@@ -205,8 +222,8 @@ final class VillainTests: XCTestCase {
     /// An achievement's artifact taken as they come stays claimed: never claimed twice.
     func testAStolenArtifactStaysClaimed() throws {
         let artifact = achievementArtifact
-        let (day, hour) = try comingDay()
-        let clock = Clock(try date(day, hour: hour))
+        let (day, hour, minute) = coming()
+        let clock = Clock(try date(day, hour: hour, minute: minute))
         let s = try store(dex: strong, clock: clock) {
             $0.dungeons.wins[DungeonID.viridianForest.rawValue] = 1
             $0.inventory = [artifact.rawValue: 1]

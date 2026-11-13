@@ -117,10 +117,10 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var ambushes: [VillainAmbush] = []
     /// What each team took to its hideout, one a team: its hideout stays open until its leader falls.
     var stashes: [VillainStash] = []
-    /// The last day (`yyyy-MM-dd`) whose draw was settled: one theft a day at most.
+    /// The last day (`yyyy-MM-dd`) whose theft was settled: one theft a day at most.
     var villainDay: String?
-    /// The last day a team stole: never two days in a row.
-    var villainLastTheft: String?
+    /// The day whose thieves' minute passed while a team explored: they wait for its return (the owner, 2026-11-13).
+    var villainWaiting: String?
     /// The secret bosses met and those caught (`SecretBosses.key`, "seafoamIslands:144:galar"), apart from the
     /// dungeons' bosses: they count for none of their records.
     var secretsMet: Set<String> = []
@@ -169,7 +169,7 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         ambushes = c.lenient([Lossy<VillainAmbush>].self, forKey: .ambushes, default: []).compactMap(\.value)
         stashes = c.lenient([Lossy<VillainStash>].self, forKey: .stashes, default: []).compactMap(\.value)
         villainDay = c.lenientOptional(String.self, forKey: .villainDay)
-        villainLastTheft = c.lenientOptional(String.self, forKey: .villainLastTheft)
+        villainWaiting = c.lenientOptional(String.self, forKey: .villainWaiting)
         challengeWins = c.lenient([String: String].self, forKey: .challengeWins, default: [:])
             .filter { BattleForms.form(key: $0.value) != nil }
         // A save from before keyed its wins nowhere: each won run counts for the period it ended in.

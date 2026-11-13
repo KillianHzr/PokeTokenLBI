@@ -135,8 +135,10 @@ struct VillainStash: Codable, Sendable, Equatable {
 }
 
 enum VillainRules {
-    /// One day in three at most, at an hour of the day between 9 and 21.
-    static let oneDayIn = 3
+    /// Every day, at a minute drawn between 8:00 and 17:30 (the owner, 2026-11-13: "1 fois par jour mais à une heure
+    /// random entre 8h et 17h30"; one day in three at most before, a rule he never asked for).
+    static let earliestMinute = 8 * 60
+    static let latestMinute = 17 * 60 + 30
 
     /// What an item is worth to a thief: the hideout's tier. Nil: never stolen (badges, medals, form rewards, whose
     /// steps are counted apart).
@@ -162,13 +164,11 @@ enum VillainRules {
     /// Up to three of an everyday item at once, one of anything else.
     static func count(of kind: ItemKind, have: Int) -> Int { tier(of: kind) == .t1 ? min(3, have) : min(1, have) }
 
-    /// The day's draw (`yyyy-MM-dd`), the same all day on every launch: FNV-1a, as the merchant's. The team is the one of
-    /// the item it takes (`VillainTeam.team(for:)`).
-    static func day(_ day: String) -> (comes: Bool, hour: Int) {
+    /// The minute of the day (`yyyy-MM-dd`) they come at, from midnight, the same all day on every launch: FNV-1a, as the
+    /// merchant's. The team is the one of the item it takes (`VillainTeam.team(for:)`).
+    static func minute(_ day: String) -> Int {
         var random = random(day)
-        let comes = random.below(oneDayIn) == 0
-        let hour = 9 + random.below(13)
-        return (comes, hour)
+        return earliestMinute + random.below(latestMinute - earliestMinute + 1)
     }
 
     static func random(_ text: String) -> BattleRandom {
