@@ -97,6 +97,14 @@ enum Changelog {
                            "Prof. Eich schlägt jetzt auch die Dungeons vor, deren Bosse du dort noch nicht gefangen hast: Der \(coronet) öffnet sich erst, wenn jeder in seinem Dungeon gefangen ist.",
                            "Профессор Оук теперь советует и подземелья, боссов которых вы там ещё не поймали: \(coronet) откроется, только когда каждый будет пойман в своём подземелье.")
             },
+            .improved("2026-11-13-villains-daily", { $0.t("악당 팀이 이제 매일 오전 8시에서 오후 5시 30분 사이의 무작위 시간에 와요. 팀이 던전 탐험 중이면 돌아올 때까지 기다렸다가 와요.",
+                                                     "The villains' teams now come every day, at a random time between 8 am and 5:30 pm. If your team is exploring a dungeon, they wait for it to come back.",
+                                                     "悪の組織が毎日、8時から17時30分のあいだのランダムな時刻に来るようになりました。チームがダンジョン探検中なら、帰ってくるまで待ちます。",
+                                                     "Los equipos de villanos vienen ahora cada día, a una hora al azar entre las 8:00 y las 17:30. Si tu equipo está explorando una mazmorra, esperan a que vuelva.",
+                                                     "Les teams de méchants passent maintenant chaque jour, à une heure au hasard entre 8 h et 17 h 30. Si ton équipe est en expédition, elles attendent son retour.",
+                                                     "As equipes de vilões agora vêm todo dia, num horário aleatório entre 8h e 17h30. Se sua equipe estiver explorando uma masmorra, elas esperam ela voltar.",
+                                                     "Die Schurkenteams kommen jetzt jeden Tag, zu einer zufälligen Zeit zwischen 8 und 17:30 Uhr. Ist dein Team in einem Dungeon unterwegs, warten sie, bis es zurück ist.",
+                                                     "Злодейские команды теперь приходят каждый день в случайное время с 8:00 до 17:30. Если твоя команда в подземелье, они ждут её возвращения.") }),
             .improved("2026-11-13-compose-search") { l in
                 let c = l.dungeonComposeForMe
                 return l.t("\"\(c)\"이 훨씬 많은 팀을 시험해요. 가방에서 가져가는 것까지 넣어 수천 번의 던전을 시뮬레이션하고 가장 많이 이기는 팀을 골라요. 몇 초 걸릴 수 있어요.",

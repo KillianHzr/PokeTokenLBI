@@ -11,20 +11,33 @@ extension CompanionStore {
 
     func villainStash(_ team: VillainTeam) -> VillainStash? { state.dungeons.stashes.first { $0.team == team } }
 
-    /// The day's thieves, at their hour: one day in three, never the day after a theft, never while an expedition runs,
-    /// nor before a first dungeon is won with a team to give chase. Settled once a day. They take the item as they come
-    /// (the owner, 2026-11-10: else no one would fight them) and thefts add up, hideouts open or not; the team is the one
-    /// of the item's tier, so a team only comes for what it is after, and none comes once nothing is left to take.
+    /// The day's thieves, every day at their minute (`VillainRules.minute`, the owner, 2026-11-13). Their minute passing
+    /// while a team explores, they wait for its return (the owner, 2026-11-13: before, the day was lost, and his
+    /// two-day Cerulean Cave run had taken both days they were due), then come at once, that day's theft whatever the
+    /// day: a team away for days brings one theft back, not one a day. Never before a first dungeon is won with a team to
+    /// give chase. They take the item as they come (the owner, 2026-11-10: else no one would fight them) and thefts add
+    /// up, hideouts open or not; the team is the one of the item's tier, so a team only comes for what it is after, and
+    /// none comes once nothing is left to take.
     func settleVillainAmbush() {
         let day = challengePeriod(.daily)
         guard state.dungeons.villainDay != day else { return }
-        let draw = VillainRules.day(day)
-        if draw.comes, LocalUsageReader.gregorianCalendar().component(.hour, from: currentDate) < draw.hour { return }
-        changeDungeons { $0.villainDay = day }
-        let yesterday = challengePeriod(.daily, at: currentDate.addingTimeInterval(-86_400))
+        if state.dungeons.villainWaiting == nil {
+            let parts = LocalUsageReader.gregorianCalendar().dateComponents([.hour, .minute], from: currentDate)
+            guard (parts.hour ?? 0) * 60 + (parts.minute ?? 0) >= VillainRules.minute(day) else { return }
+        }
+        if expedition != nil {
+            if state.dungeons.villainWaiting == nil {
+                changeDungeons { $0.villainWaiting = day }
+                persist()
+            }
+            return
+        }
+        changeDungeons {
+            $0.villainDay = day
+            $0.villainWaiting = nil
+        }
         let wonOne = DungeonCatalog.all.contains { !$0.id.isChallenge && !$0.id.isHideout && state.dungeons.wins($0.id) > 0 }
-        guard draw.comes, wonOne, expedition == nil, state.dungeons.villainLastTheft != yesterday,
-              dungeonCandidates.count >= 3 else {
+        guard wonOne, dungeonCandidates.count >= 3 else {
             persist()
             return
         }
@@ -43,7 +56,6 @@ extension CompanionStore {
                                    at: currentDate, seed: random.next(), grunts: VillainRules.grunts(team, random: &random))
         changeDungeons { progress in
             progress.ambushes.append(ambush)
-            progress.villainLastTheft = day
             if let i = progress.stashes.firstIndex(where: { $0.team == team }) {
                 progress.stashes[i].items[target.kind.rawValue, default: 0] += taken
             } else {
