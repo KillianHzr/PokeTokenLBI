@@ -822,6 +822,16 @@ read_when:
   keep. Sweep: `reachEstimate` and the departure already read `bagBerries` and `bagRevives`; Prof. Oak's
   `composeTeam` keeps the greedy team, never simulated. A simulation that picks must run what the action will run.
 
+- **Advice that weighs an action must weigh the choice the action will make.** Prof. Oak judged a dungeon on
+  `composeTeam`, the greedy team, which "Compose for me" also kept until `ac81d42` made the button search many teams with
+  the Bag's berries: his odds and the Bottle Caps he lists then spoke of another team than the one the button sets, and
+  he kept quiet on challenges only the searched team wins. **Why it was missed:** the change's sweep checked that Oak
+  never simulates to pick, not what his numbers describe, and no test set his team beside the button's. Oak now weighs
+  the daily and weekly dungeons, and shows any dungeon he proposes, with the button's own search (`composeChoice`),
+  run off the main thread and cached; a regular dungeon's threshold still reads his greedy team, the search costing
+  3 to 6 s a dungeon (`OakDungeonTests.testAChallengeIsJudgedOnTheTeamComposeForMePicks`,
+  `testTheDungeonProposedGoesWithTheTeamComposeForMePicks`, `testTheDungeonStepWaitsForTheSearch`).
+
 ## 외부 로그·사용량 소스
 
 - **토큰 파일 파서는 외부 도구의 실제 직렬화 구조체(중첩 객체)를 반영해야 한다.** `jetski-standalone-oauth-token`
