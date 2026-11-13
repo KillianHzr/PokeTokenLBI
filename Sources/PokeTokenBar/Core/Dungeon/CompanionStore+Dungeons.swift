@@ -323,16 +323,24 @@ extension CompanionStore {
                                           boss: challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
     }
 
-    /// What "Compose for me" runs off the main thread: the candidate teams, as they would set off, and a challenge's boss.
+    /// What "Compose for me" runs off the main thread: the starting teams and the bench, as they would set off, a
+    /// challenge's boss, and the Bag's berries and Revives the team would take along.
     func composeChoice(for id: DungeonID) -> DungeonTeamBuilder.ComposeChoice {
         let (size, rules) = teamRules(id)
         let pool = composePool(id)
         let dungeon = dungeonInfo(id)
         let boss = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
-        let teams = DungeonTeamBuilder.candidateTeams(pool, dungeon: dungeon, size: size, rules: rules, boss: boss).map { ids in
-            ids.compactMap { entryID in pool.first { $0.candidate.entryID == entryID }.map { ExpeditionMember(entryID: entryID, spec: $0.spec) } }
+        let start = DungeonTeamBuilder.searchStart(pool, dungeon: dungeon, size: size, rules: rules, boss: boss)
+        let byID = Dictionary(pool.map { ($0.candidate.entryID, $0) }, uniquingKeysWith: { first, _ in first })
+        let teams = start.teams.map { ids in
+            ids.compactMap { entryID in byID[entryID].map { ExpeditionMember(entryID: entryID, spec: $0.spec) } }
         }
-        return .init(teams: teams, dungeon: dungeon, boss: boss)
+        let bench = start.bench.compactMap { entryID in
+            byID[entryID].map { DungeonTeamBuilder.ComposeChoice.Pick(candidate: $0.candidate,
+                                                                      member: ExpeditionMember(entryID: entryID, spec: $0.spec)) }
+        }
+        return .init(teams: teams, dungeon: dungeon, boss: boss, berries: bagBerries, revives: bagRevives, bench: bench,
+                     rules: rules)
     }
 
     private func composePool(_ id: DungeonID, forms: [String: BattleForm] = [:]) -> [(candidate: DungeonCandidate, spec: BattlerSpec)] {

@@ -809,6 +809,19 @@ read_when:
   step, both `state.dungeons`); `DungeonsView` counts the door through `bossesLeft`; the expedition guide picks no
   dungeon.
 
+- **A choice simulated on other conditions than the departure's picks for those conditions.** "Compose for me" played
+  its candidate teams without the Bag's berries and Revives, which the departure takes along: the owner's day dungeon
+  of 2026-11-13 kept a team winning 88% of the runs with his six Sitrus Berries, where the other candidate won 96%
+  (both near 75% without them, so 24 runs chose by chance). And a dungeon without a team-wide rule weighed two teams
+  only. **Why it was missed:** `testComposeKeepsTheTeamThatWinsMost` compared a weak team with a strong one, a gap no
+  missing berry could close, and the odds shown on the team screen (`reachEstimate`) did carry the Bag, so the two
+  numbers were never set side by side. The search now runs with the Bag's berries and Revives
+  (`DungeonStoreTests.testComposeCarriesTheBagAndABench`), from four starting teams, every team one swap away from
+  its best twice over (`DungeonTeamChoiceTests.testTheSearchSwapsInTheBench`), then the best on more runs until 400,
+  on every core (`BattleEngine.parallelMap`). On his save: 99% on 600 runs it never saw, 84% for the team it used to
+  keep. Sweep: `reachEstimate` and the departure already read `bagBerries` and `bagRevives`; Prof. Oak's
+  `composeTeam` keeps the greedy team, never simulated. A simulation that picks must run what the action will run.
+
 ## 외부 로그·사용량 소스
 
 - **토큰 파일 파서는 외부 도구의 실제 직렬화 구조체(중첩 객체)를 반영해야 한다.** `jetski-standalone-oauth-token`

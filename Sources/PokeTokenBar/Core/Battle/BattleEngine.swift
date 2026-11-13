@@ -25,6 +25,50 @@ enum BattleEngine {
             thread.start()
         }
     }
+
+    /// `work` on every item, on as many threads as the Mac has cores, each with `stackSize`, the calling thread
+    /// waiting: "Compose for me" plays its thousands of expeditions in seconds (the owner, 2026-11-13: "il faut la
+    /// meilleure équipe possible", a few seconds of loading allowed). The results come in the items' order, whichever
+    /// thread ran them, so the same items always give the same results.
+    static func parallelMap<T: Sendable, R: Sendable>(_ items: [T], _ work: @escaping @Sendable (T) -> R) -> [R] {
+        let threads = min(items.count, ProcessInfo.processInfo.activeProcessorCount)
+        guard threads > 1 else { return items.map(work) }
+        let results = ParallelResults<R>(count: items.count)
+        let group = DispatchGroup()
+        for _ in 0..<threads {
+            group.enter()
+            let thread = Thread {
+                while let i = results.nextIndex() { results.store(work(items[i]), at: i) }
+                group.leave()
+            }
+            thread.stackSize = stackSize
+            thread.qualityOfService = .userInitiated
+            thread.start()
+        }
+        group.wait()
+        return results.values()
+    }
+}
+
+/// `parallelMap`'s shared state: the next item to take and the results so far, behind a lock.
+private final class ParallelResults<R: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var next = 0
+    private var slots: [R?]
+
+    init(count: Int) { slots = Array(repeating: nil, count: count) }
+
+    func nextIndex() -> Int? {
+        lock.withLock {
+            guard next < slots.count else { return nil }
+            defer { next += 1 }
+            return next
+        }
+    }
+
+    func store(_ value: R, at index: Int) { lock.withLock { slots[index] = value } }
+
+    func values() -> [R] { lock.withLock { slots.compactMap { $0 } } }
 }
 
 /// One battle being played. Every list is walked in a fixed order, so the same seed always gives the same battle.

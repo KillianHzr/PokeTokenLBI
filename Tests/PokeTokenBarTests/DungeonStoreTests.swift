@@ -1097,6 +1097,23 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(estimate.berries[.sitrus], 3, "the berries the departure takes")
     }
 
+    /// [Regression] The owner's day dungeon of 2026-11-13: "Compose for me" played its teams without the Bag's
+    /// berries and kept one winning 88% of the runs over one winning 96% with the six Sitrus Berries he took along.
+    /// Its runs now carry the berries and Revives the departure takes, and a bench to swap from.
+    func testComposeCarriesTheBagAndABench() throws {
+        let dex = [6, 9, 3, 25, 143, 130, 149, 65, 94, 248].map { graduated($0) }
+        let s = try store(dex: dex, inventory: [.sitrusBerry: 6, .revive: 2]) {
+            $0.dungeons.wins[DungeonID.victoryRoad.rawValue] = 1
+        }
+        let choice = s.composeChoice(for: .daily)
+        XCTAssertEqual(choice.berries[.sitrus], 6, "the berries the departure takes")
+        XCTAssertEqual(choice.revives[ItemKind.revive.rawValue], 2)
+        let benched = Set(choice.bench.map(\.member.entryID))
+        XCTAssertFalse(choice.teams.isEmpty)
+        for team in choice.teams { XCTAssertTrue(Set(team.map(\.entryID)).isSubset(of: benched)) }
+        XCTAssertGreaterThan(choice.bench.count, 6, "more than a team to swap from")
+    }
+
     /// [Regression] Tokens past the boss's fall walked nowhere: a morning's catch-up finishing the last floor lost the
     /// rest. What the dungeon does not take goes back to the growth it paused.
     func testTokensPastTheEndGoBackToGrowth() throws {

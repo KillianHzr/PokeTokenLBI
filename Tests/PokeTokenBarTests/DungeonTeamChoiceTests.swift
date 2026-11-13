@@ -53,7 +53,7 @@ final class DungeonTeamChoiceTests: XCTestCase {
         let weak = try [10, 13, 129, 16].map { try member($0) }
         let strong = try [150, 94, 3, 248].map { try member($0) }
         let choice = DungeonTeamBuilder.ComposeChoice(teams: [weak, strong], dungeon: dungeon, boss: nil)
-        XCTAssertEqual(choice.run(runs: 6), strong.map(\.entryID))
+        XCTAssertEqual(choice.run(.init(screen: 6, climbs: 0, rounds: [])), strong.map(\.entryID))
         XCTAssertEqual(DungeonTeamBuilder.ComposeChoice(teams: [weak], dungeon: dungeon, boss: nil).run(), weak.map(\.entryID),
                        "one team: no run")
         XCTAssertEqual(DungeonTeamBuilder.ComposeChoice(teams: [], dungeon: dungeon, boss: nil).run(), [])
@@ -77,12 +77,49 @@ final class DungeonTeamChoiceTests: XCTestCase {
             XCTAssertTrue(DungeonTeamRules.isValid(picked, size: 4, rules: moon.rules), "\(team)")
         }
         XCTAssertEqual(Set(teams.map { Set($0) }).count, teams.count, "no team twice")
-        // A dungeon without a team-wide rule has one group: its bosses rarely change who is best, and the same team
-        // must not be run twice.
+        // A dungeon without a team-wide rule has one group: a team by the theme, by the theme and the bosses, by the
+        // bosses most, by raw strength, the same team never twice.
         let forest = DungeonCatalog.dungeon(.viridianForest)
         let one = DungeonTeamBuilder.candidateTeams(pool, dungeon: forest, size: 3, rules: [])
         XCTAssertEqual(Set(one.map { Set($0) }).count, one.count, "no team twice")
-        XCTAssertLessThanOrEqual(one.count, 2)
+        XCTAssertLessThanOrEqual(one.count, 4)
+        let start = DungeonTeamBuilder.searchStart(pool, dungeon: moon, size: 4, rules: moon.rules)
+        XCTAssertEqual(start.teams, teams)
+        XCTAssertTrue(Set(teams.flatMap { $0 }).isSubset(of: Set(start.bench)), "the starting teams' members on the bench")
+        XCTAssertEqual(Set(start.bench).count, start.bench.count, "each once")
+    }
+
+    /// [Regression] The owner's day dungeon of 2026-11-13: two teams weighed, the one kept won 88% of the runs where a
+    /// team three swaps away won 96%. The search tries every team one swap away from its best, again from the best of
+    /// those: from four weak Pokémon, it brings strong ones in, and the same choice always gives the same team.
+    func testTheSearchSwapsInTheBench() throws {
+        let dungeon = DungeonCatalog.dungeon(.mtMoon)
+        let weak = try [10, 13, 129, 16].map { try member($0) }
+        let strong = try [150, 94, 3, 248].map { try member($0) }
+        let bench = (weak + strong).map { m in
+            DungeonTeamBuilder.ComposeChoice.Pick(
+                candidate: DungeonCandidate(entryID: m.entryID, speciesID: m.spec.speciesID,
+                                            baseID: SpeciesInfo.baseID(of: m.spec.speciesID), form: nil,
+                                            rarity: SpeciesInfo.lineRarity(of: m.spec.speciesID), isShiny: false),
+                member: m)
+        }
+        let choice = DungeonTeamBuilder.ComposeChoice(teams: [weak], dungeon: dungeon, boss: nil, bench: bench)
+        let search = DungeonTeamBuilder.ComposeChoice.Search(screen: 6, climbs: 4, climbFrom: 1,
+                                                              rounds: [.init(keep: 3, runs: 12)])
+        let picked = choice.run(search)
+        XCTAssertEqual(picked.count, 4)
+        XCTAssertEqual(Set(picked).count, 4)
+        XCTAssertGreaterThanOrEqual(Set(picked).intersection(strong.map(\.entryID)).count, 2, "\(picked)")
+        XCTAssertEqual(choice.run(search), picked, "the same choice, the same team, whatever the threads")
+        XCTAssertEqual(choice.swaps(of: weak).count, 4 * 4, "each slot, each Pokémon of the bench not in it")
+    }
+
+    /// The runs spread over the cores come back in their order.
+    func testTheParallelRunsKeepTheirOrder() {
+        let items = Array(0..<300)
+        XCTAssertEqual(BattleEngine.parallelMap(items) { $0 * $0 }, items.map { $0 * $0 })
+        XCTAssertEqual(BattleEngine.parallelMap([7]) { $0 + 1 }, [8])
+        XCTAssertEqual(BattleEngine.parallelMap([Int]()) { $0 }, [])
     }
 
     /// The dice's two paths as the dungeon's page shows them: the draw's own weights, in percent; the risky path more
