@@ -797,6 +797,15 @@ read_when:
   (`OakAdviceTests.testWhileATeamExploresTheBagsEggStillWaitsForTheSpare`). Sweep: the Bag's buttons are the gates' only
   other callers, and they act now.
 
+- **A daily draw settled before its blockers are checked is lost, not postponed.** `settleVillainAmbush` marked the
+  day as settled, then gave up when a team was exploring: the owner's two-day Cerulean Cave run of 2026-11-10 took both
+  days the thieves were due, and with one day in three drawn (a rule of the plan, never his), the next came eight days
+  later. **Why it was missed:** the tests settled their days with no expedition running, and the plan read "never
+  during an expedition" as a skip. They now come every day at a minute from 8:00 to 17:30 and, their minute passing
+  while a team explores, wait for its return (`DungeonProgress.villainWaiting`,
+  `VillainTests.testTheyWaitForTheTeamsReturn`). Sweep: the merchant's and the challenges' daily draws have no
+  blocker; the event eggs keep a claim window. A periodic event a state can block waits for that state to end.
+
 - **A choice simulated on other conditions than the departure's picks for those conditions.** "Compose for me" played
   its candidate teams without the Bag's berries and Revives, which the departure takes along: the owner's day dungeon
   of 2026-11-13 kept a team winning 88% of the runs with his six Sitrus Berries, where the other candidate won 96%
