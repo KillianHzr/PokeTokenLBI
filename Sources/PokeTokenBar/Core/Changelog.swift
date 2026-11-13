@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-13", entries: [
+            .improved("2026-11-13-oak-compose-team") { l in
+                let c = l.dungeonComposeForMe
+                return l.t("오박사가 이제 오늘·이번 주 던전을 \"\(c)\"이 고르는 팀으로 판단하고, 던전을 추천할 때 말하는 승률도 그 팀의 승률이에요.",
+                           "Prof. Oak now weighs the daily and weekly dungeons with the team \"\(c)\" picks, and the odds he gives for a dungeon are that team's.",
+                           "オーキド博士が、今日と今週のダンジョンを「\(c)」が選ぶチームで判断します。ダンジョンを勧めるときの勝率も、そのチームのものです。",
+                           "El Profesor Oak ahora juzga las mazmorras diaria y semanal con el equipo que elige \"\(c)\", y las probabilidades que da para una mazmorra son las de ese equipo.",
+                           "Le Prof. Chen juge maintenant les donjons du jour et de la semaine avec l'équipe que choisit \"\(c)\", et les chances qu'il donne pour un donjon sont celles de cette équipe.",
+                           "O Prof. Carvalho agora avalia as masmorras diária e semanal com a equipe que \"\(c)\" escolhe, e as chances que ele dá para uma masmorra são as dessa equipe.",
+                           "Prof. Eich beurteilt den Tages- und den Wochendungeon jetzt mit dem Team, das \"\(c)\" wählt, und die Gewinnchance, die er für einen Dungeon nennt, ist die dieses Teams.",
+                           "Профессор Оук теперь оценивает подземелья дня и недели по команде, которую выбирает \"\(c)\", и шансы, которые он называет для подземелья, относятся к этой команде.")
+            },
             .improved("2026-11-13-oak-dungeon-wait", { $0.t("오박사가 던전을 추천할 때 던전이 쓰는 토큰과, 그동안 포켓몬이나 알이 자라지 않는다는 것도 알려 줘요.",
                                                          "When Prof. Oak suggests a dungeon, he now says how many tokens it takes, while your Pokémon or egg doesn't grow.",
                                                          "オーキド博士がダンジョンを勧めるとき、使うトークンと、そのあいだポケモンやタマゴが育たないことも伝えます。",
