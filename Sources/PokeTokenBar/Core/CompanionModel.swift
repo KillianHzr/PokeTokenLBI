@@ -1329,6 +1329,9 @@ struct MonState: Codable, Sendable, Equatable {
     var hatch: HatchRecord?
     /// The costume this individual brought when it became a Pikachu: it wears that one rather than the equipped one.
     var pikachuCostume: PikachuCostume?
+    /// The Pokémon GO costume it hatched in from a Costume Egg (`CostumeEntry.code`): it grows only into the stages
+    /// that wear it, and wears it for good.
+    var costume: String?
     // 메타몽 위장 — nil=일반. 값=정체 메타몽, 이 종으로 위장 중(위장 구간엔 baseID 와 동일, 리빌 후에도 원 위장체 보존).
     var dittoDisguise: Int?
     var dittoRevealed = false       // 위장 → 리빌(정체 공개) 전환 여부
@@ -1338,6 +1341,10 @@ struct MonState: Codable, Sendable, Equatable {
     var currentID: Int { pathIDs.isEmpty ? baseID : pathIDs[min(stageIndex, pathIDs.count - 1)] }
     /// The look its sprites show: a Pikachu in the costume it brought, otherwise its form at this species.
     var spriteForm: PokemonForm? {
+        if let costume {
+            return CostumeCatalog.entry(code: costume, speciesID: currentID, form: form)?.displayForm
+                ?? CostumeCatalog.displayForm(code: costume, form: nil)
+        }
         if currentID == PikachuCostume.speciesID, let pikachuCostume { return pikachuCostume.form }
         return PokemonForm.resolved(speciesID: currentID, form: form)
     }
@@ -1416,6 +1423,7 @@ struct MonState: Codable, Sendable, Equatable {
         dittoDisguise = try c.decodeIfPresent(Int.self, forKey: .dittoDisguise)
         dittoRevealed = try c.decodeIfPresent(Bool.self, forKey: .dittoRevealed) ?? false
         form = PokemonForm.resolved(baseID: baseID, form: PokemonForm.decoded(from: decoder, keys: "form", "unownForm"))
+        costume = c.lenientOptional(String.self, forKey: .costume)
     }
 }
 
@@ -1456,12 +1464,23 @@ struct DexEntry: Codable, Sendable, Identifiable, Equatable {
     var raising: RaisingRecord?
     /// How it hatched (`HatchRecord`), for a Pokémon hatched since the record is kept, or the egg its player chose.
     var hatch: HatchRecord?
-    /// The records it carried while raised (`MonState.raising`, `MonState.hatch`).
+    /// The Pokémon GO costume it wears (`MonState.costume`), at every stage of its chain that has it.
+    var costume: String?
+    /// The records it carried while raised (`MonState.raising`, `MonState.hatch`), and its costume.
     func withRecords(of mon: MonState) -> DexEntry {
         var entry = self
         entry.raising = mon.raising
         entry.hatch = mon.hatch
+        entry.costume = mon.costume
         return entry
+    }
+    /// The look its sprites show at `speciesID` (its final species by default): its costume when that stage wears it.
+    func spriteForm(at speciesID: Int? = nil) -> PokemonForm? {
+        let id = speciesID ?? finalID
+        guard let costume, let entry = CostumeCatalog.entry(code: costume, speciesID: id, form: form) else {
+            return PokemonForm.resolved(speciesID: id, form: form)
+        }
+        return entry.displayForm
     }
     /// 졸업이 아니라 놓아준 기록인가 — 포획 로그가 뱃지를 가르는 판정.
     var isReleased: Bool { releasedAt != nil }
@@ -1512,6 +1531,7 @@ struct DexEntry: Codable, Sendable, Identifiable, Equatable {
         raising = (try? c.decodeIfPresent(RaisingRecord.self, forKey: .raising)) ?? nil
         hatch = (try? c.decodeIfPresent(HatchRecord.self, forKey: .hatch)) ?? nil
         form = PokemonForm.resolved(baseID: baseID, form: PokemonForm.decoded(from: decoder, keys: "form", "unownForm"))
+        costume = c.lenientOptional(String.self, forKey: .costume)
     }
 }
 
@@ -1643,6 +1663,11 @@ struct CompanionState: Codable, Sendable, Equatable {
     var eggFromFossilEgg = false
     /// The egg in incubation was won in a dungeon (`DungeonEgg`): it hatches its line, shiny when it was.
     var eggFromDungeon: DungeonEgg?
+    /// The Costume Eggs of the Bag (`CostumeEgg`), the one in incubation, and the tokens toward the next one
+    /// (`CostumeCatalog.tokensPerEgg`).
+    var costumeEggs: [CostumeEgg] = []
+    var eggFromCostume: CostumeEgg?
+    var costumeEggTokens = 0
     /// Fossil Eggs hatched so far.
     var fossilEggsHatched = 0
     /// The fossil lines graduated when the save first met the digs: their digs are done with nothing to claim. Taken
@@ -1803,6 +1828,9 @@ struct CompanionState: Codable, Sendable, Equatable {
         eggFromBirthdayEgg = c.lenient(Bool.self, forKey: .eggFromBirthdayEgg, default: false)
         eggFromFossilEgg = c.lenient(Bool.self, forKey: .eggFromFossilEgg, default: false)
         eggFromDungeon = c.lenientOptional(DungeonEgg.self, forKey: .eggFromDungeon)
+        costumeEggs = c.lenient([CostumeEgg].self, forKey: .costumeEggs, default: [])
+        eggFromCostume = c.lenientOptional(CostumeEgg.self, forKey: .eggFromCostume)
+        costumeEggTokens = c.lenient(Int.self, forKey: .costumeEggTokens, default: 0)
         fossilEggsHatched = c.lenient(Int.self, forKey: .fossilEggsHatched, default: 0)
         fossilLinesBeforeDigs = c.lenientOptional(Set<Int>.self, forKey: .fossilLinesBeforeDigs)
         pendingShiny = c.lenient(Bool.self, forKey: .pendingShiny, default: false)

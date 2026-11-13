@@ -268,6 +268,10 @@ struct HatchDraw: Sendable {
             return [Outcome(id: baseID, form: PokemonForm.resolved(baseID: baseID, form: form), weight: 1,
                             rarity: index.first { $0.id == baseID }?.rarity ?? SpeciesInfo.lineRarity(of: baseID),
                             alwaysShiny: shiny)]
+        case .costume(_, let speciesID):
+            let base = SpeciesInfo.baseID(of: speciesID)
+            return [Outcome(id: base, form: nil, weight: 1,
+                            rarity: index.first { $0.id == base }?.rarity ?? SpeciesInfo.lineRarity(of: base))]
         }
     }
 

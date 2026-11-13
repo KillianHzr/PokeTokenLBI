@@ -579,7 +579,13 @@ final class CompanionStore {
     /// The form the evolution track draws every stage in: the individual's own, for its whole line, which each stage's
     /// sprite resolves for its species. Not `currentForm`, resolved for the current species only: once a Galarian
     /// Meowth is a Perrserker, which has no forms, that is nil and its Meowth stage would show a Kantonian one.
-    var evolutionTrackForm: PokemonForm? { state.active?.form }
+    /// The look of the track's stages: a costumed Pokémon's costume, at every stage of its costume's line.
+    var evolutionTrackForm: PokemonForm? {
+        guard let mon = state.active else { return nil }
+        guard let costume = mon.costume else { return mon.form }
+        return CostumeCatalog.entry(code: costume, speciesID: mon.currentID, form: mon.form)?.displayForm
+            ?? CostumeCatalog.displayForm(code: costume, form: nil)
+    }
     var isFinalStage: Bool {
         guard let a = state.active, let line = currentLine else { return false }
         return line.tree.node(withID: a.currentID).map { Self.openChildren($0, form: a.form).isEmpty } ?? true
@@ -797,8 +803,11 @@ final class CompanionStore {
         var costume = false
         /// Its form is still hidden and decides what it brings: nothing here says it brings nothing.
         var mystery: FormMystery?
+        /// A costumed Pokémon whose costume, at a stage it reached or will reach, the costumed collection lacks
+        /// (`CostumeCatalog`): "New costume" when its species are all held (the owner, 2026-11-13).
+        var newCostume = false
         /// Nothing new: sending it off loses nothing the Pokédex and the costumes do not already hold.
-        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume }
+        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume && !newCostume }
     }
 
     /// Nil unless its form is hidden and could be several (`FormSuspense`). The forms it can carry are those its egg
@@ -866,7 +875,14 @@ final class CompanionStore {
         let costume = line.contains(PikachuCostume.speciesID)
             && !a.pathIDs.prefix(a.stageIndex + 1).contains(PikachuCostume.speciesID)
             && PikachuCostume.next(owned: state.pikachuCostumes, seed: 0) != nil
-        return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume)
+        // Its costume's stages, those reached and those planned: one the collection lacks is new.
+        let newCostume = a.costume.map { code in
+            let held = ownedCostumeKeys(includingActive: false).all
+            return a.plannedPathIDs.contains { id in
+                CostumeCatalog.entry(code: code, speciesID: id, form: form).map { !held.contains($0.key) } ?? false
+            }
+        } ?? false
+        return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume, newCostume: newCostume)
     }
 
     /// What `activeNews` asks of the Pokémon raised, for one an egg would hatch from `baseID` in `form`: whether it
@@ -1095,7 +1111,8 @@ final class CompanionStore {
         guard let news = activeNews else { return "" }
         if let mystery = news.mystery { return l.formMysteryHint(activeSpeciesName(mystery.revealSpeciesID), mystery) }
         let names = activeNewsNames
-        return ([names.isEmpty ? nil : l.activeNewHint(names, certain: activeWays.count == 1), news.costume ? l.activeCostumeHint : nil] as [String?])
+        return ([names.isEmpty ? nil : l.activeNewHint(names, certain: activeWays.count == 1), news.costume ? l.activeCostumeHint : nil,
+                 news.newCostume ? l.activeNewCostumeHint : nil] as [String?])
             .compactMap { $0 }.joined(separator: " ")
     }
 
@@ -1919,6 +1936,7 @@ final class CompanionStore {
                     state.claimedTodayTokensByProvider = newLedger
                     let delta = todayTokensByProvider.values.reduce(0, +)
                     earnTokenCandies(todayTokensByProvider)
+                    earnCostumeEggs(delta, day: todayDate)
                     recordRaising(todayTokensByProvider)
                     if delta > 0 {
                         state.usedSinceInstall += delta
@@ -1954,6 +1972,7 @@ final class CompanionStore {
                     // screen open at each refresh.
                     if state.claimedTodayTokensByProvider != ledger { state.claimedTodayTokensByProvider = ledger }
                     earnTokenCandies(deltas)
+                    earnCostumeEggs(delta, day: todayDate)
                     recordRaising(deltas)
                     if delta > 0 {
                         state.usedSinceInstall += delta
@@ -3397,6 +3416,61 @@ final class CompanionStore {
         return true
     }
 
+    // MARK: Costume Eggs
+
+    /// The owner's rule of 2026-11-13: one Costume Egg every 300M tokens used, holding a Pokémon of the month's
+    /// costumes (the month of `day`, `yyyy-MM-dd`, the usage's day), fixed now: one whose costumed stages are not all
+    /// collected, nor waiting in an egg or raised, first; once the month's lot is complete, any of it, for its shiny.
+    func earnCostumeEggs(_ tokens: Int, day: String) {
+        guard tokens > 0, let month = CostumeCatalog.month(ofDay: day) else { return }
+        let total = state.costumeEggTokens + tokens
+        let count = total / CostumeCatalog.tokensPerEgg
+        state.costumeEggTokens = total % CostumeCatalog.tokensPerEgg
+        guard count > 0 else { return }
+        var earned: [CostumeEgg] = []
+        for _ in 0..<count {
+            guard let egg = drawCostumeEgg(month: month) else { break }
+            state.costumeEggs.append(egg)
+            earned.append(egg)
+        }
+        guard let first = earned.first else { return }
+        AppLog.write("costumes: +\(earned.count) egg(s) of month \(month)")
+        notifyCompanionEvent(l.costumeEggEarnedTitle, l.costumeEggEarnedBody(event: l.costumeEventName(first.month),
+                                                                             count: earned.count))
+    }
+
+    /// One of the month's first costumed stages, the missing ones first (`ownedCostumeKeys`, the eggs waiting).
+    func drawCostumeEgg(month: Int) -> CostumeEgg? {
+        let starts = CostumeCatalog.starts(month: month)
+        guard !starts.isEmpty else { return nil }
+        var taken = ownedCostumeKeys().all
+        let waiting = state.costumeEggs + [state.eggFromCostume].compactMap { $0 }
+        for egg in waiting {
+            if let start = egg.entry { taken.formUnion(CostumeCatalog.family(of: start).map(\.key)) }
+        }
+        let missing = starts.filter { start in CostumeCatalog.family(of: start).contains { !taken.contains($0.key) } }
+        let pool = missing.isEmpty ? starts : missing
+        let pick = pool[Int(rng.next() % UInt64(pool.count))]
+        return CostumeEgg(id: UUID().uuidString, code: pick.code, speciesID: pick.speciesID, form: pick.form, month: month)
+    }
+
+    /// Whether a Costume Egg of the Bag can be used: as any egg, it sends the Pokémon raised off.
+    func canUseCostumeEgg(_ id: String) -> Bool {
+        canSendOffActive && !isRaisingFossilEggPokemon && state.costumeEggs.contains { $0.id == id }
+    }
+
+    /// Uses a Costume Egg: the Pokémon raised is sent off for it, and it hatches its costumed Pokémon (`hatchCore`).
+    @discardableResult
+    func useCostumeEgg(_ id: String) -> Bool {
+        guard canUseCostumeEgg(id), let egg = state.costumeEggs.first(where: { $0.id == id }) else { return false }
+        state.costumeEggs.removeAll { $0.id == id }
+        replaceActiveWithEgg(price: 0, tier: nil, type: nil)
+        state.eggFromCostume = egg
+        save()
+        AppLog.write("costume egg used: \(egg.code) #\(egg.speciesID)")
+        return true
+    }
+
     // MARK: Event eggs
 
     /// The player's very first catch, its time and line: the companion's anniversary egg follows it.
@@ -3604,6 +3678,7 @@ final class CompanionStore {
         state.eggFromBirthdayEgg = false
         state.eggFromFossilEgg = false
         state.eggFromDungeon = nil
+        state.eggFromCostume = nil
         state.eggEvent = nil
         state.eggEventKey = nil
         state.pendingHatchID = nil    // 새 보증으로 처음부터 롤(활성 포켓몬이 있는 동안엔 원래 비어 있다)
@@ -3961,7 +4036,8 @@ final class CompanionStore {
             state.pendingHatchID = id
             state.pendingHatchItems = hatchDraw.items
             state.pendingShiny = pick.shiny
-            state.pendingForm = state.eggFromDungeon.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
+            state.pendingForm = state.eggFromCostume.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
+                ?? state.eggFromDungeon.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
                 ?? HatchDraw.eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
             save()
         }
@@ -4061,9 +4137,9 @@ final class CompanionStore {
     /// `rollItems`: the draw items owned when the species was rolled before the hatch (`pendingHatchItems`).
     private func hatchCore(baseID: Int, generation: Int, form pendingForm: PokemonForm? = nil,
                            forceShiny: Bool = false, rollItems: Set<ItemKind>? = nil) async {
-        let line: EvoLine
+        let fetched: EvoLine
         do {
-            line = try await provider.line(baseSpeciesID: baseID)
+            fetched = try await provider.line(baseSpeciesID: baseID)
         } catch {
             markHatchRetryDelayedIfReady(generation: generation)
             AppLog.write("hatch: line fetch failed for base \(baseID) — egg kept, retry next tick")
@@ -4081,9 +4157,9 @@ final class CompanionStore {
         // 있고 is_legendary 가 없다). 필터가 어긋났으면(인덱스 stale 등) 낮은 등급을 그냥 내주지 말고
         // 알을 유지한 채 pre-roll 만 버려 다음 틱에 다시 뽑는다 — 사용자는 산 보증을 계속 들고 있는다.
         // A season's Deerling is the exception to its egg's Uncommon guarantee (`EventEgg.tier`).
-        let seasonDeerling = state.eggEvent?.seasonForm != nil && line.baseID == EventEgg.deerlingID
-        if let tier = state.eggTier, line.rarity.sortRank < tier.sortRank, !seasonDeerling {
-            AppLog.write("hatch: rolled \(line.rarity) below guaranteed \(tier) — discarded, re-roll next tick")
+        let seasonDeerling = state.eggEvent?.seasonForm != nil && fetched.baseID == EventEgg.deerlingID
+        if let tier = state.eggTier, fetched.rarity.sortRank < tier.sortRank, !seasonDeerling {
+            AppLog.write("hatch: rolled \(fetched.rarity) below guaranteed \(tier) — discarded, re-roll next tick")
             state.pendingHatchID = nil
             state.pendingForm = nil
             prefetchedLineID = nil
@@ -4094,8 +4170,8 @@ final class CompanionStore {
         // Same last gate for a stone's type guarantee, on the pre-rolled form when there is one (a stale
         // index or pre-roll could still hand over another type). Keep the egg and re-roll next tick.
         if let typeGuarantee = state.eggTypeGuarantee,
-           !PokemonTypeData.canHatch(baseID: line.baseID, as: typeGuarantee, form: pendingForm) {
-            AppLog.write("hatch: rolled \(line.baseID) without guaranteed type \(typeGuarantee), discarded; re-roll next tick")
+           !PokemonTypeData.canHatch(baseID: fetched.baseID, as: typeGuarantee, form: pendingForm) {
+            AppLog.write("hatch: rolled \(fetched.baseID) without guaranteed type \(typeGuarantee), discarded; re-roll next tick")
             state.pendingHatchID = nil
             state.pendingForm = nil
             prefetchedLineID = nil
@@ -4108,6 +4184,11 @@ final class CompanionStore {
         state.pendingHatchItems = nil
         // A later egg can roll the same species with another form and must warm its own sprite.
         prefetchedLineID = nil
+        // A Costume Egg hatches its first costumed stage, which grows only into the stages wearing its costume.
+        let costumeEgg = state.eggFromCostume
+        let line = costumeEgg.flatMap { Self.costumeLine(fetched, start: $0.speciesID, code: $0.code, form: $0.form) }
+            ?? fetched
+        let firstID = costumeEgg == nil ? line.baseID : line.tree.speciesID
         currentLine = line
         isHatchRetryDelayed = false
         // 부화 임계 초과분은 부화체 성장에 이월(낭비 없음).
@@ -4131,6 +4212,7 @@ final class CompanionStore {
         state.eggFromBirthdayEgg = false
         state.eggFromFossilEgg = false
         state.eggFromDungeon = nil
+        state.eggFromCostume = nil
         if event != nil, let key = state.eggEventKey { state.eventEggHatches[key] = line.baseID }
         state.eggEvent = nil
         state.eggEventKey = nil
@@ -4150,14 +4232,15 @@ final class CompanionStore {
         // The roll is still drawn where no Ditto may hide, so the rolls after it stay the same.
         if dittoDisguiseRollingEnabled,
            Self.dittoDisguiseHit(rarity: line.rarity, totalForms: line.totalForms, roll: rng.next()),
-           draw.letsDittoHide(baseID: line.baseID, egg: egg, fromFossilEgg: fromFossilEgg) {
+           draw.letsDittoHide(baseID: line.baseID, egg: egg, fromFossilEgg: fromFossilEgg), costumeEgg == nil {
             dittoDisguise = line.baseID
         }
         var evolutionPlan = makeEvolutionPlan(from: line.tree, baseID: line.baseID, form: pendingForm)
         var profile = PokemonProfile.generate(seed: rng.next())
-        let form = pendingForm ?? rollLineForm(baseID: line.baseID, types: formTypes)
+        let form = costumeEgg != nil ? PokemonForm.resolved(baseID: line.baseID, form: costumeEgg?.form)
+            : pendingForm ?? rollLineForm(baseID: line.baseID, types: formTypes)
         // After the form roll: an Alolan Vulpix gets an Alolan Vulpix's ability. Enriching draws nothing from `rng`.
-        if let details = pokemonDetails(speciesID: line.baseID, form: form) { profile.enrich(with: details) }
+        if let details = pokemonDetails(speciesID: firstID, form: form) { profile.enrich(with: details) }
         // The form is rolled last so owning forms never shifts the other rolls; a plan it cannot take (a
         // Galarian Meowth planned into Persian) is redone for it, which only happens on form-gated lines.
         if !Self.planFollowsForm(evolutionPlan, form: form) {
@@ -4172,11 +4255,12 @@ final class CompanionStore {
         let showShiny = isShiny && dittoDisguise == nil
         activeGeneration += 1
         let unlockedForms = itemFormSnapshot()
-        state.active = MonState(baseID: line.baseID, pathIDs: [line.baseID], plannedPathIDs: evolutionPlan,
+        state.active = MonState(baseID: line.baseID, pathIDs: [firstID], plannedPathIDs: evolutionPlan,
                                 stageIndex: 0, usedAtStage: 0, rarity: line.rarity, totalForms: evolutionPlan.count,
                                 isShiny: isShiny, nature: nature, profile: profile, hasGrowthBoost: hasGrowthBoost,
                                 dittoDisguise: dittoDisguise, form: form)
         state.active?.hasNewForm = hasNewForm
+        state.active?.costume = costumeEgg?.code
         state.active?.fromFossilEgg = fromFossilEgg
         state.active?.fromLegendaryBossEgg = fromLegendaryBossEgg
         state.active?.raising = RaisingRecord(hatchedAt: clock())
@@ -4195,8 +4279,8 @@ final class CompanionStore {
         // A disguised Ditto is not the species it shows: nothing unlocks until it is revealed.
         if dittoDisguise == nil { announceFormUnlocks(since: unlockedForms) }
         AppLog.write("hatch: base=\(line.baseID) rarity=\(line.rarity) shiny=\(isShiny) forms=\(evolutionPlan.count) boost=\(hasGrowthBoost) ditto=\(dittoDisguise != nil) form=\(form?.rawValue ?? "none")")
-        let name = formDisplayName(line.localizedName(line.baseID, state.language),
-                                   speciesID: line.baseID, form: form)
+        let name = formDisplayName(line.localizedName(firstID, state.language),
+                                   speciesID: firstID, form: form)
         notifyCompanionEvent(showShiny ? l.notifShinyHatchTitle : l.notifHatchTitle,
                              showShiny ? l.notifShinyHatchBody(name, odds: shinyHatchNotificationOdds(shinyOdds))
                                        : l.notifHatchBody(name))
@@ -4208,7 +4292,20 @@ final class CompanionStore {
         // 마지막 이벤트를 hatch 로 유지한다. 이월로 즉시 졸업한 극단 케이스면 생략(이미 도감행).
         if state.active != nil { fireCelebration(.hatch(shiny: showShiny)) }
         save()
-        if detailProvider != nil { Task { await self.loadPokemonDetails(speciesID: line.baseID, form: form) } }
+        if detailProvider != nil { Task { await self.loadPokemonDetails(speciesID: firstID, form: form) } }
+    }
+
+    /// The line a costumed Pokémon grows on (the owner, 2026-11-13): from the first stage wearing its costume, only the
+    /// evolutions that wear it too (`CostumeCatalog.children`); its line's base, rarity and names stay the line's. Nil
+    /// when the line has no such stage.
+    static func costumeLine(_ line: EvoLine, start: Int, code: String, form: PokemonForm?) -> EvoLine? {
+        guard let node = line.tree.node(withID: start) else { return nil }
+        func prune(_ node: EvoNode) -> EvoNode {
+            let worn = CostumeCatalog.entry(code: code, speciesID: node.speciesID, form: form)
+                .map { Set(CostumeCatalog.children(of: $0).map(\.speciesID)) } ?? []
+            return EvoNode(speciesID: node.speciesID, children: node.children.filter { worn.contains($0.speciesID) }.map(prune))
+        }
+        return EvoLine(baseID: line.baseID, tree: prune(node), rarity: line.rarity, names: line.names)
     }
 
     /// 위장 → 리빌: 진화 못 하는 메타몽이 "첫 진화 임계"에서 진화 대신 정체를 드러내는 순간.
@@ -4272,11 +4369,15 @@ final class CompanionStore {
         let generation = activeGeneration
         isHatching = true
         defer { isHatching = false }
-        if let line = try? await provider.line(baseSpeciesID: a.baseID) {
+        if let fetched = try? await provider.line(baseSpeciesID: a.baseID) {
             // await 중 사용량·민트 등 활성 상태는 계속 바뀔 수 있다. 요청 당시 스냅샷을 다시 쓰지 말고
             // 같은 개체가 아직 활성인 경우에만 최신 상태를 정규화한다.
             guard activeGeneration == generation,
                   let latest = state.active, latest.baseID == a.baseID, currentLine == nil else { return }
+            // A costumed Pokémon grows on its costume's stages only, from the first one it hatched as.
+            let line = latest.costume.flatMap { code in
+                Self.costumeLine(fetched, start: latest.pathIDs.first ?? latest.currentID, code: code, form: latest.form)
+            } ?? fetched
             state.active = normalizedEvolutionState(latest, from: line.tree)
             state.reconcileRepresentativeSelection()   // 손상 경로 정규화로 사라진 단계가 대표로 남지 않게
             currentLine = line
@@ -4305,6 +4406,8 @@ final class CompanionStore {
         let typeGuarantee = state.eggTypeGuarantee
         // A dungeon's egg knows its line already.
         if let egg = state.eggFromDungeon { return (egg.baseID, egg.isShiny) }
+        // A Costume Egg knows its Pokémon: its line, then its first costumed stage at the hatch (`costumeLine`).
+        if let egg = state.eggFromCostume { return (SpeciesInfo.baseID(of: egg.speciesID), false) }
         if let full = try? await provider.baseSpeciesIndex(), !full.isEmpty {
             if state.eggFromBirthdayEgg { return chooseBirthdayBase(full) }
             if state.eggFromFossilEgg { return chooseFossilBase(full) }
@@ -4623,6 +4726,7 @@ final class CompanionStore {
         // A Fossil Egg asks for its candidates themselves: 32 random numbers seldom meet one of 15 lines, one in 1,025
         // even less. So does an event egg of a few lines, the Friendship Egg's one above all.
         if let egg = state.eggFromDungeon { return egg.baseID }
+        if let egg = state.eggFromCostume { return SpeciesInfo.baseID(of: egg.speciesID) }
         if state.eggFromFossilEgg { return await chooseListedBaseViaREST(hatchDraw.fossilCandidates, charm: false) }
         if let lines = state.eggEvent?.lines(companionLine: companionLineID) {
             return await chooseListedBaseViaREST(lines, charm: ownsOvalCharm)

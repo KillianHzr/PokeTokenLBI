@@ -1275,7 +1275,8 @@ struct CompanionHeader: View {
         let percentText = (Double(percent) / 100).formatted(.percent.locale(store.language.displayLocale))
         return EvolutionTrackView(stops: track, progress: store.progress, tint: rarityColor(store.rarity),
                                   shiny: store.currentIsShiny, form: store.evolutionTrackForm,
-                                  pikachuCostume: store.state.active?.pikachuCostume,
+                                  // A Pokémon GO costume is worn at every stage, Pikachu's cap never over it.
+                                  pikachuCostume: store.state.active?.costume == nil ? store.state.active?.pikachuCostume : nil,
                                   remaining: Self.trackCaption(track, amount: amount, percent: percentText,
                                                                names: names, l: l,
                                                                eta: store.timeToNext.map { l.etaAbout(l.shortDuration($0)) }),
@@ -1468,6 +1469,10 @@ struct CollectionView: View {
                     // What is done and what is left, by generation, type and category (the owner, 2026-11-10).
                     CircleIconButton(systemImage: "square.grid.3x3.fill", help: store.l.dexStatsButtonHint) {
                         nav.showingCollectionStats = true
+                    }
+                    // The costumed Pokémon, a lot each month (the owner, 2026-11-13).
+                    CircleIconButton(systemImage: "theatermasks.fill", help: store.l.costumesButtonHint) {
+                        nav.showingCostumes = true
                     }
                 }
 
@@ -3127,7 +3132,7 @@ private struct DexEntryRow: View {
             EvoLineView(nodes: entry.chainOrder.map { EvoLineItem(.species($0), .done) },
                         mysteryLabel: store.l.unknownNextEvolution, language: store.language, thumb: 68,
                         shiny: entry.isShiny, names: names,
-                        maxWidth: PopoverMetrics.scrollContentWidth - Self.cardPadding * 2, form: entry.form,
+                        maxWidth: PopoverMetrics.scrollContentWidth - Self.cardPadding * 2, form: entry.spriteForm(),
                         nameFontSize: 11, nameLineLimit: 2, nameMinimumScaleFactor: 1,
                         dexLinks: dexLinks, onOpenDexEntry: onOpenDexEntry, bottomAligned: true)
             if let caughtAt = entry.caughtAt {
@@ -3265,7 +3270,9 @@ struct ActiveNewsBadges: View {
                     .lineLimit(1).fixedSize()
                     .hoverTip(l.activeDuplicateHint)
             } else if !isNewForm {
-                Badge(l.activeNewBadge.uppercased(), tint: .green, style: .tinted)
+                // A costume new to the collection on species all held: "New costume", else "New" (the owner, 2026-11-13).
+                let onlyCostume = news.newCostume && news.newSpecies.isEmpty && !news.firstShiny && !news.costume
+                Badge((onlyCostume ? l.activeNewCostumeBadge : l.activeNewBadge).uppercased(), tint: .green, style: .tinted)
                     .lineLimit(1).fixedSize()
                     .hoverTip(store.activeNewsHint)
             }

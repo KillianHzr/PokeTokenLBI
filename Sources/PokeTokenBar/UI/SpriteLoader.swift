@@ -132,6 +132,8 @@ actor SpriteStore {
     static func spriteURLs(speciesID: Int, animated: Bool, shiny: Bool, form: PokemonForm? = nil) -> [URL] {
         // Giovanni's armored Mewtwo: Pokémon GO's render, still, whatever is asked (issue #180).
         if ArmoredMewtwo.matches(speciesID: speciesID, form: form), let url = URL(string: ArmoredMewtwo.spriteURL) { return [url] }
+        // A costumed Pokémon: Pokémon GO's render (PokeMiners), its shiny's for a shiny, still (`CostumeCatalog`).
+        if let url = CostumeCatalog.spriteURL(speciesID: speciesID, display: form, shiny: shiny) { return [url] }
         let color = shiny ? "shiny/" : ""
         let isRegional = form?.rawValue.contains("alola") == true
                       || form?.rawValue.contains("galar") == true
@@ -442,7 +444,8 @@ enum SpriteLoader {
         // Unsupported species have no GIF endpoint, nor the battle forms Showdown lacks; a static fallback is their
         // final state.
         guard PokemonAssets.hasAnimatedSprite(speciesID: speciesID),
-              BattleForms.form(speciesID: speciesID, form: form)?.isAnimated != false else {
+              BattleForms.form(speciesID: speciesID, form: form)?.isAnimated != false,
+              CostumeCatalog.parse(form) == nil else {
             await onUnavailable()
             return []
         }
