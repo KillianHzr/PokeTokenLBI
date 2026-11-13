@@ -559,6 +559,8 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
         // A costume only changes Pikachu's sprites (`PikachuCostume`); Giovanni's Mewtwo wears its armor.
         if PikachuCostume(speciesID: speciesID, form: form) != nil { return form }
         if ArmoredMewtwo.matches(speciesID: speciesID, form: form) { return form }
+        // A Pokémon GO costume's look (`CostumeCatalog.displayForm`), only ever shown.
+        if CostumeCatalog.parse(form) != nil { return form }
         let forms = forms(speciesID: speciesID)
         guard let first = forms.first else { return nil }
         return form.flatMap { ownForm(speciesID: speciesID, lineForm: $0) } ?? first
@@ -609,6 +611,7 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
     /// (and so the cache keys of saves written before forms existed).
     static func assetName(speciesID: Int, form: PokemonForm?) -> String {
         if let costume = PikachuCostume(speciesID: speciesID, form: form) { return "\(speciesID)-\(costume.rawValue)" }
+        if let form, CostumeCatalog.parse(form) != nil { return "\(speciesID)-\(form.rawValue)" }
         guard let form = resolved(speciesID: speciesID, form: form), !isDefault(form, speciesID: speciesID) else {
             return String(speciesID)
         }

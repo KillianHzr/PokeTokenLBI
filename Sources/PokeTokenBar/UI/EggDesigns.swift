@@ -237,6 +237,7 @@ enum EggDesigns {
         case .tier(.rare): return sapphire
         case .tier(.legendary): return legendary
         case .secret: return secret
+        case .costume(let month): return EventEggArt.design(EggKind.costumeLook(month))
         case .plain, .tier: return nil
         }
     }
@@ -1305,6 +1306,8 @@ enum EggDesigns {
     @MainActor
     static func renderKey(_ kind: EggKind) -> EggKind {
         if case .dungeon(let species) = kind, LegendEggArt.design(species) == nil { return EggKind.dungeonLook(species) }
+        // A Costume Egg is its season's event egg, drawn once for both.
+        if case .costume(let month) = kind { return .event(EggKind.costumeLook(month)) }
         return kind
     }
 

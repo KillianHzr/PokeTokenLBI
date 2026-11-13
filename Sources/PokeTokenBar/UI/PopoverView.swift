@@ -127,6 +127,8 @@ final class PopoverNavigation {
     var showingTypeChart = false
     /// The Collection's statistics (`CollectionStatsScreen`).
     var showingCollectionStats = false
+    /// The costumed Pokémon (`CostumeCollectionScreen`).
+    var showingCostumes = false
     /// Every expedition that ended (#133), and one of them opened on its journal (`endedAt` names it).
     var showingRunHistory = false
     var pastRun: Date?
@@ -200,6 +202,7 @@ final class PopoverNavigation {
         showingMyTeam = false
         showingTypeChart = false
         showingCollectionStats = false
+        showingCostumes = false
         showingRunHistory = false
         pastRun = nil
         replayBattle = nil
@@ -322,6 +325,8 @@ struct PopoverView: View {
                 TypeChartScreen(store: companion) { nav.showingTypeChart = false }
             } else if nav.showingCollectionStats {
                 CollectionStatsScreen(store: companion) { nav.showingCollectionStats = false }
+            } else if nav.showingCostumes {
+                CostumeCollectionScreen(store: companion) { nav.showingCostumes = false }
             } else if nav.showingLuck {
                 LuckScreen(store: companion, nav: nav) { nav.showingLuck = false }
             } else {
