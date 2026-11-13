@@ -1142,8 +1142,8 @@ final class CompanionStore {
                     form: e.form,
                     collectedSpecies: seenGraduatedSpecies
                 )
-                // The one being raised still brings a costume while one is missing (`ActiveNews.costume`).
-                let bringsCostume = isActiveDexEntry(e) && activeNews?.costume == true
+                // The one being raised still brings a costume while one is missing (`ActiveNews.costume`, `newCostume`).
+                let bringsCostume = isActiveDexEntry(e) && (activeNews?.costume == true || activeNews?.newCostume == true)
                 if reachedSpeciesSeen && !uncollected && !bringsCostume {
                     duplicates.insert(e.id)
                 }
