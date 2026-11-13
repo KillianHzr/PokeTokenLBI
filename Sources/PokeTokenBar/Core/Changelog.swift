@@ -66,8 +66,8 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
-        ChangelogDay(date: "2026-11-12", entries: [
-            .improved("2026-11-12-oak-dungeon-wait", { $0.t("오박사가 던전을 추천할 때 던전이 쓰는 토큰과, 그동안 포켓몬이나 알이 자라지 않는다는 것도 알려 줘요.",
+        ChangelogDay(date: "2026-11-13", entries: [
+            .improved("2026-11-13-oak-dungeon-wait", { $0.t("오박사가 던전을 추천할 때 던전이 쓰는 토큰과, 그동안 포켓몬이나 알이 자라지 않는다는 것도 알려 줘요.",
                                                          "When Prof. Oak suggests a dungeon, he now says how many tokens it takes, while your Pokémon or egg doesn't grow.",
                                                          "オーキド博士がダンジョンを勧めるとき、使うトークンと、そのあいだポケモンやタマゴが育たないことも伝えます。",
                                                          "Cuando el Profesor Oak propone una mazmorra, ahora dice cuántos tokens usa, mientras tu Pokémon o tu huevo no crece.",
@@ -75,7 +75,7 @@ enum Changelog {
                                                          "Quando o Prof. Carvalho sugere uma masmorra, ele agora diz quantos tokens ela usa, enquanto seu Pokémon ou ovo não cresce.",
                                                          "Wenn Prof. Eich einen Dungeon vorschlägt, sagt er jetzt, wie viele Tokens er braucht, solange dein Pokémon oder Ei nicht wächst.",
                                                          "Советуя подземелье, профессор Оук теперь называет, сколько токенов оно заберёт: всё это время покемон или яйцо не растёт.") }),
-            .fixed("2026-11-12-oak-coronet-door") { l in
+            .fixed("2026-11-13-oak-coronet-door") { l in
                 let coronet = l.dungeonName(.mtCoronet)
                 return l.t("오박사가 아직 그 던전에서 잡지 않은 보스가 있는 던전도 추천해요. \(coronet)에 들어가려면 보스를 모두 각자의 던전에서 잡아야 하니까요.",
                            "Prof. Oak now also suggests the dungeons whose bosses you have not caught there yet: \(coronet) only opens once each is caught in its dungeon.",
@@ -86,6 +86,8 @@ enum Changelog {
                            "Prof. Eich schlägt jetzt auch die Dungeons vor, deren Bosse du dort noch nicht gefangen hast: Der \(coronet) öffnet sich erst, wenn jeder in seinem Dungeon gefangen ist.",
                            "Профессор Оук теперь советует и подземелья, боссов которых вы там ещё не поймали: \(coronet) откроется, только когда каждый будет пойман в своём подземелье.")
             },
+        ]),
+        ChangelogDay(date: "2026-11-12", entries: [
             .improved("2026-11-12-battle-forms-stronger", { $0.t("배틀 폼이 더 강해졌어요: 메가와 원시회귀는 모든 능력치 ×1.25, 거다이맥스는 HP ×2에 나머지 ×1.25. 오늘·이번 주 던전 보스는 그대로예요.",
                                                             "Battle forms are stronger: a Mega or a Primal has every stat ×1.25, a Gigantamax its HP ×2 and the rest ×1.25. The daily and weekly bosses stay as they were.",
                                                             "バトルのすがたが強くなりました：メガとゲンシはすべての能力×1.25、キョダイマックスはHP×2でほかは×1.25。今日と今週のダンジョンのボスはそのままです。",
