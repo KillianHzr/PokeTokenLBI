@@ -100,6 +100,19 @@ final class OakAdviceTests: XCTestCase {
         XCTAssertEqual(try store(active: mon([172, 25, 26]), dex: line).activeVerdict, .costume)
     }
 
+    /// [Regression] A Pikachu from a Costume Egg wears its costume's form for good: no Raichu stage hides it, though
+    /// its line's form stays hidden until Raichu for any other Pikachu (`FormSuspense`). Its line graduated in both
+    /// forms, the costume it brings still keeps it.
+    func testACostumedPikachuHasNoFormToReveal() throws {
+        let line = [graduated([172, 25, 26], form: PokemonForm("normal")), graduated([172, 25, 26], form: PokemonForm("alola"))]
+        var pikachu = MonState(baseID: 172, pathIDs: [25], plannedPathIDs: [25, 26], stageIndex: 0, usedAtStage: 0,
+                               rarity: .common, totalForms: 2, form: PokemonForm("normal"))
+        pikachu.costume = "FEB_2019"
+        let s = try store(active: pikachu, dex: line) { $0.pikachuCostumes = Set(PikachuCostume.allCases) }
+        XCTAssertNil(s.formSuspense)
+        XCTAssertEqual(s.activeVerdict, .newCostume)
+    }
+
     /// A shiny Charmander whose line is graduated, none of it shiny: a Spare that brings its first shiny.
     func testAFirstShinyIsASpareToKeep() throws {
         XCTAssertEqual(try store(active: mon([4], shiny: true), dex: [graduated([4, 5, 6])]).activeVerdict, .shinyToKeep)
