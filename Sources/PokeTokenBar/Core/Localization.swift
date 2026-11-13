@@ -2754,6 +2754,8 @@ struct L {
         case .costume:
             return t("코스튬 예정", "Costume ahead", "コスチューム付き", "Trae un disfraz", "Costume à gagner", "Traz uma fantasia",
                      "Bringt ein Kostüm", "Принесёт костюм")
+        case .newCostume:
+            return activeNewCostumeBadge
         case .shinyToKeep:
             return t("지킬 이로치", "Shiny to keep", "残したい色違い", "Variocolor a conservar", "Chromatique à garder",
                      "Shiny para guardar", "Schillernd: behalten", "Шайни: оставить")
@@ -2820,6 +2822,15 @@ struct L {
                      "Quando virar Pikachu, vai trazer uma fantasia que você ainda não tem. Fique com ele!",
                      "Wird es zu Pikachu, bringt es ein Kostüm mit, das dir noch fehlt. Behalte es!",
                      "Став Пикачу, он принесёт костюм, которого у вас ещё нет. Оставьте его!")
+        case .newCostume:
+            return t("이 코스튬은 아직 코스튬 컬렉션에 없단다. 잘 키우거라!",
+                     "This costume isn't in your costume collection yet. Keep it!",
+                     "このコスチュームはまだコスチュームのコレクションにないぞ。大事に育てるのじゃ！",
+                     "Este disfraz aún no está en tu colección de disfraces. ¡Consérvalo!",
+                     "Ce costume n'est pas encore dans ta collection costumée. Garde-le !",
+                     "Esta fantasia ainda não está na sua coleção de fantasias. Fique com ele!",
+                     "Dieses Kostüm fehlt deiner Kostümsammlung noch. Behalte es!",
+                     "Этого костюма ещё нет в вашей коллекции костюмов. Оставьте его!")
         case .shinyToKeep:
             return t("계열은 이미 다 모았지만, 이 폼의 첫 이로치로구나. 이렇게 귀한 녀석은 지켜야지!",
                      "You already have its whole line, but it's your first shiny in this form. A rarity like that is worth keeping!",

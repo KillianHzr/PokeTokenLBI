@@ -390,6 +390,35 @@ final class OakAdviceTests: XCTestCase {
         XCTAssertEqual(finishing.candiesToGive, 3)
     }
 
+    /// [Regression] A Squirtle from a Costume Egg, its line graduated, its costume missing from the collection: it brings
+    /// a costume (`ActiveNews.newCostume`), so it is no Spare. Kept rather than sent off for the Bag's Fossil Egg, its Rare
+    /// Candies given. Once a graduated Squirtle wears that costume, it is a Spare again.
+    func testACostumeTheCollectionLacksIsKept() async throws {
+        func hatchedInCostume(dressed: Bool) async throws -> CompanionStore {
+            var squirtle = graduated([7, 8, 9])
+            squirtle.costume = "SUMMER_2018"
+            let s = try store(active: nil, dex: ([[16, 17, 18]] + mostLines).map { graduated($0) } + (dressed ? [squirtle] : []),
+                              inventory: [.fossilEgg: 1], index: releaseIndex, difficulty: 1) { st in
+                st.claimedEventEggs = ["summer@2026"]
+                st.eggFromCostume = CostumeEgg(id: "summer-7", code: "SUMMER_2018", speciesID: 7, form: nil, month: 8)
+            }
+            await s.hatch(baseID: 7)
+            await s.loadHatchIndex()
+            giveCandies(s, 3)
+            return s
+        }
+        let kept = try await hatchedInCostume(dressed: false)
+        XCTAssertEqual(kept.state.active?.costume, "SUMMER_2018")
+        XCTAssertEqual(kept.activeVerdict, .newCostume)
+        XCTAssertNil(kept.oakRelease)
+        XCTAssertEqual(kept.oakSteps.first, .raise)
+        XCTAssertEqual(kept.candiesToGive, 3)
+        let spare = try await hatchedInCostume(dressed: true)
+        XCTAssertEqual(spare.activeVerdict, .spare)
+        XCTAssertEqual(spare.oakRelease, .bag(.fossilEgg, odds: 1))
+        XCTAssertEqual(spare.candiesToGive, 0)
+    }
+
     /// The wait for the balance, at the player's pace (`UsageStore.dailyPace`): 300 M at 600 M a day, half a day.
     func testTheWaitForTheBalanceGoesAtThePlayersPace() throws {
         let s = try store(active: nil, dex: [])
