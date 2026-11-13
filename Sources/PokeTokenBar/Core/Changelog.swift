@@ -66,6 +66,19 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-13", entries: [
+            .improved("2026-11-13-compose-search") { l in
+                let c = l.dungeonComposeForMe
+                return l.t("\"\(c)\"이 훨씬 많은 팀을 시험해요. 가방에서 가져가는 것까지 넣어 수천 번의 던전을 시뮬레이션하고 가장 많이 이기는 팀을 골라요. 몇 초 걸릴 수 있어요.",
+                           "\"\(c)\" tries far more teams: it simulates thousands of dungeons, with what the team takes from your Bag, and keeps the one that wins most. It can take a few seconds.",
+                           "「\(c)」がずっと多くのチームを試します。バッグから持っていくものもこみで何千回もダンジョンをシミュレーションし、いちばん勝つチームを選びます。数秒かかることがあります。",
+                           "\"\(c)\" prueba muchos más equipos: simula miles de mazmorras, con lo que el equipo lleva de tu Bolsa, y se queda con el que más gana. Puede tardar unos segundos.",
+                           "\"\(c)\" essaie bien plus d'équipes : il simule des milliers de donjons, avec ce que l'équipe emporte de ton Sac, et garde celle qui gagne le plus. Ça peut prendre quelques secondes.",
+                           "\"\(c)\" testa muito mais equipes: simula milhares de masmorras, com o que a equipe leva da sua Bolsa, e fica com a que mais vence. Pode levar alguns segundos.",
+                           "\"\(c)\" probiert viel mehr Teams aus: Es spielt Tausende Dungeons durch, mit dem, was das Team aus deinem Beutel mitnimmt, und behält das, das am häufigsten gewinnt. Das kann ein paar Sekunden dauern.",
+                           "\"\(c)\" перебирает гораздо больше команд: моделирует тысячи подземелий с тем, что команда берёт из сумки, и оставляет ту, что побеждает чаще. Это может занять несколько секунд.")
+            },
+        ]),
         ChangelogDay(date: "2026-11-12", entries: [
             .improved("2026-11-12-battle-forms-stronger", { $0.t("배틀 폼이 더 강해졌어요: 메가와 원시회귀는 모든 능력치 ×1.25, 거다이맥스는 HP ×2에 나머지 ×1.25. 오늘·이번 주 던전 보스는 그대로예요.",
                                                             "Battle forms are stronger: a Mega or a Primal has every stat ×1.25, a Gigantamax its HP ×2 and the rest ×1.25. The daily and weekly bosses stay as they were.",
