@@ -1492,6 +1492,18 @@ read_when:
 
 ## 표시·UI
 
+- **A menu installed at launch is installed again where it is used.** ⌘V still pasted nothing in the session key's
+  field after #118 (a player, 2026-11-13): the Edit menu was installed at launch, and SwiftUI swapped the app's main
+  menu for its own (a lone "Enter Full Screen") as soon as the popover's content showed up, so the key found no Paste
+  again. **Why it was missed:** `EditMenuTests` checked `install` on a bare app and the field's paste action, never the
+  menu left in the running app once the popover opened. The popover now installs it again each time it shows
+  (`popoverDidShow`). Guard: `EditMenuTests.testThePopoverShowingBringsPasteBack` hands it a SwiftUI-like menu without
+  Paste and fails without the reinstall. The live check drives the running app through the accessibility API (popover,
+  Settings, a plain field focused, ⌘V posted to the process, the field read back), with a plain key posted the same
+  way as its control. Run it on a dev build with update notifications off and the update script blocked: its Update
+  button rebuilds the app and its build stops every instance, the player's included. Sweep: `mainMenu` is set nowhere
+  else, and every text field lives in the popover (the floating pet only has labels).
+
 - **A sort reads the number its rows show.** The catch log's "Most caught" ranked each card by its species' count
   (`dexCatchCounts`, every record that reached the species, those that evolved past it included) while the card shows
   its own rank ("Duplicate ×7", `dexCatchRanks`): a Pidgey sent off as the 7th to reach Pidgey came above a Seedot's

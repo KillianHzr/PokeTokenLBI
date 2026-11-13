@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-13", entries: [
+            .fixed("2026-11-13-paste-open-window", { $0.t("이제 앱의 입력 칸에서 ⌘V로 정말 붙여 넣을 수 있어요. 설정의 세션 키 칸도요. 이전 수정은 창을 열면 더 이상 동작하지 않았어요.",
+                                                        "⌘V really pastes in the app's text fields now, the session key's in Settings too. The previous fix stopped working as soon as the window opened.",
+                                                        "アプリの入力欄で⌘Vが本当に貼り付けられるようになりました。設定のセッションキーの欄も同様です。前回の修正はウィンドウを開くと効かなくなっていました。",
+                                                        "⌘V ya pega de verdad en los campos de texto de la app, también el de la clave de sesión en Ajustes. El arreglo anterior dejaba de funcionar en cuanto se abría la ventana.",
+                                                        "⌘V colle enfin pour de vrai dans les champs de l'app, celui de la clé de session des Réglages compris. Le correctif précédent cessait de marcher dès que la fenêtre s'ouvrait.",
+                                                        "Agora o ⌘V cola de verdade nos campos de texto do app, inclusive o da chave de sessão nos Ajustes. A correção anterior parava de funcionar assim que a janela abria.",
+                                                        "⌘V fügt jetzt wirklich in die Textfelder der App ein, auch in das Feld für den Sitzungsschlüssel in den Einstellungen. Die vorige Korrektur wirkte nicht mehr, sobald das Fenster offen war.",
+                                                        "Теперь ⌘V действительно вставляет текст в поля приложения, включая поле ключа сессии в настройках. Прошлое исправление переставало работать, как только открывалось окно.") }),
             .improved("2026-11-13-ball-prices") { l in
                 let ultra = l.itemName(.ultraBall), great = l.itemName(.greatBall)
                 return l.t("상점의 볼이 싸졌어요: \(ultra) 1억 5천만(전에는 4억), \(great) 7500만(전에는 2억 5천만).",
