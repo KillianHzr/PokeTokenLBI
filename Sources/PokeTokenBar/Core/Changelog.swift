@@ -78,6 +78,36 @@ enum Changelog {
                            "Die Bälle im Shop werden günstiger: \(ultra) 150 Mio. (vorher 400 Mio.), \(great) 75 Mio. (vorher 250 Mio.).",
                            "Покеболы в магазине дешевле: \(ultra) 150 млн (было 400 млн), \(great) 75 млн (было 250 млн).")
             },
+            .improved("2026-11-13-oak-compose-team") { l in
+                let c = l.dungeonComposeForMe
+                return l.t("오박사가 이제 오늘·이번 주 던전을 \"\(c)\"이 고르는 팀으로 판단하고, 던전을 추천할 때 말하는 승률도 그 팀의 승률이에요.",
+                           "Prof. Oak now weighs the daily and weekly dungeons with the team \"\(c)\" picks, and the odds he gives for a dungeon are that team's.",
+                           "オーキド博士が、今日と今週のダンジョンを「\(c)」が選ぶチームで判断します。ダンジョンを勧めるときの勝率も、そのチームのものです。",
+                           "El Profesor Oak ahora juzga las mazmorras diaria y semanal con el equipo que elige \"\(c)\", y las probabilidades que da para una mazmorra son las de ese equipo.",
+                           "Le Prof. Chen juge maintenant les donjons du jour et de la semaine avec l'équipe que choisit \"\(c)\", et les chances qu'il donne pour un donjon sont celles de cette équipe.",
+                           "O Prof. Carvalho agora avalia as masmorras diária e semanal com a equipe que \"\(c)\" escolhe, e as chances que ele dá para uma masmorra são as dessa equipe.",
+                           "Prof. Eich beurteilt den Tages- und den Wochendungeon jetzt mit dem Team, das \"\(c)\" wählt, und die Gewinnchance, die er für einen Dungeon nennt, ist die dieses Teams.",
+                           "Профессор Оук теперь оценивает подземелья дня и недели по команде, которую выбирает \"\(c)\", и шансы, которые он называет для подземелья, относятся к этой команде.")
+            },
+            .improved("2026-11-13-oak-dungeon-wait", { $0.t("오박사가 던전을 추천할 때 던전이 쓰는 토큰과, 그동안 포켓몬이나 알이 자라지 않는다는 것도 알려 줘요.",
+                                                         "When Prof. Oak suggests a dungeon, he now says how many tokens it takes, while your Pokémon or egg doesn't grow.",
+                                                         "オーキド博士がダンジョンを勧めるとき、使うトークンと、そのあいだポケモンやタマゴが育たないことも伝えます。",
+                                                         "Cuando el Profesor Oak propone una mazmorra, ahora dice cuántos tokens usa, mientras tu Pokémon o tu huevo no crece.",
+                                                         "Quand le Prof. Chen conseille un donjon, il dit combien de tokens il prend, pendant lesquels ton Pokémon ou ton œuf ne grandit pas.",
+                                                         "Quando o Prof. Carvalho sugere uma masmorra, ele agora diz quantos tokens ela usa, enquanto seu Pokémon ou ovo não cresce.",
+                                                         "Wenn Prof. Eich einen Dungeon vorschlägt, sagt er jetzt, wie viele Tokens er braucht, solange dein Pokémon oder Ei nicht wächst.",
+                                                         "Советуя подземелье, профессор Оук теперь называет, сколько токенов оно заберёт: всё это время покемон или яйцо не растёт.") }),
+            .fixed("2026-11-13-oak-coronet-door") { l in
+                let coronet = l.dungeonName(.mtCoronet)
+                return l.t("오박사가 아직 그 던전에서 잡지 않은 보스가 있는 던전도 추천해요. \(coronet)에 들어가려면 보스를 모두 각자의 던전에서 잡아야 하니까요.",
+                           "Prof. Oak now also suggests the dungeons whose bosses you have not caught there yet: \(coronet) only opens once each is caught in its dungeon.",
+                           "オーキド博士が、まだそのダンジョンでつかまえていないボスのいるダンジョンも勧めます。\(coronet)は、どのボスもそれぞれのダンジョンでつかまえないと開きません。",
+                           "El Profesor Oak ahora también propone las mazmorras cuyos jefes aún no capturaste en ellas: el \(coronet) solo se abre cuando cada uno está capturado en su mazmorra.",
+                           "Le Prof. Chen conseille aussi les donjons dont tu n'as pas encore capturé les boss sur place : le \(coronet) ne s'ouvre qu'une fois chacun capturé dans son donjon.",
+                           "O Prof. Carvalho agora também sugere as masmorras cujos chefes você ainda não capturou nelas: o \(coronet) só abre quando cada um for capturado na sua masmorra.",
+                           "Prof. Eich schlägt jetzt auch die Dungeons vor, deren Bosse du dort noch nicht gefangen hast: Der \(coronet) öffnet sich erst, wenn jeder in seinem Dungeon gefangen ist.",
+                           "Профессор Оук теперь советует и подземелья, боссов которых вы там ещё не поймали: \(coronet) откроется, только когда каждый будет пойман в своём подземелье.")
+            },
             .new("2026-11-13-costumes", { $0.t("새 기능: 포켓몬 GO의 코스튬 포켓몬! 달마다 코스튬 묶음이 있고(모두 217마리) 해마다 돌아와요. 토큰 3억마다 코스튬 알 1개, 아직 없는 코스튬부터 나와요. 코스튬을 입은 채로 진화해요. 컬렉션의 가면 버튼에서 모아 둔 걸 볼 수 있어요.",
                                               "New: Pokémon GO's costumed Pokémon! Each month has its lot (217 in all), back every year. A Costume Egg every 300M tokens holds one of the month's, the ones you lack first, and it evolves in its costume. See them with the masks button in the Collection.",
                                               "新登場：ポケモンGOのコスチュームのポケモン！月ごとにコスチュームがあり（ぜんぶで217）、毎年もどってきます。トークン3億ごとにコスチュームのタマゴを1こ。まだないものから出て、コスチュームのまま進化します。コレクションの仮面ボタンで見られます。",

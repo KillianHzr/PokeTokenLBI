@@ -29,8 +29,16 @@ final class CompanionStore {
     @ObservationIgnored var oakOddsCache: [ItemKind: Double?] = [:]
     @ObservationIgnored var oakDungeonCache: [DungeonID: OakDungeonOdds] = [:]
     @ObservationIgnored var oakWinOdds: (DungeonTeamBuilder.ReachEstimate) -> Double = { $0.run().win } {
-        didSet { oakDungeonCache = [:] }
+        didSet {
+            oakDungeonCache = [:]
+            oakSearches = [:]
+        }
     }
+    @ObservationIgnored var oakComposeSearch: @Sendable (DungeonTeamBuilder.ComposeChoice) -> [String] = { $0.run() } {
+        didSet { oakSearches = [:] }
+    }
+    var oakSearches: [DungeonID: OakDungeonOdds] = [:]
+    @ObservationIgnored var oakSearchTasks: [DungeonID: (inputs: OakDungeonOdds.Inputs, task: Task<Void, Never>)] = [:]
     /// How many times the Pokédex was folded: the tests check the cache with it.
     @ObservationIgnored private(set) var dexSpeciesFolds = 0
     /// Writes of the save file, for the tests of what writes it.

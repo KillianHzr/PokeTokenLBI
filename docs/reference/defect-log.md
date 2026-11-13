@@ -797,6 +797,18 @@ read_when:
   (`OakAdviceTests.testWhileATeamExploresTheBagsEggStillWaitsForTheSpare`). Sweep: the Bag's buttons are the gates' only
   other callers, and they act now.
 
+- **Advice that leads toward a gate must call the gate's own predicate, not a copy of it.** Mt. Coronet opens once
+  every boss of the dungeons before it is caught (`caughtBosses`, `bossesLeft`), but Prof. Oak's boss step only sought
+  bosses the player did not have yet: a boss had from an egg was never sought, and Mt. Coronet, then the Hall of Origin, left
+  his advice for good. A first fix copied the door's condition of the day (beaten, and caught or its egg won); hours
+  later the door changed to "caught in its dungeon" (`bossesCaught`, #192) and the copy went wrong with it. The step now
+  calls `bossesLeft`. **Why it was missed:** the door came with `d54adf1`, after the advice's spec was measured; the
+  merge review stopped at "it goes through `isDungeonOpen`"; and the Hall's tests start from Mt. Coronet won, which keeps
+  it open for good (`OakDungeonTests.testTheBossesMtCoronetsDoorWaitsForAreProposedUntilCaughtThere`). Sweep: the other
+  gates Oak leads toward read what `isMet` reads (`wonEvery` through the First Wins, `beatBosses` through the Mt. Coronet
+  step, both `state.dungeons`); `DungeonsView` counts the door through `bossesLeft`; the expedition guide picks no
+  dungeon.
+
 - **A daily draw settled before its blockers are checked is lost, not postponed.** `settleVillainAmbush` marked the
   day as settled, then gave up when a team was exploring: the owner's two-day Cerulean Cave run of 2026-11-10 took both
   days the thieves were due, and with one day in three drawn (a rule of the plan, never his), the next came eight days
@@ -818,6 +830,23 @@ read_when:
   on every core (`BattleEngine.parallelMap`). On his save: 99% on 600 runs it never saw, 84% for the team it used to
   keep. Sweep: `reachEstimate` and the departure already read `bagBerries` and `bagRevives`; Prof. Oak's
   `composeTeam` keeps the greedy team, never simulated. A simulation that picks must run what the action will run.
+
+- **Advice that weighs an action must weigh the choice the action will make.** Prof. Oak judged a dungeon on
+  `composeTeam`, the greedy team, which "Compose for me" also kept until `ac81d42` made the button search many teams with
+  the Bag's berries: his odds and the Bottle Caps he lists then spoke of another team than the one the button sets, and
+  he kept quiet on challenges only the searched team wins. **Why it was missed:** the change's sweep checked that Oak
+  never simulates to pick, not what his numbers describe, and no test set his team beside the button's. Oak now weighs
+  the daily and weekly dungeons, and shows any dungeon he proposes, with the button's own search (`composeChoice`),
+  run off the main thread and cached; a regular dungeon's threshold still reads his greedy team, the search costing
+  3 to 6 s a dungeon (`OakDungeonTests.testAChallengeIsJudgedOnTheTeamComposeForMePicks`,
+  `testTheDungeonProposedGoesWithTheTeamComposeForMePicks`, `testTheDungeonStepWaitsForTheSearch`).
+
+- **A cache keyed on its inputs must follow what its function comes to read.** `e9f87ad` narrowed a dungeon's bosses
+  to those not caught there (`dungeonInfo`), so Prof. Oak's odds came to read `bossesCaught`, which his cache key
+  (`OakDungeonOdds.Inputs`) did not hold: after a catch he kept the odds against the old bosses. **Why it was missed:**
+  the change touched no Oak file, and the key lists inputs by hand. The key now holds `bossesCaught`
+  (`OakDungeonTests.testTheOddsRunAgainOnceABossIsCaughtThere`). Sweep: the store's other caches reset on any state
+  change; Oak's is the only one keyed on chosen inputs.
 
 ## 외부 로그·사용량 소스
 
