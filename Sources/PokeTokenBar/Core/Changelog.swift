@@ -67,6 +67,17 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-13", entries: [
+            .improved("2026-11-13-ball-prices") { l in
+                let ultra = l.itemName(.ultraBall), great = l.itemName(.greatBall)
+                return l.t("상점의 볼이 싸졌어요: \(ultra) 1억 5천만(전에는 4억), \(great) 7500만(전에는 2억 5천만).",
+                           "The Shop's balls are cheaper: \(ultra) 150M (400M before), \(great) 75M (250M before).",
+                           "ショップのボールが安くなりました：\(ultra)は1億5000万（前は4億）、\(great)は7500万（前は2億5000万）。",
+                           "Las Balls de la Tienda bajan: \(ultra) 150M (antes 400M), \(great) 75M (antes 250M).",
+                           "Les Balls de la Boutique baissent : \(ultra) 150M (400M avant), \(great) 75M (250M avant).",
+                           "As Bolas da Loja ficaram mais baratas: \(ultra) 150M (antes 400M), \(great) 75M (antes 250M).",
+                           "Die Bälle im Shop werden günstiger: \(ultra) 150 Mio. (vorher 400 Mio.), \(great) 75 Mio. (vorher 250 Mio.).",
+                           "Покеболы в магазине дешевле: \(ultra) 150 млн (было 400 млн), \(great) 75 млн (было 250 млн).")
+            },
             .new("2026-11-13-costumes", { $0.t("새 기능: 포켓몬 GO의 코스튬 포켓몬! 달마다 코스튬 묶음이 있고(모두 217마리) 해마다 돌아와요. 토큰 3억마다 코스튬 알 1개, 아직 없는 코스튬부터 나와요. 코스튬을 입은 채로 진화해요. 컬렉션의 가면 버튼에서 모아 둔 걸 볼 수 있어요.",
                                               "New: Pokémon GO's costumed Pokémon! Each month has its lot (217 in all), back every year. A Costume Egg every 300M tokens holds one of the month's, the ones you lack first, and it evolves in its costume. See them with the masks button in the Collection.",
                                               "新登場：ポケモンGOのコスチュームのポケモン！月ごとにコスチュームがあり（ぜんぶで217）、毎年もどってきます。トークン3億ごとにコスチュームのタマゴを1こ。まだないものから出て、コスチュームのまま進化します。コレクションの仮面ボタンで見られます。",

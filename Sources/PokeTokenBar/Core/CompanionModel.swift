@@ -515,9 +515,11 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .rareCandy: return RareCandy.price
         case .mint: return Mint.price
         case .shinyCharm: return ShinyCharm.price
-        // R12 B: the balls cost what the Uncommon and Rare Eggs cost; the Master Ball is never sold.
-        case .greatBall: return FreshEgg.price(guaranteeing: .uncommon)
-        case .ultraBall: return FreshEgg.price(guaranteeing: .rare)
+        // The Master Ball is never sold. The balls came down on 2026-11-13 (the owner: "la hyper ball est trop chère
+        // elle devrait être à 150M"; then 75M for the Great Ball, half): 150M and 75M as the players see them (×0.1),
+        // 400M and 250M before, the Rare and Uncommon Eggs' prices.
+        case .greatBall: return 750_000_000
+        case .ultraBall: return 1_500_000_000
         default: return nil
         }
     }
