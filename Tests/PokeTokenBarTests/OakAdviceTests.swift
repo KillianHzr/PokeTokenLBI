@@ -552,6 +552,10 @@ final class OakAdviceTests: XCTestCase {
         XCTAssertEqual(fossil, 3, "a Fossil Egg brings Kabuto")
         let birthday = try await buyAhead { $0.eggFromBirthdayEgg = true }
         XCTAssertEqual(birthday, 3, "a Birthday Egg, no legendary to draw")
+        let costume = try await buyAhead {
+            $0.eggFromCostume = CostumeEgg(id: "summer-7", code: "SUMMER_2018", speciesID: 7, form: nil, month: 8)
+        }
+        XCTAssertEqual(costume, 3, "a Costume Egg brings its costumed Squirtle")
     }
 
     /// The Rare Candies the balance buys go to the Pokémon raised as well. Caterpie graduated, the Rare+ Egg brings
