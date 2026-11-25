@@ -1446,6 +1446,10 @@ extension L {
         t("보스 바꾸기", "Swap boss", "ボスを入れかえる", "Cambiar de jefe", "Changer de boss", "Trocar de chefe", "Boss tauschen",
           "Сменить босса")
     }
+    /// The swap on a challenge's card, half a row wide.
+    var challengeSwap: String {
+        t("바꾸기", "Swap", "入れかえ", "Cambiar", "Changer", "Trocar", "Tauschen", "Сменить")
+    }
     /// "1 Morceau Vœu", "3 Morceaux Vœu": what a boss swap costs.
     func wishingPieces(_ n: Int) -> String {
         let name = itemName(.wishingPiece)

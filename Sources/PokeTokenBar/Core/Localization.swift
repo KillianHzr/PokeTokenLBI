@@ -2703,14 +2703,14 @@ struct L {
                      "Öffnet einmal einen T4-Dungeon oder den Saal des Ursprungs: beim Betreten verbraucht, auch bei einer Niederlage.",
                      "Открывает подземелье T4 или Зал Истоков один раз: тратится на входе, даже при поражении.")
         case .wishingPiece:
-            return t("그날 도전 전에 오늘의 던전(1개)이나 이번 주 던전(3개)의 보스를 다른 보스로 바꿔요. 팀 화면에서 써요.",
-                     "Before the day's try, swaps the boss of the daily dungeon (1) or the weekly dungeon (3) for another, on its team screen.",
-                     "その日の挑戦の前に、今日のダンジョン（1こ）か今週のダンジョン（3こ）のボスを入れかえます。チーム画面で使います。",
-                     "Antes del intento del día, cambia por otro el jefe de la mazmorra del día (1) o de la semana (3), en su pantalla de equipo.",
-                     "Avant la tentative du jour, change le boss du donjon du jour (1) ou de la semaine (3) pour un autre, sur son écran d'équipe.",
-                     "Antes da tentativa do dia, troca por outro o chefe da masmorra do dia (1) ou da semana (3), na tela de equipe.",
-                     "Tauscht vor dem Versuch des Tages den Boss des Tages-Dungeons (1) oder des Wochen-Dungeons (3) aus, im Team-Bildschirm.",
-                     "До попытки дня меняет босса подземелья дня (1) или недели (3) на другого, на экране команды.")
+            return t("그날 도전 전에 오늘의 던전(1개)이나 이번 주 던전(3개)의 보스를 다른 보스로 바꿔요. 던전 탭의 카드에서 써요.",
+                     "Before the day's try, swaps the boss of the daily dungeon (1) or the weekly dungeon (3) for another, from its card in the Dungeons tab.",
+                     "その日の挑戦の前に、今日のダンジョン（1こ）か今週のダンジョン（3こ）のボスを入れかえます。ダンジョンタブのカードで使います。",
+                     "Antes del intento del día, cambia por otro el jefe de la mazmorra del día (1) o de la semana (3), desde su tarjeta en la pestaña Mazmorras.",
+                     "Avant la tentative du jour, change le boss du donjon du jour (1) ou de la semaine (3) pour un autre, depuis sa carte dans l'onglet Donjons.",
+                     "Antes da tentativa do dia, troca por outro o chefe da masmorra do dia (1) ou da semana (3), no cartão dela na aba Masmorras.",
+                     "Tauscht vor dem Versuch des Tages den Boss des Tages-Dungeons (1) oder des Wochen-Dungeons (3) aus, auf dessen Karte im Tab Dungeons.",
+                     "До попытки дня меняет босса подземелья дня (1) или недели (3) на другого, на его карточке во вкладке \"Подземелья\".")
         }
     }
 
