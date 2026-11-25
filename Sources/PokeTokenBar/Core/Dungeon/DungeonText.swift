@@ -440,6 +440,11 @@ extension L {
         case .treasureMap: t("보물지도 1장", "A Treasure Map", "たからのちず1まい", "Un Mapa del Tesoro", "Une Carte au trésor",
                              "Um Mapa do Tesouro", "Eine Schatzkarte", "Карта сокровищ")
         case .caughtBosses(let ids): dungeonCaughtBosses(DungeonCatalog.bosses(of: ids).count)
+        case .legendaryLeft: t("아직 없는 전설·환상의 포켓몬", "A legendary or mythical Pokémon you do not have yet",
+                               "まだいない伝説・幻のポケモン", "Un Pokémon legendario o singular que aún no tengas",
+                               "Un Pokémon légendaire ou fabuleux qui te manque", "Um Pokémon lendário ou mítico que você ainda não tem",
+                               "Ein legendäres oder mysteriöses Pokémon, das dir noch fehlt",
+                               "Легендарный или мифический покемон, которого у тебя ещё нет")
         }
     }
 

@@ -122,6 +122,8 @@ enum DungeonUnlock: Codable, Sendable, Hashable {
     case treasureMap
     /// Every boss of these dungeons beaten and caught (Mt. Coronet's door, the owner 2026-11-10).
     case caughtBosses([DungeonID])
+    /// A legendary or mythical still to find, the Ruins of Alph's boss (the owner, 2026-11-25).
+    case legendaryLeft
 }
 
 /// The thirteen dungeons (Q25, Q26: places of the series, their official names).
@@ -234,16 +236,16 @@ enum DungeonCatalog {
                            wild: themed([.steel, .water, .ghost, .dragon], tier: .t4), bosses: [483, 484, 487],
                            unlocks: [.wonEvery(.t3), .legendariesGraduated(10), .caughtBosses(bossDungeons(before: id))])
         case .ruinsOfAlph:
-            // Q25, Q13: secret, opened once by a Treasure Map; its rules are drawn at random (`alphRules`), its
-            // boss is any final species but Arceus.
+            // Q25, Q13: secret, opened once by a Treasure Map; its rules are drawn at random (`alphRules`). Its boss
+            // is a legendary or mythical final species but Arceus, one the player has not (the owner, 2026-11-25: any
+            // final species made 600M and a map worth a Raichu): `CompanionStore.alphBossPool`, closed once empty.
             return Dungeon(id: id, tier: .t4, teamSize: 6, rules: [], themeTypes: [.psychic],
                            wild: [201] + themed([.psychic, .rock], tier: .t4),
-                           // Never its secret boss, Regigigas, which would be no secret then (2026-11-10).
                            bosses: SpeciesInfo.all.keys.filter { id in
                                id != arceusID && id <= 1025 && SpeciesInfo.isFinal(id) && SpeciesBattleTable.all[id] != nil
-                                   && !SecretBosses.candidates(.ruinsOfAlph).contains { $0.speciesID == id }
+                                   && SpeciesInfo.lineRarity(of: id) == .legendary
                            }.sorted(),
-                           unlocks: [.treasureMap])
+                           unlocks: [.treasureMap, .legendaryLeft])
         case .hallOfOrigin:
             // A Mega or a Primal, a Gigantamax and four shinies (the owner, 2026-11-10; six shinies before). Its door is
             // Mt. Coronet's three bosses beaten, nothing more (the owner, 2026-11-10): that one waits for every boss before it.
@@ -267,6 +269,15 @@ enum DungeonCatalog {
         case .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout:
             return VillainRules.hideout(id.villain ?? .rocket)
         }
+    }
+
+    /// The Ruins of Alph's boss drawn from `pool`, the legendaries and mythicals the player has not: one time in
+    /// `SecretBosses.odds` its shiny, the Ruins' secret (the owner, 2026-11-25). Nil once the pool is empty.
+    static func alphBoss(from pool: [Int], seed: UInt64) -> ExpeditionBoss? {
+        guard !pool.isEmpty else { return nil }
+        var random = BattleRandom(seed: seed ^ 0xA1F_B055)
+        let species = pool[random.below(pool.count)]
+        return ExpeditionBoss(speciesID: species, form: nil, isShiny: random.below(SecretBosses.odds) == 0)
     }
 
     /// The dungeons listed before this one whose bosses are set: the Ruins of Alph (any species), the challenges and

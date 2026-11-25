@@ -31,7 +31,8 @@ final class DungeonLayoutTests: XCTestCase {
         let available = PopoverMetrics.scrollContentWidth
         for language in AppLanguage.allCases {
             let s = try store(language) { st in
-                st.dex = (1...1025).map { id in
+                // Mew left out: with every legendary and mythical, the Ruins of Alph close (the owner, 2026-11-25).
+                st.dex = (1...1025).filter { $0 != 151 }.map { id in
                     DexEntry(baseID: id, finalID: id, chainOrder: [id],
                              rarity: SpeciesGoal.legendaries.contains(id) ? .legendary : .common, caughtAt: nil)
                 }

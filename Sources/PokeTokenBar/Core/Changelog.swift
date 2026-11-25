@@ -66,6 +66,16 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-25", entries: [
+            .improved("2026-11-25-alph-rework", { $0.t("알프의 유적을 더 균형 있게 다시 다듬었어요.",
+                                                       "The Ruins of Alph were reworked for a better balance.",
+                                                       "アルフのいせきを、よりよいバランスに作り直しました。",
+                                                       "Las Ruinas Alfa se han rehecho para un mejor equilibrio.",
+                                                       "Les Ruines d'Alpha ont été retravaillées pour un meilleur équilibrage.",
+                                                       "As Ruínas de Alfa foram refeitas para um melhor equilíbrio.",
+                                                       "Die Alph-Ruinen wurden für ein besseres Gleichgewicht überarbeitet.",
+                                                       "Руины Альфа переработаны для лучшего баланса.") }),
+        ]),
         ChangelogDay(date: "2026-11-24", entries: [
             .new("2026-11-24-candy-crumbs") { l in
                 let candy = l.itemName(.rareCandy)

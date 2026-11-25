@@ -53,12 +53,7 @@ struct DungeonsView: View {
         .task { store.settleChallengeBosses() }
     }
 
-    /// The Ruins of Alph show only once a Treasure Map, or a visit, made them known.
-    private var shown: [DungeonID] {
-        DungeonID.allCases.filter { id in
-            !id.isChallenge && !id.isHideout && (id != .ruinsOfAlph || store.itemCount(.treasureMap) > 0 || store.dungeonProgress.wins(id) > 0)
-        }
-    }
+    private var shown: [DungeonID] { DungeonID.allCases.filter(store.isListed) }
 
     /// The expedition under way as a live card (the owner, 2026-11-09: the grey line among the cards did not show): a
     /// blue frame, a beating dot, the dungeon, its floors as a bar, the team with its HP.

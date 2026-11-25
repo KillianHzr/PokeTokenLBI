@@ -41,7 +41,9 @@ enum SecretBosses {
         case .seafoamIslands: return [one(144, "galar")] // Galarian Articuno: Articuno is a boss there already
         case .ceruleanCave: return [one(151)]            // Mew, Mewtwo's origin
         case .mtCoronet: return [one(480), one(481), one(482)] // Uxie, Mesprit, Azelf, the lakes at its foot
-        case .ruinsOfAlph: return [one(486)]             // Regigigas, the king of the ruins' Regis
+        // Its boss shiny instead, one time in a hundred (`DungeonCatalog.alphBoss`, the owner, 2026-11-25): Regigigas,
+        // its secret before, is one of its bosses now.
+        case .ruinsOfAlph: return []
         case .hallOfOrigin: return trinity
         case .daily, .weekly, .skullHideout, .magmaHideout, .aquaHideout, .galacticHideout, .rocketHideout: return []
         }
