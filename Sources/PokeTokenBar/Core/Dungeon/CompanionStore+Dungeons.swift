@@ -900,6 +900,9 @@ extension CompanionStore {
         var unlockedMove: String?
         // A challenge gives its battle form, and its floors' loot: no first-victory doubling, no extras.
         var battleForm = won && e.dungeon.isChallenge ? BattleForms.form(speciesID: e.boss.speciesID, form: e.boss.form) : nil
+        if won, e.dungeon.isChallenge, Double(random.below(10_000)) < WishingPiece.victoryChance(e.dungeon) * 100 {
+            loot.add(.wishingPiece)
+        }
         if won, !e.dungeon.isChallenge {
             if firstVictory {
                 // Q22: a first victory doubles the loot and adds a dungeon item.

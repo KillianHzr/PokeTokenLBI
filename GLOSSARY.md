@@ -55,3 +55,7 @@ _Avoid_: Lair
 **Candy Crumb**:
 What a Rare Candy's EXP thrown away at a graduation leaves behind: one per tenth of a plain candy's EXP, the remainder lost. A hundred make a Rare Candy. Not an item of the Bag.
 _Avoid_: Shard, fragment
+
+**Wishing Piece**:
+An item of the Bag that swaps the daily or weekly dungeon's boss for another before that day's try, one piece for the daily, three for the weekly.
+_Avoid_: Reroll, reroll token

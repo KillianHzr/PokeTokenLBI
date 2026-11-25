@@ -22,6 +22,8 @@ final class VillainTests: XCTestCase {
         st.claimedTodayTokensByProvider = ["test": 0]
         st.dex = dex
         st.active = MonState(baseID: 16, pathIDs: [16, 17, 18], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 3)
+        // The Bag holds what each test puts in it, without the starting Wishing Pieces.
+        st.wishingPiecesGiven = true
         prepare(&st)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("villain-\(UUID().uuidString).json")
         try JSONEncoder().encode(st).write(to: url)
