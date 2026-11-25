@@ -66,6 +66,19 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-25", entries: [
+            .new("2026-11-25-wishing-piece") { l in
+                let piece = l.itemName(.wishingPiece)
+                return l.t("새 아이템 \(piece): 오늘의 던전이나 이번 주 던전의 카드에서 그날 도전 전에 보스를 바꿀 수 있어요(오늘은 1개, 이번 주는 3개). 모두에게 3개를 드려요. 오늘의 던전이나 이번 주 던전에서 이기거나 T4, T5 아지트 두목의 상자를 열면 가끔 나와요.",
+                           "New item, the \(piece): on the daily or weekly dungeon's card, swap its boss before the day's try (1 for the daily, 3 for the weekly). Everyone gets 3. More drop now and then from a daily or weekly dungeon won, and from a T4 or T5 hideout leader's chest.",
+                           "新アイテム「\(piece)」：今日か今週のダンジョンのカードで、その日の挑戦の前にボスを入れかえられます（今日は1こ、今週は3こ）。みんなに3こプレゼント。今日や今週のダンジョンに勝ったとき、T4とT5のアジトのボスの宝箱から、ときどき手に入ります。",
+                           "Nuevo objeto, el \(piece): en la tarjeta de la mazmorra del día o de la semana, cambia su jefe antes del intento del día (1 para la del día, 3 para la de la semana). Todos reciben 3. Salen más de vez en cuando al ganar la mazmorra del día o de la semana, y en el cofre del líder de una guarida T4 o T5.",
+                           "Nouvel objet, le \(piece) : sur la carte du donjon du jour ou de la semaine, change son boss avant la tentative du jour (1 pour le jour, 3 pour la semaine). Tout le monde en reçoit 3. D'autres tombent parfois d'une victoire au donjon du jour ou de la semaine, et du coffre du chef d'un repaire T4 ou T5.",
+                           "Novo item, o \(piece): no cartão da masmorra do dia ou da semana, troque o chefe antes da tentativa do dia (1 para a do dia, 3 para a da semana). Todos ganham 3. Outros caem às vezes ao vencer a masmorra do dia ou da semana, e do baú do líder de um esconderijo T4 ou T5.",
+                           "Neues Item, der \(piece): Auf der Karte des Tages- oder Wochen-Dungeons tauschst du vor dem Versuch des Tages dessen Boss (1 für den Tages-, 3 für den Wochen-Dungeon). Alle bekommen 3. Weitere gibt es ab und zu bei einem Sieg im Tages- oder Wochen-Dungeon und in der Truhe des Bosses eines T4- oder T5-Verstecks.",
+                           "Новый предмет \"\(piece)\": на карточке подземелья дня или недели можно сменить босса до попытки дня (1 для подземелья дня, 3 для подземелья недели). Всем выдано по 3. Ещё иногда выпадают за победу в подземелье дня или недели и из сундука главаря логова T4 или T5.")
+            },
+        ]),
         ChangelogDay(date: "2026-11-24", entries: [
             .new("2026-11-24-candy-crumbs") { l in
                 let candy = l.itemName(.rareCandy)

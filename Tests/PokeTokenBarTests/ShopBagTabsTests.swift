@@ -33,7 +33,7 @@ final class ShopBagTabsTests: XCTestCase {
             XCTAssertEqual(BagView.Section.of(kind), .raising, "\(kind)")
         }
         let dungeons = ItemKind.allCases.filter { $0.isDungeonItem && $0 != .mint }
-        XCTAssertEqual(dungeons.count, 12)
+        XCTAssertEqual(dungeons.count, 13)
         for kind in dungeons {
             XCTAssertEqual(BagView.Section.of(kind), .dungeons, "\(kind)")
         }

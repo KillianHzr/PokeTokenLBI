@@ -302,6 +302,7 @@ private struct ChallengeCard: View {
                             .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
+                    if store.canSwapChallengeBoss(id) { bossSwap(l) }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -347,6 +348,25 @@ private struct ChallengeCard: View {
                   : tried ? l.challengeTriedToday
                   : store.expedition != nil && unmet.isEmpty ? l.dungeonOneAtATime
                   : details + "\n" + l.challengeHard)
+    }
+}
+
+extension ChallengeCard {
+    /// The boss swapped for Wishing Pieces (the owner, 2026-11-25): where the boss shows large, it changes in place.
+    private func bossSwap(_ l: L) -> some View {
+        let cost = WishingPiece.cost(id), have = store.itemCount(.wishingPiece)
+        return Button { store.swapChallengeBoss(id) } label: {
+            HStack(spacing: 3) {
+                ItemIconView(kind: .wishingPiece, size: 14)
+                Text(l.challengeSwap)
+                Text("×\(cost)").monospacedDigit()
+            }
+            .font(.caption2.weight(.semibold))
+        }
+        .buttonStyle(.pill())
+        .disabled(have < cost)
+        .hoverTip(l.challengeSwapBoss + " · " + (have >= cost ? l.challengeSwapCost(cost, have: have) : l.challengeSwapShort(cost, have: have)))
+        .padding(.top, 2)
     }
 }
 

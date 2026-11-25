@@ -156,6 +156,7 @@ final class CompanionStore {
         migrateLightBallToRewardsIfNeeded()
         recordFossilLinesBeforeDigsIfNeeded()
         reconcileOverclaimedDigsIfNeeded()
+        giveStartingWishingPiecesIfNeeded()
         recoverFromACrashedDungeonStep()
         // A save left waiting at the boss's throws, from before they were automatic, throws them now.
         throwAutomatically()
@@ -220,6 +221,15 @@ final class CompanionStore {
         }
         AppLog.write("light ball: traded for its rewards")
         save()
+    }
+
+    /// The starting Wishing Pieces, once (`CompanionState.wishingPiecesGiven`). Kept with the next save, not written
+    /// here: a fresh state must not touch the file on launch, and until then it reads the same again.
+    private func giveStartingWishingPiecesIfNeeded() {
+        guard !state.wishingPiecesGiven else { return }
+        state.wishingPiecesGiven = true
+        changeBag(.wishingPiece, by: WishingPiece.starting)
+        AppLog.write("wishing piece: \(WishingPiece.starting) given")
     }
 
     /// The fossil lines had before the digs, taken once (`CompanionState.fossilLinesBeforeDigs`). Counting them again

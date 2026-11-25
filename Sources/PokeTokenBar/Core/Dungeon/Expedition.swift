@@ -719,7 +719,7 @@ enum ExpeditionEngine {
 
     static func isRare(_ loot: ExpeditionLoot) -> Bool {
         !loot.eggs.isEmpty || [ItemKind.goldCapsule, .silverCapsule, .masterBall, .treasureMap, .explorerChest,
-                               .legendaryKey, .legendaryEgg, .rareEgg].contains { (loot.items[$0.rawValue] ?? 0) > 0 }
+                               .legendaryKey, .wishingPiece, .legendaryEgg, .rareEgg].contains { (loot.items[$0.rawValue] ?? 0) > 0 }
     }
 
     // MARK: The emergency heal

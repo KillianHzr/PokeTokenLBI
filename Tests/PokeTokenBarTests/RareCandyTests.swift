@@ -677,9 +677,9 @@ final class RareCandyStoreTests: XCTestCase {
     /// ownedItems 는 개수>0 아이템만 노출.
     func testOwnedItemsReflectsStock() async {
         let s = store(rcLinear3)
-        XCTAssertTrue(s.ownedItems.isEmpty)
+        XCTAssertEqual(s.ownedItems.map(\.kind), [.wishingPiece], "a new player holds the starting Wishing Pieces alone")
         giveCandies(s, 3)
-        XCTAssertEqual(s.ownedItems.map(\.kind), [.rareCandy])
+        XCTAssertEqual(s.ownedItems.map(\.kind), [.rareCandy, .wishingPiece])
         XCTAssertEqual(s.ownedItems.first?.count, 3)
     }
 
