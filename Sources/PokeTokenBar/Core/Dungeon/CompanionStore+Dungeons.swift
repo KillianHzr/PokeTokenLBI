@@ -42,8 +42,19 @@ extension CompanionStore {
         case .beatBosses(let species): return species.allSatisfy(state.dungeons.beat)
         case .treasureMap: return itemCount(.treasureMap) > 0
         case .caughtBosses(let ids): return bossesLeft(ids).isEmpty
+        case .legendaryLeft: return !alphBossPool.isEmpty
         }
     }
+
+    /// Whether the Dungeons list shows it: the challenges and hideouts have their own places, and the Ruins of Alph show
+    /// only while a Treasure Map can open them, won before or not (the owner, 2026-11-25).
+    func isListed(_ id: DungeonID) -> Bool {
+        !id.isChallenge && !id.isHideout && (id != .ruinsOfAlph || itemCount(.treasureMap) > 0)
+    }
+
+    /// The Ruins of Alph's bosses still to find: the legendaries and mythicals of its list the player has not, in the
+    /// Pokédex, raised or as an egg waiting (`hasCaughtBoss`).
+    var alphBossPool: [Int] { DungeonCatalog.dungeon(.ruinsOfAlph).bosses.filter { !hasCaughtBoss($0) } }
 
     /// These dungeons' bosses not yet caught in their dungeon (the owner, 2026-11-12: one had from an egg counted, and
     /// Mt. Coronet opened with no boss caught).
@@ -55,6 +66,9 @@ extension CompanionStore {
     func isDungeonOpen(_ id: DungeonID) -> Bool {
         // A hideout is there while its team keeps what it stole (issue #180).
         if let team = id.villain { return villainStash(team) != nil }
+        // The Ruins of Alph's doors hold at every visit, won or not: a map to spend, a legendary still to find (the
+        // owner, 2026-11-25; once won, they opened without a map before).
+        if id == .ruinsOfAlph { return unmetUnlocks(id).isEmpty }
         return unmetUnlocks(id).isEmpty || state.dungeons.wins(id) > 0
     }
 
@@ -413,6 +427,7 @@ extension CompanionStore {
         // A hideout's boss is its leader's ace (`VillainTeam.leaderTeam`), with two more at the end.
         let challenge = challengeBoss(id).map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) }
             ?? id.villain.map { ExpeditionBoss(speciesID: $0.leaderTeam[0], form: $0.leaderForms[0], isShiny: false) }
+            ?? (id == .ruinsOfAlph ? DungeonCatalog.alphBoss(from: alphBossPool, seed: seed) : nil)
         let started = ExpeditionEngine.start(dungeon: dungeon, team: members, rules: rules, teamSize: size, seed: seed,
                                              cost: dungeonCost(id), berries: berries,
                                              revives: revives, context: context, boss: challenge)

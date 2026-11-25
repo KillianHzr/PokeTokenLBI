@@ -34,9 +34,11 @@ final class SecretBossTests: XCTestCase {
     }
 
     /// Every dungeon of the list has its secret, none of its own bosses (Galarian Articuno is not Articuno), the
-    /// challenges and hideouts none.
+    /// challenges, hideouts and Ruins of Alph none.
     func testEachDungeonHasItsSecret() {
-        let regular = DungeonID.allCases.filter { !$0.isChallenge && !$0.isHideout }
+        // The Ruins of Alph's secret is their boss shiny (the owner, 2026-11-25): `DungeonCatalog.alphBoss`.
+        XCTAssertTrue(SecretBosses.candidates(.ruinsOfAlph).isEmpty)
+        let regular = DungeonID.allCases.filter { !$0.isChallenge && !$0.isHideout && $0 != .ruinsOfAlph }
         for id in regular {
             let secrets = SecretBosses.candidates(id)
             XCTAssertFalse(secrets.isEmpty, "\(id)")

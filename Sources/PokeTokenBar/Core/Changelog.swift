@@ -67,6 +67,14 @@ enum Changelog {
 
     static let days: [ChangelogDay] = [
         ChangelogDay(date: "2026-11-25", entries: [
+            .improved("2026-11-25-alph-rework", { $0.t("알프의 유적을 더 균형 있게 다시 다듬었어요.",
+                                                       "The Ruins of Alph were reworked for a better balance.",
+                                                       "アルフのいせきを、よりよいバランスに作り直しました。",
+                                                       "Las Ruinas Alfa se han rehecho para un mejor equilibrio.",
+                                                       "Les Ruines d'Alpha ont été retravaillées pour un meilleur équilibrage.",
+                                                       "As Ruínas de Alfa foram refeitas para um melhor equilíbrio.",
+                                                       "Die Alph-Ruinen wurden für ein besseres Gleichgewicht überarbeitet.",
+                                                       "Руины Альфа переработаны для лучшего баланса.") }),
             .new("2026-11-25-wishing-piece") { l in
                 let piece = l.itemName(.wishingPiece)
                 return l.t("새 아이템 \(piece): 오늘의 던전이나 이번 주 던전의 카드에서 그날 도전 전에 보스를 바꿀 수 있어요(오늘은 1개, 이번 주는 3개). 모두에게 3개를 드려요. 오늘의 던전이나 이번 주 던전에서 이기거나 T4, T5 아지트 두목의 상자를 열면 가끔 나와요.",

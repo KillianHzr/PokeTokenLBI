@@ -1023,6 +1023,73 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(CompanionStore.victoryExtraOdds(.t3).first { $0.item == .legendaryKey }?.percent, 50)
     }
 
+    /// The Ruins of Alph's boss is a legendary or mythical one the player has not (the owner, 2026-11-25: a Raichu
+    /// for 600M and a map was no treasure), never Arceus; Regigigas, its secret before, is one of them now.
+    func testTheRuinsOfAlphDrawALegendaryNotOwned() throws {
+        let bosses = DungeonCatalog.dungeon(.ruinsOfAlph).bosses
+        XCTAssertGreaterThan(bosses.count, 50)
+        XCTAssertTrue(bosses.allSatisfy { SpeciesInfo.lineRarity(of: $0) == .legendary }, "an ordinary Pokémon in the pool")
+        XCTAssertFalse(bosses.contains(26), "Raichu")
+        XCTAssertTrue(bosses.contains(487) && bosses.contains(151) && bosses.contains(486), "Giratina, Mew, Regigigas")
+        XCTAssertFalse(bosses.contains(DungeonCatalog.arceusID))
+        XCTAssertTrue(SecretBosses.candidates(.ruinsOfAlph).isEmpty, "its secret is its boss shiny")
+
+        // Owned: in the Pokédex, or its egg waiting in the Bag.
+        let s = try store(dex: strong + [graduated(487, rarity: .legendary)], inventory: [.treasureMap: 1]) {
+            $0.dungeons.eggs = [DungeonEgg(id: "mew", baseID: 151, form: nil, isShiny: false, sourceSpeciesID: 151)]
+        }
+        let pool = s.alphBossPool
+        XCTAssertFalse(pool.contains(487))
+        XCTAssertFalse(pool.contains(151))
+        XCTAssertEqual(pool.count, bosses.count - 2)
+
+        // The draw: one of the pool, shiny one time in a hundred, nothing from an empty pool.
+        var shinies = 0
+        for seed in UInt64(0)..<20_000 {
+            let boss = try XCTUnwrap(DungeonCatalog.alphBoss(from: pool, seed: seed))
+            XCTAssertTrue(pool.contains(boss.speciesID))
+            if boss.isShiny { shinies += 1 }
+        }
+        XCTAssertTrue((140...260).contains(shinies), "\(shinies) shinies in 20,000")
+        XCTAssertNil(DungeonCatalog.alphBoss(from: [], seed: 1))
+
+        // The departure takes its boss from the pool, whatever the dungeon's bosses: Mew, the one left.
+        let departures = try XCTUnwrap((0..<200).first { d in
+            let rules = DungeonCatalog.alphRules(seed: UInt64(d) &+ 0xA1F)
+            return DungeonTeamRules.isValid(strong.prefix(rules.teamSize).map(DungeonCandidate.init), size: rules.teamSize,
+                                            rules: rules.rules)
+        })
+        let owned = bosses.filter { $0 != 151 }.map { graduated($0, rarity: .legendary) }
+        let run = try store(dex: strong + owned, inventory: [.treasureMap: 1]) { $0.dungeons.departures = departures }
+        XCTAssertEqual(run.alphBossPool, [151])
+        let size = run.teamRules(.ruinsOfAlph).size
+        XCTAssertTrue(run.startExpedition(.ruinsOfAlph, team: strong.prefix(size).map(\.id)))
+        let boss = try XCTUnwrap(run.expedition?.boss)
+        XCTAssertEqual(boss.speciesID, 151)
+        XCTAssertNil(run.expedition?.secret)
+        XCTAssertEqual(run.itemCount(.treasureMap), 0)
+    }
+
+    /// The Ruins of Alph close once every legendary and mythical of their list is the player's, a map in the Bag or
+    /// a win before; a map is asked at every visit, won before or not; the list shows them only with a map.
+    func testTheRuinsOfAlphAskAMapAndALegendaryLeft() throws {
+        let all = DungeonCatalog.dungeon(.ruinsOfAlph).bosses.map { graduated($0, rarity: .legendary) }
+        let full = try store(dex: strong + all, inventory: [.treasureMap: 1]) { $0.dungeons.wins = ["ruinsOfAlph": 1] }
+        XCTAssertTrue(full.alphBossPool.isEmpty)
+        XCTAssertFalse(full.isDungeonOpen(.ruinsOfAlph))
+        XCTAssertFalse(full.canEnter(.ruinsOfAlph))
+        XCTAssertEqual(full.unmetUnlocks(.ruinsOfAlph), [.legendaryLeft])
+
+        let noMap = try store(dex: strong) { $0.dungeons.wins = ["ruinsOfAlph": 1] }
+        XCTAssertFalse(noMap.isDungeonOpen(.ruinsOfAlph), "won before, no map: closed")
+        XCTAssertFalse(noMap.isListed(.ruinsOfAlph), "no map: out of the list")
+        let map = try store(dex: strong, inventory: [.treasureMap: 1])
+        XCTAssertTrue(map.isDungeonOpen(.ruinsOfAlph))
+        XCTAssertTrue(map.isListed(.ruinsOfAlph))
+        XCTAssertTrue(map.isListed(.viridianForest))
+        XCTAssertFalse(map.isListed(.daily))
+    }
+
     /// The Dungeons medals sit with the Artifacts: a step per dungeon won once, then the whole tier, each its reward
     /// and never a Legendary Key; nothing without a victory, and the Ruins of Alph stay out.
     func testTheMedalsCountTheDungeonsWon() throws {
