@@ -367,6 +367,7 @@ enum SaveTransfer {
                                                   currentLedger.candyWindowPlan, currentLedger.candyGrantTier)
         state.candyFeatureSeeded = imported.candyFeatureSeeded || current.candyFeatureSeeded
         state.candyGrantsAsYouGo = imported.candyGrantsAsYouGo || current.candyGrantsAsYouGo
+        state.wishingPiecesGiven = imported.wishingPiecesGiven || current.wishingPiecesGiven
         let hasCurrentProviderData = hasUsageData && !todayTokensByProvider.isEmpty
         if hasCurrentProviderData {
             // 신규 설치와 같은 규칙: 불러온 시점 이전의 이 기기 사용량은 소급 적립하지 않는다.

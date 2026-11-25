@@ -38,6 +38,7 @@ struct DungeonTeamScreen: View {
         let faced = TeamMatchup.facedTypes(info, boss: boss)
         VStack(alignment: .leading, spacing: 8) {
             header(info, boss: boss, l)
+            if store.canSwapChallengeBoss(dungeon) { bossSwap(l) }
             rulesLine(size: size, rules: rules, members: members, info: info, l)
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
@@ -96,6 +97,22 @@ struct DungeonTeamScreen: View {
                         boss: boss.map { ExpeditionBoss(speciesID: $0.speciesID, form: $0.form, isShiny: false) })
             if !dungeon.isChallenge { Badge("T\(info.tier.rawValue)", tint: .secondary, style: .tinted) }
             Text(l.dungeonName(dungeon)).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
+        }
+    }
+
+    /// A challenge's boss swapped for Wishing Pieces (the owner, 2026-11-25): the team stays, the odds follow the new boss.
+    private func bossSwap(_ l: L) -> some View {
+        let cost = WishingPiece.cost(dungeon), have = store.itemCount(.wishingPiece)
+        return HStack(spacing: 6) {
+            ItemIconView(kind: .wishingPiece, size: 18)
+            Text(have >= cost ? l.challengeSwapCost(cost, have: have) : l.challengeSwapShort(cost, have: have))
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+            Spacer(minLength: 4)
+            Button(l.challengeSwapBoss) {
+                if let boss = store.swapChallengeBoss(dungeon) { shownBoss = boss }
+            }
+            .buttonStyle(.pill())
+            .disabled(have < cost)
         }
     }
 

@@ -716,7 +716,7 @@ final class SaveTransferTests: XCTestCase {
                                      "favoriteSpecies"]
         let deviceLedger: Set<String> = ["installBaselineSet", "claimedTodayTokensByProvider", "lastDate"]
         let accountLedger: Set<String> = ["candyGrantTier", "candyWindowEpoch", "candyWindowPlan", "candyFeatureSeeded",
-                                          "candyGrantsAsYouGo"]
+                                          "candyGrantsAsYouGo", "wishingPiecesGiven"]
         // The build that wrote the save: this Mac's, stamped at its next write.
         let devicePreference: Set<String> = ["language", "writer"]
 

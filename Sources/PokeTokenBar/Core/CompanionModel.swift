@@ -266,6 +266,8 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     /// Chest gives an Explorer Kit treasure; a Legendary Key opens a T4 dungeon (R10).
     case greatBall, ultraBall, masterBall, oranBerry, sitrusBerry, revive, maxRevive
     case silverCapsule, goldCapsule, treasureMap, explorerChest, legendaryKey
+    /// Swaps the daily or weekly dungeon's boss for another before that day's try (`WishingPiece`).
+    case wishingPiece
     /// The Dungeons achievements (Q32), one per tier: a dungeon won once, then the whole tier (`DungeonMedals`).
     case discoveryMedal, adventureMedal, expertMedal, legendsMedal, originMedal
     /// The battle forms won, in steps (`BattleFormsMedal`, 2026-11-02).
@@ -406,6 +408,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .silverCapsule: return "bottle-cap"
         case .goldCapsule: return "gold-bottle-cap"
         case .legendaryKey: return "secret-key"
+        case .wishingPiece: return "wishing-piece"
         case .lightBall: return "light-ball"
         case .typeNullEgg: return "mystery-egg"
         case .ovalCharm: return "oval-charm"
@@ -488,6 +491,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
         case .treasureMap: return "🗺️"
         case .explorerChest: return "🧰"
         case .legendaryKey: return "🗝️"
+        case .wishingPiece: return "🔮"
         case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal: return "🏅"
         case .costumeMedal, .costumeLotsMedal: return "🎭"
         case .ovalCharm: return "🔶"
@@ -531,7 +535,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
     var isDungeonItem: Bool {
         switch self {
         case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
-             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: true
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey, .wishingPiece: true
         // On a graduated Pokémon like the Capsules, and found in the chests from T2 (the owner, 2026-11-09).
         case .mint: true
         default: false
@@ -549,7 +553,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .leafStone, .fireStone, .waterStone, .thunderStone, .sunStone,
              .moonStone, .duskStone, .iceStone, .dawnStone, .shinyStone,
              .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
-             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey,
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey, .wishingPiece,
              .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal,
              .costumeMedal, .costumeLotsMedal:
             return false
@@ -642,7 +646,7 @@ enum ItemKind: String, Codable, Sendable, CaseIterable {
              .costumeMedal, .costumeLotsMedal:
             return regionGoals.map { .species($0.map(\.goal)) }
         case .greatBall, .ultraBall, .masterBall, .oranBerry, .sitrusBerry, .revive, .maxRevive,
-             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey: return nil
+             .silverCapsule, .goldCapsule, .treasureMap, .explorerChest, .legendaryKey, .wishingPiece: return nil
         // The first nine stones follow the generations: each asks for one region's final starters.
         case .leafStone:   return .species([SpeciesGoal([3, 6, 9])])            // Kanto starters
         case .fireStone:   return .species([SpeciesGoal([154, 157, 160])])      // Johto starters
@@ -1785,6 +1789,8 @@ struct CompanionState: Codable, Sendable, Equatable {
     var tokenCandiesEarned = 0
     /// The crumbs toward the next Rare Candy (`RareCandy.crumbXP`). Not an item: no theft, merchant or Shop reaches them.
     var candyCrumbs = 0
+    /// The starting Wishing Pieces were given (`WishingPiece.starting`): once, a save from before included.
+    var wishingPiecesGiven = false
     // 사탕 지급 첫 실행 시드 완료 — 업데이트 직후 이미 100%였던 창의 소급 지급 차단.
     var candyFeatureSeeded = false
     /// Windows pay their candies as they go (`RareCandy.candiesDue`). A save from before has `false`: its windows'
@@ -1849,6 +1855,7 @@ struct CompanionState: Codable, Sendable, Equatable {
         tokenCandyTokens   = c.lenient(Int.self, forKey: .tokenCandyTokens, default: 0)
         tokenCandiesEarned = c.lenient(Int.self, forKey: .tokenCandiesEarned, default: 0)
         candyCrumbs        = c.lenient(Int.self, forKey: .candyCrumbs, default: 0)
+        wishingPiecesGiven = c.lenient(Bool.self, forKey: .wishingPiecesGiven, default: false)
         candyFeatureSeeded = c.lenient(Bool.self, forKey: .candyFeatureSeeded, default: false)
         candyGrantsAsYouGo = c.lenient(Bool.self, forKey: .candyGrantsAsYouGo, default: false)
         additiveGrowthBonuses = c.lenient(Bool.self, forKey: .additiveGrowthBonuses, default: false)

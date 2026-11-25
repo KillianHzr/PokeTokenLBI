@@ -418,7 +418,7 @@ extension CompanionStore {
         case .sitrusBerry: return "+50%"
         case .revive: return "50%"
         case .maxRevive: return "100%"
-        case .treasureMap, .explorerChest, .legendaryKey: return l.dungeonItemHint
+        case .treasureMap, .explorerChest, .legendaryKey, .wishingPiece: return l.dungeonItemHint
         case .discoveryMedal, .adventureMedal, .expertMedal, .legendsMedal, .originMedal, .battleFormsMedal: return l.dungeonsTab
         case .costumeMedal, .costumeLotsMedal: return l.costumesTitle
         case .silverCapsule: return "IV 31"

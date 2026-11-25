@@ -1442,6 +1442,31 @@ extension L {
             : t("오늘의\n던전", "Daily\ndungeon", "今日の\nダンジョン", "Mazmorra\ndel día", "Donjon\ndu jour",
                 "Masmorra\ndo dia", "Tages-\nDungeon", "Подземелье\nдня")
     }
+    var challengeSwapBoss: String {
+        t("보스 바꾸기", "Swap boss", "ボスを入れかえる", "Cambiar de jefe", "Changer de boss", "Trocar de chefe", "Boss tauschen",
+          "Сменить босса")
+    }
+    /// "1 Morceau Vœu", "3 Morceaux Vœu": what a boss swap costs.
+    func wishingPieces(_ n: Int) -> String {
+        let name = itemName(.wishingPiece)
+        return t("\(name) \(n)개", n == 1 ? "1 Wishing Piece" : "\(n) Wishing Pieces", "\(name)\(n)こ",
+                 n == 1 ? "1 Trozo Deseo" : "\(n) Trozos Deseo", n == 1 ? "1 Morceau Vœu" : "\(n) Morceaux Vœu",
+                 n == 1 ? "1 Pedaço de Desejo" : "\(n) Pedaços de Desejo", "\(n) Wunschbrocken",
+                 n == 1 ? "1 Осколок желаний" : (2...4).contains(n) ? "\(n) Осколка желаний" : "\(n) Осколков желаний")
+    }
+    func challengeSwapCost(_ cost: Int, have: Int) -> String {
+        let pieces = wishingPieces(cost)
+        return t("\(pieces), \(have)개 남았어요", "\(pieces), \(have) left", "\(pieces)、のこり\(have)こ",
+                 "\(pieces), te quedan \(have)", "\(pieces), il t'en reste \(have)", "\(pieces), restam \(have)",
+                 "\(pieces), noch \(have) übrig", "\(pieces), осталось \(have)")
+    }
+    func challengeSwapShort(_ cost: Int, have: Int) -> String {
+        let pieces = wishingPieces(cost)
+        return t("\(pieces)가 필요해요, \(have)개 남았어요", "Needs \(pieces), \(have) left", "\(pieces)が必要、のこり\(have)こ",
+                 "Hacen falta \(pieces), te quedan \(have)", "Il faut \(pieces), il t'en reste \(have)",
+                 "Precisa de \(pieces), restam \(have)", "Braucht \(pieces), noch \(have) übrig",
+                 "Нужно \(pieces), осталось \(have)")
+    }
     var challengeOneTryADay: String {
         t("하루 한 번", "one try a day", "1日1回", "un intento al día", "une tentative par jour", "uma tentativa por dia",
           "ein Versuch pro Tag", "одна попытка в день")

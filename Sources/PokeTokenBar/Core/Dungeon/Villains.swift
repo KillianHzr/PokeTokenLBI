@@ -148,7 +148,7 @@ enum VillainRules {
         case .ultraBall, .maxRevive, .mint, .silverCapsule, .pokemonEgg, .uncommonEgg, .explorerChest, .treasureMap:
             return .t2
         case .rareEgg, .goldCapsule, .legendaryKey, .fossilEgg: return .t3
-        case .masterBall, .legendaryEgg, .typeNullEgg, .birthdayEgg: return .t4
+        case .masterBall, .legendaryEgg, .typeNullEgg, .birthdayEgg, .wishingPiece: return .t4
         default: break
         }
         if kind.stoneType != nil { return .t2 }
@@ -202,10 +202,11 @@ enum VillainRules {
                    (.items(.uncommonEgg, 1), 150)]
         case .t3: [(.items(.rareCandy, 2), 350), (.items(.legendaryKey, 1), 250), (.items(.goldCapsule, 1), 250),
                    (.items(.rareEgg, 1), 150)]
-        case .t4: [(.items(.rareEgg, 1), 450), (.items(.legendaryKey, 1), 300), (.items(.goldCapsule, 1), 220),
-                   (.items(.masterBall, 1), 30)]
-        case .t5: [(.items(.rareEgg, 1), 450), (.items(.goldCapsule, 2), 290), (.items(.legendaryEgg, 1), 150),
-                   (.items(.masterBall, 1), 100), (.armoredMewtwo, 10)]
+        // A Wishing Piece at T4 and T5, from the Rare Egg's share (the owner, 2026-11-25).
+        case .t4: [(.items(.rareEgg, 1), 400), (.items(.wishingPiece, 1), 50), (.items(.legendaryKey, 1), 300),
+                   (.items(.goldCapsule, 1), 220), (.items(.masterBall, 1), 30)]
+        case .t5: [(.items(.rareEgg, 1), 400), (.items(.wishingPiece, 1), 50), (.items(.goldCapsule, 2), 290),
+                   (.items(.legendaryEgg, 1), 150), (.items(.masterBall, 1), 100), (.armoredMewtwo, 10)]
         }
     }
 

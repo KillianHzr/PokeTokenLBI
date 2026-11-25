@@ -43,6 +43,8 @@ final class CollectorItemsTests: XCTestCase {
         st.inventory = inventory
         st.collectedFinals = collectedFinals
         st.claimedAchievements = claimed
+        // The Bag holds what each test puts in it, without the starting Wishing Pieces.
+        st.wishingPiecesGiven = true
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("collector-\(UUID().uuidString).json")
         try? JSONEncoder().encode(st).write(to: url)
         return CompanionStore(provider: CollectorStubProvider(), clock: { self.now }, fileURL: url,
