@@ -529,11 +529,12 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(back.dungeons.savedTeam, s.savedTeam)
     }
 
-    /// Each expedition that ends is kept for its dungeon's page, the latest first, the last hundred only.
+    /// Each expedition that ends is kept for its dungeon's page, the latest first, every one (the owner, 2026-11-25:
+    /// the hundred kept before cut the luck's past).
     func testAnEndedExpeditionIsKeptForItsPage() throws {
         let old = DungeonRunRecord(dungeon: .diglettsCave, endedAt: now, won: true, left: false, floor: 5, floors: 5,
                                    tokens: 1, candies: 2, eggs: 1, items: 3, bossSpeciesID: 51, caught: true)
-        let s = try store(dex: strong) { $0.dungeons.history = Array(repeating: old, count: DungeonRunRecord.kept) }
+        let s = try store(dex: strong) { $0.dungeons.history = Array(repeating: old, count: 100) }
         XCTAssertTrue(s.runs(of: .viridianForest).isEmpty)
         XCTAssertTrue(s.startExpedition(.viridianForest, team: Array(strong.prefix(3)).map(\.id)))
         s.abandonExpedition()
@@ -541,8 +542,8 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertFalse(run.won)
         XCTAssertTrue(run.left)
         XCTAssertFalse(run.caught)
-        XCTAssertEqual(s.dungeonProgress.history.count, DungeonRunRecord.kept, "the oldest goes")
-        XCTAssertEqual(s.runs(of: .diglettsCave).count, DungeonRunRecord.kept - 1)
+        XCTAssertEqual(s.dungeonProgress.history.count, 101, "none goes")
+        XCTAssertEqual(s.runs(of: .diglettsCave).count, 100)
         let back = try JSONDecoder().decode(CompanionState.self, from: JSONEncoder().encode(s.state))
         XCTAssertEqual(back.dungeons.history, s.dungeonProgress.history)
         // #133: its journal and team kept, the older records' dropped past the last thirty.
@@ -552,13 +553,13 @@ final class DungeonStoreTests: XCTestCase {
         XCTAssertEqual(s.allRuns.first, run, "the latest first")
     }
 
-    /// #133: the last thirty records keep their journal, the hundred kept a line each; a save from before decodes.
+    /// #133: the last thirty records keep their journal, all the others a line each; a save from before decodes.
     func testTheLastJournalsAreKept() throws {
         let entry = ExpeditionLogEntry(id: 0, floor: 1, date: now, kind: .victory)
         let full = DungeonRunRecord(dungeon: .mtMoon, endedAt: now, won: true, left: false, floor: 8, floors: 8, tokens: 1,
                                     candies: 0, eggs: 0, items: 0, bossSpeciesID: 36, caught: false, log: [entry], team: [])
         let trimmed = DungeonRunRecord.trimmed(Array(repeating: full, count: 120))
-        XCTAssertEqual(trimmed.count, DungeonRunRecord.kept)
+        XCTAssertEqual(trimmed.count, 120, "every line kept")
         XCTAssertEqual(trimmed.filter { $0.log != nil }.count, DungeonRunRecord.journalsKept)
         XCTAssertNotNil(trimmed.last?.log, "the latest keep theirs")
         XCTAssertNil(trimmed.first?.log)

@@ -59,12 +59,17 @@ enum SecretBosses {
         "\(dungeon.rawValue):\(boss.speciesID)" + (boss.form.map { ":\($0.rawValue)" } ?? "")
     }
 
+    /// The dungeon's secrets not caught yet: while one is left, each expedition draws its one in `odds`.
+    static func left(_ id: DungeonID, caught: Set<String>) -> [ExpeditionBoss] {
+        candidates(id).filter { !caught.contains(key(id, $0)) }
+    }
+
     /// The expedition's secret, drawn from its seed: one in `odds`, among those not caught yet. A secret caught never
     /// comes back (the owner, 2026-11-10: it would take a run from the bosses Mt. Coronet waits for); a dungeon whose
     /// secrets are all caught has none left. `owned` makes its egg shiny ("si on les a déjà ça nous donne l'oeuf en
     /// shiny").
     static func draw(_ id: DungeonID, seed: UInt64, caught: Set<String>, owned: (ExpeditionBoss) -> Bool) -> SecretEncounter? {
-        let left = candidates(id).filter { !caught.contains(key(id, $0)) }
+        let left = left(id, caught: caught)
         guard !left.isEmpty else { return nil }
         var random = BattleRandom(seed: seed ^ 0x5EC2_E7B0_0D05)
         guard random.below(odds) == 0 else { return nil }

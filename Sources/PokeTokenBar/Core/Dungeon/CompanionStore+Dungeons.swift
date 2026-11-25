@@ -433,6 +433,10 @@ extension CompanionStore {
                                              revives: revives, context: context, boss: challenge)
         var expedition = started
         if keepsMasterBall { expedition.keepsMasterBall = true }
+        // The Ruins of Alph's boss shiny one time in a hundred (`DungeonCatalog.alphBoss`), for the luck journal.
+        if id == .ruinsOfAlph {
+            expedition.note(.bossShiny, odds: 1 / Double(SecretBosses.odds), hit: expedition.boss.isShiny)
+        }
         // What its capture gives (2026-11-04, `bossReward`); a challenge's boss gives its form, never shiny; a
         // hideout's leader is no capture.
         if !id.isChallenge, !id.isHideout {
@@ -440,12 +444,19 @@ extension CompanionStore {
             let reward = bossReward(species)
             if reward != .ownEgg { expedition.bossReward = reward }
             // A legendary the player has, never shiny, its egg not won yet: it comes shiny, for its shiny egg.
-            if reward == .ownEgg, SpeciesInfo.lineRarity(of: species) == .legendary, hasCaughtBoss(species) {
-                expedition.boss.isShiny = true
-            }
+            let forcedShiny = reward == .ownEgg && SpeciesInfo.lineRarity(of: species) == .legendary && hasCaughtBoss(species)
+            if forcedShiny { expedition.boss.isShiny = true }
             // One time in a hundred, a secret boss (the owner, 2026-11-10): in the boss's place, or after Arceus.
-            if let secret = SecretBosses.draw(id, seed: seed, caught: state.dungeons.secretsCaught,
-                                              owned: { self.state.ownsSpecies($0.speciesID, form: $0.form) }) {
+            let secretsLeft = !SecretBosses.left(id, caught: state.dungeons.secretsCaught).isEmpty
+            let secret = SecretBosses.draw(id, seed: seed, caught: state.dungeons.secretsCaught,
+                                           owned: { self.state.ownsSpecies($0.speciesID, form: $0.form) })
+            if secretsLeft { expedition.note(.secretBoss, odds: 1 / Double(SecretBosses.odds), hit: secret != nil) }
+            // The boss's shiny roll at the departure (`ExpeditionEngine.start`): no luck when it came shiny for its egg,
+            // or when a secret took its place.
+            if id != .ruinsOfAlph, !forcedShiny, secret.map({ $0.after }) ?? true {
+                expedition.note(.bossShiny, odds: 1 / Double(max(1, context.shinyDenominator)), hit: expedition.boss.isShiny)
+            }
+            if let secret {
                 expedition.secret = secret
                 if !secret.after {
                     expedition.boss = secret.boss
@@ -836,6 +847,7 @@ extension CompanionStore {
     func openExplorerChest() -> (kind: ItemKind, count: Int)? {
         guard changeBag(.explorerChest, by: -1) == -1 else { return nil }
         let treasure = ExplorerKit.treasure(roll: Int(drawSeed() % UInt64(ExplorerKit.rollRange)))
+        noteTreasure(treasure.kind)
         if treasure.kind == .rareCandy { _ = grantRareCandies(treasure.count) } else { changeBag(treasure.kind, by: treasure.count) }
         AppLog.write("dungeon: explorer's chest gave \(treasure.count) \(treasure.kind.rawValue)")
         persist()
@@ -855,6 +867,11 @@ extension CompanionStore {
             loot.add(item)
         }
         return loot
+    }
+
+    /// The odds a roll of `Double(random.below(10_000)) < percent * 100` really has: whole ten-thousandths.
+    static func perTenThousandOdds(_ percent: Double) -> Double {
+        Double((0..<10_000).filter { Double($0) < percent * 100 }.count) / 10_000
     }
 
     /// What a victory adds, each with its chance in percent: the roll's own table, which each dungeon's page shows.
@@ -898,10 +915,20 @@ extension CompanionStore {
         // The egg given in place of the boss's own is the boss's, never doubled: one Legendary Egg for one legendary.
         let inPlace = caught ? ExpeditionEngine.eggInPlace(e.bossReward, tier: dungeon.tier)?.rawValue : nil
         var unlockedMove: String?
+        // Its draws for the luck journal: noted as it went, or read back from its log for one set off before.
+        var draws = e.draws?.dated(currentDate)
+            ?? DungeonLuck.draws(dungeon: e.dungeon, log: e.log, at: currentDate, shinyDenominator: Int(shinyDenominator))
+        let endedAt = currentDate
+        func note(_ kind: LuckDrawKind, _ odds: Double, _ hit: Bool) {
+            draws.merge([LuckDraw(at: endedAt, kind: kind, odds: odds, hits: hit ? 1 : 0)])
+        }
         // A challenge gives its battle form, and its floors' loot: no first-victory doubling, no extras.
         var battleForm = won && e.dungeon.isChallenge ? BattleForms.form(speciesID: e.boss.speciesID, form: e.boss.form) : nil
-        if won, e.dungeon.isChallenge, Double(random.below(10_000)) < WishingPiece.victoryChance(e.dungeon) * 100 {
-            loot.add(.wishingPiece)
+        if won, e.dungeon.isChallenge {
+            let percent = WishingPiece.victoryChance(e.dungeon)
+            let hit = Double(random.below(10_000)) < percent * 100
+            note(.wishingPiece, Self.perTenThousandOdds(percent), hit)
+            if hit { loot.add(.wishingPiece) }
         }
         if won, !e.dungeon.isChallenge {
             if firstVictory {
@@ -914,24 +941,33 @@ extension CompanionStore {
                 let table = ExpeditionEngine.itemTable(dungeon.tier)
                 loot.add(table[random.below(table.count)])
             }
-            loot.add(Self.victoryExtras(tier: dungeon.tier, random: &random))
+            let extras = Self.victoryExtras(tier: dungeon.tier, random: &random)
+            for (item, percent) in Self.victoryExtraOdds(dungeon.tier) where percent < 100 {
+                note(.victoryExtra, Self.perTenThousandOdds(percent), (extras.items[item.rawValue] ?? 0) > 0)
+            }
+            loot.add(extras)
             // A hideout's leader beaten opens their chest (the owner, 2026-11-16), beside all the team took: one draw
             // (2026-11-17), Giovanni's armor only for a Mewtwo of the Pokédex and only once.
             if e.dungeon.isHideout {
                 let armor = ArmoredMewtwo.battleForm
                 let armorAllowed = !state.dungeons.battleForms.contains(armor.key)
                     && state.dex.contains { !$0.isReleased && $0.finalID == ArmoredMewtwo.speciesID }
-                switch VillainRules.drawLeaderChest(dungeon.tier, armorAllowed: armorAllowed, random: &random) {
+                let drop = VillainRules.drawLeaderChest(dungeon.tier, armorAllowed: armorAllowed, random: &random)
+                let table = VillainRules.leaderChestTable(dungeon.tier).filter { armorAllowed || $0.drop != .armoredMewtwo }
+                let total = Double(table.reduce(0) { $0 + $1.weight })
+                for entry in table where total > 0 { note(.leaderChest, Double(entry.weight) / total, entry.drop == drop) }
+                switch drop {
                 case .items(.rareCandy, let count): loot.candies += count
                 case .items(let kind, let count): loot.add(kind, count)
                 case .armoredMewtwo: battleForm = armor
                 }
             }
-            if random.below(100) < Self.technicalCapsuleChance(dungeon.tier) {
-                let locked = MoveTable.all.values.filter { $0.isLocked && $0.hasEffect && !state.dungeons.unlockedMoves.contains($0.slug) }
-                    .map(\.slug).sorted()
-                if !locked.isEmpty { unlockedMove = locked[random.below(locked.count)] }
-            }
+            let capsule = random.below(100) < Self.technicalCapsuleChance(dungeon.tier)
+            let locked = MoveTable.all.values.filter { $0.isLocked && $0.hasEffect && !state.dungeons.unlockedMoves.contains($0.slug) }
+                .map(\.slug).sorted()
+            // Only while a move is left to unlock: past that, the roll gives nothing either way.
+            if !locked.isEmpty { note(.technicalCapsule, Double(Self.technicalCapsuleChance(dungeon.tier)) / 100, capsule) }
+            if capsule, !locked.isEmpty { unlockedMove = locked[random.below(locked.count)] }
         }
         _ = grantRareCandies(loot.candies)
         for (key, count) in loot.items { if let kind = ItemKind(rawValue: key) { changeBag(kind, by: count) } }
@@ -949,7 +985,12 @@ extension CompanionStore {
         // A hideout's leader beaten gives back all its team took (issue #180), and the hideout closes.
         let recovered = won ? e.dungeon.villain.flatMap(villainStash)?.items : nil
         for (key, count) in recovered ?? [:] { if let kind = ItemKind(rawValue: key) { changeBag(kind, by: count) } }
+        // A save from before the journal: its past read back first, while the journals it needs are kept.
+        let past = state.dungeons.luckDraws == nil ? luckBackfill(state.dungeons.history) : nil
         changeDungeons { progress in
+            var journal = progress.luckDraws ?? past ?? []
+            journal.merge(draws)
+            progress.luckDraws = journal
             progress.history = DungeonRunRecord.trimmed(progress.history + [record])
             // Its thefts still waiting are settled with it: what they took is back.
             if recovered != nil, let team = e.dungeon.villain {

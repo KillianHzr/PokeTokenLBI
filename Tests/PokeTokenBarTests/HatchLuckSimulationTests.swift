@@ -72,10 +72,12 @@ final class HatchLuckSimulationTests: XCTestCase {
         let players = 200, hatches = 60
         var rng = SeededRNG(seed: 7)
         var hits: [HatchLuck.Criterion: Double] = [:], expected = hits, variance = hits, percentile = hits
+        var scores: [Double] = []
         for _ in 0..<players {
             let luck = HatchLuck(entries: play(hatches: hatches, &rng), includesActive: true, today: CompanionState(),
-                                 index: index, now: Self.start.addingTimeInterval(Double(hatches) * 86_400))
+                                 index: index, now: Self.start.addingTimeInterval(Double(hatches) * 86_400), players: 1_000)
             for result in luck.criteria { percentile[result.criterion, default: 0] += result.percentile }
+            scores.append(luck.score / 100)
             for hatch in luck.hatches {
                 for (criterion, judgement) in hatch.judged {
                     hits[criterion, default: 0] += judgement.hit ? 1 : 0
@@ -84,10 +86,16 @@ final class HatchLuckSimulationTests: XCTestCase {
                 }
             }
         }
-        for criterion in HatchLuck.Criterion.allCases {
+        for criterion in [HatchLuck.Criterion.shiny, .new, .ditto] {
             let (h, e, v) = (hits[criterion] ?? 0, expected[criterion] ?? 0, variance[criterion] ?? 0)
             XCTAssertLessThan(abs(h - e) / v.squareRoot(), 3.5, "\(criterion): \(h) for \(e) expected")
+        }
+        for criterion in [HatchLuck.Criterion.rarity, .shiny, .new, .ditto] {
             XCTAssertEqual((percentile[criterion] ?? 0) / Double(players), 0.5, accuracy: 0.08, "\(criterion)")
         }
+        // A true percentile: the players' scores spread evenly, as many under a tenth as over nine tenths.
+        XCTAssertEqual(scores.reduce(0, +) / Double(players), 0.5, accuracy: 0.06)
+        XCTAssertEqual(Double(scores.filter { $0 < 0.1 }.count) / Double(players), 0.1, accuracy: 0.07)
+        XCTAssertEqual(Double(scores.filter { $0 > 0.9 }.count) / Double(players), 0.1, accuracy: 0.07)
     }
 }

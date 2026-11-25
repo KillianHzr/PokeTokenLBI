@@ -53,12 +53,12 @@ struct DungeonRunRecord: Codable, Sendable, Equatable {
     var log: [ExpeditionLogEntry]?
     var team: [ExpeditionMember]?
 
-    static let kept = 100
     static let journalsKept = 30
 
-    /// The last ones kept, and the journals of the latest `journalsKept` of them.
+    /// Every one kept, a line of about 180 bytes (the owner, 2026-11-25: the whole history), and the journals of the
+    /// latest `journalsKept`: their draws are in the luck journal (`LuckDraw`) as each run ends.
     static func trimmed(_ history: [DungeonRunRecord]) -> [DungeonRunRecord] {
-        var kept = Array(history.suffix(kept))
+        var kept = history
         for i in kept.indices.dropLast(journalsKept) {
             kept[i].log = nil
             kept[i].team = nil
@@ -111,8 +111,12 @@ struct DungeonProgress: Codable, Sendable, Equatable {
     var legendaryEggsWon: Set<Int> = []
     /// The player's general team (entry ids, six at most): a dungeon's team screen starts from it (a player, 2026-11-05).
     var savedTeam: [String] = []
-    /// The expeditions that ended, the latest last, a hundred at most: each dungeon's page lists its own.
+    /// The expeditions that ended, the latest last, every one: each dungeon's page lists its own.
     var history: [DungeonRunRecord] = []
+    /// The luck journal (`LuckDraw`): the dungeons' draws, the Explorer Kit's and the Shock Drive's, a line a day for
+    /// each kind and odds. Nil in a save from before it: the Luck screen reads them back from the history
+    /// (`DungeonLuck.backfill`) until the first draw writes the journal.
+    var luckDraws: [LuckDraw]?
     /// The thefts waiting on Home to be chased, then how it went (issue #180): they add up (the owner, 2026-11-10).
     var ambushes: [VillainAmbush] = []
     /// What each team took to its hideout, one a team: its hideout stays open until its leader falls.
@@ -157,6 +161,7 @@ struct DungeonProgress: Codable, Sendable, Equatable {
         bossesCaught = c.lenientOptional(Set<String>.self, forKey: .bossesCaught)
         savedTeam = c.lenient([String].self, forKey: .savedTeam, default: [])
         history = c.lenient([Lossy<DungeonRunRecord>].self, forKey: .history, default: []).compactMap(\.value)
+        luckDraws = c.lenientOptional([Lossy<LuckDraw>].self, forKey: .luckDraws)?.compactMap(\.value)
         budget = c.lenientOptional(DungeonBudget.self, forKey: .budget)
         battleFormsWonAt = c.lenient([String: Date].self, forKey: .battleFormsWonAt, default: [:])
             .filter { battleForms.contains($0.key) }

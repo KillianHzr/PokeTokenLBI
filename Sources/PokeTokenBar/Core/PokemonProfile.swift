@@ -123,6 +123,9 @@ struct PokemonProfile: Codable, Sendable, Equatable {
     var growthTokens: Int
     var moves: [PokemonKnownMove]
 
+    /// A hidden ability, for a species that has one: one time in this many (the Luck screen weighs it).
+    static let hiddenAbilityOneIn = 128
+
     static func generate(seed: UInt64, growthTokens: Int = 0,
                          instanceID: String = UUID().uuidString) -> PokemonProfile {
         var random = ProfileRNG(seed: seed)
@@ -179,7 +182,7 @@ struct PokemonProfile: Codable, Sendable, Equatable {
         let hidden = details.abilities.filter(\.isHidden).sorted { $0.slot < $1.slot }
         if abilitySlot == nil {
             // Hidden abilities are deliberately rare; regular slots are otherwise evenly selected.
-            if !hidden.isEmpty, random.next() % 128 == 0 {
+            if !hidden.isEmpty, random.next() % UInt64(Self.hiddenAbilityOneIn) == 0 {
                 abilitySlot = hidden[Int(random.next() % UInt64(hidden.count))].slot
                 abilityIsHidden = true
             } else if !normal.isEmpty {
