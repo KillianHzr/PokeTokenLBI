@@ -59,3 +59,7 @@ _Avoid_: Shard, fragment
 **Wishing Piece**:
 An item of the Bag that swaps the daily or weekly dungeon's boss for another before that day's try, one piece for the daily, three for the weekly.
 _Avoid_: Reroll, reroll token
+
+**Wearer**:
+A graduated Pokémon that can fight in a given Battle Form: of the Battle Form's species, and the right individual when the form asks for one (Eternal Flower Floette, the Gigantamax Factor).
+_Avoid_: Carrier, holder

@@ -272,7 +272,7 @@ struct DungeonTeamScreen: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
+                    if !store.wonBattleForms(for: entry).isEmpty {
                         BattleFormChooser(store: store, entry: entry)
                     }
                     LoopEditor(store: store, entry: entry, dungeon: dungeon, editingSlot: $editingSlot)
@@ -643,7 +643,7 @@ private struct CandidateRow: View {
     /// the Hall of Origin as its Mega or its Gigantamax. Only for a species with a form won.
     @ViewBuilder
     private func formMenu(_ l: L) -> some View {
-        let forms = store.wonBattleForms(speciesID: entry.finalID)
+        let forms = store.wonBattleForms(for: entry)
         if !forms.isEmpty {
             let current = store.battleFormChoice(for: entry)
             Menu {
@@ -850,7 +850,7 @@ struct BattleFormChooser: View {
     @ViewBuilder
     private func options(_ chosen: BattleForm?, _ l: L) -> some View {
         option(l.battleFormUsual, selected: chosen == nil) { store.setBattleForm(nil, for: entry.id) }
-        ForEach(store.wonBattleForms(speciesID: entry.finalID), id: \.key) { form in
+        ForEach(store.wonBattleForms(for: entry), id: \.key) { form in
             // Its own form named when the species has several (Tatsugiri, Urshifu, Toxtricity).
             option(PokemonForm.label(speciesID: form.speciesID, form: form.form, language: store.language) ?? l.battleFormLabel(form),
                    selected: chosen == form) { store.setBattleForm(form, for: entry.id) }

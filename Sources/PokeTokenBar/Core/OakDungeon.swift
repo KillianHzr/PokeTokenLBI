@@ -160,7 +160,7 @@ extension CompanionStore {
             && state.eggFromDungeon.map { $0.sourceSpeciesID == speciesID && $0.isSecret != true } != true
     }
 
-    private var oakHallForms: [OakBattleForm]? {
+    var oakHallForms: [OakBattleForm]? {
         let graduated = state.dex.filter { !$0.isReleased }
         let won = state.dungeons.battleForms, wonAt = state.dungeons.battleFormsWonAt
         var planned: [OakBattleForm] = []
@@ -173,7 +173,7 @@ extension CompanionStore {
             var pick: OakBattleForm?
             for form in forms where pick == nil {
                 let entries = graduated.filter { entry in
-                    entry.finalID == form.speciesID && battleFormChoice(for: entry) == nil
+                    wears(entry, form) && battleFormChoice(for: entry) == nil
                         && !planned.contains { $0.entryID == entry.id }
                 }
                 pick = (entries.first(where: \.isShiny) ?? entries.first).map { OakBattleForm(entryID: $0.id, form: form) }

@@ -50,7 +50,7 @@ struct MyTeamScreen: View {
                     }
                     ScrollView {
                         VStack(alignment: .leading, spacing: 8) {
-                            if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
+                            if !store.wonBattleForms(for: entry).isEmpty {
                                 BattleFormChooser(store: store, entry: entry)
                             }
                             LoopEditor(store: store, entry: entry, dungeon: nil, editingSlot: $editingSlot)
