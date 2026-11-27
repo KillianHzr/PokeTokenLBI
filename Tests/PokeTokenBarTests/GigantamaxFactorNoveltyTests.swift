@@ -64,13 +64,13 @@ final class GigantamaxFactorNoveltyTests: XCTestCase {
 
     func testAFreshHatchWithTheFactorIsNotADuplicateWhileNoWearerHasGraduated() throws {
         let s = try store(active: duraludonWithFactor, dex: [lineWithoutFactor])
-        XCTAssertEqual(s.activeNews?.wearer, true)
+        XCTAssertEqual(s.activeNews?.firstGigantamaxWearer, true)
         XCTAssertEqual(s.activeNews?.isDuplicate, false)
     }
 
     func testAFreshHatchWithTheFactorIsADuplicateOnceAWearerGraduated() throws {
         let s = try store(active: duraludonWithFactor, dex: [lineWithoutFactor, graduated([duraludon], day: -1)])
-        XCTAssertEqual(s.activeNews?.wearer, false)
+        XCTAssertEqual(s.activeNews?.firstGigantamaxWearer, false)
         XCTAssertEqual(s.activeNews?.isDuplicate, true)
     }
 

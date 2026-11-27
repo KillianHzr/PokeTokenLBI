@@ -116,6 +116,24 @@ final class EternalFloetteTests: XCTestCase {
         XCTAssertEqual(names(moments[0].hatch.rules), colors)
     }
 
+    func testAnEternalFloetteHatchedAfterTheChangeIsJudgedWithItsFormInTheDraw() {
+        let change = HatchRules.Change.eternalFlower
+        var red = DexEntry(baseID: flabebe, finalID: florges, chainOrder: [flabebe, floette, florges], rarity: .common,
+                           caughtAt: change.publishedAt.addingTimeInterval(2), form: PokemonForm("red"))
+        red.raising = RaisingRecord(hatchedAt: change.publishedAt.addingTimeInterval(-30))
+        var floetteEntry = DexEntry(baseID: flabebe, finalID: floette, chainOrder: [floette], rarity: .common,
+                                    caughtAt: change.publishedAt.addingTimeInterval(5), form: eternal)
+        floetteEntry.raising = RaisingRecord(hatchedAt: change.publishedAt.addingTimeInterval(1))
+
+        let moments = HatchLuck.moments(entries: [red, floetteEntry], today: CompanionState(), itemsSince: [:])
+        XCTAssertTrue(moments[1].roll.lineFormDraw(baseID: flabebe, types: []).forms.contains(eternal))
+
+        let luck = HatchLuck(entries: [red, floetteEntry], includesActive: false, today: CompanionState(),
+                             index: [BaseSpecies(id: flabebe, captureRate: 255)], itemsSince: [:],
+                             now: change.publishedAt.addingTimeInterval(86_400))
+        XCTAssertTrue(luck.hatches[1].bringsNew)
+    }
+
     // Criterion 3
 
     func testItHatchesStraightAsAFloetteAndNeverEvolves() async throws {

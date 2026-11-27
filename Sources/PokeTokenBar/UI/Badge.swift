@@ -124,7 +124,6 @@ struct TypeBadges: View {
     }
 }
 
-/// The Gigantamax Factor trait of an individual, where the shiny one's ✨ sits.
 @MainActor
 struct GigantamaxFactorBadge: View {
     let l: L

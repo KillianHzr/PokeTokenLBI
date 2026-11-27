@@ -36,7 +36,6 @@ struct DungeonEggCard: View {
     }
 }
 
-/// A Wearer Egg in the Bag: named as the Wearer line names its Pokémon, drawn as its Pokémon's dungeon egg.
 @MainActor
 struct WearerEggCard: View {
     let store: CompanionStore

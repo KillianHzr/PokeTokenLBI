@@ -83,7 +83,6 @@ enum PokemonEvolutionData {
         197: (133, ["normal"]), 470: (133, ["normal"]), 471: (133, ["normal"]), 700: (133, ["normal"]),
     ]
 
-    /// The stage an individual of this form hatches at when it is not its line's first: Eternal Flower Floette.
     static func hatchStage(baseID: Int, form: PokemonForm?) -> Int? {
         baseID == 669 && form == PokemonForm("eternal") ? 670 : nil
     }

@@ -1703,7 +1703,6 @@ struct CompanionState: Codable, Sendable, Equatable {
     var costumeEggs: [CostumeEgg] = []
     var eggFromCostume: CostumeEgg?
     var costumeEggTokens = 0
-    /// The Wearer Eggs of the Bag, the one in incubation, and whether they were given (`CompanionStore.giveWearerEggsIfNeeded`).
     var wearerEggs: [WearerEgg] = []
     var eggFromWearer: WearerEgg?
     var wearerEggsGiven = false

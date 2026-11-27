@@ -205,12 +205,10 @@ extension CompanionStore {
         return form
     }
 
-    /// Whether this Pokémon fights in the Battle Form (`BattleForm.isWorn(by:)`).
     func wears(_ entry: DexEntry, _ form: BattleForm) -> Bool { form.isWorn(by: entry) }
 
     func hasWearer(_ form: BattleForm) -> Bool { state.dex.contains { wears($0, form) } }
 
-    /// The battle forms won that this Pokémon can wear.
     func wonBattleForms(for entry: DexEntry) -> [BattleForm] {
         BattleForms.forms(speciesID: entry.finalID).filter { state.dungeons.battleForms.contains($0.key) && wears(entry, $0) }
     }

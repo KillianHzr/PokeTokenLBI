@@ -12,7 +12,6 @@ enum ActiveVerdict: Equatable, Sendable {
     case newCostume
     /// Nothing new but its first shiny in this form (`ActiveNews.firstShiny`).
     case shinyToKeep
-    /// Nothing else new, but it would be the first Wearer of its species to graduate (`ActiveNews.wearer`).
     case wearerToKeep
     /// A Spare whose graduation unlocks an achievement that counts copies.
     case keptForAchievement(ItemKind)
@@ -42,7 +41,6 @@ enum OakRelease: Equatable, Sendable {
     /// A Costume Egg the Bag holds, judged without its costume and over what it may draw when opened: its odds are a
     /// first shiny's, else 0, when it is used only because no other egg of the Bag can go.
     case costumeEgg(CostumeEgg, odds: Double)
-    /// A Wearer Egg the Bag holds: its odds are 1 while no graduated Pokémon wears its form, else 0.
     case wearerEgg(WearerEgg, odds: Double)
     /// The Spare raised to graduation, `left` growth away.
     case finish(left: Int, why: OakFinish)
@@ -138,7 +136,7 @@ extension CompanionStore {
         if news.costume { return .costume }
         if news.newCostume { return .newCostume }
         if news.firstShiny { return .shinyToKeep }
-        if news.wearer { return .wearerToKeep }
+        if news.firstGigantamaxWearer { return .wearerToKeep }
         if let achievement = copyAchievement { return .keptForAchievement(achievement) }
         return .spare
     }
@@ -569,7 +567,6 @@ extension CompanionStore {
         }
     }
 
-    /// A Wearer Egg brings the first Wearer of its form, while no graduated Pokémon wears it.
     private func newOdds(_ egg: WearerEgg) -> Double {
         egg.form.map { hasWearer($0) ? 0 : 1 } ?? 0
     }

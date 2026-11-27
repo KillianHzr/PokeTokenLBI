@@ -233,8 +233,6 @@ final class CompanionStore {
         AppLog.write("wishing piece: \(WishingPiece.starting) given")
     }
 
-    /// A Wearer Egg for each Battle Form won that no graduated Pokémon can wear, with the Wishing Pieces of a change of
-    /// its boss, once (`CompanionState.wearerEggsGiven`). Kept with the next save, as the starting pieces are.
     private func giveWearerEggsIfNeeded() {
         guard !state.wearerEggsGiven else { return }
         state.wearerEggsGiven = true
@@ -843,10 +841,9 @@ final class CompanionStore {
         /// A costumed Pokémon whose costume, at a stage it reached or will reach, the costumed collection lacks
         /// (`CostumeCatalog`): "New costume" when its species are all held (the owner, 2026-11-13).
         var newCostume = false
-        /// It has the Gigantamax Factor and no graduated Pokémon of its species wears the Gigantamax form yet.
-        var wearer = false
+        var firstGigantamaxWearer = false
         /// Nothing new: sending it off loses nothing the Pokédex and the costumes do not already hold.
-        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume && !newCostume && !wearer }
+        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume && !newCostume && !firstGigantamaxWearer }
     }
 
     /// Nil unless its form is hidden and could be several (`FormSuspense`). The forms it can carry are those its egg
@@ -923,7 +920,7 @@ final class CompanionStore {
         } ?? false
         let wearer = GigantamaxFactor.bringsFirstWearer(finalID: a.plannedPathIDs.last ?? a.currentID,
                                                         hasFactor: a.hasGigantamaxFactor, among: state.dex)
-        return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume, newCostume: newCostume, wearer: wearer)
+        return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume, newCostume: newCostume, firstGigantamaxWearer: wearer)
     }
 
     /// What `activeNews` asks of the Pokémon raised, for one an egg would hatch from `baseID` in `form`: whether it
@@ -1174,7 +1171,7 @@ final class CompanionStore {
         var earlier = [DexEntry]()
         for e in entriesInCatchOrder {
             defer { earlier.append(e) }
-            let bringsWearer = isActiveDexEntry(e) ? activeNews?.wearer == true
+            let bringsWearer = isActiveDexEntry(e) ? activeNews?.firstGigantamaxWearer == true
                 : !e.isReleased && GigantamaxFactor.bringsFirstWearer(finalID: e.finalID, hasFactor: e.hasGigantamaxFactor, among: earlier)
             let reachedSpeciesSeen = e.chainOrder.allSatisfy { id in
                 seenGraduatedSpecies.contains(DexSpeciesKey(speciesID: id, form: e.form))
@@ -3732,12 +3729,10 @@ final class CompanionStore {
         return true
     }
 
-    /// Whether a Wearer Egg of the Bag can be used: as any egg, it sends the Pokémon raised off.
     func canUseWearerEgg(_ id: String, onReturn: Bool = false) -> Bool {
         canSendOffActive(onReturn: onReturn) && !isRaisingFossilEggPokemon && state.wearerEggs.contains { $0.id == id }
     }
 
-    /// Uses a Wearer Egg: the Pokémon raised is sent off for it, and it hatches its Wearer at its stage (`hatchCore`).
     @discardableResult
     func useWearerEgg(_ id: String) -> Bool {
         guard canUseWearerEgg(id), let egg = state.wearerEggs.first(where: { $0.id == id }) else { return false }
