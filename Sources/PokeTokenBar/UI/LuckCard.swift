@@ -53,6 +53,8 @@ struct HighlightRow: View {
         switch highlight.criterion {
         case .rarity: detail = highlight.rarity.map(l.rarityLabel) ?? l.luckCriterion(.rarity)
         case .ivs: detail = "IV \(hatch.ivTotal ?? 0)/186"
+        // A Ditto is its own news: its name says it.
+        case .ditto: return pokemon
         default: detail = l.luckCriterion(highlight.criterion)
         }
         return "\(pokemon) · \(detail)"
