@@ -62,11 +62,11 @@ final class Gen6KalosTests: XCTestCase {
         XCTAssertEqual(vivillonForms.first?.rawValue, "meadow")
         XCTAssertTrue(vivillonForms.contains(PokemonForm("poke-ball")))
 
-        // Flabébé line (#669, #670, #671) - 5 flower colors linked to base #669
+        // Flabébé line (#669, #670, #671) - 5 flower colors linked to base #669; only Floette also has Eternal Flower
         for speciesID in [669, 670, 671] {
             let forms = PokemonForm.forms(speciesID: speciesID)
-            XCTAssertEqual(forms.count, 5)
-            XCTAssertEqual(forms.map(\.rawValue), ["red", "yellow", "orange", "blue", "white"])
+            XCTAssertEqual(forms.count, speciesID == 670 ? 6 : 5)
+            XCTAssertEqual(forms.map(\.rawValue), ["red", "yellow", "orange", "blue", "white"] + (speciesID == 670 ? ["eternal"] : []))
         }
         XCTAssertEqual(PokemonForm.formSpecies(baseID: 669), [669, 670, 671])
         XCTAssertEqual(

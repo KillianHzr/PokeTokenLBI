@@ -71,6 +71,8 @@ struct HatchRules: Sendable, Equatable {
         /// #145: an egg hatches a form its line still misses first, every line, as the Oval Charm did alone (the
         /// owner, 2026-11-06, after an Alolan Raichu lost to a Raichu had again). Dated at its merge into main.
         case missingFormsFirst = "2026-11-06T10:29:00Z"
+        /// Eternal Flower Floette, a form of Flabébé's line that hatches as a Floette. Dated at its merge into main.
+        case eternalFlower = "2026-11-27T20:00:00Z"
 
         private static let instants: [Change: Date] = {
             let formatter = ISO8601DateFormatter()
@@ -182,6 +184,7 @@ struct HatchRules: Sendable, Equatable {
 
     /// The forms of the lines whose list changed after they came, each until a change.
     private static let formerForms: [Int: [(until: Change, forms: [String])]] = [
+        669: [(.eternalFlower, ["red", "yellow", "orange", "blue", "white"])],
         550: [(.laterGenerations, ["red-striped", "blue-striped"]),
               (.evolvedSpeciesForms, ["red-striped", "blue-striped", "white-striped"]),
               (.completeLines, ["red-striped", "blue-striped", "white-striped", "male", "female"])],

@@ -40,6 +40,7 @@ struct BattleForm: Hashable, Sendable {
     /// The one rule of who fights in a Battle Form (the Wearer): every decision on it goes through here.
     func isWorn(by entry: DexEntry) -> Bool {
         !entry.isReleased && entry.finalID == speciesID && (kind != .gigantamax || entry.hasGigantamaxFactor)
+            && (speciesID != 670 || entry.form == PokemonForm("eternal"))
     }
 }
 

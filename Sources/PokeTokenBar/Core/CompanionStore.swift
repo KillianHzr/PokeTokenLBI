@@ -4435,7 +4435,7 @@ final class CompanionStore {
         let line = costumeEgg.flatMap { Self.costumeLine(fetched, start: $0.speciesID, code: $0.code, form: $0.form,
                                                          owned: graduatedSpeciesIDs, taken: costumesTaken()) }
             ?? fetched
-        let firstID = costumeEgg == nil ? line.baseID : line.tree.speciesID
+        var firstID = costumeEgg == nil ? line.baseID : line.tree.speciesID
         currentLine = line
         isHatchRetryDelayed = false
         // 부화 임계 초과분은 부화체 성장에 이월(낭비 없음).
@@ -4486,6 +4486,11 @@ final class CompanionStore {
         var profile = PokemonProfile.generate(seed: rng.next())
         let form = costumeEgg != nil ? PokemonForm.resolved(baseID: line.baseID, form: costumeEgg?.form)
             : pendingForm ?? rollLineForm(baseID: line.baseID, types: formTypes)
+        if let start = PokemonEvolutionData.hatchStage(baseID: line.baseID, form: form), let node = line.tree.node(withID: start) {
+            firstID = start
+            currentLine = EvoLine(baseID: line.baseID, tree: node, rarity: line.rarity, names: line.names)
+            evolutionPlan = makeEvolutionPlan(from: node, baseID: line.baseID, form: form)
+        }
         // After the form roll: an Alolan Vulpix gets an Alolan Vulpix's ability. Enriching draws nothing from `rng`.
         if let details = pokemonDetails(speciesID: firstID, form: form) { profile.enrich(with: details) }
         // The form is rolled last so owning forms never shifts the other rolls; a plan it cannot take (a
@@ -4644,7 +4649,9 @@ final class CompanionStore {
             // A costumed Pokémon grows on its costume's stages only, from the first one it hatched as.
             let line = latest.costume.flatMap { code in
                 Self.costumeLine(fetched, start: latest.pathIDs.first ?? latest.currentID, code: code, form: latest.form)
-            } ?? fetched
+            } ?? PokemonEvolutionData.hatchStage(baseID: latest.baseID, form: latest.form)
+                .flatMap { fetched.tree.node(withID: $0) }
+                .map { EvoLine(baseID: fetched.baseID, tree: $0, rarity: fetched.rarity, names: fetched.names) } ?? fetched
             state.active = normalizedEvolutionState(latest, from: line.tree)
             state.reconcileRepresentativeSelection()   // 손상 경로 정규화로 사라진 단계가 대표로 남지 않게
             currentLine = line

@@ -77,10 +77,16 @@ enum PokemonEvolutionData {
         902: (550, ["white-striped"]),   // Basculegion
         563: (562, ["normal"]),          // Cofagrigus
         867: (562, ["galar"]),           // Runerigus
+        671: (670, ["red", "yellow", "orange", "blue", "white"]),   // Florges
         // Partner Eevee stays an Eevee, as in Let's Go.
         134: (133, ["normal"]), 135: (133, ["normal"]), 136: (133, ["normal"]), 196: (133, ["normal"]),
         197: (133, ["normal"]), 470: (133, ["normal"]), 471: (133, ["normal"]), 700: (133, ["normal"]),
     ]
+
+    /// The stage an individual of this form hatches at when it is not its line's first: Eternal Flower Floette.
+    static func hatchStage(baseID: Int, form: PokemonForm?) -> Int? {
+        baseID == 669 && form == PokemonForm("eternal") ? 670 : nil
+    }
 
     /// Whether an individual in this form can evolve from `parent` into `child`.
     static func allows(_ child: Int, from parent: Int, form: PokemonForm?) -> Bool {

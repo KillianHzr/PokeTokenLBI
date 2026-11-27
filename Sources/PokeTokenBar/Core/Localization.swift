@@ -1229,6 +1229,7 @@ struct L {
     // Form names PokéAPI lacks or gets wrong (`PokemonForm.appName`).
     var formHoopaConfined: String { t("굴레에 빠진 모습", "Confined", "いましめられし", "Contenido", "Enchaîné", "Contido", "Gebannt", "Скованный") }
     var formHoopaUnbound: String { t("굴레를 벗어난 모습", "Unbound", "ときはなたれし", "Desatado", "Déchaîné", "Liberto", "Entfesselt", "Освобождённый") }
+    var formEternalFlower: String { t("영원의 꽃", "Eternal Flower", "えいえんのはな", "Flor Eterna", "Fleur Éternelle", "Flor Eterna", "Ewigblütler", "Вечный цветок") }
     var formPartner: String { t("파트너", "Partner", "パートナー", "Compañero", "Partenaire", "Parceiro", "Partner", "Партнёр") }
     var formFamilyOfFour: String { t("네 식구", "Family of Four", "４ひきかぞく", "Familia de cuatro", "Famille de Quatre", "Família de quatro", "Viererfamilie", "Семья из четырёх") }
     var formFamilyOfThree: String { t("세 식구", "Family of Three", "３びきかぞく", "Familia de tres", "Famille de Trois", "Família de três", "Dreierfamilie", "Семья из трёх") }
