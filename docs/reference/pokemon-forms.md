@@ -77,7 +77,7 @@ any other change to what an egg rolls gets a `HatchRules.Change`:
 | Meloetta #648 | aria, pirouette |
 | Genesect #649 | normal, douse, shock, burn, chill |
 | Vivillon #666 | meadow, icy-snow, polar, tundra, continental, garden, elegant, modern, marine, archipelago, high-plains, sandstorm, river, monsoon, savanna, sun, ocean, jungle, fancy, poke-ball |
-| Flabébé #669, Floette #670, Florges #671 | red, yellow, orange, blue, white |
+| Flabébé #669, Floette #670, Florges #671 | red, yellow, orange, blue, white; Floette also eternal (Eternal Flower, which hatches as a Floette and never evolves) |
 | Furfrou #676 | natural, heart, star, diamond, debutante, matron, dandy, la-reine, kabuki, pharaoh |
 | Meowstic #678 | male, female |
 | Aegislash #681 | shield, blade |

@@ -272,7 +272,7 @@ struct DungeonTeamScreen: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    if !store.wonBattleForms(speciesID: entry.finalID).isEmpty {
+                    if !store.wonBattleForms(for: entry).isEmpty {
                         BattleFormChooser(store: store, entry: entry)
                     }
                     LoopEditor(store: store, entry: entry, dungeon: dungeon, editingSlot: $editingSlot)
@@ -425,8 +425,11 @@ struct TeamMemberRow: View {
         } label: {
             VStack(spacing: 2) {
                 SpriteView(speciesID: entry.finalID, size: 32, shiny: entry.isShiny, form: entry.spriteForm(), sameScale: true)
-                PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
-                    .font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                HStack(spacing: 2) {
+                    PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
+                        .font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                    if entry.hasGigantamaxFactor { GigantamaxFactorBadge(l: l, size: 8) }
+                }
                 HStack(spacing: 2) {
                     ForEach(types, id: \.self) { TypeMiniBadge(type: $0, l: l) }
                 }
@@ -590,6 +593,7 @@ private struct CandidateRow: View {
                         if count > 1 {
                             Text(l.catchCount(count)).font(.caption2.weight(.semibold)).monospacedDigit().foregroundStyle(.secondary)
                         }
+                        if entry.hasGigantamaxFactor { GigantamaxFactorBadge(l: l, size: 9) }
                         if store.isFavorite(entry) {
                             Image(systemName: "heart.fill").font(.system(size: 9)).foregroundStyle(Color.pink)
                                 .accessibilityLabel(l.favoriteLabel)
@@ -643,7 +647,7 @@ private struct CandidateRow: View {
     /// the Hall of Origin as its Mega or its Gigantamax. Only for a species with a form won.
     @ViewBuilder
     private func formMenu(_ l: L) -> some View {
-        let forms = store.wonBattleForms(speciesID: entry.finalID)
+        let forms = store.wonBattleForms(for: entry)
         if !forms.isEmpty {
             let current = store.battleFormChoice(for: entry)
             Menu {
@@ -850,7 +854,7 @@ struct BattleFormChooser: View {
     @ViewBuilder
     private func options(_ chosen: BattleForm?, _ l: L) -> some View {
         option(l.battleFormUsual, selected: chosen == nil) { store.setBattleForm(nil, for: entry.id) }
-        ForEach(store.wonBattleForms(speciesID: entry.finalID), id: \.key) { form in
+        ForEach(store.wonBattleForms(for: entry), id: \.key) { form in
             // Its own form named when the species has several (Tatsugiri, Urshifu, Toxtricity).
             option(PokemonForm.label(speciesID: form.speciesID, form: form.form, language: store.language) ?? l.battleFormLabel(form),
                    selected: chosen == form) { store.setBattleForm(form, for: entry.id) }

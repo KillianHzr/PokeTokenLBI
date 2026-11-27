@@ -127,6 +127,7 @@ struct PokemonForm: RawRepresentable, Codable, Hashable, Sendable {
                 .init("orange", formID: 10108),
                 .init("blue", formID: 10109),
                 .init("white", formID: 10110),
+                .init("eternal", formID: 10163, pokemonID: 10061),
             ],
             671: [
                 .init("red", formID: 671),
@@ -734,6 +735,7 @@ extension PokemonForm {
         case (720, "confined"): return l.formHoopaConfined
         case (720, "unbound"): return l.formHoopaUnbound
         case (133, "starter"): return l.formPartner
+        case (670, "eternal"): return l.formEternalFlower
         case (925, "family-of-four"): return l.formFamilyOfFour
         case (925, "family-of-three"): return l.formFamilyOfThree
         case (128, "paldea-combat"): return l.formTaurosCombatBreed

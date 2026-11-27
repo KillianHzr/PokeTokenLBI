@@ -200,7 +200,8 @@ final class OakAdviceTests: XCTestCase {
     private func spareStore(bag: [ItemKind: Int] = [:], lines: [[Int]]? = nil, active: MonState? = nil,
                             index: [BaseSpecies]? = nil, claimed: Set<String> = ["summer@2026"],
                             wallet: Int = 0, exploring: Bool = false, shinyLines: Set<Int> = [],
-                            dungeonEggs: [DungeonEgg] = [], costumeEggs: [CostumeEgg] = []) async throws -> CompanionStore {
+                            dungeonEggs: [DungeonEgg] = [], costumeEggs: [CostumeEgg] = [],
+                            wearerEggs: [WearerEgg] = []) async throws -> CompanionStore {
         let spare = active ?? mon([16])
         let dex = ([[16, 17, 18]] + (lines ?? mostLines)).map { chain -> DexEntry in
             var entry = graduated(chain)
@@ -215,6 +216,7 @@ final class OakAdviceTests: XCTestCase {
             st.dungeons.expedition = expedition
             st.dungeons.eggs = dungeonEggs
             st.costumeEggs = costumeEggs
+            st.wearerEggs = wearerEggs
         }
         await s.loadHatchIndex()
         return s
@@ -1160,6 +1162,44 @@ final class OakAdviceTests: XCTestCase {
             XCTAssertNotEqual(l.oakCostumeEggSpare("x"), l.oakCostumeEggHatches, "\(language)")
             XCTAssertNotEqual(l.oakReleaseBubble(spare), l.oakReleaseBubble(ranked), "\(language)")
             XCTAssertEqual(l.oakReleaseBubble(ranked), l.oakReleaseBubble(.bag(.fossilEgg, odds: 1)), "\(language)")
+        }
+    }
+
+    // MARK: Wearer Eggs
+
+    private func wearerEgg(_ id: String = "wearer", species: Int = 25) throws -> WearerEgg {
+        WearerEgg(id: id, formKey: try XCTUnwrap(BattleForms.forms(speciesID: species).first { $0.kind == .gigantamax }).key)
+    }
+
+    /// A Wearer Egg is the Bag's free egg of a Spare: it brings the first Wearer of a form won, so it goes rather than
+    /// letting the Spare finish.
+    func testAWearerEggGoesOnASpareRatherThanLettingItFinish() async throws {
+        let egg = try wearerEgg()
+        let s = try await spareStore(lines: mostLines, wearerEggs: [egg])
+        XCTAssertEqual(s.oakRelease, .wearerEgg(egg, odds: 1))
+        XCTAssertEqual(s.oakRelease?.sendsOffNow, true)
+        XCTAssertNil(s.oakRelease?.egg)
+        XCTAssertEqual(s.candiesToGive, 0)
+    }
+
+    func testAWearerEggBeatsTheEggsThatBringLess() async throws {
+        let egg = try wearerEgg()
+        let s = try await spareStore(bag: [.pokemonEgg: 1, .fossilEgg: 1], lines: mostLines + [[138, 139]], wearerEggs: [egg])
+        XCTAssertEqual(s.oakRelease, .wearerEgg(egg, odds: 1))
+    }
+
+    /// Once a Wearer of its form is graduated, the egg brings nothing new: never advised.
+    func testAWearerEggWhoseFormHasAWearerIsNeverAdvised() async throws {
+        let egg = try wearerEgg()
+        let s = try await spareStore(lines: mostLines + [[172, 25]], wearerEggs: [egg])
+        if case .wearerEgg? = s.oakRelease { XCTFail("advised with a Wearer graduated") }
+    }
+
+    func testTheWearerEggBubbleIsSaidInEveryLanguage() throws {
+        let release = OakRelease.wearerEgg(try wearerEgg(), odds: 1)
+        for language in AppLanguage.allCases {
+            let l = L(language)
+            XCTAssertEqual(l.oakReleaseBubble(release), l.oakReleaseBubble(.bag(.fossilEgg, odds: 1)), "\(language)")
         }
     }
 }

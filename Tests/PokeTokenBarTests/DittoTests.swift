@@ -171,12 +171,12 @@ final class DittoDisguiseRollTests: XCTestCase {
 final class DittoRevealTests: XCTestCase {
     /// 활성 = 커먼 3형태 위장 메타몽(정체). currentLine 은 nil(재시작류) → update 로 로드해 리빌 트리거.
     private func seedDisguise(usedAtStage: Int = 0, shiny: Bool = false, revealed: Bool = false,
-                              boosted: Bool = false, newForm: Bool = false, collectedFinals: [String] = [],
+                              boosted: Bool = false, newForm: Bool = false, factor: Bool = false, collectedFinals: [String] = [],
                               defaults: UserDefaults = .standard, difficulty: Double = 1) -> CompanionStore {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("ditto-\(UUID().uuidString).json")
         let active = "{\"baseID\":1,\"pathIDs\":[1],\"stageIndex\":0,\"usedAtStage\":\(usedAtStage),"
             + "\"rarity\":\"common\",\"totalForms\":3,\"isShiny\":\(shiny),\"hasGrowthBoost\":\(boosted),"
-            + "\"hasNewForm\":\(newForm),"
+            + "\"hasNewForm\":\(newForm),\"rolledGigantamaxFactor\":\(factor),"
             + "\"dittoDisguise\":1,\"dittoRevealed\":\(revealed)}"
         let finals = collectedFinals.map { "\"\($0)\"" }.joined(separator: ",")
         let json = "{\"installBaselineSet\":true,\"usedSinceInstall\":1000000000,\"spentTokens\":0,"
@@ -228,6 +228,15 @@ final class DittoRevealTests: XCTestCase {
         await drainReveal(s)
         XCTAssertTrue(s.state.active?.dittoRevealed ?? false)
         XCTAssertFalse(s.state.active?.hasNewForm ?? true)
+    }
+
+    func testTheRevealDropsTheDisguisesGigantamaxFactor() async {
+        let s = seedDisguise(factor: true)
+        XCTAssertTrue(s.state.active?.rolledGigantamaxFactor ?? false)
+        s.applyUsage(300_000_000)
+        await drainReveal(s)
+        XCTAssertTrue(s.state.active?.dittoRevealed ?? false)
+        XCTAssertFalse(s.state.active?.rolledGigantamaxFactor ?? true)
     }
 
     func testRevealRebasesDisguiseProfileAndLoadsDittoDetails() async {

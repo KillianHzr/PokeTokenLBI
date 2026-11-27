@@ -237,6 +237,7 @@ struct HatchLuck: Sendable {
         case .birthday: return roll.birthdayDraw(index).lines.contains { $0.base.id == base }
         case .dungeon(let baseID, _, _): return base == baseID
         case .costume(_, let speciesID): return base == SpeciesInfo.baseID(of: speciesID)
+        case .wearer(let key): return WearerEgg(formKey: key).baseID == base
         case .tier, .stone, .legendary, .event:
             guard let spec = egg.spec, let species = index.first(where: { $0.id == base }) else { return false }
             // A season's Deerling, first rolled apart from the pool.

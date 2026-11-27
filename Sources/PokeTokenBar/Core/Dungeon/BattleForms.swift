@@ -36,6 +36,14 @@ struct BattleForm: Hashable, Sendable {
 
     /// How a won form is kept in the save (`DungeonProgress.battleForms`).
     var key: String { "\(speciesID)-\(form.rawValue)" }
+
+    var wearerForm: PokemonForm? { speciesID == 670 ? PokemonForm("eternal") : nil }
+    var needsGigantamaxFactor: Bool { kind == .gigantamax }
+
+    func isWorn(by entry: DexEntry) -> Bool {
+        !entry.isReleased && entry.finalID == speciesID && (!needsGigantamaxFactor || entry.hasGigantamaxFactor)
+            && (wearerForm == nil || entry.form == wearerForm)
+    }
 }
 
 enum BattleForms {

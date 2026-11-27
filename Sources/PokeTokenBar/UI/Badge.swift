@@ -123,3 +123,17 @@ struct TypeBadges: View {
         }
     }
 }
+
+@MainActor
+struct GigantamaxFactorBadge: View {
+    let l: L
+    var size: CGFloat = 10
+
+    var body: some View {
+        Image(systemName: "arrow.up.left.and.arrow.down.right")
+            .font(.system(size: size, weight: .bold))
+            .foregroundStyle(Color.red)
+            .accessibilityLabel(l.gigantamaxFactorName)
+            .hoverTip(l.gigantamaxFactorName)
+    }
+}

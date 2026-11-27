@@ -15,6 +15,7 @@ enum HatchEgg: Codable, Sendable, Hashable {
     case dungeon(baseID: Int, form: PokemonForm?, shiny: Bool)
     /// A Costume Egg (`CostumeEgg`): its first stage, in its costume; shiny as any egg's roll.
     case costume(code: String, speciesID: Int)
+    case wearer(formKey: String)
 
     /// The guarantees its pool keeps; nil for the eggs with a draw of their own.
     var spec: CompanionStore.EggSpec? {
@@ -23,7 +24,7 @@ enum HatchEgg: Codable, Sendable, Hashable {
         case .stone(let type): return .init(type: type)
         case .legendary: return .init(legendaryEgg: true)
         case .event(let event, _): return .init(tier: event.tier, type: event.type, event: event)
-        case .typeNull, .birthday, .fossil, .dungeon, .costume: return nil
+        case .typeNull, .birthday, .fossil, .dungeon, .costume, .wearer: return nil
         }
     }
 
@@ -105,6 +106,7 @@ extension CompanionState {
     var incubatingHatchEgg: HatchEgg {
         if let egg = eggFromDungeon { return egg.hatchEgg }
         if let egg = eggFromCostume { return .costume(code: egg.code, speciesID: egg.speciesID) }
+        if let egg = eggFromWearer { return .wearer(formKey: egg.formKey) }
         if let eggEvent { return .event(eggEvent, key: eggEventKey) }
         if eggFromTypeNullEgg { return .typeNull }
         if eggFromBirthdayEgg { return .birthday }

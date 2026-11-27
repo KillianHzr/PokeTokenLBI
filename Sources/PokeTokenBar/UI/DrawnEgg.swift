@@ -310,6 +310,7 @@ extension CompanionStore {
         if state.active == nil, state.eggFromFossilEgg { return .fossil }
         if state.active == nil, let egg = state.eggFromDungeon { return egg.eggKind }
         if state.active == nil, let egg = state.eggFromCostume { return .costume(egg.month) }
+        if state.active == nil, let egg = state.eggFromWearer { return .dungeon(egg.speciesID) }
         return EggKind(tier: eggGuarantee, type: eggTypeGuarantee)
     }
 
@@ -324,7 +325,8 @@ extension CompanionStore {
         case .event(let event): l.itemName(event.item)
         case .fossil: l.itemName(.fossilEgg)
         case .dungeon, .secret:
-            state.eggFromDungeon.map { DungeonEggTitle.text($0.baseID, l: l, language: language, secret: $0.isSecret == true) }
+            state.eggFromWearer != nil ? l.wearerEggName
+                : state.eggFromDungeon.map { DungeonEggTitle.text($0.baseID, l: l, language: language, secret: $0.isSecret == true) }
                 ?? l.eggName(nil)
         case .costume(let month): l.costumeEggName(month)
         }

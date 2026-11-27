@@ -153,11 +153,11 @@ extension CompanionStore {
         return challengeBoss(id).map { state.dungeons.battleForms.contains($0.key) } ?? false
     }
 
-    /// The battle forms a challenge may still give: those of the species the player graduated and has not won yet.
+    /// The battle forms a challenge may still give: those a graduated Pokémon wears and the player has not won yet.
     func challengeCandidates(_ id: DungeonID) -> [BattleForm] {
-        let graduated = graduatedSpeciesIDs, won = state.dungeons.battleForms
+        let won = state.dungeons.battleForms
         return (id == .weekly ? BattleForms.weekly : BattleForms.daily)
-            .filter { graduated.contains($0.speciesID) && !won.contains($0.key) }
+            .filter { hasWearer($0) && !won.contains($0.key) }
     }
 
     /// The day's (or the week's) boss: one of the forms left, drawn from the period alone, so it stays all day. Nil
@@ -201,11 +201,19 @@ extension CompanionStore {
     func battleFormChoice(for entry: DexEntry) -> BattleForm? {
         guard let raw = state.dungeons.battleFormChoice[entry.id],
               let form = BattleForms.form(speciesID: entry.finalID, form: PokemonForm(raw)),
-              state.dungeons.battleForms.contains(form.key) else { return nil }
+              state.dungeons.battleForms.contains(form.key), wears(entry, form) else { return nil }
         return form
     }
 
-    /// The battle forms won for this species, for its Pokédex page and the team screen.
+    func wears(_ entry: DexEntry, _ form: BattleForm) -> Bool { form.isWorn(by: entry) }
+
+    func hasWearer(_ form: BattleForm) -> Bool { state.dex.contains { wears($0, form) } }
+
+    func wonBattleForms(for entry: DexEntry) -> [BattleForm] {
+        BattleForms.forms(speciesID: entry.finalID).filter { state.dungeons.battleForms.contains($0.key) && wears(entry, $0) }
+    }
+
+    /// The battle forms won for this species, for its Pokédex page.
     func wonBattleForms(speciesID: Int) -> [BattleForm] {
         BattleForms.forms(speciesID: speciesID).filter { state.dungeons.battleForms.contains($0.key) }
     }
@@ -234,7 +242,7 @@ extension CompanionStore {
     func matches(_ entry: DexEntry, _ filter: TeamFilter) -> Bool {
         if filter == .favorite { return isFavorite(entry) }
         if filter == .shiny { return entry.isShiny }
-        return wonBattleForms(speciesID: entry.finalID).contains { filter.kinds.contains($0.kind) }
+        return wonBattleForms(for: entry).contains { filter.kinds.contains($0.kind) }
     }
 
     /// Never used up: a Pokémon takes a won form, or goes back to its usual one with nil; not while it explores.
@@ -242,7 +250,7 @@ extension CompanionStore {
     func setBattleForm(_ form: BattleForm?, for entryID: String) -> Bool {
         guard !isExploring(entryID), let entry = state.dex.first(where: { $0.id == entryID }) else { return false }
         if let form {
-            guard form.speciesID == entry.finalID, state.dungeons.battleForms.contains(form.key) else { return false }
+            guard wears(entry, form), state.dungeons.battleForms.contains(form.key) else { return false }
         }
         changeDungeons { $0.battleFormChoice[entryID] = form?.form.rawValue }
         persist()

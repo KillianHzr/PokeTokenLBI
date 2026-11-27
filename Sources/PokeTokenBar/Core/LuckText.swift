@@ -315,6 +315,7 @@ extension L {
         case .costume(let code, let speciesID):
             return CostumeCatalog.entries.first { $0.code == code && $0.speciesID == speciesID }
                 .map { costumeEggName($0.month) } ?? eggName(nil)
+        case .wearer: return wearerEggName
         case .tier, .stone, .legendary, .typeNull, .birthday, .fossil:
             return ItemKind.allCases.first { HatchEgg(item: $0) == egg }.map(itemName) ?? eggName(nil)
         }

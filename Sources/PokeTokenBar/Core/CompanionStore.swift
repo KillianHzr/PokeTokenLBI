@@ -157,6 +157,7 @@ final class CompanionStore {
         recordFossilLinesBeforeDigsIfNeeded()
         reconcileOverclaimedDigsIfNeeded()
         giveStartingWishingPiecesIfNeeded()
+        giveWearerEggsIfNeeded()
         recoverFromACrashedDungeonStep()
         // A save left waiting at the boss's throws, from before they were automatic, throws them now.
         throwAutomatically()
@@ -230,6 +231,17 @@ final class CompanionStore {
         state.wishingPiecesGiven = true
         changeBag(.wishingPiece, by: WishingPiece.starting)
         AppLog.write("wishing piece: \(WishingPiece.starting) given")
+    }
+
+    private func giveWearerEggsIfNeeded() {
+        guard !state.wearerEggsGiven else { return }
+        state.wearerEggsGiven = true
+        let won = state.dungeons.battleForms
+        for form in BattleForms.all + BattleForms.extras where won.contains(form.key) && !hasWearer(form) {
+            state.wearerEggs.append(WearerEgg(formKey: form.key))
+            changeBag(.wishingPiece, by: BattleForms.daily.contains(form) ? 1 : BattleForms.weekly.contains(form) ? 3 : 0)
+            AppLog.write("wearer egg: given for \(form.key)")
+        }
     }
 
     /// The fossil lines had before the digs, taken once (`CompanionState.fossilLinesBeforeDigs`). Counting them again
@@ -511,6 +523,11 @@ final class CompanionStore {
     var canSendOffActive: Bool { canSendOffActive(onReturn: false) }
     func canSendOffActive(onReturn: Bool) -> Bool { hasActive && !isRaisingLegendaryBossPokemon && (onReturn || expedition == nil) }
     var rarity: Rarity? { state.active?.rarity }
+    var currentHasGigantamaxFactor: Bool { state.active?.hasGigantamaxFactor ?? false }
+
+    func hasGigantamaxFactor(_ entry: DexEntry) -> Bool {
+        isActiveDexEntry(entry) ? currentHasGigantamaxFactor : entry.hasGigantamaxFactor
+    }
     var currentIsShiny: Bool { state.active?.displaysShiny ?? false }   // 위장 중엔 이로치 숨김(리빌 때 공개)
     /// 새 알(리롤) 구매 시 실수로 놓아주지 않도록 2단계 확인이 필요한 고가치 개체인지 판정.
     /// 이로치(shiny)이거나 전설(legendary)인 경우에만 2단계 경고를 띄운다.
@@ -828,8 +845,9 @@ final class CompanionStore {
         /// A costumed Pokémon whose costume, at a stage it reached or will reach, the costumed collection lacks
         /// (`CostumeCatalog`): "New costume" when its species are all held (the owner, 2026-11-13).
         var newCostume = false
+        var firstGigantamaxWearer = false
         /// Nothing new: sending it off loses nothing the Pokédex and the costumes do not already hold.
-        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume && !newCostume }
+        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume && !newCostume && !firstGigantamaxWearer }
     }
 
     /// Nil unless its form is hidden and could be several (`FormSuspense`). The forms it can carry are those its egg
@@ -904,7 +922,9 @@ final class CompanionStore {
                 CostumeCatalog.entry(code: code, speciesID: id, form: form).map { !held.contains($0.key) } ?? false
             }
         } ?? false
-        return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume, newCostume: newCostume)
+        let wearer = GigantamaxFactor.bringsFirstWearer(finalID: a.plannedPathIDs.last ?? a.currentID,
+                                                        hasFactor: a.hasGigantamaxFactor, among: state.dex)
+        return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume, newCostume: newCostume, firstGigantamaxWearer: wearer)
     }
 
     /// What `activeNews` asks of the Pokémon raised, for one an egg would hatch from `baseID` in `form`: whether it
@@ -1152,7 +1172,11 @@ final class CompanionStore {
     var duplicateCatchEntryIDs: Set<String> {
         var seenGraduatedSpecies = Set<DexSpeciesKey>()
         var duplicates = Set<String>()
+        var earlier = [DexEntry]()
         for e in entriesInCatchOrder {
+            defer { earlier.append(e) }
+            let bringsWearer = isActiveDexEntry(e) ? activeNews?.firstGigantamaxWearer == true
+                : !e.isReleased && GigantamaxFactor.bringsFirstWearer(finalID: e.finalID, hasFactor: e.hasGigantamaxFactor, among: earlier)
             let reachedSpeciesSeen = e.chainOrder.allSatisfy { id in
                 seenGraduatedSpecies.contains(DexSpeciesKey(speciesID: id, form: e.form))
             }
@@ -1166,11 +1190,11 @@ final class CompanionStore {
                 )
                 // The one being raised still brings a costume while one is missing (`ActiveNews.costume`, `newCostume`).
                 let bringsCostume = isActiveDexEntry(e) && (activeNews?.costume == true || activeNews?.newCostume == true)
-                if reachedSpeciesSeen && !uncollected && !bringsCostume {
+                if reachedSpeciesSeen && !uncollected && !bringsCostume && !bringsWearer {
                     duplicates.insert(e.id)
                 }
             } else {
-                if reachedSpeciesSeen {
+                if reachedSpeciesSeen && !bringsWearer {
                     duplicates.insert(e.id)
                 }
                 for id in e.chainOrder {
@@ -2130,7 +2154,8 @@ final class CompanionStore {
                 break
             }
             // A species none of whose evolutions this form can take is final for it (a Kanto Farfetch'd).
-            if Self.openChildren(node, form: a.form).isEmpty {
+            if Self.openChildren(node, form: a.form).isEmpty
+                || (a.rolledGigantamaxFactor && GigantamaxFactor.speciesIDs.contains(a.currentID)) {
                 graduate(); staged = true; break
             } else {
                 let nextIndex = a.stageIndex + 1
@@ -2285,7 +2310,8 @@ final class CompanionStore {
         let candidate = longestValidPath(saved.plannedPathIDs, from: root)
         let canReusePlan = candidate.path == saved.plannedPathIDs
             && candidate.path.starts(with: realized.path)
-            && Self.openChildren(candidate.lastNode, form: saved.form).isEmpty
+            && (Self.openChildren(candidate.lastNode, form: saved.form).isEmpty
+                || (saved.rolledGigantamaxFactor && GigantamaxFactor.speciesIDs.contains(candidate.path.last ?? 0)))
             && Self.planFollowsForm(candidate.path, form: saved.form)
         let plan: [Int]
         if canReusePlan {
@@ -3707,6 +3733,21 @@ final class CompanionStore {
         return true
     }
 
+    func canUseWearerEgg(_ id: String, onReturn: Bool = false) -> Bool {
+        canSendOffActive(onReturn: onReturn) && !isRaisingFossilEggPokemon && state.wearerEggs.contains { $0.id == id }
+    }
+
+    @discardableResult
+    func useWearerEgg(_ id: String) -> Bool {
+        guard canUseWearerEgg(id), let egg = state.wearerEggs.first(where: { $0.id == id }) else { return false }
+        state.wearerEggs.removeAll { $0.id == id }
+        replaceActiveWithEgg(price: 0, tier: nil, type: nil)
+        state.eggFromWearer = egg
+        save()
+        AppLog.write("wearer egg used: \(egg.formKey)")
+        return true
+    }
+
     // MARK: Event eggs
 
     /// The player's very first catch, its time and line: the companion's anniversary egg follows it.
@@ -3915,6 +3956,7 @@ final class CompanionStore {
         state.eggFromFossilEgg = false
         state.eggFromDungeon = nil
         state.eggFromCostume = nil
+        state.eggFromWearer = nil
         state.eggEvent = nil
         state.eggEventKey = nil
         state.pendingHatchID = nil    // 새 보증으로 처음부터 롤(활성 포켓몬이 있는 동안엔 원래 비어 있다)
@@ -4274,6 +4316,7 @@ final class CompanionStore {
             state.pendingShiny = pick.shiny
             state.pendingForm = state.eggFromCostume.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
                 ?? state.eggFromDungeon.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
+                ?? state.eggFromWearer.flatMap(\.hatchForm)
                 ?? HatchDraw.eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
             save()
         }
@@ -4422,10 +4465,11 @@ final class CompanionStore {
         prefetchedLineID = nil
         // A Costume Egg hatches its first costumed stage, which grows only into the stages wearing its costume.
         let costumeEgg = state.eggFromCostume
+        let wearerEgg = state.eggFromWearer
         let line = costumeEgg.flatMap { Self.costumeLine(fetched, start: $0.speciesID, code: $0.code, form: $0.form,
                                                          owned: graduatedSpeciesIDs, taken: costumesTaken()) }
             ?? fetched
-        let firstID = costumeEgg == nil ? line.baseID : line.tree.speciesID
+        var firstID = costumeEgg == nil ? line.baseID : line.tree.speciesID
         currentLine = line
         isHatchRetryDelayed = false
         // 부화 임계 초과분은 부화체 성장에 이월(낭비 없음).
@@ -4450,6 +4494,7 @@ final class CompanionStore {
         state.eggFromFossilEgg = false
         state.eggFromDungeon = nil
         state.eggFromCostume = nil
+        state.eggFromWearer = nil
         if event != nil, let key = state.eggEventKey { state.eventEggHatches[key] = line.baseID }
         state.eggEvent = nil
         state.eggEventKey = nil
@@ -4475,13 +4520,27 @@ final class CompanionStore {
         var evolutionPlan = makeEvolutionPlan(from: line.tree, baseID: line.baseID, form: pendingForm)
         var profile = PokemonProfile.generate(seed: rng.next())
         let form = costumeEgg != nil ? PokemonForm.resolved(baseID: line.baseID, form: costumeEgg?.form)
+            : wearerEgg != nil ? wearerEgg?.hatchForm
             : pendingForm ?? rollLineForm(baseID: line.baseID, types: formTypes)
+        if let start = wearerEgg?.speciesID ?? PokemonEvolutionData.hatchStage(baseID: line.baseID, form: form), let node = line.tree.node(withID: start) {
+            firstID = start
+            currentLine = EvoLine(baseID: line.baseID, tree: node, rarity: line.rarity, names: line.names)
+            evolutionPlan = makeEvolutionPlan(from: node, baseID: line.baseID, form: form)
+        }
         // After the form roll: an Alolan Vulpix gets an Alolan Vulpix's ability. Enriching draws nothing from `rng`.
         if let details = pokemonDetails(speciesID: firstID, form: form) { profile.enrich(with: details) }
         // The form is rolled last so owning forms never shifts the other rolls; a plan it cannot take (a
         // Galarian Meowth planned into Persian) is redone for it, which only happens on form-gated lines.
         if !Self.planFollowsForm(evolutionPlan, form: form) {
             evolutionPlan = makeEvolutionPlan(from: line.tree, baseID: line.baseID, form: form)
+        }
+        var rolledFactor = wearerEgg?.hasGigantamaxFactor == true
+        if wearerEgg != nil { evolutionPlan = [firstID] }
+        if wearerEgg == nil, let stop = GigantamaxFactor.stopIndex(in: evolutionPlan, form: form), let final = evolutionPlan.last,
+           isEvolutionCollected(speciesID: final, baseID: line.baseID, form: form),
+           GigantamaxFactor.rolls(roll: rng.next(), hasWearer: BattleForms.forms(speciesID: evolutionPlan[stop]).contains { $0.kind == .gigantamax && hasWearer($0) }) {
+            rolledFactor = true
+            evolutionPlan = Array(evolutionPlan.prefix(through: stop))
         }
         // A repeat only when this line already graduated in this form: an Alolan Dugtrio is new to the
         // Pokédex even after a Kanto one graduated, so it gets no repeat boost.
@@ -4497,6 +4556,7 @@ final class CompanionStore {
                                 isShiny: isShiny, nature: nature, profile: profile, hasGrowthBoost: hasGrowthBoost,
                                 dittoDisguise: dittoDisguise, form: form)
         state.active?.hasNewForm = hasNewForm
+        state.active?.rolledGigantamaxFactor = rolledFactor
         state.active?.costume = costumeEgg?.code
         state.active?.fromFossilEgg = fromFossilEgg
         state.active?.fromLegendaryBossEgg = fromLegendaryBossEgg
@@ -4588,6 +4648,7 @@ final class CompanionStore {
         m.form = nil
         // Ditto has no form: the disguise's new form, and the Prison Bottle's +50% with it, go.
         m.hasNewForm = false
+        m.rolledGigantamaxFactor = false
         // The hatch boost came from the disguise's line; from now on only a repeat Ditto earns it.
         m.hasGrowthBoost = state.hasCollectedFinal(forBaseID: dittoLine.baseID)
         m.profile?.rebaseForSpeciesIdentity(from: previousRarity, to: dittoLine.rarity)
@@ -4625,7 +4686,10 @@ final class CompanionStore {
             // A costumed Pokémon grows on its costume's stages only, from the first one it hatched as.
             let line = latest.costume.flatMap { code in
                 Self.costumeLine(fetched, start: latest.pathIDs.first ?? latest.currentID, code: code, form: latest.form)
-            } ?? fetched
+            } ?? (PokemonEvolutionData.hatchStage(baseID: latest.baseID, form: latest.form)
+                    ?? latest.pathIDs.first.flatMap { $0 == latest.baseID ? nil : $0 })
+                .flatMap { fetched.tree.node(withID: $0) }
+                .map { EvoLine(baseID: fetched.baseID, tree: $0, rarity: fetched.rarity, names: fetched.names) } ?? fetched
             state.active = normalizedEvolutionState(latest, from: line.tree)
             state.reconcileRepresentativeSelection()   // 손상 경로 정규화로 사라진 단계가 대표로 남지 않게
             currentLine = line
@@ -4656,6 +4720,7 @@ final class CompanionStore {
         if let egg = state.eggFromDungeon { return (egg.baseID, egg.isShiny) }
         // A Costume Egg knows its Pokémon: its line, then its first costumed stage at the hatch (`costumeLine`).
         if let egg = state.eggFromCostume { return (SpeciesInfo.baseID(of: egg.speciesID), false) }
+        if let egg = state.eggFromWearer { return (egg.baseID, false) }
         if let full = try? await provider.baseSpeciesIndex(), !full.isEmpty {
             if state.eggFromBirthdayEgg { return chooseBirthdayBase(full) }
             if state.eggFromFossilEgg { return chooseFossilBase(full) }
@@ -4985,6 +5050,7 @@ final class CompanionStore {
         // even less. So does an event egg of a few lines, the Friendship Egg's one above all.
         if let egg = state.eggFromDungeon { return egg.baseID }
         if let egg = state.eggFromCostume { return SpeciesInfo.baseID(of: egg.speciesID) }
+        if let egg = state.eggFromWearer { return egg.baseID }
         if state.eggFromFossilEgg { return await chooseListedBaseViaREST(hatchDraw.fossilCandidates, charm: false) }
         if let lines = state.eggEvent?.lines(companionLine: companionLineID) {
             return await chooseListedBaseViaREST(lines, charm: ownsOvalCharm)

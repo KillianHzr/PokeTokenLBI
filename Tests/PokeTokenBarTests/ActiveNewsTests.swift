@@ -45,6 +45,7 @@ final class ActiveNewsTests: XCTestCase {
     /// line, the word says it brings nothing.
     func testARepeatBringsNothingOfWhateverItsBoost() throws {
         var eevee = mon([133])
+        eevee.plannedPathIDs = [133, 470]
         eevee.hasGrowthBoost = true
         XCTAssertFalse(try store(active: eevee, dex: [graduated([133, 470])]).activeIsRepeat)
         let everyEvolution = (PokemonEvolutionData.children[133] ?? []).map { graduated([133, $0]) }

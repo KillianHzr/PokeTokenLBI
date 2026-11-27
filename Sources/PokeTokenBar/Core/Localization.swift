@@ -1229,6 +1229,7 @@ struct L {
     // Form names PokéAPI lacks or gets wrong (`PokemonForm.appName`).
     var formHoopaConfined: String { t("굴레에 빠진 모습", "Confined", "いましめられし", "Contenido", "Enchaîné", "Contido", "Gebannt", "Скованный") }
     var formHoopaUnbound: String { t("굴레를 벗어난 모습", "Unbound", "ときはなたれし", "Desatado", "Déchaîné", "Liberto", "Entfesselt", "Освобождённый") }
+    var formEternalFlower: String { t("영원의 꽃", "Eternal Flower", "えいえんのはな", "Flor Eterna", "Fleur Éternelle", "Flor Eterna", "Ewigblütler", "Вечный цветок") }
     var formPartner: String { t("파트너", "Partner", "パートナー", "Compañero", "Partenaire", "Parceiro", "Partner", "Партнёр") }
     var formFamilyOfFour: String { t("네 식구", "Family of Four", "４ひきかぞく", "Familia de cuatro", "Famille de Quatre", "Família de quatro", "Viererfamilie", "Семья из четырёх") }
     var formFamilyOfThree: String { t("세 식구", "Family of Three", "３びきかぞく", "Familia de tres", "Famille de Trois", "Família de três", "Dreierfamilie", "Семья из трёх") }
@@ -2805,6 +2806,10 @@ struct L {
         case .shinyToKeep:
             return t("지킬 이로치", "Shiny to keep", "残したい色違い", "Variocolor a conservar", "Chromatique à garder",
                      "Shiny para guardar", "Schillernd: behalten", "Шайни: оставить")
+        case .wearerToKeep:
+            return t("지킬 거다이맥스", "Gigantamax Factor to keep", "残したいキョダイマックス", "Factor Gigamax a conservar",
+                     "Facteur Gigamax à garder", "Fator Gigantamax para guardar", "Gigadynamax-Faktor: behalten",
+                     "Фактор гигантамакса: оставить")
         case .keptForAchievement:
             return t("업적용", "Keep for an achievement", "実績のために育てる", "Conservar por un logro", "À garder pour un succès",
                      "Guardar por uma conquista", "Für einen Erfolg behalten", "Оставить ради успеха")
@@ -2886,6 +2891,15 @@ struct L {
                      "Você já tem a linha toda, mas é seu primeiro shiny desta forma. Uma raridade assim merece ficar!",
                      "Seine Linie hast du schon, aber es ist dein erstes Schillerndes in dieser Form. So eine Seltenheit behält man!",
                      "Вся его линия у вас уже есть, но это ваш первый шайни в этой форме. Такую редкость стоит оставить!")
+        case .wearerToKeep:
+            return t("거다이맥스할 수 있지만 이 종의 거다이맥스 폼으로 싸울 수 있는 포켓몬이 아직 없단다. 지켜야지!",
+                     "It has the Gigantamax Factor, and no Pokémon of its species can fight in the Gigantamax form yet. Keep it!",
+                     "キョダイマックスできるが、この種でキョダイマックスの姿で戦える者はまだおらん。手放してはならん！",
+                     "Tiene el Factor Gigamax y ningún Pokémon de su especie puede aún luchar en forma Gigamax. ¡Consérvalo!",
+                     "Il a le Facteur Gigamax, et aucun Pokémon de son espèce ne peut encore combattre sous sa forme Gigamax. Garde-le !",
+                     "Ele tem o Fator Gigantamax, e nenhum Pokémon da espécie pode lutar na forma Gigantamax ainda. Fique com ele!",
+                     "Es hat den Gigadynamax-Faktor, und noch kein Pokémon seiner Art kann in Gigadynamax-Form kämpfen. Behalte es!",
+                     "У него есть фактор гигантамакса, и ни один покемон его вида пока не может сражаться в форме гигантамакса. Оставьте его!")
         case .keptForAchievement(let kind):
             let achievement = itemName(kind)
             return t("중복이지만, 졸업하면 업적이 열린단다: \(achievement). 끝까지 키우거라!",
@@ -2995,7 +3009,7 @@ struct L {
                      "Só um ovo fantasiado da sua Bolsa pode ocupar o lugar dele: solte-o por ele agora, sem esperar!",
                      "Nur ein Kostüm-Ei aus deinem Beutel kann es ersetzen: Lass es jetzt dafür frei, ohne zu warten!",
                      "Заменить его может только костюмное яйцо из сумки: отпустите его ради него прямо сейчас, не ждите!")
-        case .bag, .claim, .buy, .dungeonEgg, .costumeEgg:
+        case .bag, .claim, .buy, .dungeonEgg, .costumeEgg, .wearerEgg:
             return t("새로운 걸 가져올 수 있는 알과 바꿔 놓아주거라!", "Release it for an egg that can bring you something new!",
                      "新しいものを連れてくるかもしれんタマゴと引き換えに、逃がしてやるのじゃ！",
                      "¡Suéltalo por un huevo que pueda traerte algo nuevo!", "Relâche-le contre un œuf qui peut t'apporter du nouveau !",

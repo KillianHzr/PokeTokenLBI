@@ -59,3 +59,15 @@ _Avoid_: Shard, fragment
 **Wishing Piece**:
 An item of the Bag that swaps the daily or weekly dungeon's boss for another before that day's try, one piece for the daily, three for the weekly.
 _Avoid_: Reroll, reroll token
+
+**Wearer**:
+A graduated Pokémon that can fight in a given Battle Form: of the Battle Form's species, and the right individual when the form asks for one (Eternal Flower Floette, the Gigantamax Factor).
+_Avoid_: Carrier, holder
+
+**Gigantamax Factor**:
+A trait of an individual Pokémon, needed to fight in its species' Gigantamax form. Every individual whose line ends on a species with a Gigantamax form has it; a Pikachu, an Eevee, a Kantonian Meowth or a Duraludon has it only sometimes, and then never evolves.
+_Avoid_: G-Max Factor
+
+**Wearer Egg**:
+An item of the Bag, given once to a player who had won a Battle Form no graduated Pokémon could wear, that hatches that Battle Form's Wearer.
+_Avoid_: Catch-up egg

@@ -1563,6 +1563,34 @@ extension L {
         }
         return dungeonName(BattleForms.daily.contains(form) ? .daily : .weekly)
     }
+    var gigantamaxFactorName: String {
+        t("거다이맥스 가능", "Gigantamax Factor", "キョダイマックスできる", "Factor Gigamax", "Facteur Gigamax", "Fator Gigantamax",
+          "Gigadynamax-Faktor", "фактор гигантамакса")
+    }
+    func battleFormWearer(_ form: BattleForm, species: String) -> String? {
+        guard let kind = battleFormWearerKind(form, species: species) else { return nil }
+        return t("이 폼이 될 수 있는 포켓몬: ", "Wearer: ", "この姿になれるポケモン: ", "Portador: ", "Porteur : ", "Portador: ",
+                 "Träger: ", "Носитель: ") + kind
+    }
+    private func battleFormWearerKind(_ form: BattleForm, species: String) -> String? {
+        guard form.wearerForm != nil || form.needsGigantamaxFactor else { return nil }
+        let flower = formEternalFlower
+        if form.wearerForm != nil {
+            return t("\(flower) \(species)", "\(flower) \(species)", "\(flower)の\(species)", "\(species) \(flower)",
+                     "\(species) \(flower)", "\(species) \(flower)", "\(species) \(flower)", "\(species) \(flower)")
+        }
+        let article = "AEIOUaeiou".contains(species.first ?? "x") ? "an" : "a"
+        let factor = gigantamaxFactorName
+        return t("거다이맥스할 수 있는 \(species)", "\(article) \(species) with the \(factor)", "\(factor)\(species)",
+                 "un \(species) con el \(factor)", "un \(species) avec le \(factor)", "um \(species) com o \(factor)",
+                 "ein \(species) mit dem \(factor)", "\(species) с фактором гигантамакса")
+    }
+    var wearerEggName: String {
+        t("폼 알", "Wearer Egg", "すがたのタマゴ", "Huevo Portador", "Œuf Porteur", "Ovo Portador", "Träger-Ei", "Яйцо носителя")
+    }
+    func wearerEggContent(_ form: BattleForm, species: String) -> String {
+        battleFormWearerKind(form, species: species) ?? species
+    }
     var battleFormUsual: String {
         t("기본", "Usual", "ふだん", "Habitual", "Habituelle", "Habitual", "Normal", "Обычная")
     }

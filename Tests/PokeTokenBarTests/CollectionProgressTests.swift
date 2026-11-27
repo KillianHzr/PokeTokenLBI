@@ -15,8 +15,8 @@ final class CollectionProgressTests: XCTestCase {
         XCTAssertEqual(CompanionStore.collectableFormCount, 1025 + extraForms + BattleForms.all.count)
         // 1,280, plus Alcremie's 62, Origin Dialga and Palkia, Hoopa Unbound, Bloodmoon Ursaluna, Maushold's
         // Family of Three, the female Indeedee and Oinkologne, and Partner Eevee: 1,350; and the 132 battle forms the
-        // daily and weekly dungeons give (2026-11-02).
-        XCTAssertEqual(CompanionStore.collectableFormCount, 1350 + 132)
+        // daily and weekly dungeons give (2026-11-02), and Eternal Flower Floette.
+        XCTAssertEqual(CompanionStore.collectableFormCount, 1350 + 132 + 1)
     }
 
     func testProgressCountsSpeciesAndTheirForms() throws {
