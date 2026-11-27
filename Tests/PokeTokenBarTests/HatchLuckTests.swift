@@ -386,6 +386,7 @@ final class HatchLuckTests: XCTestCase {
         XCTAssertEqual(l.criteria.first { $0.criterion == .capture }?.hits, 2)
         XCTAssertEqual(l.criteria.first { $0.criterion == .capture }?.expected ?? 0, 0.9, accuracy: 1e-9)
         XCTAssertEqual(l.highlights.first?.draw, .secretBoss, "one in a hundred")
+        XCTAssertEqual(l.highlights.filter { $0.draw == .secretBoss }.count, 1, "the rarest of each kind only")
         XCTAssertGreaterThan(l.steps[2].score, l.steps[1].score, "a secret boss, and two throws in three at 30%")
         XCTAssertEqual(l.hatches[2].effect, l.steps[3].score - l.steps[2].score, accuracy: 1e-9, "after the day's journal")
     }

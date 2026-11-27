@@ -296,8 +296,9 @@ struct HatchLuck: Sendable {
         }
     }
 
-    /// The luckiest draws, five at most, the least likely first: a hatch's shiny, rarity, Ditto, hidden ability or IVs
-    /// in the top 1%, and the journal's hits of one in ten or rarer.
+    /// The luckiest draws, five at most, the least likely first, the rarest of each kind only (on the owner's save, the
+    /// five best IVs hid Groudon and every shiny): a hatch's shiny, rarity, Ditto, hidden ability or IVs in the top 1%,
+    /// and the journal's hits of one in ten or rarer.
     private static func luckiest(hatches: [Hatch], draws: [LuckDraw]) -> [Highlight] {
         var found: [Highlight] = []
         for (i, hatch) in hatches.enumerated() {
@@ -320,7 +321,10 @@ struct HatchLuck: Sendable {
             found.append(Highlight(criterion: draw.kind.criterion, odds: draw.odds, date: draw.at, hatch: nil, draw: draw.kind,
                                    rarity: nil))
         }
-        return Array(found.sorted { $0.odds < $1.odds }.prefix(5))
+        var kinds = Set<String>()
+        return Array(found.sorted { $0.odds < $1.odds }
+            .filter { kinds.insert($0.draw?.rawValue ?? $0.criterion.rawValue).inserted }
+            .prefix(5))
     }
 
     struct Moment: Sendable {

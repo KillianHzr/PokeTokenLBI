@@ -45,18 +45,24 @@ struct LuckScale: Sendable, Equatable {
     let cumulative: [Double]
     /// Each outcome's points: `LuckScore.points` of doing at least as well.
     let points: [Int]
+    /// The variance of the points one draw gives.
+    let variance: Double
 
     init(odds: [Double]) {
         let total = odds.reduce(0, +)
         var cumulative: [Double] = [], points: [Int] = []
-        var below = 0.0
+        var below = 0.0, mean = 0.0, square = 0.0
         for share in odds.map({ total > 0 ? $0 / total : 0 }) {
-            points.append(LuckScore.points(1 - below))
+            let value = LuckScore.points(1 - below)
+            points.append(value)
+            mean += share * Double(value)
+            square += share * Double(value) * Double(value)
             below += share
             cumulative.append(below)
         }
         self.cumulative = cumulative
         self.points = points
+        variance = max(0, square - mean * mean)
     }
 
     /// The outcome a uniform `u` in 0..<1 draws.
@@ -107,6 +113,31 @@ struct LuckEvent: Sendable {
         }
     }
 
+    /// The variance of the points it gives each criterion it can move, at its own odds.
+    var variances: [LuckCriterion: Double] {
+        switch shape {
+        case .pick(let outcomes, _):
+            let total = outcomes.reduce(0) { $0 + max(0, $1.odds) }
+            guard total > 0 else { return [:] }
+            var result: [LuckCriterion: Double] = [:]
+            for criterion in criteria {
+                var mean = 0.0, square = 0.0
+                for outcome in outcomes {
+                    let share = max(0, outcome.odds) / total, value = Double(outcome.points[criterion] ?? 0)
+                    mean += share * value
+                    square += share * value * value
+                }
+                result[criterion] = max(0, square - mean * mean)
+            }
+            return result
+        case .draws(let criterion, let odds, let trials, _):
+            let value = Double(LuckScore.points(odds))
+            return [criterion: Double(trials) * odds * (1 - odds) * value * value]
+        case .scale(let criterion, let scale, _):
+            return [criterion: scale.variance]
+        }
+    }
+
     /// The points it gave.
     var observedPoints: [LuckCriterion: Int] {
         switch shape {
@@ -118,8 +149,10 @@ struct LuckEvent: Sendable {
 }
 
 /// The score: as many players as `players` make exactly the player's draws, each drawn again at its own odds, and the
-/// score is the share of them who got fewer points, ties counted half. Seventy-two means luckier than 72% of players
-/// with those very draws; the criteria and families are scored the same way on their own draws.
+/// score is the share of them who did worse, ties counted half. Seventy-two means luckier than 72% of players with
+/// those very draws. Within a criterion a draw is worth its surprise (`points`), the rarer the more. A family and the
+/// overall score weigh their criteria alike, each by the spread its draws can give (measured on the owner's save of
+/// 2026-11-27: by points alone, a hatch's IVs outweighed everything else, the dungeons next to nothing).
 enum LuckScore {
     static let players = 10_000
 
@@ -136,18 +169,28 @@ enum LuckScore {
         var criteria: [LuckCriterion: Double] = [:]
     }
 
+    /// Each criterion's weight in its family and overall: one over the spread of its points over all `events`, so
+    /// that each weighs alike; none for a criterion no draw can move.
+    static func weights(_ events: [LuckEvent]) -> [LuckCriterion: Double] {
+        var variance: [LuckCriterion: Double] = [:]
+        for event in events {
+            for (criterion, v) in event.variances { variance[criterion, default: 0] += v }
+        }
+        return variance.compactMapValues { $0 > 0 ? 1 / $0.squareRoot() : nil }
+    }
+
     /// The standing after each step (a hatch, a day of dungeons), its events drawn for every player.
     static func run(_ steps: [[LuckEvent]], players: Int = players) -> [Standing] {
-        var simulation = Simulation(players: players)
+        var simulation = Simulation(players: players, weights: weights(steps.flatMap { $0 }))
         var standing = Standing()
         return steps.map { events in
             var touched = Set<LuckCriterion>()
             for event in events {
                 touched.formUnion(simulation.add(event))
             }
-            for criterion in touched { standing.criteria[criterion] = simulation.percentile(.criterion(criterion)) }
-            for family in Set(touched.map(\.family)) { standing.families[family] = simulation.percentile(.family(family)) }
-            if !touched.isEmpty { standing.overall = simulation.percentile(.overall) }
+            for criterion in touched { standing.criteria[criterion] = simulation.percentile(criterion) }
+            for family in Set(touched.map(\.family)) { standing.families[family] = simulation.percentile(family: family) }
+            if !touched.isEmpty { standing.overall = simulation.percentile(family: nil) }
             return standing
         }
     }
@@ -157,47 +200,31 @@ enum LuckScore {
         run([steps.flatMap { $0 }], players: players).last ?? Standing()
     }
 
-    /// Every player's points so far, by criterion, family and overall, and the player's own.
+    /// Every player's points so far, by criterion, and the player's own.
     private struct Simulation {
-        enum Slot {
-            case criterion(LuckCriterion), family(LuckFamily), overall
-
-            var index: Int {
-                switch self {
-                case .criterion(let c): LuckCriterion.allCases.firstIndex(of: c)!
-                case .family(let f): LuckCriterion.allCases.count + LuckFamily.allCases.firstIndex(of: f)!
-                case .overall: LuckCriterion.allCases.count + LuckFamily.allCases.count
-                }
-            }
-            static let count = LuckCriterion.allCases.count + LuckFamily.allCases.count + 1
-        }
-
         let players: Int
+        let weights: [Double]
         var totals: [Int]
-        var mine = [Int](repeating: 0, count: Slot.count)
+        var mine = [Int](repeating: 0, count: LuckCriterion.allCases.count)
 
-        init(players: Int) {
+        init(players: Int, weights: [LuckCriterion: Double]) {
             self.players = max(1, players)
-            totals = [Int](repeating: 0, count: Slot.count * self.players)
+            self.weights = LuckCriterion.allCases.map { weights[$0] ?? 0 }
+            totals = [Int](repeating: 0, count: LuckCriterion.allCases.count * self.players)
         }
 
-        /// The slots `points` of a criterion feed: its own, its family's, the overall.
-        private static func slots(_ criterion: LuckCriterion) -> [Int] {
-            [Slot.criterion(criterion).index, Slot.family(criterion.family).index, Slot.overall.index]
-        }
+        private static func index(_ criterion: LuckCriterion) -> Int { LuckCriterion.allCases.firstIndex(of: criterion)! }
 
         /// Draws `event` for every player and adds the player's own points; the criteria it may have moved.
         mutating func add(_ event: LuckEvent) -> Set<LuckCriterion> {
             let criteria = event.criteria
             guard !criteria.isEmpty else { return [] }
-            for (criterion, points) in event.observedPoints where points != 0 {
-                for slot in Self.slots(criterion) { mine[slot] += points }
-            }
+            for (criterion, points) in event.observedPoints where points != 0 { mine[Self.index(criterion)] += points }
             var random = BattleRandom(seed: event.seed)
             let n = players
             switch event.shape {
             case .pick(let outcomes, _):
-                // Each outcome's points by slot, and the cumulative odds to draw it from.
+                // Each outcome's points by criterion, and the cumulative odds to draw it from.
                 let total = outcomes.reduce(0) { $0 + max(0, $1.odds) }
                 guard total > 0 else { return criteria }
                 var cumulative: [Double] = [], gains: [[(slot: Int, points: Int)]] = []
@@ -205,9 +232,7 @@ enum LuckScore {
                 for outcome in outcomes {
                     running += max(0, outcome.odds) / total
                     cumulative.append(running)
-                    gains.append(outcome.points.filter { $0.value != 0 }.flatMap { criterion, points in
-                        Self.slots(criterion).map { (slot: $0, points: points) }
-                    })
+                    gains.append(outcome.points.filter { $0.value != 0 }.map { (slot: Self.index($0.key), points: $0.value) })
                 }
                 totals.withUnsafeMutableBufferPointer { totals in
                     for player in 0..<n {
@@ -219,7 +244,7 @@ enum LuckScore {
                 }
             case .draws(let criterion, let odds, let trials, _):
                 let points = LuckScore.points(odds)
-                let slots = Self.slots(criterion)
+                let slot = Self.index(criterion)
                 let table = Self.binomial(trials: trials, odds: odds)
                 totals.withUnsafeMutableBufferPointer { totals in
                     for player in 0..<n {
@@ -232,30 +257,48 @@ enum LuckScore {
                         } else {
                             hits = (0..<trials).reduce(0) { count, _ in count + (Self.unit(&random) < odds ? 1 : 0) }
                         }
-                        guard hits > 0 else { continue }
-                        for slot in slots { totals[slot * n + player] += hits * points }
+                        if hits > 0 { totals[slot * n + player] += hits * points }
                     }
                 }
             case .scale(let criterion, let scale, _):
-                let slots = Self.slots(criterion)
+                let slot = Self.index(criterion)
                 totals.withUnsafeMutableBufferPointer { totals in
                     for player in 0..<n {
-                        let points = scale.points[scale.outcome(Self.unit(&random))]
-                        guard points != 0 else { continue }
-                        for slot in slots { totals[slot * n + player] += points }
+                        totals[slot * n + player] += scale.points[scale.outcome(Self.unit(&random))]
                     }
                 }
             }
             return criteria
         }
 
-        /// The share of players below the player in `slot`, ties counted half.
-        func percentile(_ slot: Slot) -> Double {
-            let index = slot.index, own = mine[index], n = players
+        /// The share of players below the player on `criterion`, ties counted half.
+        func percentile(_ criterion: LuckCriterion) -> Double {
+            let index = Self.index(criterion), own = mine[index], n = players
             var below = 0, equal = 0
             totals.withUnsafeBufferPointer { totals in
                 for player in 0..<n {
                     let total = totals[index * n + player]
+                    if total < own { below += 1 } else if total == own { equal += 1 }
+                }
+            }
+            return (Double(below) + Double(equal) / 2) / Double(n)
+        }
+
+        /// The same for a family, or overall for nil: its criteria's points summed at their weights, in one order for
+        /// the player and every simulated one, so that equal points tie exactly.
+        func percentile(family: LuckFamily?) -> Double {
+            let slots = LuckCriterion.allCases.indices.filter { i in
+                weights[i] > 0 && family.map { LuckCriterion.allCases[i].family == $0 } ?? true
+            }
+            guard !slots.isEmpty else { return 0.5 }
+            let n = players
+            var own = 0.0
+            for slot in slots { own += weights[slot] * Double(mine[slot]) }
+            var below = 0, equal = 0
+            totals.withUnsafeBufferPointer { totals in
+                for player in 0..<n {
+                    var total = 0.0
+                    for slot in slots { total += weights[slot] * Double(totals[slot * n + player]) }
                     if total < own { below += 1 } else if total == own { equal += 1 }
                 }
             }
