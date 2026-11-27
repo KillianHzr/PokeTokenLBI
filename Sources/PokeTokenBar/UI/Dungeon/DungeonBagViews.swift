@@ -36,6 +36,51 @@ struct DungeonEggCard: View {
     }
 }
 
+/// A Wearer Egg in the Bag: named as the Wearer line names its Pokémon, drawn as its Pokémon's dungeon egg.
+@MainActor
+struct WearerEggCard: View {
+    let store: CompanionStore
+    let nav: PopoverNavigation
+    let egg: WearerEgg
+    var displayStore = PokemonNameDisplayStore.shared
+
+    var body: some View {
+        let l = store.l
+        let name = l.wearerEggName
+        let resource = PokemonNameResource(kind: .pokemonSpecies, name: String(egg.speciesID))
+        let species = PokemonNameText(items: [PokemonNameItem(resource: resource)], language: store.language,
+                                      names: displayStore.names).text
+        VStack(alignment: .leading, spacing: Design.productCardSpacing) {
+            HStack(alignment: .center, spacing: 10) {
+                SpriteView(speciesID: nil, size: 30, egg: .dungeon(egg.speciesID))
+                VStack(alignment: .leading, spacing: Design.productTextSpacing) {
+                    Text(name).font(.callout.weight(.semibold)).lineLimit(1)
+                    if let form = egg.form {
+                        Text(l.wearerEggContent(form, species: species)).font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if store.hasActive {
+                        Text(l.eggReleaseNote).font(.caption2).foregroundStyle(.tertiary)
+                            .lineSpacing(Design.productLineSpacing)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .task(id: resource) {
+                if displayStore.names[resource] == nil { _ = await displayStore.load(resource, provider: PokemonNameClient.shared) }
+            }
+            ReleaseForEggControls(store: store, nav: nav, detail: "", actionTitle: l.useItem,
+                                  isAvailable: store.canUseWearerEgg(egg.id), unavailableText: l.useNeedsPokemon,
+                                  confirmText: l.stoneConfirm(store.displayName, name),
+                                  lockedHint: store.isRaisingFossilEggPokemon ? l.fossilEggInProgress : nil) {
+                store.useWearerEgg(egg.id)
+            }
+        }
+        .productCard()
+    }
+}
+
 /// "Mewtwo Egg" in the player's language: the Pokémon's name loaded as `PokemonNameLabel` loads it, "…" until then.
 @MainActor
 struct DungeonEggTitle: View {

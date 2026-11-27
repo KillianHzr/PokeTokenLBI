@@ -181,12 +181,15 @@ enum SaveTransfer {
             s.eggFromLegendaryEgg = false; s.eggFromBirthdayEgg = false; s.pendingShiny = false; s.eggEvent = nil; s.eggFromFossilEgg = false
             s.eggFromDungeon = nil
             s.eggFromCostume = nil
+            s.eggFromWearer = nil
         }
         if let egg = s.eggFromDungeon, !isHatchable(egg) { s.eggFromDungeon = nil }
         // A Costume Egg this version has no costume for would hatch a plain Pokémon: its costume is dropped with it.
         if let egg = s.eggFromCostume, egg.entry == nil { s.eggFromCostume = nil }
         // The Bag's eggs hold only their month; what they hold is drawn when opened.
         s.costumeEggs.removeAll { !(1...12).contains($0.month) }
+        s.wearerEggs.removeAll { $0.form == nil }
+        if s.eggFromWearer?.form == nil { s.eggFromWearer = nil }
         s.migrateLegacyBadgeClaims()
         s.pendingForm = PokemonForm.resolved(baseID: s.pendingHatchID ?? 0, form: s.pendingForm)
         // 만족시킬 수 없는 보증은 알을 영구히 못 깨게 만든다 — 전설은 capture_rate 로 표현할 수 없어
@@ -368,6 +371,7 @@ enum SaveTransfer {
         state.candyFeatureSeeded = imported.candyFeatureSeeded || current.candyFeatureSeeded
         state.candyGrantsAsYouGo = imported.candyGrantsAsYouGo || current.candyGrantsAsYouGo
         state.wishingPiecesGiven = imported.wishingPiecesGiven || current.wishingPiecesGiven
+        state.wearerEggsGiven = imported.wearerEggsGiven || current.wearerEggsGiven
         let hasCurrentProviderData = hasUsageData && !todayTokensByProvider.isEmpty
         if hasCurrentProviderData {
             // 신규 설치와 같은 규칙: 불러온 시점 이전의 이 기기 사용량은 소급 적립하지 않는다.

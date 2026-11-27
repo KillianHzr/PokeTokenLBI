@@ -42,6 +42,8 @@ enum OakRelease: Equatable, Sendable {
     /// A Costume Egg the Bag holds, judged without its costume and over what it may draw when opened: its odds are a
     /// first shiny's, else 0, when it is used only because no other egg of the Bag can go.
     case costumeEgg(CostumeEgg, odds: Double)
+    /// A Wearer Egg the Bag holds: its odds are 1 while no graduated Pokémon wears its form, else 0.
+    case wearerEgg(WearerEgg, odds: Double)
     /// The Spare raised to graduation, `left` growth away.
     case finish(left: Int, why: OakFinish)
 
@@ -51,7 +53,7 @@ enum OakRelease: Equatable, Sendable {
         case .bag(let kind, _), .freeEgg(let kind, _): return kind
         case .claim(let event, _): return event.item
         case .buy(let tier, _): return ItemKind(shopEgg: tier)
-        case .wait, .finish, .dungeonEgg, .costumeEgg: return nil
+        case .wait, .finish, .dungeonEgg, .costumeEgg, .wearerEgg: return nil
         }
     }
 
@@ -64,7 +66,7 @@ enum OakRelease: Equatable, Sendable {
     /// Whether the Spare goes now, leaving its Rare Candies to the one that hatches.
     var sendsOffNow: Bool {
         switch self {
-        case .dungeonEgg, .costumeEgg: return true
+        case .dungeonEgg, .costumeEgg, .wearerEgg: return true
         default: return egg != nil
         }
     }
@@ -205,12 +207,19 @@ extension CompanionStore {
         let claimable = Set(eventEggs.map(\.egg))
         let dungeonEggs = state.dungeons.eggs.filter { canUseDungeonEgg($0.id, onReturn: true) }
         let costumeEggs = state.costumeEggs.filter { canUseCostumeEgg($0.id, onReturn: true) }
+        let wearerEggs = state.wearerEggs.filter { canUseWearerEgg($0.id, onReturn: true) }
         var best: OakRelease?
         var bestOdds = newOdds(.pokemonEgg, index: index, news: news) ?? 0
         for egg in dungeonEggs {
             let odds = newOdds(egg, index: index, news: news)
             guard odds > bestOdds else { continue }
             best = .dungeonEgg(egg, odds: odds)
+            bestOdds = odds
+        }
+        for egg in wearerEggs {
+            let odds = newOdds(egg)
+            guard odds > bestOdds else { continue }
+            best = .wearerEgg(egg, odds: odds)
             bestOdds = odds
         }
         for egg in costumeEggs {
@@ -242,6 +251,12 @@ extension CompanionStore {
             for kind in ItemKind.allCases where !kind.isRetired && canSendOff(for: kind) {
                 guard let odds = newOdds(kind, index: index, news: news), odds > spareOdds else { continue }
                 spare = .freeEgg(kind, odds: odds)
+                spareOdds = odds
+            }
+            for egg in wearerEggs {
+                let odds = newOdds(egg)
+                guard odds > spareOdds else { continue }
+                spare = .wearerEgg(egg, odds: odds)
                 spareOdds = odds
             }
             for egg in costumeEggs {
@@ -419,11 +434,13 @@ extension CompanionStore {
         switch release {
         case .dungeonEgg(let egg, _)?: sent = egg.id
         case .costumeEgg(let egg, _)?: sent = egg.id
+        case .wearerEgg(let egg, _)?: sent = egg.id
         default: break
         }
         let dungeon = state.dungeons.eggs.filter { $0.id != sent && newOdds($0, index: index, news: news) >= odds }.count
         let costume = state.costumeEggs.filter { $0.id != sent && newOdds($0, news: news) >= odds }.count
-        return dungeon + costume + ItemKind.allCases.filter { !$0.isRetired }.reduce(0) { sum, kind in
+        let wearer = state.wearerEggs.filter { $0.id != sent && newOdds($0) >= odds }.count
+        return dungeon + costume + wearer + ItemKind.allCases.filter { !$0.isRetired }.reduce(0) { sum, kind in
             var count = itemCount(kind)
             if case .bag(kind, _)? = release { count -= 1 }
             if kind == .fossilEgg, release?.sendsOffNow == true, isRaisingFossilEggPokemon { count += 1 }
@@ -441,6 +458,8 @@ extension CompanionStore {
         var nextFresh: Set<DexSpeciesKey>?
         if case .costumeEgg(let egg, _)? = release {
             nextFresh = firstShinyKeys(of: egg)
+        } else if case .wearerEgg(let egg, _)? = release {
+            next = hatches(egg, index: index)
         } else if let egg = release?.hatchEgg {
             next = hatches(egg, index: index)
         } else if let raised = state.active {
@@ -454,6 +473,8 @@ extension CompanionStore {
         } else if let egg = state.eggFromDungeon {
             next = [Hatch(id: egg.baseID, form: egg.form, weight: 1, rarity: SpeciesInfo.lineRarity(of: egg.baseID),
                           alwaysShiny: egg.isShiny)]
+        } else if let egg = state.eggFromWearer {
+            next = hatches(egg, index: index)
         } else if let egg = state.eggFromCostume {
             next = hatchDraw.outcomes(.costume(code: egg.code, speciesID: egg.speciesID), index: index)
         } else {
@@ -548,8 +569,19 @@ extension CompanionStore {
         }
     }
 
+    /// A Wearer Egg brings the first Wearer of its form, while no graduated Pokémon wears it.
+    private func newOdds(_ egg: WearerEgg) -> Double {
+        egg.form.map { hasWearer($0) ? 0 : 1 } ?? 0
+    }
+
+    private func hatches(_ egg: WearerEgg, index: [BaseSpecies]) -> [Hatch] {
+        [Hatch(id: egg.speciesID, form: egg.hatchForm, weight: 1,
+               rarity: index.first { $0.id == egg.baseID }?.rarity ?? SpeciesInfo.lineRarity(of: egg.baseID))]
+    }
+
     private func hatches(of release: OakRelease, index: [BaseSpecies]) -> [Hatch]? {
         if case .costumeEgg(let egg, _) = release { return hatches(egg, index: index) }
+        if case .wearerEgg(let egg, _) = release { return hatches(egg, index: index) }
         return release.hatchEgg.map { hatches($0, index: index) }
     }
 

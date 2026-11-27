@@ -3009,7 +3009,7 @@ struct L {
                      "Só um ovo fantasiado da sua Bolsa pode ocupar o lugar dele: solte-o por ele agora, sem esperar!",
                      "Nur ein Kostüm-Ei aus deinem Beutel kann es ersetzen: Lass es jetzt dafür frei, ohne zu warten!",
                      "Заменить его может только костюмное яйцо из сумки: отпустите его ради него прямо сейчас, не ждите!")
-        case .bag, .claim, .buy, .dungeonEgg, .costumeEgg:
+        case .bag, .claim, .buy, .dungeonEgg, .costumeEgg, .wearerEgg:
             return t("새로운 걸 가져올 수 있는 알과 바꿔 놓아주거라!", "Release it for an egg that can bring you something new!",
                      "新しいものを連れてくるかもしれんタマゴと引き換えに、逃がしてやるのじゃ！",
                      "¡Suéltalo por un huevo que pueda traerte algo nuevo!", "Relâche-le contre un œuf qui peut t'apporter du nouveau !",

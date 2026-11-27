@@ -1569,19 +1569,29 @@ extension L {
     }
     /// Who wears a Battle Form that asks for a particular individual (`BattleForm.isWorn`); nil for the others.
     func battleFormWearer(_ form: BattleForm, species: String) -> String? {
+        guard let kind = battleFormWearerKind(form, species: species) else { return nil }
+        return t("이 폼이 될 수 있는 포켓몬: ", "Wearer: ", "この姿になれるポケモン: ", "Portador: ", "Porteur : ", "Portador: ",
+                 "Träger: ", "Носитель: ") + kind
+    }
+    private func battleFormWearerKind(_ form: BattleForm, species: String) -> String? {
         guard form.wearerForm != nil || form.needsGigantamaxFactor else { return nil }
-        let heading = t("이 폼이 될 수 있는 포켓몬: ", "Wearer: ", "この姿になれるポケモン: ", "Portador: ", "Porteur : ", "Portador: ",
-                        "Träger: ", "Носитель: ")
         let flower = formEternalFlower
         if form.wearerForm != nil {
-            return heading + t("\(flower) \(species)", "\(flower) \(species)", "\(flower)の\(species)", "\(species) \(flower)",
-                               "\(species) \(flower)", "\(species) \(flower)", "\(species) \(flower)", "\(species) \(flower)")
+            return t("\(flower) \(species)", "\(flower) \(species)", "\(flower)の\(species)", "\(species) \(flower)",
+                     "\(species) \(flower)", "\(species) \(flower)", "\(species) \(flower)", "\(species) \(flower)")
         }
         let article = "AEIOUaeiou".contains(species.first ?? "x") ? "an" : "a"
         let factor = gigantamaxFactorName
-        return heading + t("거다이맥스할 수 있는 \(species)", "\(article) \(species) with the \(factor)", "\(factor)\(species)",
-                           "un \(species) con el \(factor)", "un \(species) avec le \(factor)", "um \(species) com o \(factor)",
-                           "ein \(species) mit dem \(factor)", "\(species) с фактором гигантамакса")
+        return t("거다이맥스할 수 있는 \(species)", "\(article) \(species) with the \(factor)", "\(factor)\(species)",
+                 "un \(species) con el \(factor)", "un \(species) avec le \(factor)", "um \(species) com o \(factor)",
+                 "ein \(species) mit dem \(factor)", "\(species) с фактором гигантамакса")
+    }
+    var wearerEggName: String {
+        t("폼 알", "Wearer Egg", "すがたのタマゴ", "Huevo Portador", "Œuf Porteur", "Ovo Portador", "Träger-Ei", "Яйцо носителя")
+    }
+    /// The Pokémon a Wearer Egg holds, told as the Wearer line tells it.
+    func wearerEggContent(_ form: BattleForm, species: String) -> String {
+        battleFormWearerKind(form, species: species) ?? species
     }
     var battleFormUsual: String {
         t("기본", "Usual", "ふだん", "Habitual", "Habituelle", "Habitual", "Normal", "Обычная")

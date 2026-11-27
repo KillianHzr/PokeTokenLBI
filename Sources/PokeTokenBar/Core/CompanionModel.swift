@@ -1703,6 +1703,10 @@ struct CompanionState: Codable, Sendable, Equatable {
     var costumeEggs: [CostumeEgg] = []
     var eggFromCostume: CostumeEgg?
     var costumeEggTokens = 0
+    /// The Wearer Eggs of the Bag, the one in incubation, and whether they were given (`CompanionStore.giveWearerEggsIfNeeded`).
+    var wearerEggs: [WearerEgg] = []
+    var eggFromWearer: WearerEgg?
+    var wearerEggsGiven = false
     /// Fossil Eggs hatched so far.
     var fossilEggsHatched = 0
     /// The fossil lines graduated when the save first met the digs: their digs are done with nothing to claim. Taken
@@ -1876,6 +1880,9 @@ struct CompanionState: Codable, Sendable, Equatable {
         costumeEggs = c.lenient([CostumeEgg].self, forKey: .costumeEggs, default: [])
         eggFromCostume = c.lenientOptional(CostumeEgg.self, forKey: .eggFromCostume)
         costumeEggTokens = c.lenient(Int.self, forKey: .costumeEggTokens, default: 0)
+        wearerEggs = c.lenient([WearerEgg].self, forKey: .wearerEggs, default: [])
+        eggFromWearer = c.lenientOptional(WearerEgg.self, forKey: .eggFromWearer)
+        wearerEggsGiven = c.lenient(Bool.self, forKey: .wearerEggsGiven, default: false)
         fossilEggsHatched = c.lenient(Int.self, forKey: .fossilEggsHatched, default: 0)
         fossilLinesBeforeDigs = c.lenientOptional(Set<Int>.self, forKey: .fossilLinesBeforeDigs)
         pendingShiny = c.lenient(Bool.self, forKey: .pendingShiny, default: false)

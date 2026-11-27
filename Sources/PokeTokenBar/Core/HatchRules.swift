@@ -132,7 +132,7 @@ struct HatchRules: Sendable, Equatable {
         case .birthday: return has(.birthdayEgg)
         case .fossil, .event: return has(.eventAndFossilEggs)
         // Only noted at its hatch: a record says so.
-        case .dungeon, .costume: return true
+        case .dungeon, .costume, .wearer: return true
         }
     }
 

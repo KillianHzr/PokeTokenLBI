@@ -157,6 +157,7 @@ final class CompanionStore {
         recordFossilLinesBeforeDigsIfNeeded()
         reconcileOverclaimedDigsIfNeeded()
         giveStartingWishingPiecesIfNeeded()
+        giveWearerEggsIfNeeded()
         recoverFromACrashedDungeonStep()
         // A save left waiting at the boss's throws, from before they were automatic, throws them now.
         throwAutomatically()
@@ -230,6 +231,19 @@ final class CompanionStore {
         state.wishingPiecesGiven = true
         changeBag(.wishingPiece, by: WishingPiece.starting)
         AppLog.write("wishing piece: \(WishingPiece.starting) given")
+    }
+
+    /// A Wearer Egg for each Battle Form won that no graduated Pokémon can wear, with the Wishing Pieces of a change of
+    /// its boss, once (`CompanionState.wearerEggsGiven`). Kept with the next save, as the starting pieces are.
+    private func giveWearerEggsIfNeeded() {
+        guard !state.wearerEggsGiven else { return }
+        state.wearerEggsGiven = true
+        let won = state.dungeons.battleForms
+        for form in BattleForms.all + BattleForms.extras where won.contains(form.key) && !hasWearer(form) {
+            state.wearerEggs.append(WearerEgg(formKey: form.key))
+            changeBag(.wishingPiece, by: BattleForms.daily.contains(form) ? 1 : BattleForms.weekly.contains(form) ? 3 : 0)
+            AppLog.write("wearer egg: given for \(form.key)")
+        }
     }
 
     /// The fossil lines had before the digs, taken once (`CompanionState.fossilLinesBeforeDigs`). Counting them again
@@ -3718,6 +3732,23 @@ final class CompanionStore {
         return true
     }
 
+    /// Whether a Wearer Egg of the Bag can be used: as any egg, it sends the Pokémon raised off.
+    func canUseWearerEgg(_ id: String, onReturn: Bool = false) -> Bool {
+        canSendOffActive(onReturn: onReturn) && !isRaisingFossilEggPokemon && state.wearerEggs.contains { $0.id == id }
+    }
+
+    /// Uses a Wearer Egg: the Pokémon raised is sent off for it, and it hatches its Wearer at its stage (`hatchCore`).
+    @discardableResult
+    func useWearerEgg(_ id: String) -> Bool {
+        guard canUseWearerEgg(id), let egg = state.wearerEggs.first(where: { $0.id == id }) else { return false }
+        state.wearerEggs.removeAll { $0.id == id }
+        replaceActiveWithEgg(price: 0, tier: nil, type: nil)
+        state.eggFromWearer = egg
+        save()
+        AppLog.write("wearer egg used: \(egg.formKey)")
+        return true
+    }
+
     // MARK: Event eggs
 
     /// The player's very first catch, its time and line: the companion's anniversary egg follows it.
@@ -3926,6 +3957,7 @@ final class CompanionStore {
         state.eggFromFossilEgg = false
         state.eggFromDungeon = nil
         state.eggFromCostume = nil
+        state.eggFromWearer = nil
         state.eggEvent = nil
         state.eggEventKey = nil
         state.pendingHatchID = nil    // 새 보증으로 처음부터 롤(활성 포켓몬이 있는 동안엔 원래 비어 있다)
@@ -4285,6 +4317,7 @@ final class CompanionStore {
             state.pendingShiny = pick.shiny
             state.pendingForm = state.eggFromCostume.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
                 ?? state.eggFromDungeon.flatMap { PokemonForm.resolved(baseID: id, form: $0.form) }
+                ?? state.eggFromWearer.flatMap(\.hatchForm)
                 ?? HatchDraw.eventForm(baseID: id, event: state.eggEvent) ?? rollLineForm(baseID: id, types: eggFormTypes)
             save()
         }
@@ -4433,6 +4466,7 @@ final class CompanionStore {
         prefetchedLineID = nil
         // A Costume Egg hatches its first costumed stage, which grows only into the stages wearing its costume.
         let costumeEgg = state.eggFromCostume
+        let wearerEgg = state.eggFromWearer
         let line = costumeEgg.flatMap { Self.costumeLine(fetched, start: $0.speciesID, code: $0.code, form: $0.form,
                                                          owned: graduatedSpeciesIDs, taken: costumesTaken()) }
             ?? fetched
@@ -4461,6 +4495,7 @@ final class CompanionStore {
         state.eggFromFossilEgg = false
         state.eggFromDungeon = nil
         state.eggFromCostume = nil
+        state.eggFromWearer = nil
         if event != nil, let key = state.eggEventKey { state.eventEggHatches[key] = line.baseID }
         state.eggEvent = nil
         state.eggEventKey = nil
@@ -4486,8 +4521,9 @@ final class CompanionStore {
         var evolutionPlan = makeEvolutionPlan(from: line.tree, baseID: line.baseID, form: pendingForm)
         var profile = PokemonProfile.generate(seed: rng.next())
         let form = costumeEgg != nil ? PokemonForm.resolved(baseID: line.baseID, form: costumeEgg?.form)
+            : wearerEgg != nil ? wearerEgg?.hatchForm
             : pendingForm ?? rollLineForm(baseID: line.baseID, types: formTypes)
-        if let start = PokemonEvolutionData.hatchStage(baseID: line.baseID, form: form), let node = line.tree.node(withID: start) {
+        if let start = wearerEgg?.speciesID ?? PokemonEvolutionData.hatchStage(baseID: line.baseID, form: form), let node = line.tree.node(withID: start) {
             firstID = start
             currentLine = EvoLine(baseID: line.baseID, tree: node, rarity: line.rarity, names: line.names)
             evolutionPlan = makeEvolutionPlan(from: node, baseID: line.baseID, form: form)
@@ -4499,8 +4535,9 @@ final class CompanionStore {
         if !Self.planFollowsForm(evolutionPlan, form: form) {
             evolutionPlan = makeEvolutionPlan(from: line.tree, baseID: line.baseID, form: form)
         }
-        var rolledFactor = false
-        if let stop = GigantamaxFactor.stopIndex(in: evolutionPlan, form: form), let final = evolutionPlan.last,
+        var rolledFactor = wearerEgg?.hasGigantamaxFactor == true
+        if wearerEgg != nil { evolutionPlan = [firstID] }
+        if wearerEgg == nil, let stop = GigantamaxFactor.stopIndex(in: evolutionPlan, form: form), let final = evolutionPlan.last,
            isEvolutionCollected(speciesID: final, baseID: line.baseID, form: form),
            GigantamaxFactor.rolls(roll: rng.next(), hasWearer: BattleForms.forms(speciesID: evolutionPlan[stop]).contains { $0.kind == .gigantamax && hasWearer($0) }) {
             rolledFactor = true
@@ -4650,7 +4687,8 @@ final class CompanionStore {
             // A costumed Pokémon grows on its costume's stages only, from the first one it hatched as.
             let line = latest.costume.flatMap { code in
                 Self.costumeLine(fetched, start: latest.pathIDs.first ?? latest.currentID, code: code, form: latest.form)
-            } ?? PokemonEvolutionData.hatchStage(baseID: latest.baseID, form: latest.form)
+            } ?? (PokemonEvolutionData.hatchStage(baseID: latest.baseID, form: latest.form)
+                    ?? latest.pathIDs.first.flatMap { $0 == latest.baseID ? nil : $0 })
                 .flatMap { fetched.tree.node(withID: $0) }
                 .map { EvoLine(baseID: fetched.baseID, tree: $0, rarity: fetched.rarity, names: fetched.names) } ?? fetched
             state.active = normalizedEvolutionState(latest, from: line.tree)
@@ -4683,6 +4721,7 @@ final class CompanionStore {
         if let egg = state.eggFromDungeon { return (egg.baseID, egg.isShiny) }
         // A Costume Egg knows its Pokémon: its line, then its first costumed stage at the hatch (`costumeLine`).
         if let egg = state.eggFromCostume { return (SpeciesInfo.baseID(of: egg.speciesID), false) }
+        if let egg = state.eggFromWearer { return (egg.baseID, false) }
         if let full = try? await provider.baseSpeciesIndex(), !full.isEmpty {
             if state.eggFromBirthdayEgg { return chooseBirthdayBase(full) }
             if state.eggFromFossilEgg { return chooseFossilBase(full) }
@@ -5012,6 +5051,7 @@ final class CompanionStore {
         // even less. So does an event egg of a few lines, the Friendship Egg's one above all.
         if let egg = state.eggFromDungeon { return egg.baseID }
         if let egg = state.eggFromCostume { return SpeciesInfo.baseID(of: egg.speciesID) }
+        if let egg = state.eggFromWearer { return egg.baseID }
         if state.eggFromFossilEgg { return await chooseListedBaseViaREST(hatchDraw.fossilCandidates, charm: false) }
         if let lines = state.eggEvent?.lines(companionLine: companionLineID) {
             return await chooseListedBaseViaREST(lines, charm: ownsOvalCharm)
