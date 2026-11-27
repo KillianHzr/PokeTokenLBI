@@ -2130,7 +2130,8 @@ final class CompanionStore {
                 break
             }
             // A species none of whose evolutions this form can take is final for it (a Kanto Farfetch'd).
-            if Self.openChildren(node, form: a.form).isEmpty {
+            if Self.openChildren(node, form: a.form).isEmpty
+                || (a.rolledGigantamaxFactor && GigantamaxFactor.speciesIDs.contains(a.currentID)) {
                 graduate(); staged = true; break
             } else {
                 let nextIndex = a.stageIndex + 1
@@ -2285,7 +2286,8 @@ final class CompanionStore {
         let candidate = longestValidPath(saved.plannedPathIDs, from: root)
         let canReusePlan = candidate.path == saved.plannedPathIDs
             && candidate.path.starts(with: realized.path)
-            && Self.openChildren(candidate.lastNode, form: saved.form).isEmpty
+            && (Self.openChildren(candidate.lastNode, form: saved.form).isEmpty
+                || (saved.rolledGigantamaxFactor && GigantamaxFactor.speciesIDs.contains(candidate.path.last ?? 0)))
             && Self.planFollowsForm(candidate.path, form: saved.form)
         let plan: [Int]
         if canReusePlan {
@@ -4483,6 +4485,13 @@ final class CompanionStore {
         if !Self.planFollowsForm(evolutionPlan, form: form) {
             evolutionPlan = makeEvolutionPlan(from: line.tree, baseID: line.baseID, form: form)
         }
+        var rolledFactor = false
+        if let stop = GigantamaxFactor.stopIndex(in: evolutionPlan, form: form), let final = evolutionPlan.last,
+           isEvolutionCollected(speciesID: final, baseID: line.baseID, form: form),
+           GigantamaxFactor.rolls(roll: rng.next(), hasWearer: BattleForms.forms(speciesID: evolutionPlan[stop]).contains { $0.kind == .gigantamax && hasWearer($0) }) {
+            rolledFactor = true
+            evolutionPlan = Array(evolutionPlan.prefix(through: stop))
+        }
         // A repeat only when this line already graduated in this form: an Alolan Dugtrio is new to the
         // Pokédex even after a Kanto one graduated, so it gets no repeat boost.
         let hasGrowthBoost = state.hasCollectedFinal(forBaseID: line.baseID, form: form)
@@ -4497,6 +4506,7 @@ final class CompanionStore {
                                 isShiny: isShiny, nature: nature, profile: profile, hasGrowthBoost: hasGrowthBoost,
                                 dittoDisguise: dittoDisguise, form: form)
         state.active?.hasNewForm = hasNewForm
+        state.active?.rolledGigantamaxFactor = rolledFactor
         state.active?.costume = costumeEgg?.code
         state.active?.fromFossilEgg = fromFossilEgg
         state.active?.fromLegendaryBossEgg = fromLegendaryBossEgg
@@ -4588,6 +4598,7 @@ final class CompanionStore {
         m.form = nil
         // Ditto has no form: the disguise's new form, and the Prison Bottle's +50% with it, go.
         m.hasNewForm = false
+        m.rolledGigantamaxFactor = false
         // The hatch boost came from the disguise's line; from now on only a repeat Ditto earns it.
         m.hasGrowthBoost = state.hasCollectedFinal(forBaseID: dittoLine.baseID)
         m.profile?.rebaseForSpeciesIdentity(from: previousRarity, to: dittoLine.rarity)

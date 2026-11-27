@@ -63,3 +63,7 @@ _Avoid_: Reroll, reroll token
 **Wearer**:
 A graduated Pokémon that can fight in a given Battle Form: of the Battle Form's species, and the right individual when the form asks for one (Eternal Flower Floette, the Gigantamax Factor).
 _Avoid_: Carrier, holder
+
+**Gigantamax Factor**:
+A trait of an individual Pokémon, needed to fight in its species' Gigantamax form. Every individual whose line ends on a species with a Gigantamax form has it; a Pikachu, an Eevee, a Kantonian Meowth or a Duraludon has it only sometimes, and then never evolves.
+_Avoid_: G-Max Factor

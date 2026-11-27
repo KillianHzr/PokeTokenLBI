@@ -1337,6 +1337,10 @@ struct MonState: Codable, Sendable, Equatable {
     /// 개체 고유 전투 프로필. 구버전 저장은 nil이며 `CompanionStore`가 한 번만 마이그레이션한다.
     var profile: PokemonProfile?
     var hasGrowthBoost = false
+    var rolledGigantamaxFactor = false
+    var hasGigantamaxFactor: Bool {
+        rolledGigantamaxFactor || plannedPathIDs.last.map(GigantamaxFactor.speciesIDs.contains) == true
+    }
     /// Hatched in a form its line had never registered (Prison Bottle). Fixed at hatch, kept through evolution.
     var hasNewForm = false
     /// Hatched from a Fossil Egg: sent off before it graduates, its egg goes back to the Bag, or its line would be
@@ -1436,6 +1440,7 @@ struct MonState: Codable, Sendable, Equatable {
         // 손상된 신규 프로필 하나 때문에 기존 성장 상태 전체를 잃지 않는다. nil이면 스토어가 재마이그레이션한다.
         profile = (try? c.decodeIfPresent(PokemonProfile.self, forKey: .profile)) ?? nil
         hasGrowthBoost = try c.decodeIfPresent(Bool.self, forKey: .hasGrowthBoost) ?? false
+        rolledGigantamaxFactor = (try? c.decodeIfPresent(Bool.self, forKey: .rolledGigantamaxFactor)) ?? false
         hasNewForm = try c.decodeIfPresent(Bool.self, forKey: .hasNewForm) ?? false
         fromFossilEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromFossilEgg)) ?? false
         fromLegendaryBossEgg = (try? c.decodeIfPresent(Bool.self, forKey: .fromLegendaryBossEgg)) ?? false
@@ -1492,12 +1497,15 @@ struct DexEntry: Codable, Sendable, Identifiable, Equatable {
     var hatch: HatchRecord?
     /// The Pokémon GO costume it wears (`MonState.costume`), at every stage of its chain that has it.
     var costume: String?
+    var rolledGigantamaxFactor = false
+    var hasGigantamaxFactor: Bool { rolledGigantamaxFactor || GigantamaxFactor.speciesIDs.contains(finalID) }
     /// The records it carried while raised (`MonState.raising`, `MonState.hatch`), and its costume.
     func withRecords(of mon: MonState) -> DexEntry {
         var entry = self
         entry.raising = mon.raising
         entry.hatch = mon.hatch
         entry.costume = mon.costume
+        entry.rolledGigantamaxFactor = mon.rolledGigantamaxFactor
         return entry
     }
     /// The look its sprites show at `speciesID` (its final species by default): its costume when that stage wears it.
@@ -1558,6 +1566,7 @@ struct DexEntry: Codable, Sendable, Identifiable, Equatable {
         hatch = (try? c.decodeIfPresent(HatchRecord.self, forKey: .hatch)) ?? nil
         form = PokemonForm.resolved(baseID: baseID, form: PokemonForm.decoded(from: decoder, keys: "form", "unownForm"))
         costume = c.lenientOptional(String.self, forKey: .costume)
+        rolledGigantamaxFactor = (try? c.decodeIfPresent(Bool.self, forKey: .rolledGigantamaxFactor)) ?? false
     }
 }
 
