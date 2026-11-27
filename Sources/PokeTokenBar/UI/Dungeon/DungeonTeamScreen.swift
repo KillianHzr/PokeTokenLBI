@@ -425,8 +425,11 @@ struct TeamMemberRow: View {
         } label: {
             VStack(spacing: 2) {
                 SpriteView(speciesID: entry.finalID, size: 32, shiny: entry.isShiny, form: entry.spriteForm(), sameScale: true)
-                PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
-                    .font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                HStack(spacing: 2) {
+                    PokemonNameLabel(.pokemonSpecies, String(entry.finalID), language: store.language)
+                        .font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                    if entry.hasGigantamaxFactor { GigantamaxFactorBadge(l: l, size: 8) }
+                }
                 HStack(spacing: 2) {
                     ForEach(types, id: \.self) { TypeMiniBadge(type: $0, l: l) }
                 }
@@ -590,6 +593,7 @@ private struct CandidateRow: View {
                         if count > 1 {
                             Text(l.catchCount(count)).font(.caption2.weight(.semibold)).monospacedDigit().foregroundStyle(.secondary)
                         }
+                        if entry.hasGigantamaxFactor { GigantamaxFactorBadge(l: l, size: 9) }
                         if store.isFavorite(entry) {
                             Image(systemName: "heart.fill").font(.system(size: 9)).foregroundStyle(Color.pink)
                                 .accessibilityLabel(l.favoriteLabel)

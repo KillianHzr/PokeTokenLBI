@@ -1136,6 +1136,7 @@ struct CompanionHeader: View {
                         Text(store.displayName).font(.system(size: 15, weight: .bold, design: .rounded))
                             .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                         if store.currentIsShiny { Text("✨").font(.system(size: 11)) }
+                        if store.currentHasGigantamaxFactor { GigantamaxFactorBadge(l: store.l, size: 11) }
                     }
                     if store.hasActive, let id = store.currentSpeciesID {
                         let types = PokemonTypeData.typeNames(speciesID: id, form: store.currentForm,
@@ -2903,6 +2904,14 @@ struct PokemonDetailView: View {
                                    horizontalPadding: 7, verticalPadding: 2)
                     }
                     if displayedShiny { Text("✨ \(store.l.dexShinyLabel)").font(.callout) }
+                    if individual?.hasGigantamaxFactor == true {
+                        Label(store.l.gigantamaxFactorName, systemImage: "arrow.up.left.and.arrow.down.right")
+                            .font(.callout).foregroundStyle(Color.red)
+                    }
+                    if let battle = BattleForms.form(speciesID: species.id, form: displayedSpecies.form),
+                       let wearer = store.l.battleFormWearer(battle, species: species.name) {
+                        Text(wearer).font(.callout)
+                    }
                     if let individual, store.isActiveDexEntry(individual) { Text(store.l.dexRaising).font(.callout).foregroundStyle(Color.accentColor) }
                     let isRepresentative = store.isRepresentative(species)
                     HStack(spacing: 6) {
@@ -3488,6 +3497,7 @@ private struct DexEntryRow: View {
                         Text("✨").font(.system(size: 10))
                             .accessibilityLabel(store.l.dexShinyLabel)
                     }
+                    if entry.hasGigantamaxFactor { GigantamaxFactorBadge(l: store.l) }
                     if store.isFavorite(entry) {
                         Image(systemName: "heart.fill").font(.system(size: 10)).foregroundStyle(Color.pink)
                             .accessibilityLabel(store.l.favoriteLabel)

@@ -511,6 +511,7 @@ final class CompanionStore {
     var canSendOffActive: Bool { canSendOffActive(onReturn: false) }
     func canSendOffActive(onReturn: Bool) -> Bool { hasActive && !isRaisingLegendaryBossPokemon && (onReturn || expedition == nil) }
     var rarity: Rarity? { state.active?.rarity }
+    var currentHasGigantamaxFactor: Bool { state.active?.hasGigantamaxFactor ?? false }
     var currentIsShiny: Bool { state.active?.displaysShiny ?? false }   // 위장 중엔 이로치 숨김(리빌 때 공개)
     /// 새 알(리롤) 구매 시 실수로 놓아주지 않도록 2단계 확인이 필요한 고가치 개체인지 판정.
     /// 이로치(shiny)이거나 전설(legendary)인 경우에만 2단계 경고를 띄운다.

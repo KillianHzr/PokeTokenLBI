@@ -37,10 +37,14 @@ struct BattleForm: Hashable, Sendable {
     /// How a won form is kept in the save (`DungeonProgress.battleForms`).
     var key: String { "\(speciesID)-\(form.rawValue)" }
 
+    /// The form an individual must be in to wear this one: Mega Floette asks for the Eternal Flower.
+    var wearerForm: PokemonForm? { speciesID == 670 ? PokemonForm("eternal") : nil }
+    var needsGigantamaxFactor: Bool { kind == .gigantamax }
+
     /// The one rule of who fights in a Battle Form (the Wearer): every decision on it goes through here.
     func isWorn(by entry: DexEntry) -> Bool {
-        !entry.isReleased && entry.finalID == speciesID && (kind != .gigantamax || entry.hasGigantamaxFactor)
-            && (speciesID != 670 || entry.form == PokemonForm("eternal"))
+        !entry.isReleased && entry.finalID == speciesID && (!needsGigantamaxFactor || entry.hasGigantamaxFactor)
+            && (wearerForm == nil || entry.form == wearerForm)
     }
 }
 

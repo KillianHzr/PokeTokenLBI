@@ -1563,6 +1563,26 @@ extension L {
         }
         return dungeonName(BattleForms.daily.contains(form) ? .daily : .weekly)
     }
+    var gigantamaxFactorName: String {
+        t("거다이맥스 가능", "Gigantamax Factor", "キョダイマックスできる", "Factor Gigamax", "Facteur Gigamax", "Fator Gigantamax",
+          "Gigadynamax-Faktor", "фактор гигантамакса")
+    }
+    /// Who wears a Battle Form that asks for a particular individual (`BattleForm.isWorn`); nil for the others.
+    func battleFormWearer(_ form: BattleForm, species: String) -> String? {
+        guard form.wearerForm != nil || form.needsGigantamaxFactor else { return nil }
+        let heading = t("이 폼이 될 수 있는 포켓몬: ", "Wearer: ", "この姿になれるポケモン: ", "Portador: ", "Porteur : ", "Portador: ",
+                        "Träger: ", "Носитель: ")
+        let flower = formEternalFlower
+        if form.wearerForm != nil {
+            return heading + t("\(flower) \(species)", "\(flower) \(species)", "\(flower)の\(species)", "\(species) \(flower)",
+                               "\(species) \(flower)", "\(species) \(flower)", "\(species) \(flower)", "\(species) \(flower)")
+        }
+        let article = "AEIOUaeiou".contains(species.first ?? "x") ? "an" : "a"
+        let factor = gigantamaxFactorName
+        return heading + t("거다이맥스할 수 있는 \(species)", "\(article) \(species) with the \(factor)", "\(factor)\(species)",
+                           "un \(species) con el \(factor)", "un \(species) avec le \(factor)", "um \(species) com o \(factor)",
+                           "ein \(species) mit dem \(factor)", "\(species) с фактором гигантамакса")
+    }
     var battleFormUsual: String {
         t("기본", "Usual", "ふだん", "Habitual", "Habituelle", "Habitual", "Normal", "Обычная")
     }
