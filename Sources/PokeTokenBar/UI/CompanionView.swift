@@ -2904,7 +2904,7 @@ struct PokemonDetailView: View {
                                    horizontalPadding: 7, verticalPadding: 2)
                     }
                     if displayedShiny { Text("✨ \(store.l.dexShinyLabel)").font(.callout) }
-                    if individual?.hasGigantamaxFactor == true {
+                    if let individual, store.hasGigantamaxFactor(individual) {
                         Label(store.l.gigantamaxFactorName, systemImage: "arrow.up.left.and.arrow.down.right")
                             .font(.callout).foregroundStyle(Color.red)
                     }
@@ -3497,7 +3497,7 @@ private struct DexEntryRow: View {
                         Text("✨").font(.system(size: 10))
                             .accessibilityLabel(store.l.dexShinyLabel)
                     }
-                    if entry.hasGigantamaxFactor { GigantamaxFactorBadge(l: store.l) }
+                    if store.hasGigantamaxFactor(entry) { GigantamaxFactorBadge(l: store.l) }
                     if store.isFavorite(entry) {
                         Image(systemName: "heart.fill").font(.system(size: 10)).foregroundStyle(Color.pink)
                             .accessibilityLabel(store.l.favoriteLabel)

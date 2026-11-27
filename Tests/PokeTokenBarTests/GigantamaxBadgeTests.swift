@@ -36,6 +36,16 @@ final class GigantamaxBadgeTests: XCTestCase {
         XCTAssertFalse(try store(active: nil).currentHasGigantamaxFactor)
     }
 
+    func testTheActiveEntryOfTheLogReadsTheFactorAsTheCard() throws {
+        let charmander = try store(active: MonState(baseID: 4, pathIDs: [4], plannedPathIDs: [4, 5, 6], stageIndex: 0, usedAtStage: 0, rarity: .common, totalForms: 3))
+        let entry = try XCTUnwrap(charmander.dexEntriesSorted.first { charmander.isActiveDexEntry($0) })
+        XCTAssertTrue(charmander.hasGigantamaxFactor(entry))
+
+        let pichu = try store(active: MonState(baseID: 172, pathIDs: [172, 25], plannedPathIDs: [172, 25, 26], stageIndex: 1, usedAtStage: 0, rarity: .common, totalForms: 3))
+        let pikachu = try XCTUnwrap(pichu.dexEntriesSorted.first { pichu.isActiveDexEntry($0) })
+        XCTAssertFalse(pichu.hasGigantamaxFactor(pikachu))
+    }
+
     func testTheFactorIsNamedInEveryLanguage() {
         let names: [AppLanguage: String] = [
             .en: "Gigantamax Factor", .fr: "Facteur Gigamax", .es: "Factor Gigamax", .pt: "Fator Gigantamax",
