@@ -2512,6 +2512,10 @@ final class CompanionStore {
         let recharged = itemCount(.shockDrive) > 0
             ? (0..<consumed).filter { _ in CollectorBonus.shockDriveRecharges(roll: rng.next()) }.count : 0
         if recharged > 0 { AppLog.write("rare candy: shock drive recharged \(recharged) of \(consumed)") }
+        if itemCount(.shockDrive) > 0, consumed > 0 {
+            noteLuck([LuckDraw(at: currentDate, kind: .shockDrive, odds: 1 / Double(CollectorBonus.shockDriveRechargeOneIn),
+                               trials: consumed, hits: recharged)])
+        }
         state.inventory[ItemKind.rareCandy.rawValue] = rareCandyCount - (consumed - recharged)
         state.active?.raising?.candiesUsed += consumed
         candyFeedbackRecharged = recharged
@@ -2747,6 +2751,7 @@ final class CompanionStore {
         let treasure = ExplorerKit.treasure(roll: Int(rng.next() % UInt64(ExplorerKit.rollRange)))
         state.inventory[treasure.kind.rawValue, default: 0] += treasure.count
         state.unseenTreasures[treasure.kind.rawValue, default: 0] += treasure.count
+        noteTreasure(treasure.kind)
         AppLog.write("graduate: explorer kit dug up \(treasure.count) \(treasure.kind.rawValue)")
         notifyCompanionEvent(treasure.kind == .legendaryEgg ? l.treasureJackpotTitle : l.treasureTitle,
                              l.treasureBody([(treasure.kind, treasure.count)]))
@@ -4784,11 +4789,14 @@ final class CompanionStore {
         let entries: [DexEntry]
         let drawItems: [ItemKind]
         let eggsUsed: [HatchEgg: Int]
+        /// The luck journal (`LuckDraw`) and the expeditions ended.
+        let draws: [LuckDraw]
+        let expeditions: Int
     }
 
     var luckInputs: LuckInputs {
         LuckInputs(entries: dexEntries, drawItems: (ItemKind.drawItems + ItemKind.formerDrawItems).filter { itemCount($0) > 0 },
-                   eggsUsed: EggStock.used(in: state))
+                   eggsUsed: EggStock.used(in: state), draws: luckJournal, expeditions: state.dungeons.history.count)
     }
 
     /// Replays every hatch off the main thread once the species index is loaded, again only when its inputs changed.
@@ -4801,8 +4809,11 @@ final class CompanionStore {
             drawItemSince(item).map { (item, $0) }
         })
         let luck = await Task.detached(priority: .userInitiated) {
-            HatchLuck(entries: inputs.entries, includesActive: includesActive, today: today, index: index,
-                      itemsSince: itemsSince, now: now)
+            // Whether each line has a hidden ability to draw, from the details already on disk.
+            let hiddenAbilities = PokeAPIClient.cachedHiddenAbilities(Set(inputs.entries.map(\.baseID)))
+            return HatchLuck(entries: inputs.entries, includesActive: includesActive, today: today, index: index,
+                             itemsSince: itemsSince, draws: inputs.draws, expeditions: inputs.expeditions,
+                             hiddenAbilities: hiddenAbilities, now: now)
         }.value
         guard luckInputs == inputs else { return }
         hatchLuck = luck

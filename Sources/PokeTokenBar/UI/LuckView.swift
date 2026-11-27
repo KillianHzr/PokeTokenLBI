@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// How lucky the player's draws were (`HatchLuck`), from the clover on Home: the score and its six criteria, their
-/// curves, and the hatches one by one. Nothing until the species index is loaded.
+/// How lucky the player's draws were (`HatchLuck`), from the clover on Home: the score overall and by family, its
+/// criteria, the luckiest draws, their curves and the hatches one by one, all time or over the last thirty days; the
+/// summary copies as an image. Nothing until the species index is loaded.
 @MainActor
 struct LuckScreen: View {
     let store: CompanionStore
@@ -11,6 +12,8 @@ struct LuckScreen: View {
     /// Hatches shown before "Show the others".
     private static let firstHatches = 8
     @State private var showingAllHatches = false
+    /// The summary over the last thirty days rather than all time.
+    @State private var recent = false
 
     var body: some View {
         @Bindable var nav = nav
@@ -24,6 +27,12 @@ struct LuckScreen: View {
                 .keyboardShortcut(.cancelAction)
                 Spacer(minLength: 4)
                 Text(l.luckTitle).font(.headline)
+                if let luck = store.hatchLuck, luck.hatches.count >= 2 {
+                    CardSnapshotButton(store: store, sprites: highlightSprites(luck)) {
+                        LuckCard(store: store, luck: luck, period: shownPeriod(luck), recent: recent && luck.recent != nil,
+                                 name: name)
+                    }
+                }
             }
             PillPicker(selection: $nav.luckTab, options: PopoverNavigation.LuckTab.allCases.map { ($0, l.luckTab($0)) })
             if let luck = store.hatchLuck {
@@ -53,12 +62,28 @@ struct LuckScreen: View {
 
     // MARK: Summary
 
+    /// The span the summary shows.
+    private func shownPeriod(_ luck: HatchLuck) -> HatchLuck.Period {
+        recent ? luck.recent ?? luck.period : luck.period
+    }
+
+    private func highlightSprites(_ luck: HatchLuck) -> [(speciesID: Int, shiny: Bool, form: PokemonForm?)] {
+        luck.highlights.compactMap { $0.hatch.map { luck.hatches[$0] } }.map { hatch in
+            (hatch.isDitto ? PokemonOdds.dittoSpeciesID : hatch.entry.baseID, hatch.entry.isShiny, hatch.isDitto ? nil : hatch.entry.form)
+        }
+    }
+
     private func summary(_ luck: HatchLuck, _ l: L) -> some View {
-        let score = Int(luck.score.rounded())
+        let period = shownPeriod(luck)
+        let showsRecent = recent && luck.recent != nil
+        let score = Int(period.score.rounded())
         let unknownEggs = luck.hatches.filter { $0.egg == nil }.count
         return VStack(alignment: .leading, spacing: 12) {
             if unknownEggs > 0 {
                 unknownEggsBanner(unknownEggs, l)
+            }
+            if luck.recent != nil {
+                PillPicker(selection: $recent, options: [(false, l.luckPeriod(recent: false)), (true, l.luckPeriod(recent: true))])
             }
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(text: l.luckScoreTitle)
@@ -66,14 +91,14 @@ struct LuckScreen: View {
                     Text("\(score)").font(.system(size: 40, weight: .bold, design: .rounded)).monospacedDigit()
                     Text("/ 100").font(.callout).foregroundStyle(.secondary)
                 }
-                if let best = luck.strongest, let worst = luck.weakest {
-                    let sentence = l.luckSentence(hatches: luck.hatches.count, score: score,
-                                                  best: (best.criterion, best.percentile),
+                if let best = period.strongest, let worst = period.weakest {
+                    let sentence = l.luckSentence(hatches: period.hatchCount, expeditions: luck.expeditions, recent: showsRecent,
+                                                  score: score, best: (best.criterion, best.percentile),
                                                   worst: (worst.criterion, worst.percentile))
                     Text((try? AttributedString(markdown: sentence)) ?? AttributedString(sentence))
                         .font(.callout).fixedSize(horizontal: false, vertical: true)
                 }
-                LuckMeter(share: luck.score / 100, height: 10)
+                LuckMeter(share: period.score / 100, height: 10)
                 HStack {
                     Text(l.luckScaleLow)
                     Spacer(minLength: 4)
@@ -82,27 +107,24 @@ struct LuckScreen: View {
                     Text(l.luckScaleHigh)
                 }
                 .font(.caption2).foregroundStyle(.secondary)
+                familyRows(period, l)
+                Text(l.luckItemsNote).font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .designCard()
+            if !showsRecent, !luck.highlights.isEmpty {
+                highlightsCard(luck, l)
+            }
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(text: l.luckByCriterion)
                 Text(l.luckByCriterionHint).font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                ForEach(luck.criteria, id: \.criterion) { result in
-                    HStack(spacing: 8) {
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(l.luckCriterion(result.criterion)).font(.callout.weight(.semibold))
-                            Group {
-                                Text(l.luckCounts(hits: result.hits, expected: result.expected))
-                                Text(l.luckSinceLast(result.sinceLast))
-                            }
-                            .font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 4)
-                        LuckMeter(share: result.percentile, height: 8).frame(width: 64)
-                        Text(l.luckPercent(result.percentile))
-                            .font(.system(.callout, design: .rounded).weight(.bold)).monospacedDigit()
-                            .frame(width: 44, alignment: .trailing)
+                ForEach(LuckFamily.allCases, id: \.self) { family in
+                    let results = period.criteria.filter { $0.criterion.family == family }
+                    if !results.isEmpty {
+                        Text(l.luckFamily(family)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                            .padding(.top, family == LuckFamily.allCases.first ? 0 : 4)
+                        ForEach(results, id: \.criterion) { result in criterionRow(result, l) }
                     }
                 }
             }
@@ -110,11 +132,68 @@ struct LuckScreen: View {
         }
     }
 
+    /// Each family's score under the overall one, the share written beside its bar.
+    private func familyRows(_ period: HatchLuck.Period, _ l: L) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(LuckFamily.allCases.filter { period.families[$0] != nil }, id: \.self) { family in
+                let share = period.families[family] ?? 0.5
+                HStack(spacing: 8) {
+                    Text(l.luckFamily(family)).font(.caption.weight(.semibold))
+                    Spacer(minLength: 4)
+                    LuckMeter(share: share, height: 6).frame(width: 64)
+                    Text(l.luckPercent(share)).font(.caption.monospacedDigit().weight(.semibold))
+                        .frame(width: 40, alignment: .trailing)
+                }
+            }
+        }
+        .padding(.top, 2)
+    }
+
+    private func criterionRow(_ result: HatchLuck.CriterionResult, _ l: L) -> some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(l.luckCriterion(result.criterion)).font(.callout.weight(.semibold))
+                Group {
+                    switch result.criterion {
+                    case .rarity:
+                        ForEach(result.tiers.reversed(), id: \.rarity) { tier in
+                            Text(l.luckTier(tier.rarity, hits: tier.hits, expected: tier.expected))
+                        }
+                    case .ivs:
+                        if let average = result.averageIVs { Text(l.luckAverageIVs(average)) }
+                    default:
+                        Text(l.luckCounts(hits: result.hits, expected: result.expected))
+                    }
+                    if result.criterion.family == .hatches, result.criterion != .ivs, !recent {
+                        Text(l.luckSinceLast(result.sinceLast))
+                    }
+                }
+                .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+            LuckMeter(share: result.percentile, height: 8).frame(width: 64)
+            Text(l.luckPercent(result.percentile))
+                .font(.system(.callout, design: .rounded).weight(.bold)).monospacedDigit()
+                .frame(width: 44, alignment: .trailing)
+        }
+    }
+
+    /// The luckiest draws of all time, a hatch's with its sprite.
+    private func highlightsCard(_ luck: HatchLuck, _ l: L) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionTitle(text: l.luckHighlightsTitle)
+            ForEach(Array(luck.highlights.enumerated()), id: \.offset) { _, highlight in
+                HighlightRow(store: store, luck: luck, highlight: highlight, name: name)
+            }
+        }
+        .designCard()
+    }
+
     // MARK: Curves
 
     private func curves(_ luck: HatchLuck, _ l: L) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            ScoreCurve(luck: luck, l: l, name: name)
+            ScoreCurve(luck: luck, l: l, name: name, locale: store.language.displayLocale)
             SectionTitle(text: l.luckCriteriaCurvesTitle)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
                 ForEach(luck.criteria, id: \.criterion) { result in
@@ -125,7 +204,7 @@ struct LuckScreen: View {
                             Text(l.luckPercent(result.percentile)).monospacedDigit()
                         }
                         .font(.caption.weight(.semibold))
-                        LuckLine(values: luck.hatches.map { $0.percentiles[result.criterion] ?? 0.5 }).frame(height: 30)
+                        LuckLine(values: luck.steps.map { $0.percentiles[result.criterion] ?? 0.5 }).frame(height: 30)
                     }
                     .designCard(padding: 8)
                 }
@@ -377,7 +456,7 @@ struct LuckScreen: View {
 
 /// A share on a bar, with a mark at the middle: 50 % is average.
 @MainActor
-private struct LuckMeter: View {
+struct LuckMeter: View {
     let share: Double
     var height: CGFloat = 8
 
@@ -428,24 +507,23 @@ private struct LuckLine: View {
     }
 }
 
-/// The score after each hatch, the hatch under the pointer named above it.
+/// The score after each hatch and each day of dungeons, the point under the pointer named above it.
 @MainActor
 private struct ScoreCurve: View {
     let luck: HatchLuck
     let l: L
     let name: (DexEntry, Int) -> String
+    let locale: Locale
     @State private var hovered: Int?
 
     private static let height: CGFloat = 100
 
     var body: some View {
-        let count = luck.hatches.count
-        let hatch = luck.hatches[min(hovered ?? count - 1, count - 1)]
+        let count = luck.steps.count
+        let step = luck.steps[min(hovered ?? count - 1, count - 1)]
         VStack(alignment: .leading, spacing: 6) {
             SectionTitle(text: l.luckCurveTitle)
-            Text(l.luckCurvePoint(number: hatch.number,
-                                  name: name(hatch.entry, hatch.isDitto ? PokemonOdds.dittoSpeciesID : hatch.entry.baseID),
-                                  score: Int(hatch.score.rounded())))
+            Text(label(step))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             HStack(alignment: .top, spacing: 6) {
                 VStack(alignment: .trailing) {
@@ -458,7 +536,7 @@ private struct ScoreCurve: View {
                 .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                 .frame(height: Self.height + 8)
                 VStack(spacing: 4) {
-                    LuckLine(values: luck.hatches.map { $0.score / 100 }, highlighted: hovered)
+                    LuckLine(values: luck.steps.map { $0.score / 100 }, highlighted: hovered)
                         .frame(height: Self.height)
                         .padding(.vertical, 4)
                         .overlay {
@@ -476,10 +554,9 @@ private struct ScoreCurve: View {
                             }
                         }
                     GeometryReader { geometry in
-                        ForEach(Self.ticks(count), id: \.self) { tick in
-                            Text("\(tick)").font(.caption2).foregroundStyle(.secondary).monospacedDigit().fixedSize()
-                                .position(x: count > 1 ? geometry.size.width * CGFloat(tick - 1) / CGFloat(count - 1) : 0,
-                                          y: 6)
+                        ForEach(Self.ticks(luck), id: \.number) { tick in
+                            Text("\(tick.number)").font(.caption2).foregroundStyle(.secondary).monospacedDigit().fixedSize()
+                                .position(x: count > 1 ? geometry.size.width * CGFloat(tick.step) / CGFloat(count - 1) : 0, y: 6)
                         }
                     }
                     .frame(height: 12)
@@ -489,10 +566,30 @@ private struct ScoreCurve: View {
         .designCard()
     }
 
-    /// The hatch numbers under the curve: the first, then every 1, 2 or 5 tens, hundreds…, eight at most.
-    private static func ticks(_ count: Int) -> [Int] {
+    private func label(_ step: HatchLuck.Step) -> String {
+        let score = Int(step.score.rounded())
+        switch step.kind {
+        case .hatch(let i):
+            let hatch = luck.hatches[i]
+            return l.luckCurvePoint(number: hatch.number,
+                                    name: name(hatch.entry, hatch.isDitto ? PokemonOdds.dittoSpeciesID : hatch.entry.baseID),
+                                    score: score)
+        case .journal:
+            return l.luckCurveJournal(step.date ?? Date(), score: score)
+        }
+    }
+
+    /// The hatch numbers under the curve, where each hatch stands: the first, then every 1, 2 or 5 tens, hundreds…,
+    /// eight at most.
+    private static func ticks(_ luck: HatchLuck) -> [(number: Int, step: Int)] {
+        let count = luck.hatches.count
         let unit = pow(10, floor(log10(Double(max(1, count)))))
-        let step = max(1, Int([1.0, 2, 5, 10].map { $0 * unit }.first { Double(count) / $0 <= 8 } ?? unit))
-        return [1] + stride(from: step, through: count, by: step).filter { $0 > 1 }
+        let every = max(1, Int([1.0, 2, 5, 10].map { $0 * unit }.first { Double(count) / $0 <= 8 } ?? unit))
+        let numbers = [1] + stride(from: every, through: count, by: every).filter { $0 > 1 }
+        var stepOf: [Int: Int] = [:]
+        for (s, step) in luck.steps.enumerated() {
+            if case .hatch(let i) = step.kind { stepOf[i + 1] = s }
+        }
+        return numbers.compactMap { n in stepOf[n].map { (n, $0) } }
     }
 }

@@ -32,9 +32,16 @@ final class LuckTextTests: XCTestCase {
         XCTAssertEqual(fr.luckMood(45), "un peu en dessous")
         XCTAssertEqual(fr.luckMood(36), "un peu en dessous")
         XCTAssertEqual(fr.luckMood(35), "plutôt malchanceux")
-        XCTAssertEqual(fr.luckSentence(hatches: 329, score: 50, best: (.legendary, 0.84), worst: (.new, 0.14)),
-                       "Sur 329 éclosions, tu es **pile dans la moyenne**. Ton point fort : **Légendaires** (84\u{00A0}%). "
+        XCTAssertEqual(fr.luckSentence(hatches: 329, expeditions: 0, recent: false, score: 50, best: (.rarity, 0.84),
+                                       worst: (.new, 0.14)),
+                       "Sur 329 éclosions, tu es **pile dans la moyenne**. Ton point fort : **Rareté** (84\u{00A0}%). "
                            + "Ton point faible : **Du nouveau** (14\u{00A0}%).")
+        XCTAssertEqual(fr.luckSentence(hatches: 1_122, expeditions: 47, recent: false, score: 70, best: (.find, 0.9),
+                                       worst: (.capture, 0.3)),
+                       "Sur 1\u{202F}122 éclosions et 47 expéditions, tu es **plutôt gâté**. Ton point fort : **Trouvailles** "
+                           + "(90\u{00A0}%). Ton point faible : **Captures** (30\u{00A0}%).")
+        XCTAssertTrue(fr.luckSentence(hatches: 12, expeditions: 3, recent: true, score: 50, best: (.shiny, 0.6),
+                                      worst: (.new, 0.4)).hasPrefix("Sur les 30 derniers jours, tu es"))
     }
 
     func testCounts() {
@@ -107,7 +114,7 @@ final class LuckTextTests: XCTestCase {
     /// The shiny criterion uses the app's own word in each language.
     func testShinyIsTheAppsWord() {
         XCTAssertEqual(fr.luckCriterion(.shiny), "Chromatiques")
-        XCTAssertEqual(fr.luckCriterion(.rare), "Rares ou mieux")
+        XCTAssertEqual(fr.luckCriterion(.rarity), "Rareté")
         for language in AppLanguage.allCases {
             XCTAssertEqual(L(language).luckCriterion(.shiny), L(language).bonusThemeTitle(.shiny), "\(language)")
         }
@@ -118,9 +125,14 @@ final class LuckTextTests: XCTestCase {
         for language in AppLanguage.allCases {
             let l = L(language)
             var words = HatchLuck.Criterion.allCases.map(l.luckCriterion) + PopoverNavigation.LuckTab.allCases.map(l.luckTab)
+                + LuckFamily.allCases.map(l.luckFamily) + LuckDrawKind.allCases.map(l.luckDrawName)
             words += [l.luckTitle, l.luckScoreTitle, l.luckByCriterionHint, l.luckTooFew, l.luckCurveTitle,
                       l.luckImprobableTitle, l.luckHistoryTitle, l.luckShowMore(321), l.luckUnknownEggs(27),
-                      l.luckSentence(hatches: 3, score: 50, best: (.rare, 0.6), worst: (.new, 0.2)),
+                      l.luckSentence(hatches: 3, expeditions: 2, recent: false, score: 50, best: (.rarity, 0.6), worst: (.new, 0.2)),
+                      l.luckSentence(hatches: 3, expeditions: 0, recent: true, score: 50, best: (.rarity, 0.6), worst: (.new, 0.2)),
+                      l.luckPeriod(recent: true), l.luckPeriod(recent: false), l.luckItemsNote, l.luckHighlightsTitle,
+                      l.luckTier(.rare, hits: 2, expected: 1.5), l.luckAverageIVs(95.4),
+                      l.luckCurveJournal(Date(timeIntervalSince1970: 1_794_000_000), score: 54),
                       l.luckCurvePoint(number: 3, name: "Pidgey", score: 50), l.luckWait(.init(count: 2, unit: .month)),
                       l.luckEggOfHatch, l.luckDrawItemsTitle, l.luckDrawItemsHint, l.luckObtainedOn,
                       l.luckApproximate, l.luckPickEggsAction, l.luckEggsToPick, l.luckDontRemember,

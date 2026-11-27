@@ -1,9 +1,10 @@
 import Foundation
 
 /// The Luck screen's numbers: every hatch replayed against the Pokédex and draw items of its moment with the roll's own
-/// rules (`HatchDraw`), and how lucky its draws were.
+/// rules (`HatchDraw`), the luck journal's draws beside them (`LuckDraw`), and how lucky it all was (`LuckScore`: the
+/// share of players with exactly these draws who did worse; the owner's scoping of 2026-11-25).
 struct HatchLuck: Sendable {
-    enum Criterion: CaseIterable, Sendable { case uncommon, rare, legendary, shiny, new, ditto }
+    typealias Criterion = LuckCriterion
 
     /// The odds of what a hatch drew, lowest and highest over the eggs that could have brought it when its egg is unknown.
     struct OddsRange: Equatable, Sendable {
@@ -44,7 +45,17 @@ struct HatchLuck: Sendable {
         let isFormMystery: Bool
         /// The odds of its line, of a Ditto for one, when its egg is known.
         let lineOdds: Double?
+        /// Its shiny, something new and Ditto, at the odds they had.
         let judged: [Criterion: Judgement]
+        /// Its rarity, each tier "or better" (uncommon, rare, legendary): the counts the rarity shows. The score counts
+        /// it once, graded (`LuckCriterion.rarity`).
+        let tiers: [Rarity: Judgement]
+        /// The six IVs' total the hatch drew, before any Capsule; nil without a profile.
+        let ivTotal: Int?
+        /// Whether it drew its hidden ability, one time in 128; nil when it had none to draw or is not known yet.
+        let hiddenAbility: Bool?
+        /// The draws it weighs in the score.
+        let events: [LuckEvent]
         /// The Luck score after it, and how much it moved it.
         var score = 50.0
         var effect = 0.0
@@ -52,28 +63,94 @@ struct HatchLuck: Sendable {
         var percentiles: [Criterion: Double] = [:]
     }
 
-    struct CriterionResult: Equatable, Sendable {
-        let criterion: Criterion
+    /// A rarity tier "or better" over the hatches judged on it.
+    struct TierCount: Equatable, Sendable {
+        let rarity: Rarity
         let hits: Int
         let expected: Double
-        /// The share of players who, with exactly the same odds at each hatch, did worse: ties count half.
+    }
+
+    struct CriterionResult: Equatable, Sendable {
+        let criterion: Criterion
+        /// Its hits and expected hits: for the rarity, the uncommons or better; for the IVs, the hatches judged.
+        let hits: Int
+        let expected: Double
+        /// The share of players who, with exactly the same draws, got fewer points: ties count half.
         let percentile: Double
-        /// Hatches since the last hit; nil before the first.
+        /// Hatches since the last hit; nil before the first, and for what is not a hatch's.
         let sinceLast: Int?
+        /// The rarity's tiers, uncommon to legendary.
+        var tiers: [TierCount] = []
+        /// The IVs' average total, against the 93 expected.
+        var averageIVs: Double?
+    }
+
+    /// The score over a span: overall, by family, by criterion.
+    struct Period: Sendable {
+        /// Out of 100.
+        let score: Double
+        let families: [LuckFamily: Double]
+        let criteria: [CriterionResult]
+        /// What it holds: the hatches and the days of the luck journal.
+        let hatchCount: Int
+        let journalDays: Int
+
+        var strongest: CriterionResult? { criteria.max { $0.percentile < $1.percentile } }
+        var weakest: CriterionResult? { criteria.min { $0.percentile < $1.percentile } }
+    }
+
+    /// A point of the score's curve: after a hatch, or after a day of the luck journal.
+    struct Step: Sendable {
+        enum Kind: Sendable, Equatable {
+            /// `hatches`' index.
+            case hatch(Int)
+            case journal
+        }
+        let kind: Kind
+        let date: Date?
+        var score = 50.0
+        var percentiles: [Criterion: Double] = [:]
+    }
+
+    /// One of the luckiest draws, a hatch's or the journal's, at the odds it had.
+    struct Highlight: Sendable, Equatable {
+        let criterion: Criterion
+        let odds: Double
+        let date: Date?
+        /// `hatches`' index, for a hatch's.
+        let hatch: Int?
+        /// For the journal's.
+        let draw: LuckDrawKind?
+        /// The tier a rarity hit reached.
+        let rarity: Rarity?
     }
 
     let hatches: [Hatch]
+    /// All time.
     let criteria: [CriterionResult]
+    let families: [LuckFamily: Double]
+    /// The last `recentDays` days; nil when nothing was drawn in them.
+    let recent: Period?
+    let steps: [Step]
+    /// The luckiest draws, the least likely first.
+    let highlights: [Highlight]
+    /// Expeditions in the history, for the summary's sentence.
+    let expeditions: Int
     /// Hatches a week, from the first catch to now; nil under two dated catches a day apart.
     let hatchesPerWeek: Double?
     let stock: EggStock
     let itemsSince: [ItemKind: Date]
 
+    /// The span the recent score covers.
+    static let recentDays = 30.0
+
     /// `entries`: the Pokédex in hatch order, the Pokémon raised last when `includesActive`. `today`: what the save does
     /// not date, the Plates' achievements, taken as they are. `itemsSince`: when the player got each draw item, for
-    /// hatches without a record (`CompanionStore.drawItemSince`).
+    /// hatches without a record (`CompanionStore.drawItemSince`). `draws`: the luck journal. `hiddenAbilities`: whether
+    /// each line has a hidden ability to draw, by its first species, as far as known.
     init(entries: [DexEntry], includesActive: Bool, today: CompanionState, index: [BaseSpecies],
-         itemsSince: [ItemKind: Date] = [:], now: Date) {
+         itemsSince: [ItemKind: Date] = [:], draws: [LuckDraw] = [], expeditions: Int = 0,
+         hiddenAbilities: [Int: Bool] = [:], now: Date, players: Int = LuckScore.players) {
         let rarities = Dictionary(index.map { ($0.id, $0.rarity) }, uniquingKeysWith: { a, _ in a })
         let moments = Self.moments(entries: entries, today: today, itemsSince: itemsSince)
         let measured = moments.map { moment in
@@ -84,6 +161,7 @@ struct HatchLuck: Sendable {
                           asked: moment.asksEgg)
         }
         self.itemsSince = itemsSince
+        self.expeditions = expeditions
         stock = EggStock(today: today, entries: entries)
         let settled = stock.settle(slots)
         var hatches: [Hatch] = []
@@ -91,42 +169,162 @@ struct HatchLuck: Sendable {
             hatches.append(Self.hatch(number: i + 1, entry: moment.entry, isActive: includesActive && i == entries.count - 1,
                                       slot: settled[i], source: moment.entry.hatch?.source,
                                       possible: measured[i].filter { settled[i].possible.contains($0.egg) },
-                                      roll: moment.roll, hatch: moment.hatch, index: index, rarities: rarities))
+                                      roll: moment.roll, hatch: moment.hatch, index: index, rarities: rarities,
+                                      hiddenAbilities: hiddenAbilities))
         }
-        var runs = Criterion.allCases.map { _ in (odds: [Double](), hits: 0) }
-        var distributions = Criterion.allCases.map { _ in [1.0] }
-        var lastHit: [Int?] = Criterion.allCases.map { _ in nil }
-        var score = 50.0
-        for i in hatches.indices {
-            for (k, criterion) in Criterion.allCases.enumerated() {
-                guard let judgement = hatches[i].judged[criterion] else { continue }
-                runs[k].odds.append(judgement.odds)
-                distributions[k] = Self.adding(judgement.odds, to: distributions[k])
-                if judgement.hit {
-                    runs[k].hits += 1
-                    lastHit[k] = i
-                }
+
+        // The timeline: each hatch at its moment, each day of the journal after the hatches before its last draw.
+        var steps: [Step] = [], events: [[LuckEvent]] = []
+        let days = Dictionary(grouping: draws, by: \.day).map { (at: $0.value.map(\.at).max()!, draws: $0.value) }
+            .sorted { $0.at < $1.at }
+        var nextDay = 0
+        func addDays(before date: Date?) {
+            while nextDay < days.count, date.map({ days[nextDay].at < $0 }) ?? true {
+                steps.append(Step(kind: .journal, date: days[nextDay].at))
+                events.append(days[nextDay].draws.sorted { $0.key < $1.key }.map(Self.event))
+                nextDay += 1
             }
-            for (k, criterion) in Criterion.allCases.enumerated() {
-                hatches[i].percentiles[criterion] = Self.percentile(distributions[k], hits: runs[k].hits)
-            }
-            let next = hatches[i].percentiles.values.reduce(0, +) / Double(Criterion.allCases.count) * 100
-            hatches[i].effect = next - score
-            hatches[i].score = next
-            score = next
         }
+        var clock = Date.distantPast
+        for (i, moment) in moments.enumerated() {
+            let date = max(Self.hatchedAt(of: moment.entry, after: moment.previous) ?? clock, clock)
+            clock = date
+            addDays(before: date)
+            steps.append(Step(kind: .hatch(i), date: date == .distantPast ? nil : date))
+            events.append(hatches[i].events)
+        }
+        addDays(before: nil)
+
+        let standings = LuckScore.run(events, players: players)
+        var previous = 50.0
+        for (s, standing) in standings.enumerated() {
+            steps[s].score = standing.overall * 100
+            steps[s].percentiles = standing.criteria
+            if case .hatch(let i) = steps[s].kind {
+                hatches[i].score = steps[s].score
+                hatches[i].effect = steps[s].score - previous
+                hatches[i].percentiles = standing.criteria
+            }
+            previous = steps[s].score
+        }
+        let final = standings.last ?? LuckScore.Standing()
+        self.steps = steps
         self.hatches = hatches
-        criteria = Criterion.allCases.enumerated().map { k, criterion in
-            CriterionResult(criterion: criterion, hits: runs[k].hits, expected: runs[k].odds.reduce(0, +),
-                            percentile: Self.percentile(distributions[k], hits: runs[k].hits),
-                            sinceLast: lastHit[k].map { hatches.count - 1 - $0 })
+        families = final.families
+        criteria = Self.results(hatches: hatches, draws: draws, standing: final, sinceLast: true)
+
+        let cutoff = now.addingTimeInterval(-Self.recentDays * 86_400)
+        let recentSteps = steps.indices.filter { (steps[$0].date ?? .distantPast) >= cutoff }
+        if recentSteps.isEmpty {
+            recent = nil
+        } else {
+            let standing = LuckScore.final(recentSteps.map { events[$0] }, players: players)
+            let recentHatches = recentSteps.compactMap { s -> Hatch? in
+                if case .hatch(let i) = steps[s].kind { return hatches[i] } else { return nil }
+            }
+            let recentDraws = draws.filter { $0.at >= cutoff }
+            recent = Period(score: standing.overall * 100, families: standing.families,
+                            criteria: Self.results(hatches: recentHatches, draws: recentDraws, standing: standing,
+                                                   sinceLast: false),
+                            hatchCount: recentHatches.count, journalDays: Set(recentDraws.map(\.day)).count)
         }
+        highlights = Self.luckiest(hatches: hatches, draws: draws)
+
         let dated = entries.compactMap(\.caughtAt).sorted()
         if dated.count >= 2, let first = dated.first, dated.last!.timeIntervalSince(first) >= 86_400 {
             hatchesPerWeek = Double(dated.count) / (now.timeIntervalSince(first) / (7 * 86_400))
         } else {
             hatchesPerWeek = nil
         }
+    }
+
+    /// Out of 100, all time.
+    var score: Double { steps.last?.score ?? 50 }
+
+    /// All time, as a span.
+    var period: Period {
+        Period(score: score, families: families, criteria: criteria, hatchCount: hatches.count,
+               journalDays: steps.filter { $0.kind == .journal }.count)
+    }
+
+    var strongest: CriterionResult? { period.strongest }
+    var weakest: CriterionResult? { period.weakest }
+
+    /// A day's line of the journal, as the score weighs it.
+    private static func event(_ draw: LuckDraw) -> LuckEvent {
+        LuckEvent(shape: .draws(draw.kind.criterion, odds: draw.odds, trials: draw.trials, hits: draw.hits), seed: draw.seed)
+    }
+
+    /// Each criterion some draw could move, its hits against the expected, at `standing`'s percentile.
+    private static func results(hatches: [Hatch], draws: [LuckDraw], standing: LuckScore.Standing,
+                                sinceLast: Bool) -> [CriterionResult] {
+        Criterion.allCases.compactMap { criterion -> CriterionResult? in
+            guard let percentile = standing.criteria[criterion] else { return nil }
+            func last(_ hit: (Hatch) -> Bool) -> Int? {
+                guard sinceLast, let i = hatches.lastIndex(where: hit) else { return nil }
+                return hatches.count - 1 - i
+            }
+            switch criterion {
+            case .rarity:
+                let tiers = [Rarity.uncommon, .rare, .legendary].map { rarity in
+                    let judged = hatches.compactMap { $0.tiers[rarity] }
+                    return TierCount(rarity: rarity, hits: judged.filter(\.hit).count, expected: judged.reduce(0) { $0 + $1.odds })
+                }
+                return CriterionResult(criterion: criterion, hits: tiers[0].hits, expected: tiers[0].expected,
+                                       percentile: percentile, sinceLast: last { $0.tiers[.rare]?.hit == true }, tiers: tiers)
+            case .shiny, .new, .ditto:
+                let judged = hatches.compactMap { $0.judged[criterion] }
+                return CriterionResult(criterion: criterion, hits: judged.filter(\.hit).count,
+                                       expected: judged.reduce(0) { $0 + $1.odds }, percentile: percentile,
+                                       sinceLast: last { $0.judged[criterion]?.hit == true })
+            case .ivs:
+                let totals = hatches.compactMap(\.ivTotal)
+                return CriterionResult(criterion: criterion, hits: totals.count, expected: Double(totals.count),
+                                       percentile: percentile, sinceLast: nil,
+                                       averageIVs: totals.isEmpty ? nil : Double(totals.reduce(0, +)) / Double(totals.count))
+            case .hiddenAbility:
+                let judged = hatches.compactMap(\.hiddenAbility)
+                return CriterionResult(criterion: criterion, hits: judged.filter { $0 }.count,
+                                       expected: Double(judged.count) / Double(PokemonProfile.hiddenAbilityOneIn),
+                                       percentile: percentile, sinceLast: last { $0.hiddenAbility == true })
+            case .capture, .dungeonShiny, .find:
+                let lines = draws.filter { $0.kind.criterion == criterion }
+                return CriterionResult(criterion: criterion, hits: lines.reduce(0) { $0 + $1.hits },
+                                       expected: lines.reduce(0) { $0 + Double($1.trials) * $1.odds },
+                                       percentile: percentile, sinceLast: nil)
+            }
+        }
+    }
+
+    /// The luckiest draws, five at most, the least likely first, the rarest of each kind only (on the owner's save, the
+    /// five best IVs hid Groudon and every shiny): a hatch's shiny, rarity, Ditto, hidden ability or IVs in the top 1%,
+    /// and the journal's hits of one in ten or rarer.
+    private static func luckiest(hatches: [Hatch], draws: [LuckDraw]) -> [Highlight] {
+        var found: [Highlight] = []
+        for (i, hatch) in hatches.enumerated() {
+            let date = hatch.entry.raising?.hatchedAt ?? hatch.entry.caughtAt
+            func add(_ criterion: Criterion, _ odds: Double, rarity: Rarity? = nil) {
+                found.append(Highlight(criterion: criterion, odds: odds, date: date, hatch: i, draw: nil, rarity: rarity))
+            }
+            if let shiny = hatch.judged[.shiny], shiny.hit { add(.shiny, shiny.odds) }
+            if let ditto = hatch.judged[.ditto], ditto.hit { add(.ditto, ditto.odds) }
+            if let top = [Rarity.legendary, .rare].first(where: { hatch.tiers[$0]?.hit == true }), let tier = hatch.tiers[top] {
+                add(.rarity, tier.odds, rarity: top)
+            }
+            if hatch.hiddenAbility == true { add(.hiddenAbility, 1 / Double(PokemonProfile.hiddenAbilityOneIn)) }
+            if let total = hatch.ivTotal {
+                let odds = 1 - (total > 0 ? LuckScale.ivTotal.cumulative[total - 1] : 0)
+                if odds <= 0.01 { add(.ivs, odds) }
+            }
+        }
+        for draw in draws where draw.hits > 0 && draw.odds <= 0.1 {
+            found.append(Highlight(criterion: draw.kind.criterion, odds: draw.odds, date: draw.at, hatch: nil, draw: draw.kind,
+                                   rarity: nil))
+        }
+        var kinds = Set<String>()
+        return Array(found.sorted { $0.odds < $1.odds }
+            .filter { kinds.insert($0.draw?.rawValue ?? $0.criterion.rawValue).inserted }
+            .prefix(5))
     }
 
     struct Moment: Sendable {
@@ -193,6 +391,15 @@ struct HatchLuck: Sendable {
         var ditto = 0.0
         var shiny = 0.0
         var total = 0.0
+        /// The egg's outcomes as the score draws them, rarity, something new and Ditto together: none counted apart.
+        var cells: [Cell: Double] = [:]
+    }
+
+    /// One outcome of an egg for the score: a rarity's rank (`Rarity.sortRank`), new or not, a Ditto.
+    struct Cell: Hashable, Sendable {
+        var rank: Int
+        var new: Bool
+        var ditto: Bool
     }
 
     private static func odds(of egg: HatchEgg, base: Int, roll: HatchDraw, hatch: HatchDraw, index: [BaseSpecies],
@@ -208,17 +415,24 @@ struct HatchLuck: Sendable {
                 odds.atLeast[floor, default: 0] += w
             }
             if outcome.id == base { odds.line += w }
-            if bringsNew(outcome.id, outcome.form) { odds.new += w }
+            let isNew = bringsNew(outcome.id, outcome.form)
+            if isNew { odds.new += w }
             odds.shiny += w * (outcome.alwaysShiny ? 1 : shiny)
             let stages = PokemonEvolutionData.stageCount(from: outcome.id)
+            var ditto = 0.0
             if outcome.rarity == .common, stages >= 2,
                hatch.letsDittoHide(baseID: outcome.id, egg: spec, fromFossilEgg: egg == .fossil) {
-                odds.ditto += w / Double(PokemonOdds.dittoDisguiseDenominator)
+                ditto = w / Double(PokemonOdds.dittoDisguiseDenominator)
+                odds.ditto += ditto
+                // A Ditto brings what the Pokémon it hides in would: something new or not, as `odds.new` counts it.
+                odds.cells[Cell(rank: 0, new: isNew, ditto: true), default: 0] += ditto
             }
+            odds.cells[Cell(rank: outcome.rarity.sortRank, new: isNew, ditto: false), default: 0] += w - ditto
         }
         guard odds.total > 0 else { return odds }
         for key in odds.share.keys { odds.share[key]! /= odds.total }
         for key in odds.atLeast.keys { odds.atLeast[key]! /= odds.total }
+        for key in odds.cells.keys { odds.cells[key]! /= odds.total }
         odds.line /= odds.total
         odds.new /= odds.total
         odds.ditto /= odds.total
@@ -260,7 +474,7 @@ struct HatchLuck: Sendable {
 
     private static func hatch(number: Int, entry: DexEntry, isActive: Bool, slot: EggStock.Slot, source: HatchRecord.Source?,
                               possible: [(egg: HatchEgg, odds: EggOdds)], roll: HatchDraw, hatch: HatchDraw,
-                              index: [BaseSpecies], rarities: [Int: Rarity]) -> Hatch {
+                              index: [BaseSpecies], rarities: [Int: Rarity], hiddenAbilities: [Int: Bool]) -> Hatch {
         let isDitto = entry.baseID == PokemonOdds.dittoSpeciesID
         let rarity = rarities[entry.baseID] ?? entry.rarity
         let bringsNew = roll.bringsNew()
@@ -277,19 +491,52 @@ struct HatchLuck: Sendable {
             return OddsRange(low: values.min() ?? 0, high: values.max() ?? 0)
         }
         let rarityOdds = range { isDitto ? $0.ditto : $0.share[rarity] ?? 0 }
-        var judged: [Criterion: Judgement] = [:]
+        var judged: [Criterion: Judgement] = [:], tiers: [Rarity: Judgement] = [:]
+        var events: [LuckEvent] = []
+        func seed(_ part: String) -> UInt64 {
+            var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+            for byte in "luck:\(entry.id):\(part)".utf8 { hash = (hash ^ UInt64(byte)) &* 0x100_0000_01b3 }
+            return hash
+        }
         if known != nil, let o = all.first {
-            for (criterion, floor) in [(Criterion.uncommon, Rarity.uncommon), (.rare, .rare), (.legendary, .legendary)] {
-                judged[criterion] = Judgement(odds: o.atLeast[floor] ?? 0, hit: !isDitto && rarity.sortRank >= floor.sortRank)
+            for floor in [Rarity.uncommon, .rare, .legendary] {
+                tiers[floor] = Judgement(odds: o.atLeast[floor] ?? 0, hit: !isDitto && rarity.sortRank >= floor.sortRank)
             }
             judged[.shiny] = Judgement(odds: o.shiny, hit: entry.isShiny)
             let couldShowADitto = isDitto || entry.chainOrder.count >= 2 || !(entry.isReleased || isActive)
             if couldShowADitto { judged[.ditto] = Judgement(odds: o.ditto, hit: isDitto) }
-            if !isDitto, !isFormMystery { judged[.new] = Judgement(odds: o.new, hit: new) }
+            let newKnown = !isDitto && !isFormMystery
+            if newKnown { judged[.new] = Judgement(odds: o.new, hit: new) }
+            if let pick = Self.pick(o.cells, observed: Cell(rank: isDitto ? 0 : rarity.sortRank, new: new, ditto: isDitto),
+                                    newKnown: newKnown, dittoKnown: couldShowADitto) {
+                events.append(LuckEvent(shape: pick, seed: seed("egg")))
+            }
         } else {
             judged[.shiny] = Judgement(odds: hatch.shinyChance, hit: entry.isShiny)
         }
         judged = judged.filter { $0.value.odds < 1 }
+        tiers = tiers.filter { $0.value.odds < 1 }
+        if let shiny = judged[.shiny] {
+            events.append(LuckEvent(shape: .draws(.shiny, odds: shiny.odds, trials: 1, hits: shiny.hit ? 1 : 0),
+                                    seed: seed("shiny")))
+        }
+        // The IVs as the hatch drew them (`PokemonProfile.generate`): a Capsule since changes nothing.
+        let ivTotal = entry.profile.map { profile -> Int in
+            let ivs = PokemonProfile.generate(seed: profile.seed).ivs
+            return ivs.hp + ivs.attack + ivs.defense + ivs.specialAttack + ivs.specialDefense + ivs.speed
+        }
+        if let ivTotal {
+            events.append(LuckEvent(shape: .scale(.ivs, LuckScale.ivTotal, observed: ivTotal), seed: seed("ivs")))
+        }
+        // The hidden ability, once drawn, for a line that has one (as far as its details are known).
+        let hiddenAbility: Bool? = entry.profile.flatMap { profile in
+            guard profile.abilitySlot != nil, hiddenAbilities[entry.baseID] ?? true else { return nil }
+            return profile.abilityIsHidden
+        }
+        if let hiddenAbility {
+            events.append(LuckEvent(shape: .draws(.hiddenAbility, odds: 1 / Double(PokemonProfile.hiddenAbilityOneIn),
+                                                  trials: 1, hits: hiddenAbility ? 1 : 0), seed: seed("ability")))
+        }
         return Hatch(number: number, entry: entry, isActive: isActive, isDitto: isDitto, rarity: rarity, egg: known,
                      eggChosenByPlayer: source == .player && known != nil && !slot.isSure,
                      eggDeduced: source == .deduced && known != nil && !slot.isSure,
@@ -300,7 +547,37 @@ struct HatchLuck: Sendable {
                      bringsNew: new,
                      newOdds: isDitto || isFormMystery ? nil : range { new ? $0.new : 1 - $0.new },
                      isFormMystery: isFormMystery,
-                     lineOdds: known == nil ? nil : all.first.map { isDitto ? $0.ditto : $0.line }, judged: judged)
+                     lineOdds: known == nil ? nil : all.first.map { isDitto ? $0.ditto : $0.line }, judged: judged,
+                     tiers: tiers, ivTotal: ivTotal, hiddenAbility: hiddenAbility, events: events)
+    }
+
+    /// An egg's outcomes for the score, each worth its points (`LuckScore.points`): the rarity's of doing at least as
+    /// well, something new's and Ditto's of their odds. What is not known of the hatch (its form still hidden, a Ditto
+    /// it could not show) is merged away, for the player as for the simulated ones. Nil when the replay cannot have
+    /// drawn what hatched: no luck to read in a draw the replay misses.
+    static func pick(_ cells: [Cell: Double], observed: Cell, newKnown: Bool, dittoKnown: Bool) -> LuckEvent.Shape? {
+        func reduced(_ cell: Cell) -> Cell {
+            let ditto = dittoKnown && cell.ditto
+            return Cell(rank: ditto ? 0 : cell.rank, new: newKnown && cell.new, ditto: ditto)
+        }
+        var merged: [Cell: Double] = [:]
+        for (cell, odds) in cells where odds > 0 { merged[reduced(cell), default: 0] += odds }
+        let seen = reduced(observed)
+        guard (merged[seen] ?? 0) > 0 else { return nil }
+        let atLeast = { (rank: Int) in merged.filter { $0.key.rank >= rank }.values.reduce(0, +) }
+        let newOdds = merged.filter(\.key.new).values.reduce(0, +)
+        let dittoOdds = merged.filter(\.key.ditto).values.reduce(0, +)
+        let order = merged.keys.sorted {
+            ($0.rank, $0.new ? 1 : 0, $0.ditto ? 1 : 0) < ($1.rank, $1.new ? 1 : 0, $1.ditto ? 1 : 0)
+        }
+        let outcomes = order.map { cell -> LuckOutcome in
+            var points: [Criterion: Int] = [:]
+            if cell.rank > 0 { points[.rarity] = LuckScore.points(atLeast(cell.rank)) }
+            if cell.new { points[.new] = LuckScore.points(newOdds) }
+            if cell.ditto { points[.ditto] = LuckScore.points(dittoOdds) }
+            return LuckOutcome(odds: merged[cell] ?? 0, points: points.filter { $0.value > 0 })
+        }
+        return .pick(outcomes, observed: order.firstIndex(of: seen)!)
     }
 
     /// The egg each hatch still unknown most likely came from, for a player who does not remember. Each counted egg left
@@ -336,9 +613,6 @@ struct HatchLuck: Sendable {
         Array(hatches.filter { ($0.lineOdds ?? 0) > 0 }.sorted { $0.lineOdds! < $1.lineOdds! }.prefix(3))
     }
 
-    var strongest: CriterionResult? { criteria.max { $0.percentile < $1.percentile } }
-    var weakest: CriterionResult? { criteria.min { $0.percentile < $1.percentile } }
-
     /// +1 when a hatch raised the score by half a point or more, as shown to a tenth; -1 when it lowered it as much.
     static func effectDirection(_ effect: Double) -> Int {
         let shown = (effect * 10).rounded() / 10
@@ -360,28 +634,5 @@ struct HatchLuck: Sendable {
             : time < 3 * month ? (.week, week)
             : (time / month).rounded() < 24 ? (.month, month) : (.year, year)
         return Wait(count: max(1, Int((time / size).rounded())), unit: unit)
-    }
-
-    var score: Double { criteria.isEmpty ? 50 : criteria.reduce(0) { $0 + $1.percentile } / Double(criteria.count) * 100 }
-
-    /// The share of equally placed players who did worse with `odds` and `hits` hits: ties count half.
-    static func percentile(odds: [Double], hits: Int) -> Double {
-        percentile(odds.reduce([1.0]) { adding($1, to: $0) }, hits: hits)
-    }
-
-    /// The exact count distribution of independent draws (Poisson binomial), one more draw of odds `p`.
-    private static func adding(_ p: Double, to distribution: [Double]) -> [Double] {
-        var next = [Double](repeating: 0, count: distribution.count + 1)
-        for (k, q) in distribution.enumerated() {
-            next[k] += q * (1 - p)
-            next[k + 1] += q * p
-        }
-        return next
-    }
-
-    private static func percentile(_ distribution: [Double], hits: Int) -> Double {
-        let below = distribution.prefix(max(0, hits)).reduce(0, +)
-        let tie = hits < distribution.count ? distribution[hits] : 0
-        return below + tie / 2
     }
 }

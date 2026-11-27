@@ -66,6 +66,35 @@ enum Changelog {
     }
 
     static let days: [ChangelogDay] = [
+        ChangelogDay(date: "2026-11-27", entries: [
+            .improved("2026-11-27-luck-rework", { $0.t(
+                "운 화면을 새로 만들었어요: 이제 던전(포획, 이로치, 발견), 개체값, 숨겨진 특성도 세고, 아이템과 볼도 반영해요. 나와 똑같은 뽑기를 한 트레이너 1만 명과 비교해, 부화, 던전, 전체 점수를 따로 보여 주고 최근 30일도 볼 수 있어요.",
+                "The Luck screen was rebuilt: it now counts the dungeons (captures, shinies, finds), the IVs and the hidden ability, and weighs your items and balls. You are compared with 10,000 trainers who made exactly your draws, with a score for hatches, for dungeons and overall, and the last 30 days.",
+                "運の画面を作り直しました：ダンジョン（捕獲、色違い、発見）、個体値、隠れ特性も数え、アイテムとボールも反映します。あなたとまったく同じ抽選をした1万人のトレーナーと比べ、孵化、ダンジョン、全体のスコアと直近30日を表示します。",
+                "La pantalla de Suerte se ha rehecho: ahora cuenta las mazmorras (capturas, variocolores, hallazgos), los IV y la habilidad oculta, y tiene en cuenta tus objetos y Balls. Te compara con 10.000 entrenadores que hicieron exactamente tus sorteos, con una puntuación de eclosiones, de mazmorras y global, y los últimos 30 días.",
+                "L'écran Chance a été refait : il compte aussi les donjons (captures, chromatiques, trouvailles), les IV et le talent caché, et tient compte de tes objets et de tes Balls. Tu es comparé à 10\u{00A0}000 dresseurs qui auraient fait exactement tes tirages, avec un score pour les éclosions, les donjons et au global, et les 30 derniers jours.",
+                "A tela de Sorte foi refeita: agora conta as masmorras (capturas, shinies, achados), os IVs e a habilidade oculta, e leva em conta seus itens e Balls. Você é comparado a 10.000 treinadores que fizeram exatamente os seus sorteios, com uma pontuação de eclosões, de masmorras e geral, e os últimos 30 dias.",
+                "Der Glücksbildschirm wurde neu gebaut: Er zählt jetzt auch die Dungeons (Fänge, Schillernde, Funde), die IS-Werte und die versteckte Fähigkeit und berücksichtigt deine Gegenstände und Bälle. Du wirst mit 10.000 Trainern verglichen, die genau deine Ziehungen hatten, mit einem Wert für Schlüpfe, Dungeons und gesamt, und den letzten 30 Tagen.",
+                "Экран удачи переделан: теперь он учитывает подземелья (поимки, шайни, находки), IV и скрытую способность, а также твои предметы и мячи. Тебя сравнивают с 10 000 тренеров с точно такими же выпадениями: отдельная оценка вылуплений, подземелий и общая, а также за последние 30 дней.") }),
+            .new("2026-11-27-luck-image", { $0.t(
+                "운 화면을 이미지로 복사할 수 있어요: 키우는 포켓몬 카드처럼 오른쪽 위 버튼을 눌러요.",
+                "The Luck screen copies as an image: the button at the top right, as on the card of the Pokémon you raise.",
+                "運の画面を画像でコピーできます：育てているポケモンのカードと同じく、右上のボタンです。",
+                "La pantalla de Suerte se copia como imagen: el botón de arriba a la derecha, como en la tarjeta del Pokémon que crías.",
+                "L'écran Chance se copie en image : le bouton en haut à droite, comme sur la carte du Pokémon que tu élèves.",
+                "A tela de Sorte pode ser copiada como imagem: o botão no canto superior direito, como no cartão do Pokémon que você cria.",
+                "Der Glücksbildschirm lässt sich als Bild kopieren: der Knopf oben rechts, wie auf der Karte des Pokémon, das du großziehst.",
+                "Экран удачи копируется картинкой: кнопка в правом верхнем углу, как на карточке выращиваемого покемона.") }),
+            .improved("2026-11-27-full-run-history", { $0.t(
+                "탐험 기록을 이제 모두 보관해요(예전에는 100번까지): 전투 다시 보기는 최근 30번만 가능해요.",
+                "Every expedition now stays in the history (it kept 100 before); replaying the battles stays for the last 30.",
+                "探検の記録をすべて残すようになりました（以前は100回まで）。戦闘の再生は直近30回です。",
+                "Todas las expediciones quedan ahora en el historial (antes guardaba 100); repetir los combates sigue siendo para las 30 últimas.",
+                "Toutes les expéditions restent maintenant dans l'historique (il en gardait 100) ; revoir les combats reste possible pour les 30 dernières.",
+                "Todas as expedições agora ficam no histórico (antes eram 100); rever as batalhas continua valendo para as 30 últimas.",
+                "Alle Expeditionen bleiben jetzt im Verlauf (vorher 100); Kämpfe ansehen geht weiter für die letzten 30.",
+                "Все экспедиции теперь остаются в истории (раньше хранилось 100); пересмотр боёв доступен для последних 30.") }),
+        ]),
         ChangelogDay(date: "2026-11-25", entries: [
             .improved("2026-11-25-alph-rework", { $0.t("알프의 유적을 더 균형 있게 다시 다듬었어요.",
                                                        "The Ruins of Alph were reworked for a better balance.",

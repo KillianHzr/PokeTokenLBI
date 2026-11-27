@@ -46,6 +46,11 @@ final class ShockDriveTests: XCTestCase {
             XCTAssertEqual(s.rareCandyCount, left, "drive \(drive), roll \(roll)")
             XCTAssertEqual(s.candyFeedbackRecharged, recharged)
             XCTAssertEqual(s.state.dex.count, 1, "its XP given all the same: the line graduated")
+            // The luck journal: one draw in four for each candy, with the drive only.
+            let draws = s.luckJournal.filter { $0.kind == .shockDrive }
+            XCTAssertEqual(draws.map(\.trials), drive ? [1] : [])
+            XCTAssertEqual(draws.map(\.hits), drive ? [recharged] : [])
+            XCTAssertEqual(draws.first?.odds ?? 0.25, 0.25)
         }
     }
 

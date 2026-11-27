@@ -78,6 +78,19 @@ actor PokeAPIClient: PokeProviding, PokemonDetailProviding {
         let details: PokemonDetails
     }
 
+    /// Whether each species has a hidden ability, from the details on disk only (no network): the Luck screen draws
+    /// the hidden ability only for a line that has one. A species not on disk is left out.
+    nonisolated static func cachedHiddenAbilities(_ species: Set<Int>) -> [Int: Bool] {
+        var found: [Int: Bool] = [:]
+        for id in species {
+            let file = detailsDirectory.appendingPathComponent("\(id).json")
+            guard let data = try? Data(contentsOf: file),
+                  let snapshot = try? JSONDecoder().decode(DetailSnapshot.self, from: data) else { continue }
+            found[id] = snapshot.details.abilities.contains(where: \.isHidden)
+        }
+        return found
+    }
+
     /// Default-form battle metadata.
     func pokemonDetails(speciesID: Int) async throws -> PokemonDetails {
         try await pokemonDetails(pokemonID: speciesID, speciesID: speciesID)

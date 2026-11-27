@@ -5,8 +5,23 @@ extension L {
     private var locale: Locale { lang.displayLocale }
 
     var luckTitle: String {
-        t("부화 운", "Your hatch luck", "孵化の運", "Tu suerte al eclosionar", "Ta chance au tirage", "Sua sorte nas eclosões",
-          "Dein Schlüpfglück", "Твоя удача при вылуплении")
+        t("나의 운", "Your luck", "あなたの運", "Tu suerte", "Ta chance", "Sua sorte", "Dein Glück", "Твоя удача")
+    }
+
+    func luckFamily(_ family: LuckFamily) -> String {
+        switch family {
+        case .hatches: luckTab(.hatches)
+        case .dungeons: dungeonsTab
+        }
+    }
+
+    /// The summary's span: all time or the last thirty days.
+    func luckPeriod(recent: Bool) -> String {
+        recent
+            ? t("최근 30일", "Last 30 days", "直近30日", "Últimos 30 días", "30 derniers jours", "Últimos 30 dias", "Letzte 30 Tage",
+                "Последние 30 дней")
+            : t("처음부터", "Since the start", "最初から", "Desde el principio", "Depuis le début", "Desde o início", "Seit Beginn",
+                "С самого начала")
     }
 
     func luckTab(_ tab: PopoverNavigation.LuckTab) -> String {
@@ -19,16 +34,19 @@ extension L {
 
     func luckCriterion(_ criterion: HatchLuck.Criterion) -> String {
         switch criterion {
-        case .uncommon:
-            t("고급 이상", "Uncommon or better", "アンコモン以上", "Poco comunes o más", "Peu communs ou mieux", "Incomuns ou melhor",
-              "Ungewöhnliche oder besser", "Необычные и выше")
-        case .rare:
-            t("희귀 이상", "Rare or better", "レア以上", "Raros o más", "Rares ou mieux", "Raros ou melhor", "Seltene oder besser",
-              "Редкие и выше")
-        case .legendary: t("전설", "Legendary", "伝説", "Legendarios", "Légendaires", "Lendários", "Legendäre", "Легендарные")
+        case .rarity: t("희귀도", "Rarity", "レア度", "Rareza", "Rareté", "Raridade", "Seltenheit", "Редкость")
         case .shiny: bonusThemeTitle(.shiny)
         case .new: t("새로움", "Something new", "新しいもの", "Algo nuevo", "Du nouveau", "Algo novo", "Etwas Neues", "Новое")
         case .ditto: t("메타몽", "Ditto", "メタモン", "Ditto", "Métamorph", "Ditto", "Ditto", "Дитто")
+        case .ivs: t("개체값", "IVs", "個体値", "IV", "IV", "IVs", "IS-Werte", "IV")
+        case .hiddenAbility:
+            t("숨겨진 특성", "Hidden ability", "隠れ特性", "Habilidad oculta", "Talent caché", "Habilidade oculta",
+              "Versteckte Fähigkeit", "Скрытая способность")
+        case .capture: t("포획", "Captures", "捕獲", "Capturas", "Captures", "Capturas", "Fänge", "Поимки")
+        case .dungeonShiny:
+            t("던전 이로치", "Dungeon shinies", "ダンジョンの色違い", "Variocolores de mazmorra", "Chromatiques en donjon",
+              "Shinies nas masmorras", "Schillernde in Dungeons", "Шайни в подземельях")
+        case .find: t("발견", "Finds", "発見", "Hallazgos", "Trouvailles", "Achados", "Funde", "Находки")
         }
     }
 
@@ -58,25 +76,40 @@ extension L {
                  "com bastante azar", "eher ein Pechvogel", "скорее невезучий")
     }
 
-    /// The summary under the score, in Markdown for its bold words.
-    func luckSentence(hatches: Int, score: Int, best: (HatchLuck.Criterion, Double),
+    /// The summary under the score, in Markdown for its bold words: over the hatches and expeditions it holds, or over
+    /// the last thirty days.
+    func luckSentence(hatches: Int, expeditions: Int, recent: Bool, score: Int, best: (HatchLuck.Criterion, Double),
                       worst: (HatchLuck.Criterion, Double)) -> String {
         let mood = luckMood(score)
         let strong = luckCriterion(best.0), strongShare = luckPercent(best.1)
         let weak = luckCriterion(worst.0), weakShare = luckPercent(worst.1)
-        return t("부화 \(hatches)번 기준, **\(mood)**입니다. 강점: **\(strong)** (\(strongShare)). 약점: **\(weak)** (\(weakShare)).",
-                 "Over \(hatches) hatches, you are **\(mood)**. Your strong point: **\(strong)** (\(strongShare)). "
+        let h = hatches.formatted(.number.locale(locale)), x = expeditions.formatted(.number.locale(locale))
+        let over: String
+        if recent {
+            over = t("최근 30일 동안", "Over the last 30 days", "直近30日で", "En los últimos 30 días", "Sur les 30 derniers jours",
+                     "Nos últimos 30 dias", "In den letzten 30 Tagen", "За последние 30 дней")
+        } else if expeditions > 0 {
+            over = t("부화 \(h)번과 탐험 \(x)번 기준", "Over \(h) hatches and \(x) expeditions", "孵化\(h)回と探検\(x)回で",
+                     "En \(h) eclosiones y \(x) expediciones", "Sur \(h) éclosions et \(x) expéditions",
+                     "Em \(h) eclosões e \(x) expedições", "Bei \(h) Schlüpfen und \(x) Expeditionen",
+                     "За \(h) вылуплений и \(x) экспедиций")
+        } else {
+            over = t("부화 \(h)번 기준", "Over \(h) hatches", "孵化\(h)回で", "En \(h) eclosiones", "Sur \(h) éclosions",
+                     "Em \(h) eclosões", "Bei \(h) Schlüpfen", "За \(h) вылуплений")
+        }
+        return t("\(over), **\(mood)**입니다. 강점: **\(strong)** (\(strongShare)). 약점: **\(weak)** (\(weakShare)).",
+                 "\(over), you are **\(mood)**. Your strong point: **\(strong)** (\(strongShare)). "
                      + "Your weak point: **\(weak)** (\(weakShare)).",
-                 "孵化\(hatches)回で、あなたは**\(mood)**です。得意: **\(strong)**（\(strongShare)）。苦手: **\(weak)**（\(weakShare)）。",
-                 "En \(hatches) eclosiones, estás **\(mood)**. Tu punto fuerte: **\(strong)** (\(strongShare)). "
+                 "\(over)、あなたは**\(mood)**です。得意: **\(strong)**（\(strongShare)）。苦手: **\(weak)**（\(weakShare)）。",
+                 "\(over), estás **\(mood)**. Tu punto fuerte: **\(strong)** (\(strongShare)). "
                      + "Tu punto débil: **\(weak)** (\(weakShare)).",
-                 "Sur \(hatches) éclosions, tu es **\(mood)**. Ton point fort : **\(strong)** (\(strongShare)). "
+                 "\(over), tu es **\(mood)**. Ton point fort : **\(strong)** (\(strongShare)). "
                      + "Ton point faible : **\(weak)** (\(weakShare)).",
-                 "Em \(hatches) eclosões, você está **\(mood)**. Seu ponto forte: **\(strong)** (\(strongShare)). "
+                 "\(over), você está **\(mood)**. Seu ponto forte: **\(strong)** (\(strongShare)). "
                      + "Seu ponto fraco: **\(weak)** (\(weakShare)).",
-                 "Bei \(hatches) Schlüpfen bist du **\(mood)**. Deine Stärke: **\(strong)** (\(strongShare)). "
+                 "\(over) bist du **\(mood)**. Deine Stärke: **\(strong)** (\(strongShare)). "
                      + "Deine Schwäche: **\(weak)** (\(weakShare)).",
-                 "За \(hatches) вылуплений ты **\(mood)**. Сильная сторона: **\(strong)** (\(strongShare)). "
+                 "\(over) ты **\(mood)**. Сильная сторона: **\(strong)** (\(strongShare)). "
                      + "Слабая сторона: **\(weak)** (\(weakShare)).")
     }
 
@@ -95,15 +128,90 @@ extension L {
           "Kriterium für Kriterium", "По критериям")
     }
     var luckByCriterionHint: String {
-        t("매 부화마다 나와 똑같은 확률을 가진 트레이너 중 나보다 결과가 나빴을 비율이에요. 50%가 평균이에요. 확정된 결과는 세지 않아요.",
-          "The share of trainers who, with exactly your odds at every hatch, would have done worse. 50% is average. A guaranteed draw doesn't count.",
-          "毎回の孵化であなたとまったく同じ確率だったトレーナーのうち、あなたより結果が悪かった割合です。50%が平均です。確定した結果は数えません。",
-          "La parte de entrenadores que, con exactamente tus probabilidades en cada eclosión, lo habría hecho peor. 50% es la media. Un resultado garantizado no cuenta.",
-          "La part des dresseurs, avec exactement tes chances à chaque éclosion, qui aurait fait moins bien. 50\u{00A0}%, c'est la moyenne. Un tirage garanti ne compte pas.",
-          "A parte dos treinadores que, com exatamente as suas chances em cada eclosão, teria se saído pior. 50% é a média. Um resultado garantido não conta.",
-          "Der Anteil der Trainer, die mit genau deinen Chancen bei jedem Schlüpfen schlechter abgeschnitten hätten. 50% ist der Schnitt. Ein garantiertes Ergebnis zählt nicht.",
-          "Доля тренеров, которые с точно такими же шансами при каждом вылуплении справились бы хуже. 50% это середина. Гарантированный результат не считается.")
+        t("나와 똑같은 뽑기(같은 알, 같은 아이템, 같은 볼)를 한 트레이너 1만 명 중 나보다 운이 나빴던 비율이에요. 50%가 평균이에요. 드문 결과일수록 더 크게 세고, 확정된 결과는 세지 않아요.",
+          "The share of 10,000 trainers who, with exactly your draws (same eggs, same items, same balls), were less lucky. 50% is average. The rarer a result, the more it counts; a guaranteed one doesn't.",
+          "あなたとまったく同じ抽選（同じタマゴ、同じアイテム、同じボール）をした1万人のトレーナーのうち、あなたより運が悪かった割合です。50%が平均です。珍しい結果ほど大きく数え、確定した結果は数えません。",
+          "La parte de 10.000 entrenadores que, con exactamente tus sorteos (mismos huevos, mismos objetos, mismas Balls), tuvieron menos suerte. 50% es la media. Cuanto más raro el resultado, más cuenta; uno garantizado no cuenta.",
+          "La part de 10\u{00A0}000 dresseurs qui, avec exactement tes tirages (mêmes œufs, mêmes objets, mêmes Balls), ont eu moins de chance. 50\u{00A0}%, c'est la moyenne. Plus un résultat est rare, plus il compte ; un tirage garanti ne compte pas.",
+          "A parte de 10.000 treinadores que, com exatamente os seus sorteios (mesmos ovos, mesmos itens, mesmas Balls), tiveram menos sorte. 50% é a média. Quanto mais raro o resultado, mais conta; um garantido não conta.",
+          "Der Anteil von 10.000 Trainern, die mit genau deinen Ziehungen (gleiche Eier, gleiche Gegenstände, gleiche Bälle) weniger Glück hatten. 50% ist der Schnitt. Je seltener ein Ergebnis, desto mehr zählt es; ein garantiertes zählt nicht.",
+          "Доля из 10 000 тренеров, которые с точно такими же выпадениями (те же яйца, предметы и мячи) были менее удачливы. 50% это середина. Чем реже результат, тем больше он весит; гарантированный не считается.")
     }
+
+    /// The draw items weigh on the odds, so on the luck.
+    var luckItemsNote: String {
+        let charm = itemName(.shinyCharm)
+        return t("아이템과 볼도 반영돼요: \(KoreanParticle.subject.attach(to: charm)) 있을 때의 이로치는 원래 나올 확률이 높았으니 덜 세요.",
+                 "Your items and balls count: a shiny with the \(charm) counts less, it was likelier.",
+                 "アイテムとボールも反映されます：\(charm)があるときの色違いは出やすかったので、少なめに数えます。",
+                 "Tus objetos y Balls cuentan: un variocolor con el \(charm) cuenta menos, era más probable.",
+                 "Tes objets et tes Balls comptent : un chromatique avec le \(charm) compte moins, il était plus probable.",
+                 "Seus itens e Balls contam: um shiny com o \(charm) conta menos, era mais provável.",
+                 "Deine Gegenstände und Bälle zählen: Ein Schillerndes mit dem \(charm) zählt weniger, es war wahrscheinlicher.",
+                 "Предметы и мячи учитываются: шайни при наличии предмета \(charm) весит меньше, он был вероятнее.")
+    }
+
+    /// A rarity tier "or better": its hits and the expected.
+    func luckTier(_ rarity: Rarity, hits: Int, expected: Double) -> String {
+        "\(rarityLabel(rarity)) · \(luckCounts(hits: hits, expected: expected))"
+    }
+
+    /// The IVs' average total, out of 186, against the 93 expected.
+    func luckAverageIVs(_ average: Double) -> String {
+        let a = average.formatted(.number.precision(.fractionLength(1)).locale(locale))
+        return t("평균 \(a)/186 · 기대 93", "average \(a)/186 · 93 expected", "平均 \(a)/186 · 期待値 93",
+                 "media \(a)/186 · 93 esperado", "moyenne \(a)/186 · 93 attendu", "média \(a)/186 · 93 esperado",
+                 "Schnitt \(a)/186 · 93 erwartet", "в среднем \(a)/186 · ожидалось 93")
+    }
+
+    var luckHighlightsTitle: String {
+        t("가장 운 좋았던 뽑기", "Your luckiest draws", "最も運がよかった抽選", "Tus sorteos más afortunados",
+          "Tes plus beaux tirages", "Seus sorteios de mais sorte", "Deine glücklichsten Ziehungen", "Самые удачные выпадения")
+    }
+
+    /// A draw of the luck journal, by its kind.
+    func luckDrawName(_ kind: LuckDrawKind) -> String {
+        switch kind {
+        case .bossThrow:
+            t("보스 포획", "Boss caught", "ボスの捕獲", "Jefe capturado", "Boss capturé", "Chefe capturado", "Boss gefangen",
+              "Пойман босс")
+        case .shinyCatch:
+            t("이로치 포획", "Shiny caught", "色違いの捕獲", "Variocolor capturado", "Chromatique capturé", "Shiny capturado",
+              "Schillerndes gefangen", "Пойман шайни")
+        case .bossShiny:
+            t("이로치 보스", "Shiny boss", "色違いのボス", "Jefe variocolor", "Boss chromatique", "Chefe shiny", "Schillernder Boss",
+              "Босс шайни")
+        case .shinyMeeting:
+            t("층에서 만난 이로치", "Shiny met on a floor", "階で出会った色違い", "Variocolor en un piso", "Chromatique croisé",
+              "Shiny num andar", "Schillerndes auf einer Ebene", "Шайни на этаже")
+        case .secretBoss:
+            t("비밀 보스", "Secret boss", "ひみつのボス", "Jefe secreto", "Boss secret", "Chefe secreto", "Geheimer Boss", "Тайный босс")
+        case .secretPassage: dungeonSecretPassage
+        case .chestEgg:
+            t("상자 속 알", "Egg in a chest", "宝箱のタマゴ", "Huevo en un cofre", "Œuf dans un coffre", "Ovo num baú", "Ei in einer Truhe",
+              "Яйцо в сундуке")
+        case .victoryExtra:
+            t("승리 보너스", "Victory bonus", "勝利ボーナス", "Bonus de victoria", "Bonus de victoire", "Bônus de vitória",
+              "Siegesbonus", "Бонус за победу")
+        case .leaderChest:
+            t("두목의 상자", "Leader's chest", "ボスの宝箱", "Cofre del líder", "Coffre du chef", "Baú do líder", "Truhe des Anführers",
+              "Сундук лидера")
+        case .technicalCapsule: dungeonTechnicalCapsule
+        case .wishingPiece: itemName(.wishingPiece)
+        case .explorerTreasure: itemName(.explorerKit)
+        case .shockDrive: itemName(.shockDrive)
+        }
+    }
+
+    /// A day of the luck journal on the curve.
+    func luckCurveJournal(_ date: Date, score: Int) -> String {
+        let day = date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(locale))
+        return t("\(day) 던전 · 지수 \(score)", "Dungeons on \(day) · score \(score)", "\(day)のダンジョン · スコア \(score)",
+                 "Mazmorras del \(day) · índice \(score)", "Donjons du \(day) · indice \(score)",
+                 "Masmorras de \(day) · índice \(score)", "Dungeons am \(day) · Wert \(score)",
+                 "Подземелья \(day) · индекс \(score)")
+    }
+
 
     /// Hits and expected hits of a criterion: two decimals for an expectation under one.
     func luckCounts(hits: Int, expected: Double) -> String {
@@ -134,15 +242,15 @@ extension L {
     }
 
     func luckUnknownEggs(_ count: Int) -> String {
-        let shiny = luckCriterion(.shiny)
-        return t("알 수 없는 알: \(count)개. 업데이트 전에 놓아준 뒤 부화한 포켓몬은 \(shiny)에만 반영돼요.",
-                 "Unknown eggs: \(count). A hatch from before this update that follows a release only counts for \(shiny).",
-                 "不明なタマゴ: \(count)個。アップデート前に逃がした後の孵化は\(shiny)にだけ数えます。",
-                 "Huevos desconocidos: \(count). Una eclosión de antes de esta actualización que sigue a una liberación solo cuenta para \(shiny).",
-                 "Œufs inconnus : \(count). Une éclosion d'avant la mise à jour qui suit un relâché ne compte que pour le critère \(shiny).",
-                 "Ovos desconhecidos: \(count). Uma eclosão de antes desta atualização que vem depois de uma soltura só conta para \(shiny).",
-                 "Unbekannte Eier: \(count). Ein Schlupf von vor diesem Update nach einer Freilassung zählt nur für \(shiny).",
-                 "Неизвестных яиц: \(count). Вылупление до этого обновления после отпускания учитывается только для \(shiny).")
+        let shiny = luckCriterion(.shiny), ivs = luckCriterion(.ivs), ability = luckCriterion(.hiddenAbility)
+        return t("알 수 없는 알: \(count)개. 업데이트 전에 놓아준 뒤 부화한 포켓몬은 \(shiny), \(ivs), \(ability)에만 반영돼요.",
+                 "Unknown eggs: \(count). A hatch from before this update that follows a release only counts for \(shiny), \(ivs) and \(ability).",
+                 "不明なタマゴ: \(count)個。アップデート前に逃がした後の孵化は\(shiny)、\(ivs)、\(ability)にだけ数えます。",
+                 "Huevos desconocidos: \(count). Una eclosión de antes de esta actualización que sigue a una liberación solo cuenta para \(shiny), \(ivs) y \(ability).",
+                 "Œufs inconnus : \(count). Une éclosion d'avant la mise à jour qui suit un relâché ne compte que pour les critères \(shiny), \(ivs) et \(ability).",
+                 "Ovos desconhecidos: \(count). Uma eclosão de antes desta atualização que vem depois de uma soltura só conta para \(shiny), \(ivs) e \(ability).",
+                 "Unbekannte Eier: \(count). Ein Schlupf von vor diesem Update nach einer Freilassung zählt nur für \(shiny), \(ivs) und \(ability).",
+                 "Неизвестных яиц: \(count). Вылупление до этого обновления после отпускания учитывается только для \(shiny), \(ivs) и \(ability).")
     }
 
     var luckApproximate: String {
@@ -216,9 +324,10 @@ extension L {
     }
 
     var luckCurveTitle: String {
-        t("부화별 운 지수", "Your score hatch after hatch", "孵化ごとの運スコア", "Tu índice eclosión tras eclosión",
-          "Ton indice au fil des éclosions", "Seu índice eclosão após eclosão", "Dein Wert Schlupf für Schlupf",
-          "Твой индекс по вылуплениям")
+        t("부화와 던전별 운 지수", "Your score hatch after hatch, day of dungeons after day",
+          "孵化とダンジョンごとの運スコア", "Tu índice eclosión tras eclosión, día de mazmorras tras día",
+          "Ton indice au fil des éclosions et des journées de donjons", "Seu índice eclosão após eclosão, dia de masmorras após dia",
+          "Dein Wert Schlupf für Schlupf, Dungeon-Tag für Dungeon-Tag", "Твой индекс по вылуплениям и дням подземелий")
     }
 
     func luckCurvePoint(number: Int, name: String, score: Int) -> String {
@@ -229,9 +338,8 @@ extension L {
     }
 
     var luckCriteriaCurvesTitle: String {
-        t("항목별 추이", "Criterion by criterion, hatch after hatch", "項目別の推移", "Criterio por criterio, eclosión tras eclosión",
-          "Critère par critère, au fil des éclosions", "Critério por critério, eclosão após eclosão",
-          "Kriterium für Kriterium, Schlupf für Schlupf", "По критериям, по вылуплениям")
+        t("항목별 추이", "Criterion by criterion", "項目別の推移", "Criterio por criterio", "Critère par critère",
+          "Critério por critério", "Kriterium für Kriterium", "По критериям")
     }
 
     var luckImprobableTitle: String {

@@ -163,6 +163,15 @@ struct Expedition: Codable, Sendable, Equatable {
     var bossReward: BossReward?
     /// A secret boss met this time (`SecretBosses`): in the boss's place, or after it in the Hall of Origin.
     var secret: SecretEncounter?
+    /// Its draws for the luck journal (`LuckDraw`), noted as they come and added to the journal at its end. Nil for an
+    /// expedition saved before the journal: its draws are read back from its log then (`DungeonLuck.draws`).
+    var draws: [LuckDraw]?
+
+    /// Notes a draw for the luck journal, dated at the departure until the end dates them all.
+    mutating func note(_ kind: LuckDrawKind, odds: Double, hit: Bool) {
+        guard draws != nil else { return }
+        draws!.merge([LuckDraw(at: startedAt, kind: kind, odds: odds, hits: hit ? 1 : 0)])
+    }
 
     var floors: Int { info.floors }
     /// The dungeon walked.
@@ -255,10 +264,12 @@ enum ExpeditionEngine {
             return ExpeditionBoss(speciesID: bossID, form: nil, isShiny: random.below(max(1, context.shinyDenominator)) == 0)
         }()
         let range = candyRange(dungeon.tier)
-        return Expedition(dungeon: dungeon.id, teamSize: teamSize, rules: rules, startedAt: context.now, seed: seed,
-                          cost: cost, team: team, boss: boss,
-                          candiesLeft: random.between(range.lowerBound, range.upperBound), berries: berries,
-                          revives: revives)
+        var e = Expedition(dungeon: dungeon.id, teamSize: teamSize, rules: rules, startedAt: context.now, seed: seed,
+                           cost: cost, team: team, boss: boss,
+                           candiesLeft: random.between(range.lowerBound, range.upperBound), berries: berries,
+                           revives: revives)
+        e.draws = []
+        return e
     }
 
     // MARK: Tokens
@@ -306,8 +317,12 @@ enum ExpeditionEngine {
             for i in e.team.indices { e.team[i].spec.hp = e.team[i].spec.stats.hp }
             append(&e, .center, context: context)
         } else {
-            playEvent(&e, kind: drawEvent(e, tier: context.tier, shinyDenominator: context.shinyDenominator, random: &random), dungeon: dungeon,
-                      random: &random, context: context)
+            let kind = drawEvent(e, tier: context.tier, shinyDenominator: context.shinyDenominator, random: &random)
+            if context.tier >= .t3 {
+                e.note(.shinyMeeting, odds: Double(shinyEncounterPerTenThousand(shinyDenominator: context.shinyDenominator)) / 10_000,
+                       hit: kind == .shiny)
+            }
+            playEvent(&e, kind: kind, dungeon: dungeon, random: &random, context: context)
         }
         guard !e.isOver else { return }
         if e.team.allSatisfy(\.isFainted) {
@@ -334,7 +349,9 @@ enum ExpeditionEngine {
     private static func secretPassage(_ e: inout Expedition, dungeon: Dungeon, context: ExpeditionContext) {
         guard context.tier >= .t2, !e.dungeon.isChallenge else { return }
         var random = BattleRandom(seed: e.seed &+ UInt64(e.floor) &* 0x5EC2_E7F1_0A55_A9E5 &+ 0x41)
-        guard random.below(100) < secretPassagePercent else { return }
+        let found = random.below(100) < secretPassagePercent
+        e.note(.secretPassage, odds: Double(secretPassagePercent) / 100, hit: found)
+        guard found else { return }
         // Never the boss's floor, nor the Pokémon Center's (Q16): a passage never costs the team its heal.
         let canSkip = e.floor + 1 < e.floors && !(context.tier >= .t3 && e.floor + 1 == e.floors / 2)
         if canSkip, random.below(2) == 0 {
@@ -448,7 +465,9 @@ enum ExpeditionEngine {
             append(&e, .lost(speciesID: species, percent: percent, loot: loot), context: context)
         case .shiny:
             let species = dungeon.wild.isEmpty ? 25 : dungeon.wild[random.below(dungeon.wild.count)]
-            let caught = Double(random.below(1000)) / 1000 < captureOdds(SpeciesInfo.lineRarity(of: species))
+            let odds = captureOdds(SpeciesInfo.lineRarity(of: species))
+            let caught = Double(random.below(1000)) / 1000 < odds
+            e.note(.shinyCatch, odds: perMilleOdds(odds), hit: caught)
             if caught {
                 let base = SpeciesInfo.baseID(of: species)
                 e.loot.eggs.append(DungeonEgg(id: "egg-\(e.seed)-\(e.floor)", baseID: base, form: nil, isShiny: true,
@@ -667,7 +686,11 @@ enum ExpeditionEngine {
             loot.add(table[random.below(table.count)])
         }
         // The dungeon's own tier for every chest, a trainer's too: its odds are the chest's (the owner, 2026-11-04).
-        if let egg = chestEgg(tier, random: &random) { loot.add(egg) }
+        let egg = chestEgg(tier, random: &random)
+        for (kind, perMille) in chestEggOdds(tier) {
+            e.note(.chestEgg, odds: Double(perMille) / 1000, hit: egg == kind)
+        }
+        if let egg { loot.add(egg) }
         if loot.isEmpty { loot.add(itemTable(tier)[0]) }
         e.loot.add(loot)
         return loot
@@ -755,6 +778,12 @@ enum ExpeditionEngine {
         if !won { append(&e, .defeat, context: context) }
     }
 
+    /// The odds a roll of `Double(random.below(1000)) / 1000 < odds` really has: whole thousandths (Arceus's 3.45% a
+    /// throw is 3.5%).
+    static func perMilleOdds(_ odds: Double) -> Double {
+        Double((0..<1000).filter { Double($0) / 1000 < odds }.count) / 1000
+    }
+
     /// A throw's odds at this boss: its line's (Q19), a Great Ball ×1.5, an Ultra Ball ×2, a Master Ball sure; Arceus's
     /// own table (`arceusThrowOdds`).
     static func throwOdds(_ boss: ExpeditionBoss, ball: ItemKind?) -> Double {
@@ -775,7 +804,9 @@ enum ExpeditionEngine {
         // The Origin trio's one, after Arceus (`endBoss`): its own throws, its Secret Egg.
         if var secret = e.secret, secret.capturing == true {
             var random = BattleRandom(seed: e.seed &+ 0x5EC2E7 &+ UInt64(left))
-            let caught = Double(random.below(1000)) / 1000 < throwOdds(secret.boss, ball: ball)
+            let odds = throwOdds(secret.boss, ball: ball)
+            let caught = Double(random.below(1000)) / 1000 < odds
+            e.note(.bossThrow, odds: perMilleOdds(odds), hit: caught)
             append(&e, .capture(attempt: 4 - left, ball: ball?.rawValue, caught: caught), rare: caught, context: context)
             if caught {
                 e.loot.eggs.append(DungeonEgg(id: "secret-\(e.seed)", baseID: SpeciesInfo.baseID(of: secret.boss.speciesID),
@@ -793,7 +824,9 @@ enum ExpeditionEngine {
             return caught
         }
         var random = BattleRandom(seed: e.seed &+ 0xC0FFEE &+ UInt64(left))
-        let caught = Double(random.below(1000)) / 1000 < throwOdds(e.boss, ball: ball)
+        let odds = throwOdds(e.boss, ball: ball)
+        let caught = Double(random.below(1000)) / 1000 < odds
+        e.note(.bossThrow, odds: perMilleOdds(odds), hit: caught)
         append(&e, .capture(attempt: 4 - left, ball: ball?.rawValue, caught: caught), rare: caught, context: context)
         if caught {
             // A boss already caught gives an egg of the tier's rarity rather than a second of its own, a legendary had
