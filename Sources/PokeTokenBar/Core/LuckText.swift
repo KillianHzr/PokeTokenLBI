@@ -212,11 +212,6 @@ extension L {
                  "Подземелья \(day) · индекс \(score)")
     }
 
-    var luckCopyHint: String {
-        t("운 이미지를 복사", "Copy your luck as an image", "運を画像でコピー", "Copiar tu suerte como imagen",
-          "Copier l'image de ta chance", "Copiar sua sorte como imagem", "Dein Glück als Bild kopieren",
-          "Скопировать удачу как картинку")
-    }
 
     /// Hits and expected hits of a criterion: two decimals for an expectation under one.
     func luckCounts(hits: Int, expected: Double) -> String {

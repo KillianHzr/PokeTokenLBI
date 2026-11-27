@@ -32,7 +32,6 @@ struct LuckScreen: View {
                         LuckCard(store: store, luck: luck, period: shownPeriod(luck), recent: recent && luck.recent != nil,
                                  name: name)
                     }
-                    .help(l.luckCopyHint)
                 }
             }
             PillPicker(selection: $nav.luckTab, options: PopoverNavigation.LuckTab.allCases.map { ($0, l.luckTab($0)) })

@@ -131,7 +131,7 @@ final class LuckTextTests: XCTestCase {
                       l.luckSentence(hatches: 3, expeditions: 2, recent: false, score: 50, best: (.rarity, 0.6), worst: (.new, 0.2)),
                       l.luckSentence(hatches: 3, expeditions: 0, recent: true, score: 50, best: (.rarity, 0.6), worst: (.new, 0.2)),
                       l.luckPeriod(recent: true), l.luckPeriod(recent: false), l.luckItemsNote, l.luckHighlightsTitle,
-                      l.luckTier(.rare, hits: 2, expected: 1.5), l.luckAverageIVs(95.4), l.luckCopyHint,
+                      l.luckTier(.rare, hits: 2, expected: 1.5), l.luckAverageIVs(95.4),
                       l.luckCurveJournal(Date(timeIntervalSince1970: 1_794_000_000), score: 54),
                       l.luckCurvePoint(number: 3, name: "Pidgey", score: 50), l.luckWait(.init(count: 2, unit: .month)),
                       l.luckEggOfHatch, l.luckDrawItemsTitle, l.luckDrawItemsHint, l.luckObtainedOn,
