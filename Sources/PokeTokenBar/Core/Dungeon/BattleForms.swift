@@ -36,6 +36,11 @@ struct BattleForm: Hashable, Sendable {
 
     /// How a won form is kept in the save (`DungeonProgress.battleForms`).
     var key: String { "\(speciesID)-\(form.rawValue)" }
+
+    /// The one rule of who fights in a Battle Form (the Wearer): every decision on it goes through here.
+    func isWorn(by entry: DexEntry) -> Bool {
+        !entry.isReleased && entry.finalID == speciesID && (kind != .gigantamax || entry.hasGigantamaxFactor)
+    }
 }
 
 enum BattleForms {

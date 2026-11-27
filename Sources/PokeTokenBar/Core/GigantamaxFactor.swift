@@ -13,3 +13,10 @@ enum GigantamaxFactor {
 
     static func rolls(roll: UInt64, hasWearer: Bool) -> Bool { roll % (hasWearer ? 10 : 2) == 0 }
 }
+
+extension GigantamaxFactor {
+    static func bringsFirstWearer(finalID: Int, hasFactor: Bool, among dex: [DexEntry]) -> Bool {
+        guard hasFactor, let form = BattleForms.forms(speciesID: finalID).first(where: { $0.kind == .gigantamax }) else { return false }
+        return !dex.contains(where: form.isWorn)
+    }
+}

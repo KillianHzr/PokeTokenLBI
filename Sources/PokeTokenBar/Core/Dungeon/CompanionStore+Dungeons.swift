@@ -205,10 +205,8 @@ extension CompanionStore {
         return form
     }
 
-    /// The one rule of who fights in a Battle Form (the Wearer): every decision on it goes through here.
-    func wears(_ entry: DexEntry, _ form: BattleForm) -> Bool {
-        !entry.isReleased && entry.finalID == form.speciesID && (form.kind != .gigantamax || entry.hasGigantamaxFactor)
-    }
+    /// Whether this Pokémon fights in the Battle Form (`BattleForm.isWorn(by:)`).
+    func wears(_ entry: DexEntry, _ form: BattleForm) -> Bool { form.isWorn(by: entry) }
 
     func hasWearer(_ form: BattleForm) -> Bool { state.dex.contains { wears($0, form) } }
 

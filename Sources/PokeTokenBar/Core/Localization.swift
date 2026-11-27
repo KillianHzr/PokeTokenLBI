@@ -2805,6 +2805,10 @@ struct L {
         case .shinyToKeep:
             return t("지킬 이로치", "Shiny to keep", "残したい色違い", "Variocolor a conservar", "Chromatique à garder",
                      "Shiny para guardar", "Schillernd: behalten", "Шайни: оставить")
+        case .wearerToKeep:
+            return t("지킬 거다이맥스", "Gigantamax Factor to keep", "残したいキョダイマックス", "Factor Gigamax a conservar",
+                     "Facteur Gigamax à garder", "Fator Gigantamax para guardar", "Gigadynamax-Faktor: behalten",
+                     "Фактор гигантамакса: оставить")
         case .keptForAchievement:
             return t("업적용", "Keep for an achievement", "実績のために育てる", "Conservar por un logro", "À garder pour un succès",
                      "Guardar por uma conquista", "Für einen Erfolg behalten", "Оставить ради успеха")
@@ -2886,6 +2890,15 @@ struct L {
                      "Você já tem a linha toda, mas é seu primeiro shiny desta forma. Uma raridade assim merece ficar!",
                      "Seine Linie hast du schon, aber es ist dein erstes Schillerndes in dieser Form. So eine Seltenheit behält man!",
                      "Вся его линия у вас уже есть, но это ваш первый шайни в этой форме. Такую редкость стоит оставить!")
+        case .wearerToKeep:
+            return t("거다이맥스할 수 있지만 이 종의 거다이맥스 폼으로 싸울 수 있는 포켓몬이 아직 없단다. 지켜야지!",
+                     "It has the Gigantamax Factor, and no Pokémon of its species can fight in the Gigantamax form yet. Keep it!",
+                     "キョダイマックスできるが、この種でキョダイマックスの姿で戦える者はまだおらん。手放してはならん！",
+                     "Tiene el Factor Gigamax y ningún Pokémon de su especie puede aún luchar en forma Gigamax. ¡Consérvalo!",
+                     "Il a le Facteur Gigamax, et aucun Pokémon de son espèce ne peut encore combattre sous sa forme Gigamax. Garde-le !",
+                     "Ele tem o Fator Gigantamax, e nenhum Pokémon da espécie pode lutar na forma Gigantamax ainda. Fique com ele!",
+                     "Es hat den Gigadynamax-Faktor, und noch kein Pokémon seiner Art kann in Gigadynamax-Form kämpfen. Behalte es!",
+                     "У него есть фактор гигантамакса, и ни один покемон его вида пока не может сражаться в форме гигантамакса. Оставьте его!")
         case .keptForAchievement(let kind):
             let achievement = itemName(kind)
             return t("중복이지만, 졸업하면 업적이 열린단다: \(achievement). 끝까지 키우거라!",

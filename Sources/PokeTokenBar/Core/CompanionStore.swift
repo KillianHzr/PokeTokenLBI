@@ -828,8 +828,10 @@ final class CompanionStore {
         /// A costumed Pokémon whose costume, at a stage it reached or will reach, the costumed collection lacks
         /// (`CostumeCatalog`): "New costume" when its species are all held (the owner, 2026-11-13).
         var newCostume = false
+        /// It has the Gigantamax Factor and no graduated Pokémon of its species wears the Gigantamax form yet.
+        var wearer = false
         /// Nothing new: sending it off loses nothing the Pokédex and the costumes do not already hold.
-        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume && !newCostume }
+        var isDuplicate: Bool { mystery == nil && newSpecies.isEmpty && !firstShiny && !costume && !newCostume && !wearer }
     }
 
     /// Nil unless its form is hidden and could be several (`FormSuspense`). The forms it can carry are those its egg
@@ -904,7 +906,9 @@ final class CompanionStore {
                 CostumeCatalog.entry(code: code, speciesID: id, form: form).map { !held.contains($0.key) } ?? false
             }
         } ?? false
-        return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume, newCostume: newCostume)
+        let wearer = GigantamaxFactor.bringsFirstWearer(finalID: a.plannedPathIDs.last ?? a.currentID,
+                                                        hasFactor: a.hasGigantamaxFactor, among: state.dex)
+        return ActiveNews(newSpecies: newSpecies, firstShiny: firstShiny, costume: costume, newCostume: newCostume, wearer: wearer)
     }
 
     /// What `activeNews` asks of the Pokémon raised, for one an egg would hatch from `baseID` in `form`: whether it
@@ -1152,7 +1156,11 @@ final class CompanionStore {
     var duplicateCatchEntryIDs: Set<String> {
         var seenGraduatedSpecies = Set<DexSpeciesKey>()
         var duplicates = Set<String>()
+        var earlier = [DexEntry]()
         for e in entriesInCatchOrder {
+            defer { earlier.append(e) }
+            let bringsWearer = isActiveDexEntry(e) ? activeNews?.wearer == true
+                : !e.isReleased && GigantamaxFactor.bringsFirstWearer(finalID: e.finalID, hasFactor: e.hasGigantamaxFactor, among: earlier)
             let reachedSpeciesSeen = e.chainOrder.allSatisfy { id in
                 seenGraduatedSpecies.contains(DexSpeciesKey(speciesID: id, form: e.form))
             }
@@ -1166,11 +1174,11 @@ final class CompanionStore {
                 )
                 // The one being raised still brings a costume while one is missing (`ActiveNews.costume`, `newCostume`).
                 let bringsCostume = isActiveDexEntry(e) && (activeNews?.costume == true || activeNews?.newCostume == true)
-                if reachedSpeciesSeen && !uncollected && !bringsCostume {
+                if reachedSpeciesSeen && !uncollected && !bringsCostume && !bringsWearer {
                     duplicates.insert(e.id)
                 }
             } else {
-                if reachedSpeciesSeen {
+                if reachedSpeciesSeen && !bringsWearer {
                     duplicates.insert(e.id)
                 }
                 for id in e.chainOrder {

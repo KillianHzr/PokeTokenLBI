@@ -12,6 +12,8 @@ enum ActiveVerdict: Equatable, Sendable {
     case newCostume
     /// Nothing new but its first shiny in this form (`ActiveNews.firstShiny`).
     case shinyToKeep
+    /// Nothing else new, but it would be the first Wearer of its species to graduate (`ActiveNews.wearer`).
+    case wearerToKeep
     /// A Spare whose graduation unlocks an achievement that counts copies.
     case keptForAchievement(ItemKind)
     /// Its form is still hidden and decides what it brings: wait for the stage that shows it.
@@ -134,6 +136,7 @@ extension CompanionStore {
         if news.costume { return .costume }
         if news.newCostume { return .newCostume }
         if news.firstShiny { return .shinyToKeep }
+        if news.wearer { return .wearerToKeep }
         if let achievement = copyAchievement { return .keptForAchievement(achievement) }
         return .spare
     }
