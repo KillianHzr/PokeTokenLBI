@@ -329,4 +329,79 @@ final class HatchLuckTests: XCTestCase {
             XCTAssertEqual(HatchLuck.possibleEggs(of: moments[3], index: index).map(\.egg), expected, "#\(species.id)")
         }
     }
+
+    /// The IVs as the hatch drew them, from the profile's seed: a Capsule since raises nothing.
+    func testTheIVsAreJudgedAsHatched() throws {
+        var e = entry(16, [16, 17, 18], day: 1)
+        e.profile = PokemonProfile.generate(seed: 42)
+        let drawn = try XCTUnwrap(e.profile?.ivs)
+        let total = drawn.hp + drawn.attack + drawn.defense + drawn.specialAttack + drawn.specialDefense + drawn.speed
+        e.profile?.ivs = PokemonIVs(hp: 31, attack: 31, defense: 31, specialAttack: 31, specialDefense: 31, speed: 31)
+        let l = luck([e])
+        XCTAssertEqual(l.hatches[0].ivTotal, total)
+        XCTAssertEqual(l.criteria.first { $0.criterion == .ivs }?.averageIVs, Double(total))
+        XCTAssertNil(luck([entry(16, day: 1)]).hatches[0].ivTotal, "no profile, no IVs")
+    }
+
+    /// The hidden ability, one time in 128, once drawn and only for a line that has one.
+    func testTheHiddenAbilityOnlyForALineThatHasOne() throws {
+        var e = entry(16, [16, 17, 18], day: 1)
+        e.profile = PokemonProfile.generate(seed: 7)
+        XCTAssertNil(luck([e]).hatches[0].hiddenAbility, "not drawn yet")
+        e.profile?.abilitySlot = 3
+        e.profile?.abilityIsHidden = true
+        let l = luck([e])
+        XCTAssertEqual(l.hatches[0].hiddenAbility, true)
+        XCTAssertEqual(l.criteria.first { $0.criterion == .hiddenAbility }?.expected ?? 0, 1.0 / 128, accuracy: 1e-12)
+        XCTAssertTrue(l.highlights.contains { $0.criterion == .hiddenAbility })
+        let none = HatchLuck(entries: [e], includesActive: false, today: CompanionState(), index: index,
+                             hiddenAbilities: [16: false], now: Self.day(30))
+        XCTAssertNil(none.hatches[0].hiddenAbility, "a line without one draws none")
+    }
+
+    /// A shiny the Shiny Charm made likelier counts less.
+    func testAShinyWithTheCharmCountsLess() {
+        func points(_ record: HatchRecord) -> Int? {
+            luck([entry(16, day: 1, shiny: true, record: record)]).hatches[0].events
+                .first { $0.criteria == [.shiny] }?.observedPoints[.shiny]
+        }
+        let plain = points(HatchRecord(egg: .tier(nil)))
+        let charmed = points(HatchRecord(egg: .tier(nil), hatchItems: [.shinyCharm]))
+        XCTAssertEqual(plain, LuckScore.points(1.0 / 64))
+        XCTAssertEqual(charmed, LuckScore.points(1.0 / 48))
+        XCTAssertLessThan(charmed ?? .max, plain ?? 0)
+    }
+
+    /// The luck journal's days take their place among the hatches, a point of the curve each, the Dungeons family
+    /// beside the Hatches.
+    func testTheJournalJoinsTheTimeline() {
+        let draws = [LuckDraw(at: Self.day(1.5), kind: .bossThrow, odds: 0.3, trials: 3, hits: 2),
+                     LuckDraw(at: Self.day(1.6), kind: .secretBoss, odds: 0.01, hits: 1)]
+        // Each hatch dates from when the one before left: day 1, day 1, day 2.
+        let l = HatchLuck(entries: [entry(16, day: 1), entry(10, day: 2), entry(147, day: 3)], includesActive: false,
+                          today: CompanionState(), index: index, draws: draws, expeditions: 2, now: Self.day(30))
+        XCTAssertEqual(l.steps.map(\.kind), [.hatch(0), .hatch(1), .journal, .hatch(2)])
+        XCTAssertNotNil(l.families[.dungeons])
+        XCTAssertNotNil(l.families[.hatches])
+        XCTAssertEqual(l.criteria.first { $0.criterion == .capture }?.hits, 2)
+        XCTAssertEqual(l.criteria.first { $0.criterion == .capture }?.expected ?? 0, 0.9, accuracy: 1e-9)
+        XCTAssertEqual(l.highlights.first?.draw, .secretBoss, "one in a hundred")
+        XCTAssertGreaterThan(l.steps[2].score, l.steps[1].score, "a secret boss, and two throws in three at 30%")
+        XCTAssertEqual(l.hatches[2].effect, l.steps[3].score - l.steps[2].score, accuracy: 1e-9, "after the day's journal")
+    }
+
+    /// The last thirty days: only what was drawn in them.
+    func testTheLastThirtyDays() throws {
+        let draws = [LuckDraw(at: Self.day(25), kind: .bossThrow, odds: 0.3, hits: 1)]
+        let old = [entry(16, day: -40), entry(10, day: -39)]
+        let l = HatchLuck(entries: old, includesActive: false, today: CompanionState(), index: index, draws: draws,
+                          now: Self.day(30))
+        let recent = try XCTUnwrap(l.recent)
+        XCTAssertEqual(recent.hatchCount, 0)
+        XCTAssertEqual(recent.journalDays, 1)
+        XCTAssertEqual(recent.criteria.map(\.criterion), [.capture])
+        XCTAssertEqual(l.period.hatchCount, 2, "all time holds them")
+        XCTAssertNil(HatchLuck(entries: old, includesActive: false, today: CompanionState(), index: index,
+                               now: Self.day(30)).recent, "nothing drawn in the last thirty days")
+    }
 }

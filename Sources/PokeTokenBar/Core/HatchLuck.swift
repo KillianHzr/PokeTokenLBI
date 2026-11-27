@@ -420,7 +420,8 @@ struct HatchLuck: Sendable {
                hatch.letsDittoHide(baseID: outcome.id, egg: spec, fromFossilEgg: egg == .fossil) {
                 ditto = w / Double(PokemonOdds.dittoDisguiseDenominator)
                 odds.ditto += ditto
-                odds.cells[Cell(rank: 0, new: false, ditto: true), default: 0] += ditto
+                // A Ditto brings what the Pokémon it hides in would: something new or not, as `odds.new` counts it.
+                odds.cells[Cell(rank: 0, new: isNew, ditto: true), default: 0] += ditto
             }
             odds.cells[Cell(rank: outcome.rarity.sortRank, new: isNew, ditto: false), default: 0] += w - ditto
         }
@@ -553,7 +554,7 @@ struct HatchLuck: Sendable {
     static func pick(_ cells: [Cell: Double], observed: Cell, newKnown: Bool, dittoKnown: Bool) -> LuckEvent.Shape? {
         func reduced(_ cell: Cell) -> Cell {
             let ditto = dittoKnown && cell.ditto
-            return Cell(rank: ditto ? 0 : cell.rank, new: newKnown && !ditto && cell.new, ditto: ditto)
+            return Cell(rank: ditto ? 0 : cell.rank, new: newKnown && cell.new, ditto: ditto)
         }
         var merged: [Cell: Double] = [:]
         for (cell, odds) in cells where odds > 0 { merged[reduced(cell), default: 0] += odds }

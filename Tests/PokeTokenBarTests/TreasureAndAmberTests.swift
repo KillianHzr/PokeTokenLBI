@@ -76,6 +76,11 @@ final class TreasureAndAmberTests: XCTestCase {
         XCTAssertEqual(s.unseenTreasures.count, 1)
         XCTAssertEqual(s.state.graduationsTowardTreasure, 0)
         if let treasure { XCTAssertEqual(s.itemCount(treasure.kind), treasure.count, "in the Bag") }
+        // The luck journal: each egg of the table a draw at its odds, the one dug up a hit.
+        let draws = s.luckJournal.filter { $0.kind == .explorerTreasure }
+        XCTAssertEqual(Set(draws.map(\.odds)), [0.0001, 0.03, 0.12])
+        XCTAssertEqual(draws.map(\.trials), [1, 1, 1])
+        XCTAssertEqual(draws.reduce(0) { $0 + $1.hits }, treasure?.kind == .rareCandy ? 0 : 1)
         s.markTreasuresSeen()
         XCTAssertTrue(s.unseenTreasures.isEmpty)
 

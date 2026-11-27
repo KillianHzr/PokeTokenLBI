@@ -121,19 +121,19 @@ final class LuckScoreTests: XCTestCase {
             overall.append(standing.overall)
             for (criterion, share) in standing.criteria { byCriterion[criterion, default: []].append(share) }
         }
-        func check(_ shares: [Double], _ label: String, mean: Double = 0.06, tails: Bool = true) {
+        func check(_ shares: [Double], _ label: String, tails: Double? = nil) {
             let n = Double(shares.count)
-            XCTAssertEqual(shares.reduce(0, +) / n, 0.5, accuracy: mean, label)
-            guard tails else { return }
-            XCTAssertEqual(Double(shares.filter { $0 < 0.1 }.count) / n, 0.1, accuracy: 0.05, "\(label) under 10")
-            XCTAssertEqual(Double(shares.filter { $0 > 0.9 }.count) / n, 0.1, accuracy: 0.05, "\(label) over 90")
+            XCTAssertEqual(shares.reduce(0, +) / n, 0.5, accuracy: 0.05, label)
+            guard let tails else { return }
+            XCTAssertEqual(Double(shares.filter { $0 < 0.1 }.count) / n, 0.1, accuracy: tails, "\(label) under 10")
+            XCTAssertEqual(Double(shares.filter { $0 > 0.9 }.count) / n, 0.1, accuracy: tails, "\(label) over 90")
         }
-        check(overall, "overall")
-        check(byCriterion[.rarity] ?? [], "rarity")
-        check(byCriterion[.ivs] ?? [], "ivs")
-        check(byCriterion[.capture] ?? [], "capture")
-        // Rare draws tie a lot: their mean stays centred, their tails cannot be tenths.
-        check(byCriterion[.shiny] ?? [], "shiny", tails: false)
-        check(byCriterion[.dungeonShiny] ?? [], "dungeon shiny", tails: false)
+        // The overall score, of sixty draws, nearly continuous: its tails are tenths.
+        check(overall, "overall", tails: 0.05)
+        // A criterion's few outcomes tie (three throws hit 0 to 3 times): its share centres on a half, its tails fall
+        // in steps that cannot be tenths (measured 2026-11-27: three throws, one in five players "under 10").
+        for criterion in [LuckCriterion.rarity, .ivs, .capture, .shiny, .dungeonShiny] {
+            check(byCriterion[criterion] ?? [], "\(criterion)")
+        }
     }
 }

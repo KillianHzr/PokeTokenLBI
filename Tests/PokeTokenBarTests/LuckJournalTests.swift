@@ -56,15 +56,16 @@ final class LuckJournalTests: XCTestCase {
                    entry(5, battle(.trainer)), entry(5, .chest(ExpeditionLoot())), entry(6, battle(.boss)),
                    entry(6, .bossReached(speciesID: 94, isShiny: false)),
                    entry(6, .capture(attempt: 1, ball: nil, caught: false)),
-                   entry(6, .capture(attempt: 2, ball: ItemKind.ultraBall.rawValue, caught: true)), entry(6, .victory)]
+                   entry(6, .capture(attempt: 2, ball: ItemKind.greatBall.rawValue, caught: true)), entry(6, .victory)]
         let draws = DungeonLuck.draws(dungeon: .pokemonTower, log: log, at: day, shinyDenominator: 64)
         func line(_ kind: LuckDrawKind, _ odds: Double) -> LuckDraw? {
             draws.first { $0.kind == kind && abs($0.odds - odds) < 1e-9 }
         }
-        // At Gengar's line's odds a throw, twice that with an Ultra Ball.
+        // At Gengar's line's odds a throw, half as much again with a Great Ball.
         let gengar = ExpeditionEngine.captureOdds(SpeciesInfo.lineRarity(of: 94))
+        XCTAssertLessThan(gengar * 1.5, 1, "a throw that could miss")
         XCTAssertEqual(line(.bossThrow, gengar)?.hits, 0)
-        XCTAssertEqual(line(.bossThrow, gengar * 2)?.hits, 1)
+        XCTAssertEqual(line(.bossThrow, ExpeditionEngine.perMilleOdds(gengar * 1.5))?.hits, 1)
         XCTAssertEqual(line(.bossShiny, 1.0 / 64)?.hits, 0)
         XCTAssertEqual(line(.shinyMeeting, 0.01)?.trials, 4, "the floors with an event: 1, 2, 3 and 5")
         XCTAssertEqual(line(.shinyMeeting, 0.01)?.hits, 1)

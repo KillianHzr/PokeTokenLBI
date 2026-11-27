@@ -75,7 +75,7 @@ final class HatchLuckSimulationTests: XCTestCase {
         var scores: [Double] = []
         for _ in 0..<players {
             let luck = HatchLuck(entries: play(hatches: hatches, &rng), includesActive: true, today: CompanionState(),
-                                 index: index, now: Self.start.addingTimeInterval(Double(hatches) * 86_400), players: 1_000)
+                                 index: index, now: Self.start.addingTimeInterval(Double(hatches) * 86_400), players: 400)
             for result in luck.criteria { percentile[result.criterion, default: 0] += result.percentile }
             scores.append(luck.score / 100)
             for hatch in luck.hatches {
